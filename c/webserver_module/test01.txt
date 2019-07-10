@@ -1,0 +1,17 @@
+GET /hello.htm HTTP/1.1
+User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)
+Host: www.gpdaddy.com
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Connection: Keep-Alive
+Set-Cookie: cookie1=red; Secure
+Set-Cookie: cookie2=green; HttpOnly
+
+Set-Cookie: cookie3=purple; SameSite=Strict
+Set-Cookie: cookie4=yellow; SameSite=Lax
+Set-Cookie: cookie1=orange; Secure
+Set-Cookie: cookie2=green; HttpOnly
+
+Set-Cookie: cookie3=purple; SameSite=Strict
+Set-Cookie: cookie4=yellow; SameSite=Lax
+
