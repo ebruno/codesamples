@@ -1,5 +1,5 @@
 Sample of using pointers and malloc.
-
+Reads HTTP 1.1 headers from stdin and just retains the Set-Cookie keys.
 
 Compile using 
 
