@@ -27,7 +27,6 @@ if platform.system() == 'Darwin':
 # 'issuer', 'version', 'serialNumber', 'notBefore',
 # 'notAfter', 'subjectAltName', 'OCSP', 'caIssuers',
 # *Websites sample*
-# www.apple.com
 # www.google.com
 # www.facebook.com
 # www.netflix.com
