@@ -17,7 +17,7 @@ if platform.system() == 'Darwin':
 
 # This has been a tested on Ubuntu 18.04 LTS
 # on MacOS there is issue python being able to access
-# the keystore on my MacMini with Mojave.
+# the keystore on my MacMini with Catalina.
 
 # Scan through a list of websites,
 # capture SSL Server Certificate security details,
