@@ -39,15 +39,15 @@ def setup_commandline_options(args=sys.argv):
     parser = argparse.ArgumentParser(prog='sslcertinfo',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                      description='Report SSL Cert validity based on date. Uses current date as the default.')
-    parser.add_argument('-d','--date',dest='testdate',type=str,default=None,
+    parser.add_argument('--date','-d',dest='testdate',type=str,default=None,
                         help='Date to test the certs against default is now. Date Format is "YYYY MM DD [HH:MM:SS]" in GMT')
     parser.add_argument('servers',nargs='+',type=str,help=help_msgs['server'])
-    parser.add_argument('-o','--outfile', dest='outfile',default='sys.stdout',help='Output file')
-    parser.add_argument('-s','--sortby', dest='sortby',default=['notAfter'],nargs=1,type=str,
+    parser.add_argument('--outfile','-o', dest='outfile',default='sys.stdout',help='Output file')
+    parser.add_argument('--sortby','-s', dest='sortby',default=['notAfter'],nargs=1,type=str,
                         choices=['caIssuers','issuer', 'notAfter', 'notBefore',
                                  'OCSP', 'serialNumber', 'subjectAltName', 'version'],
                         help='Fields to sort by')
-    parser.add_argument('-v','--version',action='version',version='%(prog)s ' + version )
+    parser.add_argument('--version','-v',action='version',version='%(prog)s ' + version )
                                     
     return parser
 

@@ -3,22 +3,28 @@
 This has been a tested on Ubuntu 18.04 LTS and Mac OS X Mojave.
 Requires the pytz package and on MacOS X Mojave the certifi package.
 
-      usage: sslcertinfo [-h] [--outfile OUTFILE]
-                   [--sortby {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}]
-                   servers [servers ...]
-      
-      Report SSL Cert validity
+      usage: sslcertinfo [-h] [--date TESTDATE] [--outfile OUTFILE]
+                       [--sortby {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}]
+                       [--version]
+                       servers [servers ...]
+
+      Report SSL Cert validity based on date. Uses current date as the default.
 
       positional arguments:
       servers               List of servers to query, in the form
-                           [https://]servername[:port]
+                            [https://]servername[:port]
 
       optional arguments:
       -h, --help            show this help message and exit
-      --outfile OUTFILE     Output file (default: sys.stdout)
-      --sortby {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}
-                            Fields to sort by (default: ['notAfter'])
-
+      --date TESTDATE, -d TESTDATE
+                           Date to test the certs against default is now. Date
+                           Format is "YYYY MM DD [HH:MM:SS]" in GMT (default:
+                           None)
+      --outfile OUTFILE, -o OUTFILE
+                            Output file (default: sys.stdout)
+      --sortby {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}, -s {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}
+                           Fields to sort by (default: ['notAfter'])
+     --version, -v         show program's version number and exit
 
 ## Sample Run output to file ##
 
