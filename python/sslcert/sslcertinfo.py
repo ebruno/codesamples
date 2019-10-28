@@ -2,6 +2,7 @@
 
 import os
 import sys
+import traceback
 import argparse
 import ssl
 import socket
@@ -11,6 +12,7 @@ from urllib.parse import urlsplit
 import datetime
 import pytz
 import platform
+
 if platform.system() == 'Darwin':
     import certifi
 
@@ -35,12 +37,15 @@ if platform.system() == 'Darwin':
 version = '0.9.0'
 
 def setup_commandline_options(args=sys.argv):
-    help_msgs = {'server': 'List of servers to query, in the form [https://]servername[:port]' }
+    help_msgs = {'server': 'List of servers to query, in the form [https://]servername[:port]',
+                 'date': 'Date to test the certs against default is now. Date Format is "YYYY MM DD [HH:MM:SS]" in GMT. Date must be quoted.'
+                 
+    }
     parser = argparse.ArgumentParser(prog='sslcertinfo',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                      description='Report SSL Cert validity based on date. Uses current date as the default.')
-    parser.add_argument('--date','-d',dest='testdate',type=str,default=None,
-                        help='Date to test the certs against default is now. Date Format is "YYYY MM DD [HH:MM:SS]" in GMT')
+    parser.add_argument('--date','-d',dest='testdate', type=str,default=None,
+                        help=help_msgs['date'])
     parser.add_argument('servers',nargs='+',type=str,help=help_msgs['server'])
     parser.add_argument('--outfile','-o', dest='outfile',default='sys.stdout',help='Output file')
     parser.add_argument('--sortby','-s', dest='sortby',default=['notAfter'],nargs=1,type=str,
@@ -100,9 +105,18 @@ def get_server_cert_info(site=None,port=443,timeout=5,dateformat='%b %d %H:%M:%S
             print(e.library,e.reason)
             print(e.verify_code,e.verify_message)
             pass
-        
+        except ssl.SSLError as e:
+            print(site,e.library,e.reason)
+            pass
+        except OSError as e:
+            ## errno is not provided just text in the exception.
+            if str(e) == 'timed out':
+                raise
+            else:
+                print(e)
+            pass
         except Exception as e:
-            print(e)
+            print("***", e)
             pass
     return result
 
@@ -135,12 +149,16 @@ def is_cert_valid(testdate=None,notBefore=None,notAfter=None):
         
     
 def report_ssl_info(servers=None,sort_keys=['notBeforeBinary', 'notAfterBinary'],
-                    outfile=sys.stdout,testdate=None):
+                    outfile=sys.stdout,
+                    maxtries=3,
+                    backoff_increment=3,
+                    testdate=None):
     """ 
     Walk through the serverlist and create the report.
     """
     server_info = []
     for item in servers:
+        timeout = 5
         tmp_val = urlsplit(item)
         if len(tmp_val.scheme) == 0:
             site = urlsplit('https://' + item)
@@ -151,9 +169,26 @@ def report_ssl_info(servers=None,sort_keys=['notBeforeBinary', 'notAfterBinary']
             port = 443
         else:
             port = site.port
-        server = get_server_cert_info(site=site.hostname,port=port)
-        if isinstance(server,dict):
-            server_info.append(server)
+        for querynum in range(0,maxtries):
+            try:
+                server = get_server_cert_info(site=site.hostname,port=port,timeout=timeout)
+                if isinstance(server,dict):
+                    server_info.append(server)
+                break
+            except OSError as e:
+                if str(e) == 'timed out':                
+                    timeout += backoff_increment
+                    print('Retry {} with timeout of {} seconds.'.format(site.hostname,timeout))
+                    continue
+                else:
+                    print("*****")
+                    break
+            except Exception as e1:
+                print("*** error")
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_tb(exc_traceback, limit=3, file=sys.stdout)
+                print(e1)
+                pass
     if len(server_info) > 0:
         for sort_key in sort_keys:
             tmp_val = sorted(server_info,key = lambda i: (i[sort_key]))
@@ -203,6 +238,7 @@ def main():
     else:
         timefmt = '%Y %m %d %H:%M:%S'
         try:
+            args.testdate = args.testdate.lstrip().rstrip()
             testdate = datetime.datetime.strptime(args.testdate,timefmt)
         except ValueError as e:
             try:
