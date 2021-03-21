@@ -18,7 +18,7 @@ if [ ${BASH_VERSINFO[0]} -ge 3 ]; then
 	   max_value=${2};
        fi;
        if [ ${idx} -lt ${max_value} ]; then
-	   while [ ${idx} -lt ${max_value} ]
+	   while [ ${idx} -le ${max_value} ]
 	   do
 	       result=""
 	       if [ $((idx % ${modulo_fizz})) -eq 0 ]; then
