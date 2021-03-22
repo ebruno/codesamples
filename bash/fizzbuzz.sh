@@ -25,7 +25,7 @@ if [ ${BASH_VERSINFO[0]} -ge 3 ]; then
 		   result="Fizz";
 	       fi;
 	       if [ $((idx % ${modulo_buzz})) -eq 0 ]; then
-		   result="${result}"Buzz"";
+		   result="${result}Buzz";
 	       fi;
 	       if [ -z "${result}" ]; then
 		    result=${idx};
