@@ -2,7 +2,7 @@
 #include <string.h>
 
 int fizzbuzz(int start,int end, int step, int modulo_fizz, int modulo_buzz) {
-  int status = .0;
+  int status = 0;
   int max_length = 12;
   char result[max_length+1];
   for (int value=start; value <= end; value+=step) {
