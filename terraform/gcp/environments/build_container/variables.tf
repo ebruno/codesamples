@@ -5,7 +5,6 @@ locals {
 variable "cur_env" {
   description = "Current Environment"
   type        = string
-  default     = "dev"
   validation {
     condition     = contains(["dev", "qa", "prod"], var.cur_env)
     error_message = "Current Environment must be one 'prod', 'qa' or 'dev'."

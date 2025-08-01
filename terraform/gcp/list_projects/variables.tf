@@ -1,41 +1,21 @@
-variable "billing_account_name" {
-  description = "Billing account to use for the project"
+variable "filter" {
+  description = "Project Filter"
   type        = string
-  default     = "My Billing Account"
+  default     = "*"
 }
 
-variable "enabled_apis" {
-  type = list(string)
-  default = [
-    "artifactregistry.googleapis.com",
-    "compute.googleapis.com",
-    "iamcredentials.googleapis.com",
-    "iap.googleapis.com",
-    "run.googleapis.com",
-    "storage.googleapis.com"
-  ]
-}
-
-variable "project_id" {
-  description = "GCP Project ID"
+variable "lifecycle_state" {
+  description = "Project lifecyle state"
   type        = string
-  default     = "ebdemo-cldrun-srv"
-}
-
-variable "project_name" {
-  description = "GCP Project Name"
-  type        = string
-  default     = "Demo Cloudrun Service"
+  validation {
+    condition     = contains(["ACTIVE", "DELETE_REQUESTED", "*"], var.lifecycle_state)
+    error_message = "Current Environment must be one 'ACTIVE','DELETE_REQUESTED' or '*'."
+  }
+  default = "*"
 }
 
 variable "region" {
   description = "GCP Region"
   type        = string
   default     = "us-west4"
-}
-
-variable "repository" {
-  description = "Aritifact Registry Repository"
-  type        = string
-  default     = "ebdemo-service"
 }
