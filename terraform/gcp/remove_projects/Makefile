@@ -1,6 +1,6 @@
 SUBDIRS 	=
 
-CLEAN_DIRS = .terraform
+CLEAN_DIRS = .terraform \
 
 CLEAN_FILES = terraform.tfstate \
 	      terraform.tfstate.backup

@@ -8,7 +8,7 @@ variable "connector_name" {
   # connector name has a limit so need to use short prefix.
   type        = string
   description = "Name of the VPC connector"
-  default     = "svrbo-clrun-conn"
+  default     = "ebdemo-clrun-conn"
 }
 
 variable "cur_env" {
@@ -44,7 +44,7 @@ variable "region" {
   default     = "us-west4"
 }
 
-variable "repository" {
+variable "repository_id" {
   description = "Aritifact Registry Repository"
   type        = string
   default     = "demo-service"
@@ -53,13 +53,21 @@ variable "repository" {
 variable "service_network_traffic" {
   type        = string
   description = "INGRESS_TRAFFIC_INTERNAL_ONLY" # or INGRESS_TRAFFIC_ALL", INGRESS_TRAFFIC_INTERNAL_AND_LOAD_BALANCER"
-  default     = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  validation {
+    condition     = contains(["INGRESS_TRAFFIC_INTERNAL_ONLY", "INGRESS_TRAFFIC_ALL", "INGRESS_TRAFFIC_INTERNAL_AND_LOAD_BALANCER"], var.service_network_traffic)
+    error_message = "Service Network Traffic must be one 'INGRESS_TRAFFIC_INTERNAL_ONLY', 'INGRESS_TRAFFIC_ALL', 'INGRESS_TRAFFIC_INTERNAL_AND_LOAD_BALANCER'."
+  }
+  default = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 }
 
 variable "service_vcp_traffic" {
   type        = string
   description = " ALL_TRAFFIC Or PRIVATE_RANGES_ONLY to send only traffic to internal IPs through the VPC"
-  default     = "PRIVATE_RANGES_ONLY"
+  validation {
+    condition     = contains(["ALL_TRAFFIC", "PRIVATE_RANGES_ONLY"], var.service_vcp_traffic)
+    error_message = "Service VCP Traffic must be one 'ALL_TRAFFIC', 'PRIVATE_RANGES_ONLY'."
+  }
+  default = "PRIVATE_RANGES_ONLY"
 }
 
 variable "subnet_ip_cidr_range" {
@@ -71,13 +79,13 @@ variable "subnet_ip_cidr_range" {
 variable "subnet_name" {
   type        = string
   description = "Name of the subnet"
-  default     = "svrbo-clrun-subnet"
+  default     = "ebdemo-clrun-subnet"
 }
 
 variable "vpc_name" {
   type        = string
   description = "Name of the VPC network"
-  default     = "svrbo-clrun-vpc"
+  default     = "ebdemo-clrun-vpc"
 }
 
 variable "zone" {

@@ -1,8 +1,8 @@
-if [[ ! -n "${ZSH_VERSION}" ]]; then
-    if [[ ! -n "${BASH_VERSION}" ]]; then
-	    CURSHELL="sh";	   
+if [ ! -n "${ZSH_VERSION}" ]; then
+    if [ ! -n "${BASH_VERSION}" ]; then
+	CURSHELL="sh";
     else
-	if [[ "$(basename "$0")" == "sh" ]]; then
+	if [ "$(basename "$0")" == "sh" ]; then
 	    CURSHELL="sh";
 	else
 	    CURSHELL="bash";
@@ -11,4 +11,4 @@ if [[ ! -n "${ZSH_VERSION}" ]]; then
 else
     CURSHELL="zsh";
 fi;
-echo "${CURSHELL}" 
+echo "${CURSHELL}";

@@ -1,6 +1,7 @@
 SUBDIRS 	=
 
 CLEAN_DIRS = .terraform \
+	     tmp
 
 CLEAN_FILES = terraform.tfstate \
 	      terraform.tfstate.backup
@@ -24,6 +25,7 @@ endif
 clean:
 	@find . -maxdepth 1 -name "*~" -exec ${RM} {} \;
 	@find . -maxdepth 1 -name "#*#" -exec ${RM} {} \;
+	@$(RM) -r tmp;
 
 dist-clean: clean
 	 @$(foreach CLEANDIR, $(CLEAN_DIRS),$(RM) -r ${CLEANDIR};)

@@ -1,3 +1,10 @@
+locals {
+  root_path    = ".."
+  short_id     = substr(var.project_id, -6, -1)
+  short_unique = substr(google_service_account.cloud_run_sa.unique_id, -12, -1)
+  tmp_dir      = "tmp"
+}
+
 output "cloud_run_service_account" {
   value       = google_cloud_run_v2_service.default.template[0].service_account
   description = "The URL of the deployed Cloud Run service account"
@@ -30,8 +37,10 @@ Generate a JSON Key:
     Click "Add key" and select "Create new key".
     Choose "JSON" as the key type and click "Create".
     A JSON file will be downloaded to your computer.
-
-export ACCESS_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=${google_cloud_run_v2_service.default.template[0].service_account}   --audiences=${google_cloud_run_v2_service.default.uri}")
+or
+gcloud iam service-accounts keys create ${local.root_path}/${local.tmp_dir}/${google_service_account.cloud_run_sa.account_id}-${local.short_id}-${local.short_unique}.json --iam-account=${google_cloud_run_v2_service.default.template[0].service_account}
+gcloud auth activate-service-account --key-file=<path to key file>
+export ACCESS_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=${google_cloud_run_v2_service.default.template[0].service_account}   --audiences=${google_cloud_run_v2_service.default.uri})
   EOT
 }
 
@@ -42,7 +51,8 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" \
 -d '{"xxx": 5, "yyy":"four"}' \
 -X POST \
 ${google_cloud_run_v2_service.default.uri}/ebprettify
-
+Note: You will need to enable Ingress ALL on Cloudrun Service Networking if wish to test
+from other than the VM.  This should only be done for the Dev environment.
   EOT
 }
 

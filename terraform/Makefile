@@ -1,23 +1,14 @@
-SUBDIRS		= doc \
-		doc_md \
-		eb_prettyjson \
-		environments \
-		setup_project \
-		clean_repository \
-		remove_projects \
-		list_projects \
-		setup_project
+SUBDIRS		= gcp \
+		aws \
+		azure
 
-SORTDIRS       = environments \
-		setup_project \
-		remove_projects \
-		list_projects \
-
-CLEAN_FILES = project.tfvars
+SORTDIRS       = gcp \
+		aws \
+		azure
 
 TFSORT := $(shell which tfsort)
 
-.PHONY: clean dist-clean sort
+.PHONY: clean dist-clean sort fmt
 
 all:
 
@@ -38,5 +29,4 @@ clean:
 	@$(foreach SUBDIR, ${SUBDIRS}, ${MAKE} -C ${SUBDIR} clean;)
 
 dist-clean:
-	@$(foreach SUBDIR, ${SUBDIRS}, ${MAKE} -C ${SUBDIR} dist-clean;)
-	@$(foreach CLEANFILE, $(CLEAN_FILES),$(RM) $(CLEANFILE);)
+	   @$(foreach SUBDIR, ${SUBDIRS}, ${MAKE} -C ${SUBDIR} dist-clean;)

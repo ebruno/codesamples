@@ -80,12 +80,12 @@ resource "google_compute_firewall" "allow_ssh" {
 }
 
 resource "google_cloud_run_v2_service" "default" {
-  name     = "sevrbo-json-pretty-service-${var.cur_env}"
+  name     = "ebdemo-json-pretty-service-${var.cur_env}"
   location = var.region
   ingress  = var.service_network_traffic
   template {
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository}/${var.image_name}:${var.image_tag}_${var.cur_env}"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_id}/${var.image_name}:${var.image_tag}_${var.cur_env}"
       ports {
         container_port = 8080
       }

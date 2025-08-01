@@ -1,10 +1,10 @@
-SUBDIRS 	= all_in_one_run \
+SUBDIRS		= all_in_one_run \
 		  build_container \
-		  local_dev 
+		  local_dev
 
 CLEAN_DIRS = .terraform
 
-CLEAN_FILES =  
+CLEAN_FILES = project.tfvars
 
 TFSORT := $(shell which tfsort)
 
@@ -25,6 +25,7 @@ endif
 clean:
 	@find . -maxdepth 1 -name "*~" -exec ${RM} {} \;
 	@find . -maxdepth 1 -name "#*#" -exec ${RM} {} \;
+	@$(RM) -r ./tmp/*;
 	@$(foreach SUBDIR, $(SUBDIRS), $(MAKE) -C ${SUBDIR} clean;)
 
 dist-clean: clean
