@@ -1,0 +1,77 @@
+	.TITLE	FIZZBUZZ
+	.IDENT /01/
+	.ENABL LC
+	.MCALL	QIOW$S, EXIT$S
+
+
+IOSB:    .BLKW 2
+   	 .EVEN
+OUTBUF:  .BLKB  30.
+	 .EVEN
+VALFMT:  .ASCIZ /%D/
+	 .EVEN
+FIZZ:    .ASCII /FIZZ/
+BUZZ:	 .ASCII	/BUZZ/
+         .EVEN
+TSTVAL:  .BLKW 1
+         .EVEN
+;+
+; R3 contains the value to be checked.
+; R4 contains state, 0 not fizz or buzz
+;                    1 fizz
+;                    2 buzz
+;                    3 fizzbuzz
+;-
+FIZZBUZZ::
+	 CLR R3                ; Clear to set to zero.
+TOP:	 CMP #30.,R3           ; Check values 1-30 decmial.
+	 BNE 10$
+	 JMP DONE	       ; Use jmp distance is more than 256 bytes.
+10$:	 CLR R4	               ; Reset state.
+	 INC R3	               ; Process next value.
+	 MOV R3,TSTVAL	       ; Save value for reporting.
+	 MOV R3,R0	       ; $DIV set R0 to value to checked.
+	 MOV #3.,R1            ; Set R1 to value to divide by.
+	 CALL $DIV
+	 CMP #0,R1	       ;  Reminder is in R1, if 0 FIZZ
+	 BEQ ISFIZZ
+CHKBUZZ: MOV R3,R0             ; Same process as FIZZ
+	 MOV #5.,R1
+	 CALL $DIV
+	 CMP #0,R1             ; Reminder is in R1 if 0, BUZZ
+	 BEQ ISBUZZ
+	                       ; Checks done now print results.
+RPT:     CMP #1.,R4
+	 BNE 10$
+	 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#FIZZ,#4.,#40>
+	 BR TOP               ; check next value.
+10$:
+	 CMP #2.,R4
+	 BNE 20$
+	 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#BUZZ,#4.,#40>
+	 BR TOP               ; check next value.
+20$:
+	 CMP #3.,R4
+	 BNE 30$
+	 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#FIZZ,#8.,#40>
+	 BR TOP                ; check next value
+30$:	 MOV #TSTVAL,R2
+	 MOV #OUTBUF,R0
+	 MOV #VALFMT,R1
+	 CALL $EDMSG
+	 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#OUTBUF,R1,#40>
+	 JMP TOP               ; distance is more than 256 bytes, use JMP
+ISFIZZ:
+	 INC R4
+	 BR CHKBUZZ
+ISBUZZ:
+	 CMP #1.,R4
+	 BEQ 10$
+	 MOV #2.,R4
+	 BR RPT
+10$:	 MOV #3.,R4
+	 BR RPT
+
+DONE:	EXIT$S
+
+	.END	FIZZBUZZ
