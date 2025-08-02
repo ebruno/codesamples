@@ -1,0 +1,108 @@
+FIZZBUZZ	MACRO V05.05  Saturday 2-AUG-2025 00:49  Page 1
+
+
+      1						.TITLE	FIZZBUZZ
+      2						.IDENT /01/
+      3						.ENABL LC
+      4						.MCALL	QIOW$S, EXIT$S
+      5
+      6
+      7	000000				IOSB:    .BLKW 2
+      8					   	 .EVEN
+      9	000004				OUTBUF:  .BLKB  30.
+     10						 .EVEN
+     11	000042	   045 	   104 	   000 	VALFMT:  .ASCIZ /%D/
+     12						 .EVEN
+     13	000046	   106 	   111 	   132 	FIZZ:    .ASCII /FIZZ/
+	000051	   132
+     14	000052	   102 	   125 	   132 	BUZZ:	 .ASCII	/BUZZ/
+	000055	   132
+     15					         .EVEN
+     16	000056				TSTVAL:  .BLKW 1
+     17					         .EVEN
+     18					;+
+     19					; R3 contains the value to be checked.
+     20					; R4 contains state, 0 not fizz or buzz
+     21					;                    1 fizz
+     22					;                    2 buzz
+     23					;                    3 fizzbuzz
+     24					;-
+     25	000060				FIZZBUZZ::
+     26	000060	005003 				 CLR R3                ; Clear to set to zero.
+     27	000062	022703 	000036 		TOP:	 CMP #30.,R3           ; Check values 1-30 decmial.
+     28	000066	001002 				 BNE 10$
+     29	000070	000167 	000430 			 JMP DONE	       ; Use jmp distance is more than 256 bytes.
+     30	000074	005004 			10$:	 CLR R4	               ; Reset state.
+     31	000076	005203 				 INC R3	               ; Process next value.
+     32	000100	010367 	177752 			 MOV R3,TSTVAL	       ; Save value for reporting.
+     33	000104	010300 				 MOV R3,R0	       ; $DIV set R0 to value to checked.
+     34	000106	012701 	000003 			 MOV #3.,R1            ; Set R1 to value to divide by.
+     35	000112	004767 	000000G			 CALL $DIV
+     36	000116	022701 	000000 			 CMP #0,R1	       ;  Reminder is in R1, if 0 FIZZ
+     37	000122	001565 				 BEQ ISFIZZ
+     38	000124	010300 			CHKBUZZ: MOV R3,R0             ; Same process as FIZZ
+     39	000126	012701 	000005 			 MOV #5.,R1
+     40	000132	004767 	000000G			 CALL $DIV
+     41	000136	022701 	000000 			 CMP #0,R1             ; Reminder is in R1 if 0, BUZZ
+     42	000142	001557 				 BEQ ISBUZZ
+     43						                       ; Checks done now print results.
+     44	000144	022704 	000001 		RPT:     CMP #1.,R4
+     45	000150	001027 				 BNE 10$
+     46	000152					 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#FIZZ,#4.,#40>
+     47	000226	000715 				 BR TOP               ; check next value.
+     48	000230				10$:
+     49	000230	022704 	000002 			 CMP #2.,R4
+     50	000234	001027 				 BNE 20$
+     51	000236					 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#BUZZ,#4.,#40>
+     52	000312	000663 				 BR TOP               ; check next value.
+     53	000314				20$:
+     54	000314	022704 	000003 			 CMP #3.,R4
+     55	000320	001027 				 BNE 30$
+FIZZBUZZ	MACRO V05.05  Saturday 2-AUG-2025 00:49  Page 1-1
+
+
+     56	000322					 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#FIZZ,#8.,#40>
+     57	000376	000631 				 BR TOP                ; check next value
+     58	000400	012702 	000056'		30$:	 MOV #TSTVAL,R2
+     59	000404	012700 	000004'			 MOV #OUTBUF,R0
+     60	000410	012701 	000042'			 MOV #VALFMT,R1
+     61	000414	004767 	000000G			 CALL $EDMSG
+     62	000420					 QIOW$S  #IO.WVB,#5,#24,,IOSB,,<#OUTBUF,R1,#40>
+     63	000472	000167 	177364 			 JMP TOP               ; distance is more than 256 bytes, use JMP
+     64	000476				ISFIZZ:
+     65	000476	005204 				 INC R4
+     66	000500	000611 				 BR CHKBUZZ
+     67	000502				ISBUZZ:
+     68	000502	022704 	000001 			 CMP #1.,R4
+     69	000506	001403 				 BEQ 10$
+     70	000510	012704 	000002 			 MOV #2.,R4
+     71	000514	000613 				 BR RPT
+     72	000516	012704 	000003 		10$:	 MOV #3.,R4
+     73	000522	000610 				 BR RPT
+     74
+     75	000524				DONE:	EXIT$S
+     76
+     77		000060'				.END	FIZZBUZZ
+FIZZBUZZ	MACRO V05.05  Saturday 2-AUG-2025 00:49  Page 1-2
+Symbol table
+
+BUZZ    000052R  	FIZZBU  000060RG 	ISFIZZ  000476R  	TOP     000062R  	$DIV  = ****** GX
+CHKBUZ  000124R  	IOSB    000000R  	OUTBUF  000004R  	TSTVAL  000056R  	$EDMSG= ****** GX
+DONE    000524R  	IO.WVB= ****** GX	RPT     000144R  	VALFMT  000042R  	$$$ARG= 000002
+FIZZ    000046R  	ISBUZZ  000502R
+
+. ABS.	000000    000	(RW,I,GBL,ABS,OVR)
+      	000532    001	(RW,I,LCL,REL,CON)
+Errors detected:  0
+
+*** Assembler statistics
+
+
+Work  file  reads: 0
+Work  file writes: 0
+Size of work file: 8896 Words  ( 35 Pages)
+Size of core pool: 10316 Words  ( 39 Pages)
+Operating  system: RSX-11M/M-PLUS
+
+Elapsed time: 00:00:00.08
+FIZZBUZZ.OBJ,FIZZBUZZ.LST=FIZZBUZZ.MAC
