@@ -14,7 +14,7 @@ import (
 func fizzbuzz(start int, end int, step int, modulo_fizz int, modulo_buzz int) int {
 	status := 0
 	var result string = ""
-	for value := start; value < end; value += step {
+	for value := start; value <= end; value += step {
 		result = ""
 		if (value % modulo_fizz) == 0 {
 		   result += "fizz"
