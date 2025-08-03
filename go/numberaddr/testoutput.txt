@@ -21,4 +21,5 @@
     --- PASS: TestVariablelength/"521711361115+50828" (0.00s)
     --- PASS: TestVariablelength/"464057727650121415880523648+521734278488" (0.00s)
 PASS
-ok  	_/Volumes/G-DRIVE_Thunderbolt_3/ebruno/source_code/codesamples/go/numberaddr	0.012s
+ok  	github.com/ebruno/codesamples/go/numberaddr	0.025s
+
