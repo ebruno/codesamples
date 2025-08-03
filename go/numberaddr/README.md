@@ -50,27 +50,27 @@ A demonstration of appropriate unit tests for this functionality is provided.
 
 ## Test out ##
 
-=== RUN   TestBasic
---- PASS: TestBasic (0.00s)
-=== RUN   TestVariablelength
-=== RUN   TestVariablelength/"123456+123456"
-=== RUN   TestVariablelength/"+"
-=== RUN   TestVariablelength/"4+2"
-=== RUN   TestVariablelength/"7+7"
-=== RUN   TestVariablelength/"888+888"
-=== RUN   TestVariablelength/"21168+"
-=== RUN   TestVariablelength/"+21168"
-=== RUN   TestVariablelength/"521711361115+50828"
-=== RUN   TestVariablelength/"464057727650121415880523648+521734278488"
---- PASS: TestVariablelength (0.00s)
-    --- PASS: TestVariablelength/"123456+123456" (0.00s)
-    --- PASS: TestVariablelength/"+" (0.00s)
-    --- PASS: TestVariablelength/"4+2" (0.00s)
-    --- PASS: TestVariablelength/"7+7" (0.00s)
-    --- PASS: TestVariablelength/"888+888" (0.00s)
-    --- PASS: TestVariablelength/"21168+" (0.00s)
-    --- PASS: TestVariablelength/"+21168" (0.00s)
-    --- PASS: TestVariablelength/"521711361115+50828" (0.00s)
-    --- PASS: TestVariablelength/"464057727650121415880523648+521734278488" (0.00s)
-PASS
-ok  	github.com/ebruno/codesamples/go/numberaddr	0.025s
+	  === RUN   TestBasic
+	  --- PASS: TestBasic (0.00s)
+	  === RUN   TestVariablelength
+	  === RUN   TestVariablelength/"123456+123456"
+	  === RUN   TestVariablelength/"+"
+	  === RUN   TestVariablelength/"4+2"
+	  === RUN   TestVariablelength/"7+7"
+	  === RUN   TestVariablelength/"888+888"
+	  === RUN   TestVariablelength/"21168+"
+	  === RUN   TestVariablelength/"+21168"
+	  === RUN   TestVariablelength/"521711361115+50828"
+	  === RUN   TestVariablelength/"464057727650121415880523648+521734278488"
+	  --- PASS: TestVariablelength (0.00s)
+		  --- PASS: TestVariablelength/"123456+123456" (0.00s)
+		  --- PASS: TestVariablelength/"+" (0.00s)
+		  --- PASS: TestVariablelength/"4+2" (0.00s)
+		  --- PASS: TestVariablelength/"7+7" (0.00s)
+		  --- PASS: TestVariablelength/"888+888" (0.00s)
+		  --- PASS: TestVariablelength/"21168+" (0.00s)
+		  --- PASS: TestVariablelength/"+21168" (0.00s)
+		  --- PASS: TestVariablelength/"521711361115+50828" (0.00s)
+		  --- PASS: TestVariablelength/"464057727650121415880523648+521734278488" (0.00s)
+	  PASS
+	  ok  	github.com/ebruno/codesamples/go/numberaddr	0.025s
