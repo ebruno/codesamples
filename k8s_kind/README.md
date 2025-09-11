@@ -1,6 +1,6 @@
 # K8s Demo #
 
-Demostration if nginx server using [kind](https://kind.sigs.k8s.io) and k8.
+Demostration of a nginx server using [kind](https://kind.sigs.k8s.io) and k8.
 
 This has been tested on the following environments
 
@@ -16,6 +16,10 @@ This has been tested on the following environments
 	 # When you are done.
 	 
 	 ./cleanup.sh
- 
+
+
+Sample Run
+
+<img src="images/sample_run.png" alt="alt text" title="Sample Run">
  
  
