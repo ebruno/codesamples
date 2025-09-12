@@ -7,12 +7,16 @@ KIND_CLUSTER_NAME="k8s-nginx-cluster";
 IMAGE_NAME="k8_kind_nginx";
 IMAGE_TAG="latest";
 DOCKERFILE="web_server/Dockerfile";
+verbose=0;
 declare -i exit_status;
 if [ -x /usr/bin/sw_vers ]; then
     OS_TYPE="$(sw_vers -productName)";
+    OS_VERSION="$(sw_vers -productVersion)";
+    NAME_STRING="${OS_TYPE} ${OS_VERSION}";
 elif [ -f /etc/os-release ]; then
     . /etc/os-release
     OS_TYPE="${ID}";
+    NAME_STRING="${PRETTY_NAME}";
 fi;
 if [ -n "${PODMAN}" ]; then
     DOCKER="${PODMAN}";
@@ -20,7 +24,8 @@ if [ -n "${PODMAN}" ]; then
     DOCKERFILE="web_server/Containerfile";
 fi;
 if [ -n "${KIND}" ] && [ -n "${DOCKER}" ] && [ -n "${KUBECTL}" ]; then
-    ${KIND} delete cluster --name "${KIND_CLUSTER_NAME}"
+    ${KIND} delete cluster --name "${KIND_CLUSTER_NAME}";
+    echo "[INFO] Setting up cluster on ${NAME_STRING}";
     # See if image exits";
     if ${DOCKER} images | grep -q "${IMAGE_NAME}"; then
 	echo "[INFO] image ${IMAGE_NAME} exists" 1>&2;
@@ -45,7 +50,9 @@ if [ -n "${KIND}" ] && [ -n "${DOCKER}" ] && [ -n "${KUBECTL}" ]; then
     echo "[INFO] Found kind node container: $KIND_NODE_CONTAINER" 1>&2;
 
     # Use docker exec to run crictl inside the node and check for the image
-    ${DOCKER} exec "$KIND_NODE_CONTAINER" crictl images;
+    if [ ${verbose} -gt 0 ]; then
+	${DOCKER} exec "$KIND_NODE_CONTAINER" crictl images;
+    fi;
     if ${DOCKER} exec "$KIND_NODE_CONTAINER" crictl images | grep -q "${IMAGE_NAME}"; then
 	echo "[INFO] Image '${IMAGE_NAME}' is present on the cluster." 1>&2;
     else
