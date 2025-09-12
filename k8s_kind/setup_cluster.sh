@@ -53,6 +53,7 @@ if [ -n "${KIND}" ] && [ -n "${DOCKER}" ] && [ -n "${KUBECTL}" ]; then
 	exit 1
     fi;
     ${KUBECTL} cluster-info --context kind-${KIND_CLUSTER_NAME}
+else
     if [ -z "${KIND}" ]; then
 	echo "[ERROR] kind is not installed on the system" 1>&2;
     fi;

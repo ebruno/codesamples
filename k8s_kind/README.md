@@ -4,7 +4,7 @@ Demostration of a nginx server using [kind](https://kind.sigs.k8s.io) and k8.
 
 This has been tested on the following environments
 
- * Debian 12 requires kind, kubectl and docker to be installed on the system.
+ * Debian 12 and 13 requires kind, kubectl and docker to be installed on the system.
  * RHEL 10 requires kind, kubectl and podman to be installed on the system.
  * MacOS X Sequoia M4 requires kind, kubectl and docker to be installed on the system.
 
