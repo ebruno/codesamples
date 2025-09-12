@@ -6,6 +6,7 @@ This has been tested on the following environments
 
  * Debian 12 requires kind, kubectl and docker to be installed on the system.
  * RHEL 10 requires kind, kubectl and podman to be installed on the system.
+ * MacOS X Sequoia M4 requires kind, kubectl and docker to be installed on the system.
 
 ## Running the demo ##
 
