@@ -14,6 +14,7 @@ The packer build has been tested on the following operating systems:
  * Debain 13
  * Fedora 42
  * RHEL 10
+ * Ubuntu 24.04
 
 Issues:
 

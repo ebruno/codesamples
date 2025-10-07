@@ -10,8 +10,9 @@ if [ -f /etc/os-release ]; then
 	  ISO_BUILD_DATE="2025.08.01";
       fi;
       declare -A efi_info=([debian]="/usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd"
-			    [fedora]="/usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_VARS.fd"
-			    [rhel]="/usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_VARS.fd")
+			   [ubuntu]="/usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd"
+			   [fedora]="/usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_VARS.fd"
+			   [rhel]="/usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_VARS.fd")
       declare -A qemu_binary=(["rhel,10"]="/usr/libexec/qemu-kvm"
 			      ["rhel,9"]="/usr/libexec/qemu-kvm"
 			      ["rhel,8"]="/usr/libexec/qemu-kvm")
