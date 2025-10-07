@@ -1,0 +1,11 @@
+[Unit]
+Description=Update /etc/issue with IP address
+After=systemd-networkd-wait-online.service
+Wants=systemd-networkd-wait-online.service
+
+[Service]
+ExecStart=/usr/local/bin/update_etc_issue.sh
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target
