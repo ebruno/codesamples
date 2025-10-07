@@ -15,10 +15,12 @@ pacman -Sy --noconfirm git gitlab-runner
 systemctl enable dhcpcd
 systemctl enable gitlab-runner
 systemctl enable sshd
-systemctl enable systemd-networkd.service systemd-networkd-wait-online.service
+# not working reliable disable for now.
+#systemctl enable systemd-networkd.service systemd-networkd-wait-online.service
 install /root/update_etc_issue.sh /usr/local/bin;
 install -m 664 /root/show_ip_on_login.service /usr/lib/systemd/system;
-systemctl enable show_ip_on_login.service;
+# not working reliable disable for now.
+#systemctl enable show_ip_on_login.service;
 rm -f root/update_etc_issue.sh /root/show_ip_on_login.service;
 echo "[INFO] Package install completed.";
 # Gitlab-runner needs full sudo rights.
