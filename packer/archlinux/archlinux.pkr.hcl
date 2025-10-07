@@ -34,6 +34,7 @@ source "qemu" "archlinux" {
     "echo \"${var.public_key}\" >> /root/.ssh/authorized_keys<enter>"
   ]
   output_directory     = local.output_directory
+  qemu_binary          = "${var.qemu_binary}"
   ssh_username         = "root"
   ssh_private_key_file = "./assets/id_rsa"
   ssh_wait_timeout     = "20m"
@@ -212,6 +213,15 @@ variable "public_key" {
 variable "root_passwd" {
   type        = string
   description = "Password for root default is packer"
+}
+variable qemu_binary {
+# For RHEL 8, 9 and 10 this needs to set to qemu-kvm
+# The should also check Roecky Linux 8 and 9
+# The binary is loccated in /usr/libexec
+# The packer default is qemu-system-x86_64.
+  type = string
+  default = "qemu-system-x86_64"
+  description = "The name of the Qemu binary to look for. This defaults to qemu-system-x86_64, but may need to be changed for some platforms. For example qemu-kvm on RHEL 8, 9 and 10."
 }
 
 variable "vm_name" {

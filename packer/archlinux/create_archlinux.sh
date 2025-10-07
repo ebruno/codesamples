@@ -10,9 +10,17 @@ if [ -f /etc/os-release ]; then
 	  ISO_BUILD_DATE="2025.08.01";
       fi;
       declare -A efi_info=([debian]="/usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd"
-			    [fedora]="/usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_VARS.fd")
-      declare -A usr_group=([debian]="libvirt-qemu libvirt-qemu"
-			    [fedora]="root libvirt")
+			    [fedora]="/usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_VARS.fd"
+			    [rhel]="/usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_VARS.fd")
+      declare -A qemu_binary=(["rhel,10"]="/usr/libexec/qemu-kvm"
+			      ["rhel,9"]="/usr/libexec/qemu-kvm"
+			      ["rhel,8"]="/usr/libexec/qemu-kvm")
+
+      # For future use to allow vm creation with out using sudo
+      # this gets a bit complicated since it varies per host operating system.
+      #      declare -A usr_group=([debian]="root root"
+      #			    [fedora]="root root"
+      #			    [rhel]="root root")
 
       packer_basename="archlinux";
       pkrvars_name="${packer_basename}.pkrvars.hcl";
@@ -30,7 +38,7 @@ if [ -f /etc/os-release ]; then
       public_key="$(cat ./assets/id_rsa.pub)";
       builduser_passwd="$(echo packer | openssl passwd -6 -salt $(openssl rand -base64 16) --stdin)"
       root_passwd="$(echo packer | openssl passwd -6 -salt $(openssl rand -base64 16)  --stdin)"
-      #setup pkrvars file for run.
+      # setup pkrvars file for run.
       echo "hostname=\"archlinuxvm03\"" > "${pkrvars_name}";
       echo "iso_url=\"${ISO_MIRROR}/${ISO_BUILD_DATE}/${ISO_NAME}\"" >> "${pkrvars_name}";
       curl -s -O "${ISO_MIRROR}/${ISO_BUILD_DATE}/sha256sums.txt"
@@ -43,11 +51,34 @@ if [ -f /etc/os-release ]; then
       declare -a efi_files=(${efi_info[${ID}]});
       echo "efi_firmware_code=\"${efi_files[0]}\"" >> "${pkrvars_name}";
       echo "efi_firmware_vars=\"${efi_files[1]}\"" >> "${pkrvars_name}";
-      packer init archlinux.pkr.hcl;
-      rm -r -f output/packer-archmaster;
-      packer build -force -var "builduser_passwd=${builduser_passwd}" -var "root_passwd=${root_passwd}" -var "public_key=${public_key}" -var-file="${pkrvars_name}"  archlinux.pkr.hcl;
-      rm -f "${pkrvars_name}";
-      exit_status=0;
+      if [ "${ID}" = "rhel" ]; then
+	  echo "[INFO] Adjusting settings for ${PRETTY_NAME}." 1>&2;
+	  binary_path="${qemu_binary[${ID},${VERSION_ID%%.*}]}";
+	  if [ -x "${binary_path}" ]; then
+	      if [[ ! "${PATH}" == *"${binary_path}"* ]]; then
+		  # need to add to path
+		  base_path=$(dirname ${binary_path});
+		  export "PATH=${PATH}:${base_path}";
+		  echo "[INFO] Path has been updated to ${PATH}" 1>&2;
+	      fi;
+	      binary_name="$(basename ${binary_path})";
+	      echo "[INFO] QEMU binary is now set to: ${binary_name}" 1>&2;
+	      echo "qemu_binary=\"${binary_name}\"" >> "${pkrvars_name}";
+	      exit_status=0;
+	  else
+	      echo "[ERROR] unable to locate ${binary_path}, fatal, exiting." 1>&2;
+	      exit_status=1;
+	  fi;
+      else
+	  exit_status=0;
+      fi;
+      if [ ${exit_status} -eq 0 ]; then
+	     packer init archlinux.pkr.hcl;
+	     rm -r -f output/packer-archmaster;
+	     packer build -force -var "builduser_passwd=${builduser_passwd}" -var "root_passwd=${root_passwd}" -var "public_key=${public_key}" -var-file="${pkrvars_name}"  archlinux.pkr.hcl;
+	     exit_status=$?;
+	     rm -f "${pkrvars_name}";
+      fi;
    else
       echo "[ERROR] packer not installed." 1>&2;
    fi;
