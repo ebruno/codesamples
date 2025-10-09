@@ -134,7 +134,7 @@ Sample run:
 		runner-vm.qemu.archlinux: setup_install_ssh_keys.sh 883 B / 883 B [=================================================================================================================================] 100.00% 0s
 		runner-vm.qemu.archlinux: update_etc_issue.sh 309 B / 309 B [=======================================================================================================================================] 100.00% 0s
 		runner-vm.qemu.archlinux: show_ip_on_login.service 246 B / 246 B [==================================================================================================================================] 100.00% 0s
-	 [7A[0;32m    runner-vm.qemu.archlinux: install_pkgs.sh 1.33 KiB / 1.33 KiB [=====================================================================================================================================] 100.00% 0s
+	    runner-vm.qemu.archlinux: install_pkgs.sh 1.33 KiB / 1.33 KiB [=====================================================================================================================================] 100.00% 0s
 		runner-vm.qemu.archlinux: setup_grub.sh 309 B / 309 B [=============================================================================================================================================] 100.00% 0s
 		runner-vm.qemu.archlinux: setup_umount_fs.sh 344 B / 344 B [========================================================================================================================================] 100.00% 0s
 		runner-vm.qemu.archlinux: id_rsa.pub 746 B / 746 B [================================================================================================================================================] 100.00% 0s
@@ -142,7 +142,7 @@ Sample run:
 		runner-vm.qemu.archlinux: update_etc_issue.sh 309 B / 309 B [=======================================================================================================================================] 100.00% 0s
 		runner-vm.qemu.archlinux: show_ip_on_login.service 246 B / 246 B [==================================================================================================================================] 100.00% 0s
 	 ==> runner-vm.qemu.archlinux: Provisioning with shell script: ./setup_phase_1.sh
-	==> runner-vm.qemu.archlinux: [INFO] Using disk prefix "vda"
+	 ==> runner-vm.qemu.archlinux: [INFO] Using disk prefix "vda"
 	 ==> runner-vm.qemu.archlinux: :: Synchronizing package databases...
 	 ==> runner-vm.qemu.archlinux:  core downloading...
 	 ==> runner-vm.qemu.archlinux:  extra downloading...
@@ -213,18 +213,18 @@ Sample run:
 	 ==> runner-vm.qemu.archlinux: /dev/vda1  *        2048  2099199  2097152   1G ef EFI (FAT-12/16/32)
 	 ==> runner-vm.qemu.archlinux: /dev/vda2        2099200 18876415 16777216   8G 82 Linux swap / Solaris
 	 ==> runner-vm.qemu.archlinux: /dev/vda3       18876416 83886079 65009664  31G 83 Linux
-	==> runner-vm.qemu.archlinux: mke2fs 1.47.3 (8-Jul-2025)
-	 ==> runner-vm.qemu.archlinux: Discarding device blocks:       0/8126208               done
+	 ==> runner-vm.qemu.archlinux: mke2fs 1.47.3 (8-Jul-2025)
+	 ==> runner-vm.qemu.archlinux: Discarding device blocks:       0/8126208               done
 	 ==> runner-vm.qemu.archlinux: Creating filesystem with 8126208 4k blocks and 2031616 inodes
 	 ==> runner-vm.qemu.archlinux: Filesystem UUID: 6c384030-287d-4d3f-838e-d1d21a29b867
 	 ==> runner-vm.qemu.archlinux: Superblock backups stored on blocks:
 	 ==> runner-vm.qemu.archlinux:32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208,
 	 ==> runner-vm.qemu.archlinux:4096000, 7962624
 	 ==> runner-vm.qemu.archlinux:
-	 ==> runner-vm.qemu.archlinux: Allocating group tables:   0/248       done
-	 ==> runner-vm.qemu.archlinux: Writing inode tables:   0/248       done
+	 ==> runner-vm.qemu.archlinux: Allocating group tables:   0/248       done
+	 ==> runner-vm.qemu.archlinux: Writing inode tables:   0/248       done
 	 ==> runner-vm.qemu.archlinux: Creating journal (32768 blocks): done
-	 ==> runner-vm.qemu.archlinux: Writing superblocks and filesystem accounting information:   0/248       done
+	 ==> runner-vm.qemu.archlinux: Writing superblocks and filesystem accounting information:   0/248       done
 	 ==> runner-vm.qemu.archlinux:
 	 ==> runner-vm.qemu.archlinux: mkfs.fat 4.2 (2021-01-31)
 	 ==> runner-vm.qemu.archlinux: Setting up swapspace version 1, size = 8 GiB (8589930496 bytes)
@@ -248,9 +248,9 @@ Sample run:
 	 ==> runner-vm.qemu.archlinux:
 	 ==> runner-vm.qemu.archlinux: Enter a number (default=1):
 	 ==> runner-vm.qemu.archlinux: looking for conflicting packages...
-	==> runner-vm.qemu.archlinux: warning: dependency cycle detected:
+	 ==> runner-vm.qemu.archlinux: warning: dependency cycle detected:
 	 ==> runner-vm.qemu.archlinux:
-	==> runner-vm.qemu.archlinux: warning: systemd-libs will be installed before its libcap dependency
+	 ==> runner-vm.qemu.archlinux: warning: systemd-libs will be installed before its libcap dependency
 	 ==> runner-vm.qemu.archlinux: Packages (162) acl-2.3.2-1  archlinux-keyring-20250929-1  attr-2.5.2-1  audit-4.0.5-1  autoconf-2.72-1  automake-1.18.1-1  bash-5.3.3-2  binutils-2.45+r29+g2b2e51a31ec7-1  bison-3.8.2-8  brotli-1.1.0-3  bzip2-1.0.8-6  ca-certificates-20240618-1  ca-certificates-mozilla-3.117-1  ca-certificates-utils-20240618-1  coreutils-9.8-2  cryptsetup-2.8.1-1  curl-8.16.0-1  db5.3-5.3.28-5  dbus-1.16.2-1  dbus-broker-37-2  dbus-broker-units-37-2  dbus-units-37-2  debugedit-5.2-1  device-mapper-2.03.35-1  diffutils-3.12-2  e2fsprogs-1.47.3-1  expat-2.7.3-1  fakeroot-1.37.1.2-1  file-5.46-5  filesystem-2025.05.03-1  findutils-4.10.0-3  flex-2.6.4-5  gawk-5.3.2-1  gc-8.2.8-2  gcc-15.2.1+r22+gc4e96a094636-1  gcc-libs-15.2.1+r22+gc4e96a094636-1  gdbm-1.26-1  gettext-0.26-1  glib2-2.86.0-2  glibc-2.42+r17+gd7274d718e6f-1  gmp-6.3.0-2  gnulib-l10n-20241231-1  gnupg-2.4.8-1  gnutls-3.8.10-1  gpgme-2.0.1-1  grep-3.12-2  groff-1.23.0-7  guile-3.0.10-1  gzip-1.14-2  hwdata-0.400-1  iana-etc-20250612-1  icu-76.1-1  iproute2-6.17.0-1  iptables-1:1.8.11-2  iputils-20250605-1  jansson-2.14.1-1  json-c-0.18-2  kbd-2.9.0-1  keyutils-1.6.3-3  kmod-34.2-1  krb5-1.21.3-2  leancrypto-1.5.1-1  libarchive-3.8.1-1  libassuan-3.0.0-1  libbpf-1.5.1-1  libcap-2.76-1  libcap-ng-0.8.5-3  libelf-0.193-5  libevent-2.1.12-4  libffi-3.5.2-1  libgcrypt-1.11.2-1  libgpg-error-1.55-1  libidn2-2.3.7-1  libisl-0.27-1  libksba-1.6.7-2  libldap-2.6.10-2  libmnl-1.0.5-2  libmpc-1.3.1-2  libnetfilter_conntrack-1.0.9-2  libnfnetlink-1.0.2-2  libnftnl-1.3.0-1  libnghttp2-1.67.1-1  libnghttp3-1.12.0-1  libnl-3.11.0-1  libnsl-2.0.1-1  libp11-kit-0.25.10-2  libpcap-1.10.5-3  libpsl-0.21.5-2  libsasl-2.1.28-5  libseccomp-2.5.6-1  libsecret-0.21.7-1  libssh2-1.11.1-1  libsysprof-capture-49.0-1  libtasn1-4.20.0-1  libtirpc-1.3.7-1  libtool-2.6.0-1  libunistring-1.3-1  libusb-1.0.29-1  libverto-0.3.2-5  libxcrypt-4.4.38-1  libxml2-2.15.0-1  licenses-20240728-1  linux-api-headers-6.16-2  linux-firmware-amdgpu-20250917-1  linux-firmware-atheros-20250917-1  linux-firmware-broadcom-20250917-1  linux-firmware-cirrus-20250917-1  linux-firmware-intel-20250917-1  linux-firmware-mediatek-20250917-1  linux-firmware-nvidia-20250917-1  linux-firmware-other-20250917-1  linux-firmware-radeon-20250917-1  linux-firmware-realtek-20250917-1  linux-firmware-whence-20250917-1  lmdb-0.9.33-1  lz4-1:1.10.0-2  m4-1.4.20-1  make-4.4.1-2  mkinitcpio-39.2-5  mkinitcpio-busybox-1.36.1-1  mpfr-4.2.2-1  ncurses-6.5-4  nettle-3.10.2-1  npth-1.8-1  openssl-3.6.0-1  p11-kit-0.25.10-2  pacman-7.0.0.r6.gc685ae6-6  pacman-mirrorlist-20251003-1  pam-1.7.1-1  pambase-20250719-1  patch-2.8-1  pciutils-3.14.0-1  pcre2-10.46-1  perl-5.42.0-1  pinentry-1.3.2-2  pkgconf-2.5.1-1  popt-1.19-2  procps-ng-4.0.5-3  psmisc-23.7-1  readline-8.3.001-1  sed-4.9-3  shadow-4.18.0-1  sqlite-3.50.4-2  sudo-1.9.17.p1-1  systemd-258-4  systemd-libs-258-4  systemd-sysvcompat-258-4  tar-1.35-2  texinfo-7.2-1  tpm2-tss-4.1.3-1  tzdata-2025b-1  util-linux-2.41.2-1  util-linux-libs-2.41.2-1  which-2.23-1  xxhash-0.8.3-1  xz-5.8.1-1  zlib-1:1.3.1-2  zstd-1.5.7-2  base-3-2  base-devel-1-2  linux-6.16.10.arch1-1  linux-firmware-20250917-1
 	 ==> runner-vm.qemu.archlinux:
 	 ==> runner-vm.qemu.archlinux: Total Download Size:    732.58 MiB
@@ -847,14 +847,14 @@ Sample run:
 	 ==> runner-vm.qemu.archlinux: [INFO] Phase 1 install completed
 	 ==> runner-vm.qemu.archlinux: Provisioning with shell script: /tmp/packer-shell1223128592
 	 ==> runner-vm.qemu.archlinux: [INFO] Using disk_prefix: vda
-	==> runner-vm.qemu.archlinux: /root/install_pkgs.sh: line 9: local-gen: command not found
+	 ==> runner-vm.qemu.archlinux: /root/install_pkgs.sh: line 9: local-gen: command not found
 	 ==> runner-vm.qemu.archlinux: :: Synchronizing package databases...
 	 ==> runner-vm.qemu.archlinux:  core downloading...
 	 ==> runner-vm.qemu.archlinux:  extra downloading...
 	 ==> runner-vm.qemu.archlinux: :: Synchronizing package databases...
 	 ==> runner-vm.qemu.archlinux:  core downloading...
 	 ==> runner-vm.qemu.archlinux:  extra downloading...
-	==> runner-vm.qemu.archlinux: warning: sudo-1.9.17.p1-1 is up to date -- reinstalling
+	 ==> runner-vm.qemu.archlinux: warning: sudo-1.9.17.p1-1 is up to date -- reinstalling
 	 ==> runner-vm.qemu.archlinux: resolving dependencies...
 	 ==> runner-vm.qemu.archlinux: looking for conflicting packages...
 	 ==> runner-vm.qemu.archlinux:
@@ -961,10 +961,10 @@ Sample run:
 	 ==> runner-vm.qemu.archlinux:  extra downloading...
 	 ==> runner-vm.qemu.archlinux: resolving dependencies...
 	 ==> runner-vm.qemu.archlinux: looking for conflicting packages...
-	==> runner-vm.qemu.archlinux: warning: dependency cycle detected:
-	==> runner-vm.qemu.archlinux: warning: librsvg will be installed before its gdk-pixbuf2 dependency
-	==> runner-vm.qemu.archlinux: warning: dependency cycle detected:
-	==> runner-vm.qemu.archlinux: warning: mesa will be installed before its libglvnd dependency
+	 ==> runner-vm.qemu.archlinux: warning: dependency cycle detected:
+	 ==> runner-vm.qemu.archlinux: warning: librsvg will be installed before its gdk-pixbuf2 dependency
+	 ==> runner-vm.qemu.archlinux: warning: dependency cycle detected:
+	 ==> runner-vm.qemu.archlinux: warning: mesa will be installed before its libglvnd dependency
 	 ==> runner-vm.qemu.archlinux:
 	 ==> runner-vm.qemu.archlinux: Packages (115) adwaita-cursors-49.0-1  adwaita-fonts-49.0-2  adwaita-icon-theme-49.0-1  adwaita-icon-theme-legacy-46.2-3  alsa-lib-1.2.14-1  alsa-topology-conf-1.2.5.1-4  alsa-ucm-conf-1.2.14-2  aom-3.13.1-1  at-spi2-core-2.58.0-1  avahi-1:0.9rc2-1  bubblewrap-0.11.0-1  cairo-1.18.4-1  dav1d-1.5.1-1  dconf-0.49.0-1  default-cursors-3-1  desktop-file-utils-0.28-1  duktape-2.7.0-7  fontconfig-2:2.17.1-1  freetype2-2.14.1-1  fribidi-1.0.16-2  gd-2.3.3-9  gdk-pixbuf2-2.44.3-1  giflib-5.2.2-2  glib-networking-1:2.80.1-1  glycin-2.0.2-2  gperftools-2.17.2-1  gpm-1.20.7.r38.ge82d1a6-6  graphite-1:1.3.14-5  gsettings-desktop-schemas-49.0-1  gsettings-system-schemas-49.0-1  gtest-1.17.0-1  gtk-update-icon-cache-1:4.20.2-3  gtk3-1:3.24.51-1  harfbuzz-12.1.0-1  hicolor-icon-theme-0.18-1  highway-1.3.0-1  iso-codes-4.18.0-1  jbigkit-2.1-8  json-glib-1.10.8-1  lcms2-2.17-1  libavif-1.3.0-2  libcloudproviders-0.3.6-2  libcolord-1.4.8-1  libcups-2:2.4.14-1  libdaemon-0.14-6  libdatrie-0.2.13-4  libde265-1.0.16-2  libdeflate-1.24-1  libdrm-2.4.126-1  libepoxy-1.5.10-3  libgccjit-15.2.1+r22+gc4e96a094636-1  libglvnd-1.7.0-3  libheif-1.20.2-2  libice-1.1.2-1  libjpeg-turbo-3.1.2-1  libjxl-0.11.1-4  libotf-0.9.16-6  libpciaccess-0.18.1-2  libpng-1.6.50-1  libproxy-0.5.11-1  librsvg-2:2.61.1-1  libsm-1.2.6-1  libsoup3-3.6.5-1  libstemmer-3.0.1-1  libthai-0.1.29-3  libtiff-4.7.1-1  libunwind-1.8.2-1  libwebp-1.6.0-2  libx11-1.8.12-1  libxau-1.0.12-1  libxaw-1.0.16-1  libxcb-1.17.0-1  libxcomposite-0.4.6-2  libxcursor-1.2.3-1  libxdamage-1.1.6-2  libxdmcp-1.1.5-1  libxext-1.3.6-1  libxfixes-6.0.2-1  libxft-2.3.9-1  libxi-1.8.2-1  libxinerama-1.1.5-2  libxkbcommon-1.11.0-1  libxmu-1.2.1-1  libxpm-3.5.17-2  libxrandr-1.5.4-1  libxrender-0.9.12-1  libxshmfence-1.3.3-1  libxt-1.3.1-1  libxtst-1.2.5-1  libxxf86vm-1.1.6-1  libyuv-r2426+464c51a03-1  llvm-libs-20.1.8-1  lm_sensors-1:3.6.2-1  lzo-2.10-5  m17n-db-1.8.8-1  m17n-lib-1.8.5-1  mesa-1:25.2.4-1  openh264-2.6.0-1  pango-1:1.57.0-2  pixman-0.46.4-1  rav1e-0.8.1-2  shared-mime-info-2.4-2  spirv-tools-1:1.4.321.0-1  svt-av1-3.1.2-1  tinysparql-3.10.0-1  tree-sitter-0.25.10-1  vim-runtime-9.1.1734-1  wayland-1.24.0-1  x265-4.1-1  xcb-proto-1.17.0-3  xkeyboard-config-2.45-1  xorg-xprop-1.2.8-1  xorgproto-2024.1-2  emacs-30.2-1  vim-9.1.1734-1
 	 ==> runner-vm.qemu.archlinux:
@@ -1478,9 +1478,9 @@ Sample run:
 	 ==> runner-vm.qemu.archlinux: (3/5) Creating temporary files...
 	 ==> runner-vm.qemu.archlinux: (4/5) Arming ConditionNeedsUpdate...
 	 ==> runner-vm.qemu.archlinux: (5/5) Checking for old perl modules...
-	==> runner-vm.qemu.archlinux: Created symlink '/etc/systemd/system/multi-user.target.wants/dhcpcd.service' → '/usr/lib/systemd/system/dhcpcd.service'.
-	==> runner-vm.qemu.archlinux: Created symlink '/etc/systemd/system/multi-user.target.wants/gitlab-runner.service' → '/usr/lib/systemd/system/gitlab-runner.service'.
-	==> runner-vm.qemu.archlinux: Created symlink '/etc/systemd/system/multi-user.target.wants/sshd.service' → '/usr/lib/systemd/system/sshd.service'.
+     ==> runner-vm.qemu.archlinux: Created symlink '/etc/systemd/system/multi-user.target.wants/dhcpcd.service' → '/usr/lib/systemd/system/dhcpcd.service'.
+	 ==> runner-vm.qemu.archlinux: Created symlink '/etc/systemd/system/multi-user.target.wants/gitlab-runner.service' → '/usr/lib/systemd/system/gitlab-runner.service'.
+	 ==> runner-vm.qemu.archlinux: Created symlink '/etc/systemd/system/multi-user.target.wants/sshd.service' → '/usr/lib/systemd/system/sshd.service'.
 	 ==> runner-vm.qemu.archlinux: [INFO] Package install completed.
 	 ==> runner-vm.qemu.archlinux: [INFO] Set password for root and builduser.
 	 ==> runner-vm.qemu.archlinux: [INFO] Setting password for root.
