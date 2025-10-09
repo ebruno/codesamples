@@ -1,0 +1,11 @@
+stages:
+  - lint
+  - sanity
+  - build_aws_images
+  - build_qcow2_images
+  - publish
+
+include:
+   - '.gitlab-ci/build_aws_images.yml'
+#   - '.gitlab-ci/build_qcow2_images.yml'
+#   - '.gitlab-ci/pages.yml'

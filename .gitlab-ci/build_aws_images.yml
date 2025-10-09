@@ -1,0 +1,29 @@
+build_aws_ami:
+  stage: build_aws_images
+  parallel:
+    matrix:
+      - RUNNER_TAG: [libvirt]
+  before_script:
+    - |
+      if [ ! -x "/usr/local/bin/aws" ]; then
+          echo "[ERROR] aws cli not present, terminating build." 1>&2;
+      fi;
+  script:
+    - |
+      if [ -d "packer/aws_create_ami" ]; then
+          pushd packer/aws_create_ami;
+          packer init aws_create_ami_from_ami.pkr.hcl;
+          packer build aws_create_ami_from_ami.pkr.hcl;
+          popd;
+      fi;
+  tags:
+    - $RUNNER_TAG
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - changes:
+         - .gitlab-ci.yml
+         - .gitlab-ci/*.yml
+         - ./codesamples/packer/aws_create_ami/*.hcl
+         - ./codesamples/packer/aws_create_ami/scripts/*.sh
