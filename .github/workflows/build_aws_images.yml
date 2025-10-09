@@ -1,0 +1,36 @@
+name: Build AWS AMI's
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+         - .github/workflows/**
+         - packer/aws_create_ami/*.hcl
+         - packer/aws_create_ami/**/*.sh
+jobs:
+  build_aws_ams:
+    runs-on: ubuntu-latest
+    environment: BUILD_AMI_CI_CD # change to an environment with AWS KEY's defined as secrets.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: '1.14.0' # Or your desired Packer version
+      - name: Run Packer Build
+        run: |
+          if [ -d "packer/aws_create_ami" ]; then
+             pushd packer/aws_create_ami;
+             packer init aws_create_ami_from_ami.pkr.hcl;
+             packer build aws_create_ami_from_ami.pkr.hcl;
+             popd;
+          fi;
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+
+
+
