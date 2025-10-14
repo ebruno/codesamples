@@ -1,6 +1,14 @@
 # codesamples #
 Coding samples in various languages
 
+## git client-side hooks ##
+The repository has git client-side hooks defined if .githooks/hooks.
+
+	To enable them copy them to
+	   cp .githooks/* .git/hooks
+	or
+	   git config core.hooksPath .githooks
+
 ## Installing Runners ##
 For experimentation it be useful to use gitlab and github runners
 That are hosted in a local environment.
