@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Sed works differently accross MacOS, Freebsd and Linux.
+# Need to determine which OS the commit is happening on.
+declare -i exit_status=0;
+if [ -f /etc/os-release ]; then
+    . /etc/os-release;
+else
+    os_name="%(uname -s)";
+    if [ "${os_name}" = "Darwin" ] && [ -e "/usr/bin/sw_vers" ]; then
+	ID="$(sw_vers -productName)";
+	MACOS_VERSION_FULL="$(sw_vers -productVersion)";
+	VERSION_ID="${MACOS_VERSION_FULL%.*}";
+    else
+	echo "[ERROR] Unable to determine OS version for ${os_name}";
+	exit_status=1;
+    fi;
+fi;
+if [ ${exit_status} -eq 0 ]; then
+   tmpfile="$(mktemp)";
+   git diff --cached --name-only > "${tmpfile}";
+   while read line
+   do
+       if [[ "${line}" =~ .yml$ ]] || [[ "${line}" =~ .yaml$ ]]; then
+	  case ${ID} in
+	      MacOS|freebsd)
+		  sed -i ".bak" -e 's/\t/    /g' "${line}"
+		  ;;
+	      debian|rhel|fedora|ubuntu|arch)
+		  sed -i.bak -e 's/\t/    /g' "${line}"
+		  ;;
+	      *)
+		  echo "[WARNING] Unsupported ID=${ID}, skipping tab removal."
+		  exit_status=1;
+		  break;
+		  ;;
+	  esac;
+	  if [ -f "${line}.bak" ]; then
+	      rm -f "${line}.bak";
+	  fi;
+       fi;
+   done < "${tmpfile}";
+   rm -f "${tmpfile}";
+fi;
+if [ ${GIT_HOOK_PRECOMMIT_TEST_MODE} -eq 0 ]; then
+    exit_status=1;
+fi;
+exit ${exit_status};
