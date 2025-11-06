@@ -2,7 +2,7 @@
 Coding samples in various languages
 
 ## git client-side hooks ##
-The repository has git client-side hooks defined if .githooks/hooks.
+The repository has git client-side hooks defined in .githooks/hooks.
 
 	To enable them copy them to
 	   cp .githooks/* .git/hooks
@@ -28,7 +28,7 @@ Install podman before gitlab-runner or github runner.
 
 
 ### Installing docker-ce ###
-Install dockered before gitlab-runner or github runner
+Install docker before gitlab-runner or github runner
 
 Validate installation instructions at: [Installing Docker CE](https://docs.docker.com/engine/install/)
 
@@ -48,7 +48,7 @@ Validate installation instructions at: [Installing Docker CE](https://docs.docke
 	   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 	 sudo apt-get update
 
-
+0
 ### Gitlab Runner ###
 Current instructions can be found here [Installing Gitlab Runner](https://docs.gitlab.com/runner/install/)
 
@@ -287,7 +287,7 @@ Sample complete config.toml with shell runner and podman runner
 		 network_mtu = 0
 
 
-### Github Runner ###
+### Github Action Runner ###
 
 Login to github and choose the repository that
 self-hosted runner is to be added to.
