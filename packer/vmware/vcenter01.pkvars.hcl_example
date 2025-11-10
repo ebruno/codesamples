@@ -1,0 +1,7 @@
+# Set with appropriate values for the current environment.
+
+remote_username = "<set with appropreate values>"
+remote_password = "<set with appropreate values>"
+datacenter = "<set with appropreate values>"
+esxi_server = "<set with appropreate values>"
+vcenter_server = "<set with appropreate values>"

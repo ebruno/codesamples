@@ -37,6 +37,7 @@ It is required that packer and Broadcom VMware ovtool are installed on the syste
 
  * fedora42srv\_vmware.pkr.hcl  requires access to an ESXI Server
  * fedora42srv\_vsphere.pkr.hcl requires access to a vCenter instance.
+ * freebsd14srv\_vsphere.pkr.hcl requires access to a vCenter instance.
 
 It is also recommended to install Microsoft Powershell and VMware Powershell Extensions.
 
@@ -1772,7 +1773,7 @@ Variables:
  | convert\_to\_template| Convert the virtual machine to a template after the build is complete. If set to true, the virtual machine can not be imported into a content library | bool | true | Yes | Yes |
  | datacenter           | Datacenter name | string | None | Yes | Yes |
  | esxi\_server         | esxi server IP/FQDN | string | None | Yes | Yes |
- | output\_directory"   | Output directory for VM artifacts |string | ./output-artifacts | Yes | Yes |
+ | output\_directory    | Output directory for VM artifacts |string | ./output-artifacts | Yes | Yes |
  | vcenter\_server      | vCenter Server IP/FQDN | string | None | Yes | Yes |
  | vm\_name             | Virtual Machine name to build  | string | Fedorasrv42\_Demo | Yes | Yes |
 
@@ -3256,3 +3257,28 @@ Variables:
 	==> Builds finished. The artifacts of successful builds are:
 	--> vsphere-iso.fedora42srv: Fedorasrv42_Demo
 	--> vsphere-iso.fedora42srv: Fedorasrv42_Demo
+
+## freebsd14srv\_vsphere.pkr.hcl ##
+
+Variables:
+
+ | Name                  | Description  | Type | Default | Required | Adjust for deployment environment |
+ |:----------------------|:-------------|:-----|:--------|:--------:|:--------------------:|
+ | remote\_username      | User name for login | string  | None  | Yes | Yes |
+ | remote\_password      | User password for login  | string | None | Yes | Yes |
+ | convert\_to\_template | Convert the virtual machine to a template after the build is complete. If set to true, the virtual machine can not be imported into a content library | bool | true | Yes | Yes |
+ | datacenter            | vCenter datacenter to install VM | string | None | Yes | Yes |
+ | esxi\_server          | esxi server IP/FQDN | string | None | Yes | Yes |
+ | output\_directory     | Output directory for VM artifacts |string | ./output-artifacts | Yes | Yes |
+ | root\_password\_enc   | VM's root password for login  | string | encypted string for the password 'packer' | Yes | Yes |
+ | ssh\_password         | Plain text to for the ssh connection | string | packer | Yes | Yes |
+ | ssh\_password_enc     | User name to for the ssh connection | string | packer | Yes | Yes |
+ | ssh\_user             | User name to for the ssh connection | string | packer | Yes | Yes |
+ | vcenter\_server       | vCenter Server IP/FQDN | string | None | Yes | Yes |
+ | vm\_name              | Virtual Machine name to build  | string | Fedorasrv42\_Demo | Yes | Yes |
+
+### Sample command line ###
+The variables in the vcenter01.pkvars.pcl file is not set. They will
+need to be configured for current environment.
+
+    packer build -force -var-file=vcenter01.pkvars.hcl freebsd14srv_vsphere.pkr.hcl
