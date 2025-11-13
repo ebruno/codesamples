@@ -28,6 +28,7 @@ source "vmware-iso" "fedora42srv" {
    version = 20
    cpus = 4
    memory = 4096
+   remote_datastore = "${var.esxi_datastore}"
    vm_name = "${local.artifact_name}"
    guest_os_type = "fedora-64"
    format = "ova"
@@ -67,6 +68,11 @@ variable "remote_username" {
 variable "remote_password" {
    type      = string
    description = "User password for login."
+}
+variable "esxi_datastore" {
+  type        = string
+  default     = "datastore1"
+  description = "Datastore to create the VM."
 }
 variable "esxi_server" {
    type      = string
