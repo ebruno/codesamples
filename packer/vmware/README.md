@@ -49,6 +49,7 @@ It is required that packer and Broadcom VMware ovtool are installed on the syste
  * fedora42srv\_vmware.pkr.hcl  requires access to an ESXI Server
  * fedora42srv\_vsphere.pkr.hcl requires access to a vCenter instance.
  * freebsd14srv\_vsphere.pkr.hcl requires access to a vCenter instance.
+ * archlinux\_vsphere.pkr.hcl requires access to a vCenter instance.
 
 It is also recommended to install Microsoft Powershell and VMware Powershell Extensions.
 
@@ -288,10 +289,13 @@ Variables:
  |:--------------------|:-------------|:-----|:--------|:--------:|:--------------------:|
  | remote\_username    | User name for login | string | None | Yes | Yes |
  | remote\_password    | User password for login  | string | None | Yes | Yes |
+ | esxi\_datastore     | ESXi server datastore to install VM | string | datastore1 | Yes | Yes |
  | esxi\_server        | esxi server IP/FQDN | string | None | Yes | Yes |
  | output\_directory"  | Output directory for VM artifacts |string | ./output-artifacts | Yes | Yes |
  | vm\_name            | Virtual Machine name to build  | string | Fedorasrv42\_Demo | Yes | Yes |
 
+Note: It is necessary to create pkvar.hcl files or pass variables on the command line
+to provide login and other information which does not have default.
 
 ### Sample Run VMmare iso ###
 
@@ -310,6 +314,7 @@ Variables:
  | datacenter           | Datacenter name | string | None | Yes | Yes |
  | esxi\_server         | esxi server IP/FQDN | string | None | Yes | Yes |
  | output\_directory    | Output directory for VM artifacts |string | ./output-artifacts | Yes | Yes |
+ | vcenter\_datastore   | vCenter datastore to install VM | string | None | Yes | Yes |
  | vcenter\_server      | vCenter Server IP/FQDN | string | None | Yes | Yes |
  | vm\_name             | Virtual Machine name to build  | string | Fedorasrv42\_Demo | Yes | Yes |
 
@@ -336,8 +341,12 @@ Variables:
  | ssh\_password         | Plain text to for the ssh connection | string | packer | Yes | Yes |
  | ssh\_password_enc     | User name to for the ssh connection | string | packer | Yes | Yes |
  | ssh\_user             | User name to for the ssh connection | string | packer | Yes | Yes |
+ | vcenter\_datastore    | vCenter datastore to install VM | string | None | Yes | Yes |
  | vcenter\_server       | vCenter Server IP/FQDN | string | None | Yes | Yes |
  | vm\_name              | Virtual Machine name to build  | string | Fedorasrv42\_Demo | Yes | Yes |
+
+Note: It is necessary to create pkvar.hcl files or pass variables on the command line
+to provide login and other information which does not have default.
 
 ### Sample command line ###
 The variables in the vcenter01.pkvars.pcl file is not set. They will
@@ -374,12 +383,19 @@ Variables:
  | vcenter\_server          | vCenter Server IP/FQDN | string | None | Yes | Yes |
  | vm\_name                 | Virtual Machine name to build  | string | Fedorasrv42\_Demo | Yes | Yes |
 
+Note: It is necessary to create pkvar.hcl files or pass variables on the command line
+to provide login and other information which does not have default.
+
 ### How to create the OVA ###
 Use the convinence script create_archlinux.sh.
 
  * The script will automatically determine the most current version of archlinux to use.
  * Generate a unique private key to use.
  * Create the VM and export the template OVA.
+
+ The script will accept an variable filename on the command if one is not provided on the command line it will look for vcenter.pkvars.hcl.
+ 
+       ./create_archlinux.sh [ pkvar file name ]
 
 Use the cleanup.sh script to remove build artifacts when done.
 

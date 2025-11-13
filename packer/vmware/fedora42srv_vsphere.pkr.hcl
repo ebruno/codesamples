@@ -20,6 +20,7 @@ source "vsphere-iso" "fedora42srv" {
    username = "${var.remote_username}"
    password = "${var.remote_password}"
    datacenter = "${var.datacenter}"
+   datastore  = "${var.vcenter_datastore}"
    # Any firewalls must allow this port range.
    http_port_min = 8100
    http_port_max = 8400
@@ -90,6 +91,11 @@ variable "output_directory" {
     type     = string
     default  = "./output-artifacts"
     description = "Output directory for VM artifacts"
+}
+variable "vcenter_datastore" {
+  type        = string
+  default     = "datastore1"
+  description = "Datastore to create the VM."
 }
 variable "vcenter_server" {
    type      = string

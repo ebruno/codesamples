@@ -7,7 +7,12 @@ if [ -n "${PACKER_CMD}" ]; then
    else	  
        ISO_BUILD_DATE="$(date +"%Y.%m.01")";
    fi;
-
+   if [ $# -eq 1 ]; then
+       vcenter_vars="${1}";
+   else
+       vcenter_vars="vcenter.pkvars.hcl"
+   fi;
+   echo "[INFO] Using ${vcenter_vars} for vSphere/vCenter login access" 2>&1;
    packer_basename="archlinux";
    pkrvars_name="${packer_basename}.pkrvars.hcl";
    hcl_name="${packer_basename}.pkr.hcl";
@@ -36,7 +41,7 @@ if [ -n "${PACKER_CMD}" ]; then
    done < "./sha256sums.txt";
    packer init archlinux_vsphere.pkr.hcl;
    rm -r -f output/packer-archmaster;
-   packer build -force  -var "public_key=${public_key}" -var-file="${pkrvars_name}" -var-file="vcenter01.pkvars.hcl" archlinux_vsphere.pkr.hcl;
+   packer build -force  -var "public_key=${public_key}" -var-file="${pkrvars_name}" -var-file="${vcenter_vars}" archlinux_vsphere.pkr.hcl;
    exit_status=$?;
    rm -f "${pkrvars_name}";
    exit_status=0;
