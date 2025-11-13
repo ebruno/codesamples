@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
 rm -r -f output-artifacts;
-rm -r -f *~;
-rm -r -f #*#;
+find . -name "*~" -exec rm -f {} \;
+find . -name "#*#" -exec rm -f {} \;
+rm -f sha*sums.txt;
+rm -r -f assets;
+rm -f archlinux.pkrvars.hcl;
