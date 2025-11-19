@@ -19,9 +19,15 @@ build_aws_ami:
   tags:
     - $RUNNER_TAG
   rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+         - ./codesamples/packer/aws_create_ami/*.hcl
+         - ./codesamples/packer/aws_create_ami/scripts/*.sh
+      when: always
+    - when: never 
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - changes:
          - .gitlab-ci.yml
-         - .gitlab-ci/*.yml
+         - .gitlab-ci/build_aws_images.yml
          - ./codesamples/packer/aws_create_ami/*.hcl
          - ./codesamples/packer/aws_create_ami/scripts/*.sh
