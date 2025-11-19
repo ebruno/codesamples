@@ -2,10 +2,13 @@
 # Sed works differently accross MacOS, Freebsd and Linux.
 # Need to determine which OS the commit is happening on.
 declare -i exit_status=0;
+if [ -z "${GIT_HOOK_PRECOMMIT_TEST_MODE}" ]; then
+    GIT_HOOK_PRECOMMIT_TEST_MODE=1;
+fi;
 if [ -f /etc/os-release ]; then
     . /etc/os-release;
 else
-    os_name="%(uname -s)";
+    os_name="$(uname -s)";
     if [ "${os_name}" = "Darwin" ] && [ -e "/usr/bin/sw_vers" ]; then
 	ID="$(sw_vers -productName)";
 	MACOS_VERSION_FULL="$(sw_vers -productVersion)";
@@ -22,7 +25,7 @@ if [ ${exit_status} -eq 0 ]; then
    do
        if [[ "${line}" =~ .yml$ ]] || [[ "${line}" =~ .yaml$ ]]; then
 	  case ${ID} in
-	      MacOS|freebsd)
+	      macOS|MacOS|freebsd)
 		  sed -i ".bak" -e 's/\t/    /g' "${line}"
 		  ;;
 	      debian|rhel|fedora|ubuntu|arch)
