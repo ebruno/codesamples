@@ -1,5 +1,17 @@
 # codesamples #
-Coding samples in various languages
+Coding samples in various languages and tools
+
+ * bash
+ * c
+ * c++
+ * go
+ * k8s_kind (Kubenetes)
+ * macro-11 (Digital Equipment Corp PDP-11 assembler)
+ * openvox (OpenSource Puppet replacement)
+ * packer
+ * python
+ * terraform
+ * zsh
 
 ## git client-side hooks ##
 The repository has git client-side hooks defined in .githooks/hooks.

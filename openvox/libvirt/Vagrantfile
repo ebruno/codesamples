@@ -1,0 +1,103 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://vagrantcloud.com/search.
+  box_info = YAML.load_file(File.join(File.dirname(__FILE__), 'osbox.yml'))
+  config.vm.box = box_info['box_name']
+  config.vm.box_version = box_info['box_version']
+  config.vm.provider "libvirt" do |domain|
+    domain.cpus = 4
+    domain.memory = 8192
+  end
+  config.vm.box_architecture = :auto
+  config.vm.define "vox_server" do |server_config|
+    server_config.vm.hostname = "vox-server"
+    server_config.vm.network :private_network,
+    libvirt__type: "dhcp",
+    libvirt__network_address: "192.168.100.1",
+    libvirt__dhcp_start: "192.168.100.100",
+    libvirt__dhcp_stop: "192.168.100.200",
+    libvirt__network_name: "OpenVox0",
+    libvirt__netmask: "255.255.255.0",
+    libvirt__forward_mode: "none",
+    libvirt__dhcp_enabled: true
+    server_config.vm.network "private_network",type: "dhcp" ,libvirt__network_name: "OpenVox0",adapter:2
+    server_config.vm.synced_folder ".","/vagrant",disabled: true
+    # Reconfigure the system to apply the new settings
+
+    server_config.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      wget https://apt.voxpupuli.org/openvox8-release-ubuntu24.04.deb
+      dpkg -i ./openvox8-release-ubuntu24.04.deb
+      apt-get update
+      apt-get upgrade -y
+      apt-get -y install openvox-server
+      systemctl enable puppetserver
+    SHELL
+
+    server_config.vm.provision "file",
+                               source: "../puppet",
+                               destination: "/tmp/puppet"
+
+    server_config.vm.provision "shell", inline: <<-SHELL
+      if [ -d "/tmp/puppet/modules" ]; then
+         cp -r /tmp/puppet/modules /etc/puppetlabs/code/environments/production;
+      fi;
+      if [ -d "/tmp/puppet/manifests" ]; then
+           cp -r /tmp/puppet/manifests /etc/puppetlabs/code/environments/production;
+      fi;
+      echo "[INFO] puppet data installed.";
+    SHELL
+
+    server_config.vm.provision :shell do |shell|
+      shell.privileged = true
+      shell.inline = 'echo "[INFO] system is rebooting."'
+      shell.reboot = true
+    end
+  end
+  config.vm.define "vox_client" do |client_config|
+    client_config.vm.hostname = "vox-client"
+    client_config.vm.network :private_network,
+    libvirt__type: "dhcp",
+    libvirt__network_address: "192.168.100.1",
+    libvirt__dhcp_start: "192.168.100.100",
+    libvirt__dhcp_stop: "192.168.100.200",
+    libvirt__network_name: "OpenVox0",
+    libvirt__netmask: "255.255.255.0",
+    libvirt__forward_mode: "none",
+    libvirt__dhcp_enabled: true
+    client_config.vm.network "private_network",type: "dhcp" ,libvirt__network_name: "OpenVox0",adapter:2
+    client_config.vm.synced_folder ".","/vagrant",disabled: true
+    client_config.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      wget https://apt.voxpupuli.org/openvox8-release-ubuntu24.04.deb
+      dpkg -i ./openvox8-release-ubuntu24.04.deb
+      apt-get update
+      apt-get upgrade -y
+      apt-get -y install openvox-agent
+    SHELL
+
+    client_config.vm.provision :shell do |shell|
+      shell.privileged = true
+      shell.inline = 'echo "[INFO] system is rebooting"'
+      shell.reboot = true
+    end
+  end
+  config.group.groups = {
+    "voxdevelopment" => [
+      "vox_server",
+      "vox_client",
+    ],
+  }
+
+end
