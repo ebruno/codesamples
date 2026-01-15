@@ -7,13 +7,32 @@ It is not intended to be a tutorial on puppet.
 
 This has been tested on the following configurations:
 
-| Host                     | OS        | Provider                   |  Guest OS     | OpenVox |
-|:-------------------------|:----------|:---------------------------|:--------------|:--------|
-| M4 MacMini               | MacOS 26  | virtualbox, vmware_fusion  | Ubuntu 24.04  | 8.11.0  |
-| Shuttle Cube i9-9900 CPU | Debian 13 | libvirt                    | Ubuntu 24.04  | 8.11.0  |
-| Shuttle Cube i9-9900 CPU | Fedora 43 | libvirt                    | Ubuntu 24.04  | 8.11.0  |
+| Host                     | OS         | Provider                   |  Guest OS     | OpenVox |
+|:-------------------------|:-----------|:---------------------------|:--------------|:--------|
+| M4 MacMini               | MacOS 26   | virtualbox, vmware\_fusion | Ubuntu 24.04  | 8.11.0  |
+| Shuttle Cube i9-9900 CPU | Debian 13  | libvirt                    | Ubuntu 24.04  | 8.11.0  |
+| Shuttle Cube i9-9900 CPU | Fedora 43  | libvirt                    | Ubuntu 24.04  | 8.11.0  |
+| MSI icore i7 laptop      | Windows 11 | virtualbox                 | Ubuntu 24.04  | 8.11.0  |
 |   |   |   |   |
 
+Note: When running under Windows 11 the file Vagrantfile needs to edited.
+VirtualBox cannot create a host only network with a specific name under Windows 11.
+The second network interface definition must have the name removed.
+
+Look for the following lines:
+
+    ...
+    # When running on windows uncomment the following line and comment out the line with OpenVox1.
+    #client_config.vm.network "private_network",type: "dhcp" ,adapter:2
+    client_config.vm.network "private_network",type: "dhcp" ,name: "OpenVox0",adapter:2
+    
+	...
+	
+    # When running on windows uncomment the following line and comment out the line with OpenVox1.
+    #client_config.vm.network "private_network",type: "dhcp" ,adapter:2
+    client_config.vm.network "private_network",type: "dhcp" ,name: "OpenVox0",adapter:2
+
+Not have a network name defined will also work on MacOS 26 if desired.
 
 ## Convenience Script ##
 A convenience  script is provided.
@@ -32,6 +51,19 @@ A convenience  script is provided.
   * Configures the server and client to communicate.
   * Registers the client
   * Runs a puppet agent test to verify the manifest that installs emacs-nox works.
+
+A powershell version exists:
+
+  * setup_vox.ps
+  
+  The script has been tested on MacOS 26 and Windows 11
+  
+  The powershell script was created from setup\_vox.sh using [CodingFleet](https://codingfleet.com/code-converter/powershell/)
+  The coversion only need a few changes due to string and vagrant issues, 
+  which I would not expect the conversion to deal, with when running under Windows 11.
+  On MacOS 26 it work without any modifications.
+  
+  The script should work on Linux but has not been tested at this point.
 
 ## Install vagrant and required plugins
 It is recommended you install vagrant from the Hashicorp repositories.

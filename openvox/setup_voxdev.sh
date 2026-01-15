@@ -21,6 +21,7 @@ VOX_SERVER_HOST_NAME="vox-server";
 VOX_CLIENT_NAME="vox_client";
 VOX_CLIENT_HOST_NAME="vox-client";
 WAIT_TIME=30;
+WAIT_TIME_CLIENT=30;
 declare -a valid_providers=("virtualbox" "vmware_fusion" "vmware_desktop" "libvirt");
 VAGRANT=$(which vagrant);
 display_help() {
@@ -84,8 +85,8 @@ if [ -n "${VAGRANT}" ]  && [ ${exit_status} -eq 0 ]; then
 		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} puppet\\\n${VOX_CLIENT_IP} ${VOX_CLIENT_HOST_NAME}\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
 		   ;;
 	   esac;
-	   chmod a+x "${tmp_file}";
 	   ${VAGRANT} scp "${tmp_file}" ${VOX_SERVER_NAME}:./configure_hosts.sh;
+	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "chmod a+x ./configure_hosts.sh";
 	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "sudo ./configure_hosts.sh";
 	   rm -f "${tmp_file}";
 	   tmp_file="$(mktemp)";
@@ -106,8 +107,8 @@ if [ -n "${VAGRANT}" ]  && [ ${exit_status} -eq 0 ]; then
 		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} ${VOX_SERVER_HOST_NAME} puppet\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
 		   ;;
 	   esac;
-	   chmod a+x "${tmp_file}";
 	   ${VAGRANT} scp "${tmp_file}" ${VOX_CLIENT_NAME}:./configure_hosts.sh;
+	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "chmod a+x ./configure_hosts.sh";
 	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "sudo ./configure_hosts.sh";
 	   rm -f "${tmp_file}";
 	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "sudo puppet config set server ${VOX_SERVER_DOMAIN_NAME} --section agent";
@@ -118,8 +119,8 @@ if [ -n "${VAGRANT}" ]  && [ ${exit_status} -eq 0 ]; then
 	   echo "[INFO] Checking Server for cert siging request." 1>&2;
 	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "sudo puppetserver ca list --all";
 	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "sudo puppetserver ca sign --all";
-	   echo "[INFO] Wait ${WAIT_TIME} seconds for client system to sync with server." 1>&2;
-	   sleep ${WAIT_TIME};
+	   echo "[INFO] Wait ${WAIT_TIME_CLIENT} seconds for client system to sync with server." 1>&2;
+	   sleep ${WAIT_TIME_CLIENT};
 	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "sudo puppet agent --test";
 	   echo "[INFO] Checking that emacs is installed." 1>&2;
 	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "which emacs";
