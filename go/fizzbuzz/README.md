@@ -1,4 +1,4 @@
-## fizzbuzz ##
+# fizzbuzz #
 Fizzbuzz written in go.
 Process the numbers 1 - 100.
 Writes fizz when the number is modulo 3
