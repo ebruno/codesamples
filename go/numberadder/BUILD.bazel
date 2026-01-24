@@ -1,0 +1,24 @@
+load("@rules_go//go:def.bzl", "go_binary","go_library","go_test")
+
+go_binary(
+    name = "numberadder",
+    srcs = ["numberadder.go"],
+    importpath = "numberadder",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "numberadder_lib",
+    srcs = ["numberadder.go"],
+    importpath = "numberadder",
+    visibility = ["//visibility:public"]
+)
+
+go_test(
+      name = "numberadder_test",
+      args = ["-test.v"],  # When  --test_output=all is then all messages will be printed.
+      srcs = glob(["*_test.go"]), # Automatically finds test files
+      embed = [":numberadder_lib"],
+      size = "small",
+)
+  

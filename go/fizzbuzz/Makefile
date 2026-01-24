@@ -1,6 +1,6 @@
-GO              = /opt/homebrew/bin/go
+GO              = $(shell which go)
 
-SRCS 		= fizzbuzz.go
+SRCS		= fizzbuzz.go
 
 TARGET		= fizzbuzz
 
