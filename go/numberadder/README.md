@@ -1,4 +1,4 @@
-# numberaddr #
+# numberadder #
 
 The application is given two arbitrarily large numbers,
 stored one digit at a time in a slice.
