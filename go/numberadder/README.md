@@ -1,4 +1,4 @@
-## numberaddr ##
+# numberaddr #
 
 The application is given two arbitrarily large numbers,
 stored one digit at a time in a slice.
@@ -47,7 +47,7 @@ Note: GOPATH should not set.
 
 to clean up the directory
 
-	  make clean|dist-clean
+	 ./clean_bazel.sh
 
 ### run using bazel ###
 

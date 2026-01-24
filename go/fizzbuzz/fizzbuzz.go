@@ -17,15 +17,15 @@ func fizzbuzz(start int, end int, step int, modulo_fizz int, modulo_buzz int) in
 	for value := start; value <= end; value += step {
 		result = ""
 		if (value % modulo_fizz) == 0 {
-		   result += "fizz"
+			result += "fizz"
 		}
 		if (value % modulo_buzz) == 0 {
-		   result += "buzz"
+			result += "buzz"
 		}
 		if len(result) == 0 {
-		  fmt.Printf("%d\n",value)
+			fmt.Printf("%d\n", value)
 		} else {
-		  fmt.Printf("%s\n",result)
+			fmt.Printf("%s\n", result)
 		}
 	}
 	return status
