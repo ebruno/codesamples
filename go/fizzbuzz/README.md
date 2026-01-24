@@ -6,17 +6,39 @@ Writes buzz when the number is modulo 5
 Writes fizzbuzz when the number is both modulo 3 and 5
 Otherwise just writes the number.
 
-## Build fizzbuzz ##
+## Tested environments ##
 
-      make
+ * Fedora 43 bazel 9
+ * MacOS 26 bazel 8
+
+## Build fizzbuzz  ##
+
+Either make or bazel can be used to build the sample application.
+
+### Using make ###
+
+	  make
 
 to clean up the directory
 
-      make clean|dist-clean
+	  make clean|dist-clean
 
-## Run fuzzbuzz ##
+### Using bazel ###
 
-      ./fuzzbuzz
+	. ./setup_bazel_env.sh
+	bazel build //:fizzbuzz
+
+to clean up the directory:
+
+    ./clean_bazel.sh
+
+### Run fuzzbuzz build by make ###
+
+	  ./fuzzbuzz
+
+### Run fuzzbuzz build by bazel ###
+
+	bazel run //:fizzbuzz
 
 ## Sample Output
 

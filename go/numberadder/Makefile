@@ -1,8 +1,8 @@
-GO              = /opt/homebrew/bin/go
+GO              = $(shell which go)
 
-SRCS 		= numberadder.go
+SRCS		= numberadder.go
 
-TARGET		= numberaddr
+TARGET		= numberadder
 
 .PHONY: clean dist-clean
 

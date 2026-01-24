@@ -22,6 +22,46 @@ The application generates a random set of test values.
 
 A demonstration of appropriate unit tests for this functionality is provided.
 
+## Tested environments ##
+
+ * Fedora 43 bazel 9
+ * MacOS 26 bazel 8
+
+## Build numberadder  ##
+
+Either make or bazel can be used to build the sample application.
+
+### Using make ###
+
+	  make
+	  
+to clean up the directory
+
+	  make clean|dist-clean
+
+Note: GOPATH should not set.
+
+### Using bazel ###
+
+	. ./setup_bazel_env.sh
+
+to clean up the directory
+
+	  make clean|dist-clean
+
+### run using bazel ###
+
+	bazel build //:numberadder
+
+    to run tests
+	bazel test //:numberadder_test
+
+### Using make output ##
+
+	./numberadder
+	
+	To run tests:
+	go test
 
 ## Sample Output ##
 
@@ -73,4 +113,4 @@ A demonstration of appropriate unit tests for this functionality is provided.
 		  --- PASS: TestVariablelength/"521711361115+50828" (0.00s)
 		  --- PASS: TestVariablelength/"464057727650121415880523648+521734278488" (0.00s)
 	  PASS
-	  ok  	github.com/ebruno/codesamples/go/numberaddr	0.025s
+	  ok  	github.com/ebruno/codesamples/go/numberadder	0.025s

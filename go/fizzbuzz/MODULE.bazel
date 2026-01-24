@@ -1,0 +1,15 @@
+module(
+    name = "fizzbuzz_project",
+    version = "1.0.0",
+)
+
+# Pull in the Go rules
+bazel_dep(name = "rules_go", version = "0.59.0")
+bazel_dep(name = "gazelle", version = "0.47.0")
+
+# Configure the Go SDK version
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.25.0")
+
+# Register the toolchains
+use_repo(go_sdk, "go_default_sdk")
