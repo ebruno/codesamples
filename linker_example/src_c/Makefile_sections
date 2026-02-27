@@ -1,0 +1,75 @@
+# -*- mode: makefile -*-
+DESTDIR = .
+
+LIB_NAME  = swtrstrlib
+
+LIB_ALL_IN_ONE = all_in_one
+
+SRC_FILES = lremove_char.c \
+	    remove_char.c \
+	    rremove_char.c \
+	    all_in_one.c
+
+ALL_IN_ONES_SRC = all_in_one.c
+
+OBJ_FILES = lremove_char.o \
+	    remove_char.o \
+	    rremove_char.o \
+	    all_in_one.o
+
+DEMOS_SRC = main.c
+
+DEMO_MAIN_OBJ  = main.o
+
+ALL_IN_ONE_OBJ = all_in_one.o
+
+DEMO_ALL_IN_ONE = demo_allinone
+
+DEMO_SEPARATE   = demo_separate
+
+CC = gcc
+
+CFLAGS = -ffunction-sections -fdata-sections
+
+LDFLAGS = -Wl,--gc-sections,--print-gc-sections
+
+all: static static_all_in_one demo_one demo_two display_sizes
+
+static: lib$(LIB_NAME).a
+
+static_all_in_one: lib$(LIB_ALL_IN_ONE).a
+
+lib$(LIB_NAME).a: $(OBJ_FILES)
+	@ar rcs $@ $^
+
+lib$(LIB_ALL_IN_ONE).a: $(ALL_IN_ONE_OBJ)
+	@ar rcs $@ $^
+
+
+demo_one: $(DEMO_MAIN_OBJ)
+	$(CC) -o $(DEMO_SEPARATE) $(DEMO_MAIN_OBJ) -L$(CURDIR) -l$(LIB_NAME) $(LDFLAGS),-Map=$(DEMO_SEPARATE).map
+
+demo_two:
+	$(CC) -o $(DEMO_ALL_IN_ONE) $(DEMO_MAIN_OBJ) -L$(CURDIR) -l$(LIB_ALL_IN_ONE) $(LDFLAGS),-Map=$(DEMO_ALL_IN_ONE).map
+
+display_sizes:
+	@echo "Note when the functions are compiled separately or in single source unit"
+	@echo "the binary is the same size."
+	@ls -l  $(DEMO_SEPARATE) $(DEMO_ALL_IN_ONE)
+
+
+# Rule to compile C source files into object files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean up generated files
+clean:
+	@$(RM) $(OBJ_FILES) $(DEMO_MAIN_OBJ) $(ALL_IN_ONE_OBJ) lib$(LIB_NAME).a lib$(LIB_ALL_IN_ONE).a;
+	@$(RM) $(DEMO_SEPARATE) $(DEMO_ALL_IN_ONE);
+	@$(RM) *.map;
+	@$(RM) *~;
+	@$(RM) #*#;
+
+dist-clean: clean
+	  @$(MAKE) -f Makefile_dll clean;
+	  @$(MAKE) -f Makefile clean;
