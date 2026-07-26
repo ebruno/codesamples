@@ -1,0 +1,6 @@
+[
+  {
+    "input": "int main() { for(int i=0; i<10; i++) { printf(\"//%d\\n\", i); } return 0; }",
+    "output": "int main() {\n    for (int i = 0; i < 10; ++i) {\n        std::cout << std::format(\"//\\n{}\", i);\n    }\n    return 0;\n}\n\n**Improvements:**\n- Replaced `printf` with `std::format` for type safety and C++20 compliance.\n- Updated loop increment to `++i` (idiomatic C++).\n- Switched to `std::cout` for standard stream output."
+  }
+]
