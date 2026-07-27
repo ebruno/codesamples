@@ -120,3 +120,42 @@ to clean up the directory
 	  98
 	  fizz
 	  buzz
+
+## Prompt Assembly for Refactoring
+
+The project includes tools to assemble LLM prompts for refactoring C code to ANSI C23 standards.
+If ANSI C23 is not support in the environment automatically role back to C17/C18.
+
+Copy the fizzbuzz.c_orig file to fizzbuzz.c to test the LLM refactoring functionality.
+
+### Assemble Prompts
+To generate text files containing the system and user prompts for each source file:
+`make refactor`
+
+### Run Prompt Engine
+To print the assembled prompts directly to the console for verification:
+`make run_prompt`
+
+## Direct Script Usage
+
+You can also run the prompt assembly tools directly:
+
+### Shell/Zsh Scripts
+These scripts generate `.txt` files for each provided source file.
+- **Bash**: `./assemble_prompt.sh <file1> [file2 ...]`
+- **Zsh**: `./assemble_prompt.zsh <file1> [file2 ...]`
+- **Dry Run**: Use the `-n` flag to see what would happen without creating files.
+
+### Python Prompt Engine
+This tool assembles the prompts and prints the configuration, system, and user prompts directly to standard output.
+- **Run**: `python3 prompt_engine.py <file1> [file2 ...]`
+- **Dry Run**: Use the `-n` or `--dry-run` flag to see which files would be processed.
+
+## Prompts Directory Structure
+
+The `prompts/` directory contains the resources needed to guide an LLM in refactoring code:
+
+- `configs/`: LLM configuration files and settings.
+- `examples/`: Sample refactoring inputs and outputs to provide context and few-shot examples.
+- `system/`: System personas and behavioral guidelines (e.g., the Senior C Developer role) that define the AI's expertise and constraints.
+- `templates/`: Markdown templates for user prompts, including placeholders for source code substitution.

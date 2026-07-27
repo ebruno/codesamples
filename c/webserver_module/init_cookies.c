@@ -1,27 +1,41 @@
+/**
+ * File: init_cookies.c
+ * Standard: C17/C18 (Fallback from C23 due to compiler compatibility)
+ * Compiler: Apple clang version 21.0.0
+ * Missing C23 Features: constexpr, auto
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "webmodule.h"
 
+/**
+ * @brief Initializes the cookies collection.
+ *
+ * Sets up the initial version, extension increment, and allocates the
+ * initial list of cookies.
+ *
+ * @param cookies      Pointer to the COOKIES structure to initialize.
+ * @param version      The version number of the cookie collection.
+ * @param extend_size  The initial number of cookies to allocate.
+ * @return int         Returns 0 on success, or ERROR_ENCOUNTERED on failure.
+ */
+int init_cookies(COOKIES *cookies, int version, int extend_size) {
+    if (cookies == NULL) {
+        return ERROR_ENCOUNTERED;
+    }
 
-int init_cookies (COOKIES *cookies, int version,int extend_size) {
-  int result = 0;
-  if (cookies != NULL) {
     cookies->version = version;
     cookies->extend_increment = extend_size;
-    cookies->max_entries = 0;
-    cookies->free_entries = 0;
     cookies->count_entries = 0;
-    cookies->list = NULL;
-    cookies->list = (COOKIE **) realloc(cookies->list,sizeof(cookies->list)*cookies->extend_increment);
+    
+    cookies->list = calloc(extend_size, sizeof(COOKIE *));
     if (cookies->list == NULL) {
-      result = ERROR_ENCOUNTERED;
-    } else {
-      for (int idx = 0; idx < cookies->extend_increment; idx++) {
-	cookies->list[idx] = NULL;
-      }
-      cookies->max_entries = cookies->extend_increment;
-      cookies->free_entries = cookies->extend_increment;      
+        return ERROR_ENCOUNTERED;
     }
-  }
-  return result;
+
+    cookies->max_entries = extend_size;
+    cookies->free_entries = extend_size;
+
+    return 0;
 }
