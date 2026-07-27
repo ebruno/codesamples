@@ -1,0 +1,6 @@
+[
+  {
+    "input": "void process(int *arr, int size) {\n    int *p = NULL;\n    for (int i = 0; i < size; i++) {\n        if (arr[i] > 10) {\n            p = &arr[i];\n        }\n    }\n}",
+    "output": "void process(int *arr, int size) {\n    int *p = nullptr;\n    for (auto i = 0; i < size; ++i) {\n        if (arr[i] > 10) {\n            p = &arr[i];\n        }\n    }\n}\n\n**Improvements:**\n- Replaced `NULL` with `nullptr` for C23 compliance.\n- Used `auto` for the loop counter `i`, utilizing C23 type inference."
+  }
+]

@@ -15,7 +15,7 @@ OBJS            = $(SRCS:*.c=.obj)
 
 TARGET		= showheader
 
-.PHONY: clean dist-clean test01 test02
+.PHONY: clean dist-clean test01 test02 refactor run_prompt
 
 all: $(TARGET)
 
@@ -35,6 +35,12 @@ test02:
 clean:
 	@find . -maxdepth 1 -name "*~" -exec ${RM} {} \;
 	@find . -maxdepth 1 -name "#*#" -exec ${RM} {} \;
-	@$(RM) -f $(TARGET)
+	@$(RM) -f $(TARGET) $(foreach src,$(SRCS),prompt_$(src).txt)
 
 dist-clean: clean
+
+refactor:
+	@if [ "$$(uname -s)" = "Darwin" ]; then ../assemble_prompt.zsh $(SRCS); else ../assemble_prompt.sh $(SRCS); fi
+
+run_prompt:
+	python3 ../prompt_engine.py $(SRCS)
