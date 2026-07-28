@@ -11,7 +11,11 @@ Coding samples in various languages and tools
  * packer
  * python
  * terraform
+ * lua
+ * powershell
  * zsh
+
+Note lua and powershell examples were generated using a llm based on the bash directory.
 
 ## Samples with LLM support ##
 
