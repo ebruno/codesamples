@@ -1,59 +1,79 @@
-## SSL Cert Info ##
+# SSL Cert Info
 
-This has been a tested on Ubuntu 18.04 LTS and Mac OS X Mojave.
-Requires the pytz package and on MacOS X Mojave the certifi package.
+This application scans a list of websites and reports the validity of their SSL server certificates relative to a specified date (defaulting to the current date).
 
-      usage: sslcertinfo [-h] [--date TESTDATE] [--outfile OUTFILE]
-                       [--sortby {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}]
-                       [--version]
-                       servers [servers ...]
+## Application Summary
 
-      Report SSL Cert validity based on date. Uses current date as the default.
+The `sslcertinfo.py` script retrieves SSL certificate details for one or more servers, calculates their validity based on the `notBefore` and `notAfter` dates, and provides a sorted report.
 
-      positional arguments:
-      servers               List of servers to query, in the form
-                            [https://]servername[:port]
+### Key Features:
+- Supports multiple servers as input.
+- Custom test date for certificate validity verification.
+- Ability to sort results by various fields (e.g., `notAfter`, `issuer`, `serialNumber`).
+- Outputs results to stdout or a specified file.
 
-      optional arguments:
-      -h, --help            show this help message and exit
-      --date TESTDATE, -d TESTDATE
-                           Date to test the certs against default is now. Date
-                           Format is "YYYY MM DD [HH:MM:SS]" in GMT (default:
-                           None)
-      --outfile OUTFILE, -o OUTFILE
-                            Output file (default: sys.stdout)
-      --sortby {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}, -s {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}
-                           Fields to sort by (default: ['notAfter'])
-     --version, -v         show program's version number and exit
+## How to Run
 
-## Sample Run output to file ##
+To run the application:
 
-       ./sslcertinfo.py --outfile demoresults.txt  www.google.com www.apple.com www.netflix.com www.yahoo.com www.dropbox.com  www.facebook.com
-       ls *.txt
-       demoresults.txt
-       cat demoresults.txt 
-       Sorted by: notAfter
-       Valid relative to date: 2019-10-24 02:50:53.634573+00:00
-       Site                      Not Valid Before         Not Valid After           Is Valid
-       *.facebook.com            Sep 22 00:00:00 2019 GMT Dec 20 12:00:00 2019 GMT  True
-       www.google.com            Oct 10 20:56:23 2019 GMT Jan  2 20:56:23 2020 GMT  True
-       www.netflix.com           Feb  7 00:00:00 2018 GMT Feb  7 12:00:00 2020 GMT  True
-       www.dropbox.com           Nov 14 00:00:00 2017 GMT Feb 11 12:00:00 2020 GMT  True
-       *.www.yahoo.com           Aug 23 00:00:00 2019 GMT Feb 19 12:00:00 2020 GMT  True
-       www.apple.com             Mar  7 00:00:00 2019 GMT Mar  7 12:00:00 2020 GMT  True
+1. **Create a Python 3 virtual environment:**
+   ```bash
+   python3 -m venv venv
+   ```
 
+2. **Activate the virtual environment:**
+   ```bash
+   source venv/bin/activate
+   ```
 
-## Sample Run output to console/stdout ##
+3. **Install the required dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-     ./sslcertinfo.py  www.google.com www.apple.com www.netflix.com www.yahoo.com www.dropbox.com  www.facebook.com
-     Sorted by: notAfter
-     Valid relative to date: 2019-10-24 02:48:54.192084+00:00
-     Site                      Not Valid Before         Not Valid After           Is Valid
-     *.facebook.com            Sep 22 00:00:00 2019 GMT Dec 20 12:00:00 2019 GMT  True
-     www.google.com            Oct 10 20:56:23 2019 GMT Jan  2 20:56:23 2020 GMT  True
-     www.netflix.com           Feb  7 00:00:00 2018 GMT Feb  7 12:00:00 2020 GMT  True
-     www.dropbox.com           Nov 14 00:00:00 2017 GMT Feb 11 12:00:00 2020 GMT  True
-     *.www.yahoo.com           Aug 23 00:00:00 2019 GMT Feb 19 12:00:00 2020 GMT  True
-     www.apple.com             Mar  7 00:00:00 2019 GMT Mar  7 12:00:00 2020 GMT  True
+4. **Run the application with the target servers:**
+   ```bash
+   python3 sslcertinfo.py www.google.com www.apple.com www.mopar.com www.ford.com
+   ```
 
+## Usage
 
+Below is the output of the `-h` (help) command:
+
+```text
+usage: sslcertinfo [-h] [--date TESTDATE] [--outfile OUTFILE]
+                   [--sortby {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}]
+                   [--version]
+                   servers [servers ...]
+
+Report SSL Cert validity based on date. Uses current date as the default.
+
+positional arguments:
+  servers               List of servers to query, in the form
+                        [https://]servername[:port]
+
+options:
+  -h, --help            show this help message and exit
+  --date, -d TESTDATE   Date to test the certs against default is now. Date
+                        Format is "YYYY MM DD [HH:MM:SS]" in GMT. Date must be
+                        quoted. (default: None)
+  --outfile, -o OUTFILE
+                        Output file (default: sys.stdout)
+  --sortby, -s {caIssuers,issuer,notAfter,notBefore,OCSP,serialNumber,subjectAltName,version}
+                        Fields to sort by (default: ['notAfter'])
+  --version, -v         show program's version number and exit
+```
+
+## Execution Output
+
+Below is the output generated when running the application with the specified URLs:
+
+```text
+Sorted by: notAfter
+Valid relative to date: 2026-07-28 03:22:28.814862+00:00
+Site                      Not Valid Before         Not Valid After           Is Valid
+www.google.com            Jun 29 08:40:13 2026 GMT Sep 21 08:40:12 2026 GMT  True
+www.ford.com              Jun 23 10:48:51 2026 GMT Sep 21 10:48:50 2026 GMT  True
+dealerconnect.chrysler.com Jul 17 13:07:53 2026 GMT Oct 15 13:07:52 2026 GMT  True
+www.apple.com             Jul  2 22:11:57 2026 GMT Dec 16 18:31:25 2026 GMT  True
+```

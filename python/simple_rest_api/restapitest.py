@@ -14,7 +14,7 @@ def application(environ,start_response):
     """
     reference_set = set('abcdefghijklnmopqrstuvwxyz')
     
-    legal_functions = ['/cleardata/homeworks/hasalphabet']
+    legal_functions = ['/ebruno/homeworks/hasalphabet']
     response_code = '200 OK'
     body = ''
     json_result = ''
@@ -26,7 +26,7 @@ def application(environ,start_response):
     try:
         if environ['REQUEST_METHOD'] == 'GET':
             if environ['PATH_INFO'] in legal_functions:
-                if environ['PATH_INFO'] == '/cleardata/homeworks/hasalphabet':
+                if environ['PATH_INFO'] == '/ebruno/homeworks/hasalphabet':
                     raw_info = urllib.parse.unquote(environ['QUERY_STRING']).split('&')
                     for item in raw_info:
                         # find the first '=' from the left hand side of string.
@@ -70,7 +70,7 @@ def main():
     for test_data in tests:
         query_data = {'datatocheck':test_data}
         print('Checking:', test_data)
-        resp = app.get('/cleardata/homeworks/hasalphabet',query_data)
+        resp = app.get('/ebruno/homeworks/hasalphabet',query_data)
         print('Response:')
         print('   - Status      :', '"' + resp.status +'"', 'Integer Value:',resp.status_int)
         print('   - Content-Type:',resp.content_type)
