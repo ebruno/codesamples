@@ -76,7 +76,7 @@ Validate installation instructions at: [Installing Docker CE](https://docs.docke
 	   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 	 sudo apt-get update
 
-0
+
 ### Gitlab Runner ###
 Current instructions can be found here [Installing Gitlab Runner](https://docs.gitlab.com/runner/install/)
 
