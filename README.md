@@ -13,13 +13,25 @@ Coding samples in various languages and tools
  * terraform
  * zsh
 
+## Samples with LLM support ##
+
+* c:
+    * senior-c-dev: Expert in ANSI C23 and C Core Guidelines. Focuses on memory alignment, cache locality, and minimal overhead. Prioritizes C23 features (`nullptr`, `auto`, `constexpr`) with C17/C18 fallback, strict type checking, and Doxygen-style documentation.
+    * refactor
+* c++:
+    * senior-cpp-dev: Expert in C++20/23 and C++ Core Guidelines. Emphasizes RAII, smart pointers, bounds-checked access, and modern C++20 features (concepts, ranges, `std::format`). Prefers `std::string_view` for efficiency and provides Doxygen-style documentation.
+    * refactor
+
 ## git client-side hooks ##
 The repository has git client-side hooks defined in .githooks/hooks.
 
-	To enable them copy them to
-	   cp .githooks/* .git/hooks
-	or
-	   git config core.hooksPath .githooks
+Available hooks:
+* pre-commit: Ensures that YAML files (.yml, .yaml) use 4 spaces instead of tabs for indentation.
+
+To enable them copy them to
+	   cp .githooks/hooks/* .git/hooks
+or
+	   git config core.hooksPath .githooks/hooks
 
 ## Installing Runners ##
 For experimentation it be useful to use gitlab and github runners
@@ -315,8 +327,8 @@ It is possbile to install under a specific user id
 	sudo useradd -m -c "github runner" github-runner
 
 
-(what is shown below is be consider an example):
-I perfer to install it in /opt
+(what is shown below is to be consider an example):
+I prefer to install it in /opt
 
 	 # Create a folder
 	 sudo mkdir /opt/actions-runner && cd /opt/actions-runner
