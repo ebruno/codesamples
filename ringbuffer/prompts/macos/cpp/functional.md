@@ -69,12 +69,15 @@
         - `transformed data buffer size`
 
 ## Logging and Diagnostics
-- **Log Queue**:
-    - Implement a log message queue using a FIFO structure based on `std::vector`.
-    - Provide a function to retrieve the next message from the queue.
 - **Logging Control**:
     - Provide a global logging enabled/disabled flag with `set` and `get` functions.
-    - Support a log verbosity level (4 distinct levels).
+	- Provide a set/get functions to set a iostream for logger to write to.  The default stream should be std:err.
+	- Use a non-virtual public interface (NVI) combined with a protected pure virtual implementation method and the override keyword.
+	- The default fallback body should write the information to the iostream provided by set iostream method.
+	- Define the enumuated types for the following log levels Trace, Debug,Info, Warning, Error and Critical.
+	- The default logging function should have following signature log_message(loglevel, const char * fmt, const Args &... 	args)
+	- loglevel should accept the enumated type for the log levels previously defined. 
+    - Support log verbosity levels for each stage **Read**, **Transform**, **Write** (4 distinct levels).
 - **Independent Stage Logging**:
     - Provide independent enable/disable flags and verbosity level settings for the **Read**, **Transform**, and **Write** stages.
     - Each stage must check its specific flag and verbosity level before adding a message to the log queue.
