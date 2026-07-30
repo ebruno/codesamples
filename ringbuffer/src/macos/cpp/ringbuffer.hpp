@@ -23,6 +23,9 @@
 
 namespace swtr {
 
+inline constexpr size_t MIN_NUMBER_SLOTS = 1;
+inline constexpr size_t MIN_BUFFER_SIZE = 1;
+
 /**
  * @struct BufferSlot
  * @brief Represents a single slot in the ringbuffer with alignment to prevent false sharing.
