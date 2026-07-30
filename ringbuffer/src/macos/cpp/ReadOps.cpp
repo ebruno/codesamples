@@ -24,10 +24,12 @@ void RingBuffer::read_op(std::stop_token st, int fd) {
                 m_slots[idx]->status = BufferStatus::READY_FOR_TRANSFORM;
                 log_message(LogLevel::Debug, "READ", "Read {} bytes into slot {}", bytes_read, idx);
             } else if (bytes_read == 0) {
+                m_slots[idx]->data_buffer_size = 0;
                 log_message(LogLevel::Info, "READ", "EOF detected. Marking last buffer and terminating reader.");
                 m_slots[idx]->status = BufferStatus::LAST_BUFFER_TO_TRANSFORM;
                 break; 
             } else {
+                m_slots[idx]->data_buffer_size = 0;
                 log_message(LogLevel::Error, "READ", "Read error on descriptor {}", fd);
                 handle_error(idx, BufferStatus::ERROR);
             }
