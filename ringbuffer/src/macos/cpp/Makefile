@@ -6,9 +6,10 @@ include version.mk
 
 # Toolchain Configuration
 CXX      := clang++
+RM       := rm -f
 ARCH     := -arch arm64 -arch x86_64
 CXXFLAGS := $(ARCH) -std=c++20 -O3 -Wall -Wextra -Wpedantic -ffunction-sections -fdata-sections -fPIC
-LDFLAGS  := -Wl,--gc-sections
+LDFLAGS  := -Wl,-dead_strip
 
 # Output Directory
 LIB_DIR  := lib
@@ -33,7 +34,7 @@ $(LIB_DIR):
 
 $(STATIC_LIB): $(OBJS)
 	@echo "Linking Universal Static Library: $@"
-	ar rcs $@ $(OBJS)
+	libtool -static -o $@ $(OBJS)
 
 $(SHARED_LIB): $(OBJS)
 	@echo "Linking Universal Shared Library: $@"
@@ -45,8 +46,8 @@ $(SHARED_LIB): $(OBJS)
 
 clean:
 	@echo "Cleaning build artifacts and lib directory..."
-	rm -rf $(LIB_DIR)
-	rm -f $(OBJS)
+	$(RM) -r $(LIB_DIR)
+	$(RM) $(OBJS)
 
 dist-clean: clean
 	@echo "Performing dist-clean..."
