@@ -12,7 +12,7 @@
 namespace swtr {
 
 enum class BufferStatus : uint8_t {
-    READ_FOR_READ = 0,
+    READY_FOR_READ = 0,
     READY_FOR_TRANSFORM = 1,
     READY_FOR_WRITE = 2,
     PROCESSING_READ = 3,
@@ -28,7 +28,7 @@ enum class BufferStatus : uint8_t {
     LAST_BUFFER_TO_WRITE = 13
 };
 
-inline constexpr BufferStatus readforread = BufferStatus::READ_FOR_READ;
+inline constexpr BufferStatus readytoread = BufferStatus::READY_FOR_READ;
 inline constexpr BufferStatus readyfortransform = BufferStatus::READY_FOR_TRANSFORM;
 inline constexpr BufferStatus readyforwrite = BufferStatus::READY_FOR_WRITE;
 

@@ -14,7 +14,7 @@ void RingBuffer::read_op(std::stop_token st, int fd) {
     while (!st.stop_requested()) {
         size_t idx = m_read_idx.load();
         
-        if (m_slots[idx]->status == BufferStatus::READ_FOR_READ) {
+        if (m_slots[idx]->status == BufferStatus::READY_FOR_READ) {
             m_slots[idx]->status = BufferStatus::PROCESSING_READ;
             
             ssize_t bytes_read = read(fd, m_slots[idx]->data.data(), m_slots[idx]->max_data_buffer_size);
@@ -37,7 +37,7 @@ void RingBuffer::read_op(std::stop_token st, int fd) {
         } else {
             std::unique_lock lock(m_mutex);
             m_cv.wait_for(lock, std::chrono::milliseconds(10), [&]{ 
-                return m_slots[m_read_idx]->status == BufferStatus::READ_FOR_READ || st.stop_requested(); 
+                return m_slots[m_read_idx]->status == BufferStatus::READY_FOR_READ || st.stop_requested(); 
             });
         }
     }
