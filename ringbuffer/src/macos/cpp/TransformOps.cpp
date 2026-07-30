@@ -29,8 +29,9 @@ void RingBuffer::transform_op(std::stop_token st) {
                     handle_error(idx, BufferStatus::ERROR);
                 }
             } else {
+                m_slots[idx]->transformed_data_buffer_size = m_slots[idx]->data_buffer_size;
                 m_slots[idx]->status = is_last ? BufferStatus::LAST_BUFFER_TO_WRITE : BufferStatus::READY_FOR_WRITE;
-                log_message(LogLevel::Debug, "TRANSFORM", "No transform func specified; bypassing slot {}", idx);
+                log_message(LogLevel::Debug, "TRANSFORM", "No transform func specified; bypassing slot {} (size: {})", idx, m_slots[idx]->transformed_data_buffer_size);
             }
             
             m_transform_idx = (idx + 1) % m_num_slots;
