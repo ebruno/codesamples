@@ -33,14 +33,14 @@
 
 ## Constructor Requirements
 - **Automatic Start**: The constructor MUST NOT start the read, transform, or write threads automatically.
-- Allow specification of the number of slots in the ring buffer.
-- Allow specification of the initial status of the ringbuffer.
-- Allow specification of the buffer size per slot (default value: 4096).
+- Allow specification of the number of slots in the ring buffer (default: MIN_NUMBER_SLOTS).
+- Allow specification of the initial status of the ringbuffer (default: readytoread).
+- Allow specification of the buffer size per slot (default: DEFAULT_BUFFER_SIZE = 4096).
 - **Initialization**: The `max data buffer size` for each slot must be initialized with the "buffer size per slot" value provided to the constructor.
    - The constructor should fail if number slots is not equal to or  greater than 1 and the buffer size is not equal to or greater than 1, and exeception should fail reporting why it failed.
    - Create a macro or const MIN\_NUMBER\_SLOTS and set to 1 use this for the test in constructor.
    - Create a macro or const MIN\_BUFFER\_SIZE and set to 1 use this for the test in constructor.
-- Default behavior for `readforread`.
+- Default behavior for `readytoread`.
 
 ## Public Member Functions
 - **Thread Control**:
