@@ -6,13 +6,13 @@
 - **Build System**: CMake (preferred) or GNU Make.
 - **Binary Format**: macOS Universal Binaries (Fat Binaries) supporting both `arm64` (Apple Silicon) and `x86_64` (Intel).
 
+## Compilation Flags
+To ensure maximum performance and the smallest possible binary footprint, the following flags must be used:
+
 ## Versioning
 - **Version File**: A `version.mk` file must be present in the source directory.
 - **Variables**: The file must define `MAJOR`, `MINOR`, `SUBVERSION`, and `BUILD_ID`.
 - **Integration**: The build system (Makefile) must include `version.mk` to manage library versioning.
-
-## Compilation Flags
-To ensure maximum performance and the smallest possible binary footprint, the following flags must be used:
 
 ### Compiler Flags
 - `-arch arm64 -arch x86_64`: Required to produce universal binaries.
@@ -27,8 +27,8 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 - `-dynamiclib`: Used specifically for the shared library target to create a `.dylib`.
 
 ## Output Artifacts
-- **Static Library**: `lib/libswtr_ringbuffer.a`
-- **Shared Library**: `lib/libswtr_ringbuffer.dylib`
+- **Static Library**: `lib/libswtr_ringbuffer.a`. **Requirement**: This must be built using `libtool -static` instead of `ar`.
+- **Shared Library**: `lib/libswtr_ringbuffer.dylib`.
 - **Artifact Location**: All built libraries must be placed in a subdirectory named `lib`.
 
 ## Binary Optimization Goals
@@ -41,3 +41,4 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 3. Link the object files into both a static library (`.a`) and a shared library (`.dylib`).
 4. Place the output artifacts in the `lib` directory.
 5. Verify the universal binary architecture using the `lipo -info` command.
+6. **Cleanup**: Use the `$(RM)` macro for file cleanup instead of calling `rm -f` directly.
