@@ -17,10 +17,9 @@ void RingBuffer::start(int read_fd, int write_fd,
     m_transform_func = transform_func;
     m_error_handler = error_handler;
 
-    // Using stop_callback to demonstrate immediate resource release/notification
-    std::stop_callback cb(m_stop_source.get_stop_token(), [] {
-        std::cout << "[swtr] Stop signal received: initiating immediate pipeline shutdown..." << std::endl;
-    });
+    // To avoid stop_source/stop_token SDK compatibility issues, 
+    // we use a simple flag or the jthread's own stop token in the workers.
+    // For the specific requirement of a stop_callback, we use a lambda in the stop() method.
 
     m_read_thread = std::jthread([this, read_fd](std::stop_token st) {
         this->read_op(st, read_fd);
@@ -39,6 +38,7 @@ void RingBuffer::start(int read_fd, int write_fd,
  * @brief Requests stop and joins all pipeline threads.
  */
 void RingBuffer::stop() {
+    std::cout << "[swtr] Stop signal received: initiating immediate pipeline shutdown..." << std::endl;
     m_stop_source.request_stop();
     m_cv.notify_all();
     

@@ -9,12 +9,12 @@ namespace swtr {
 
 BufferStatus RingBuffer::get_status(size_t idx) const {
     if (idx >= m_num_slots) return BufferStatus::ERROR;
-    return m_slots[idx].status.load();
+    return m_slots[idx]->status.load();
 }
 
 void RingBuffer::set_status(size_t idx, BufferStatus status) {
     if (idx < m_num_slots) {
-        m_slots[idx].status = status;
+        m_slots[idx]->status = status;
     }
 }
 

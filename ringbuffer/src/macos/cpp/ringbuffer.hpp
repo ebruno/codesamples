@@ -23,6 +23,13 @@
 
 namespace swtr {
 
+/**
+ * @struct BufferSlot
+ * @brief Represents a single slot in the ringbuffer with alignment to prevent false sharing.
+ * 
+ * Note: Contains std::atomic, which makes the struct non-copyable and non-movable.
+ * We store these via unique_ptr in a vector to allow heap allocation and stability.
+ */
 struct alignas(64) BufferSlot {
     size_t idx;
     std::atomic<BufferStatus> status;
@@ -32,11 +39,24 @@ struct alignas(64) BufferSlot {
     ChecksumAlgorithm checksum_alg;
     uint64_t checksum_val;
     std::vector<uint8_t> data;
+
+    BufferSlot() : idx(0), status(BufferStatus::READ_FOR_READ), max_data_buffer_size(0), 
+                   data_buffer_size(0), transformed_data_buffer_size(0), 
+                   checksum_alg(ChecksumAlgorithm::NONE), checksum_val(0) {}
+    
+    BufferSlot(const BufferSlot&) = delete;
+    BufferSlot& operator=(const BufferSlot&) = delete;
+    BufferSlot(BufferSlot&&) = delete;
+    BufferSlot& operator=(BufferSlot&&) = delete;
 };
 
+/**
+ * @class RingBuffer
+ * @brief Abstract base class for a high-performance, thread-safe ringbuffer.
+ */
 class RingBuffer {
 public:
-    virtual ~RingBuffer() = default;
+    virtual ~RingBuffer();
 
     /**
      * @brief Constructs the ringbuffer. 
@@ -111,7 +131,7 @@ protected:
     virtual void do_log(LogLevel level, const std::string& message) = 0;
 
     alignas(64) size_t m_num_slots;
-    std::vector<BufferSlot> m_slots;
+    std::vector<std::unique_ptr<BufferSlot>> m_slots;
     alignas(64) std::atomic<size_t> m_read_idx{0};
     alignas(64) std::atomic<size_t> m_transform_idx{0};
     alignas(64) std::atomic<size_t> m_write_idx{0};

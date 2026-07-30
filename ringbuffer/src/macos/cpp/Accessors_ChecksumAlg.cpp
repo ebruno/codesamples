@@ -9,12 +9,12 @@ namespace swtr {
 
 ChecksumAlgorithm RingBuffer::get_checksum_alg(size_t idx) const {
     if (idx >= m_num_slots) return ChecksumAlgorithm::NONE;
-    return m_slots[idx].checksum_alg;
+    return m_slots[idx]->checksum_alg;
 }
 
 void RingBuffer::set_checksum_alg(size_t idx, ChecksumAlgorithm alg) {
     if (idx < m_num_slots) {
-        m_slots[idx].checksum_alg = alg;
+        m_slots[idx]->checksum_alg = alg;
     }
 }
 
