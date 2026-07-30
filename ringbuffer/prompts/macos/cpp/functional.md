@@ -30,6 +30,7 @@
     - **Operations**: Group read-related, transform-related, and write-related functions into their own respective logical groups.
     - **Accessors**: Group getter and setter functions together that process the same data.
 - **Git Collision Mitigation**: Limit to a maximum of 3 functions per source file to avoid source code collisions in git.
+- **Documentation**: A `README.md` file must be provided in the source directory describing the library and how to build it.
 
 ## Constructor Requirements
 - **Automatic Start**: The constructor MUST NOT start the read, transform, or write threads automatically.
