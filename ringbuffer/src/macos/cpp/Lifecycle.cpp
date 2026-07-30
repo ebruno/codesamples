@@ -11,7 +11,7 @@ namespace swtr {
 /**
  * @brief Constructs the RingBuffer and initializes all slots.
  * 
- * @throws std::invalid_argument if num_slots <= 1 or buffer_size <= 1.
+ * @throws std::invalid_argument if num_slots < MIN_NUMBER_SLOTS or buffer_size < MIN_BUFFER_SIZE.
  */
 RingBuffer::RingBuffer(size_t num_slots, BufferStatus initial_status, size_t buffer_size) 
     : m_num_slots(num_slots) {

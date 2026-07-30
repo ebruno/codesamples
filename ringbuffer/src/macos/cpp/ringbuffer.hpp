@@ -25,6 +25,7 @@ namespace swtr {
 
 inline constexpr size_t MIN_NUMBER_SLOTS = 1;
 inline constexpr size_t MIN_BUFFER_SIZE = 1;
+inline constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
 
 /**
  * @struct BufferSlot
@@ -63,9 +64,9 @@ public:
 
     /**
      * @brief Constructs the ringbuffer. 
-     * @throws std::invalid_argument if num_slots <= 1 or buffer_size <= 1.
+     * @throws std::invalid_argument if num_slots < MIN_NUMBER_SLOTS or buffer_size < MIN_BUFFER_SIZE.
      */
-    RingBuffer(size_t num_slots, BufferStatus initial_status = BufferStatus::READ_FOR_READ, size_t buffer_size = 4096);
+    RingBuffer(size_t num_slots = MIN_NUMBER_SLOTS, BufferStatus initial_status = BufferStatus::READ_FOR_READ, size_t buffer_size = DEFAULT_BUFFER_SIZE);
 
     void start(int read_fd, int write_fd, 
                std::function<void(std::vector<uint8_t>&, size_t&)> transform_func,
