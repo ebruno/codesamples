@@ -17,8 +17,7 @@ LogLevel RingBuffer::get_global_verbosity() const {
 
 std::ostream& RingBuffer::get_output_stream() const {
     if (m_log_stream) return *m_log_stream;
-    static std::ostream null_stream(std::cerr); 
-    return null_stream;
+    return std::cerr;
 }
 
 } // namespace swtr
