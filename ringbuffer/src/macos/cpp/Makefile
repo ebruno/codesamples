@@ -47,11 +47,11 @@ $(SHARED_LIB): $(OBJS)
 
 $(STATIC_ALIAS): $(STATIC_LIB)
 	@echo "Creating static alias..."
-	ln -sf $(STATIC_LIB) $(STATIC_ALIAS)
+	cd $(LIB_DIR) && ln -sf $(notdir $(STATIC_LIB)) $(notdir $(STATIC_ALIAS))
 
 $(SHARED_ALIAS): $(SHARED_LIB)
 	@echo "Creating shared alias..."
-	ln -sf $(SHARED_LIB) $(SHARED_ALIAS)
+	cd $(LIB_DIR) && ln -sf $(notdir $(SHARED_LIB)) $(notdir $(SHARED_ALIAS))
 
 %.o: %.cpp $(DEPS)
 	@echo "Compiling $< for universal binary..."
