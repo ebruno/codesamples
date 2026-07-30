@@ -9,11 +9,6 @@
 ## Compilation Flags
 To ensure maximum performance and the smallest possible binary footprint, the following flags must be used:
 
-## Versioning
-- **Version File**: A `version.mk` file must be present in the source directory.
-- **Variables**: The file must define `MAJOR`, `MINOR`, `SUBVERSION`, and `BUILD_ID`.
-- **Integration**: The build system (Makefile) must include `version.mk` to manage library versioning.
-
 ### Compiler Flags
 - `-arch arm64 -arch x86_64`: Required to produce universal binaries.
 - `-fPIC`: Position Independent Code, required for shared library creation.
@@ -27,9 +22,21 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 - `-dynamiclib`: Used specifically for the shared library target to create a `.dylib`.
 
 ## Output Artifacts
-- **Static Library**: `lib/libswtr_ringbuffer.a`. **Requirement**: This must be built using `libtool -static` instead of `ar`.
-- **Shared Library**: `lib/libswtr_ringbuffer.dylib`.
-- **Artifact Location**: All built libraries must be placed in a subdirectory named `lib`.
+All built libraries must be placed in a subdirectory named `lib`.
+
+### Versioned Binaries
+The libraries must be named using the version variables from `version.mk` in the format: `libswtr_ringbuffer-$(MAJOR).$(MINOR).$(SUBVERSION)-$(BUILD_ID).{ext}`.
+
+- **Static Library**:
+    - **Target**: `lib/libswtr_ringbuffer-$(MAJOR).$(MINOR).$(SUBVERSION)-$(BUILD_ID).a`
+    - **Requirement**: Must be built using `libtool -static` instead of `ar`.
+- **Shared Library**:
+    - **Target**: `lib/libswtr_ringbuffer-$(MAJOR).$(MINOR).$(SUBVERSION)-$(BUILD_ID).dylib`
+
+### Artifact Aliases (Symbolic Links)
+To provide a consistent interface for consumers, the following symbolic links must be created in the `lib` directory:
+- `libswtr_ringbuffer.a` $\rightarrow$ points to the current versioned static library.
+- `libswtr_ringbuffer.dylib` $\rightarrow$ points to the current versioned shared library.
 
 ## Binary Optimization Goals
 - **Dead Code Elimination**: The primary goal of using `-ffunction-sections` and `--gc-sections` is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible static binary.
@@ -41,4 +48,4 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 3. Link the object files into both a static library (`.a`) and a shared library (`.dylib`).
 4. Place the output artifacts in the `lib` directory.
 5. Verify the universal binary architecture using the `lipo -info` command.
-6. **Cleanup**: Use the `$(RM)` macro for file cleanup instead of calling `rm -f` directly.
+6. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition.
