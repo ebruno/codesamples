@@ -37,6 +37,7 @@
 - Allow specification of the initial status of the ringbuffer.
 - Allow specification of the buffer size per slot (default value: 4096).
 - **Initialization**: The `max data buffer size` for each slot must be initialized with the "buffer size per slot" value provided to the constructor.
+   - The constructor should fail if number slots is not greater than 1 and the buffer size is not greater than 1, and exeception should fail reporting why it failed.
 - Default behavior for `readforread`.
 
 ## Public Member Functions
@@ -71,16 +72,17 @@
 ## Logging and Diagnostics
 - **Logging Control**:
     - Provide a global logging enabled/disabled flag with `set` and `get` functions.
-	- Provide a set/get functions to set a iostream for logger to write to.  The default stream should be std:err.
-	- Use a non-virtual public interface (NVI) combined with a protected pure virtual implementation method and the override keyword.
-	- The default fallback body should write the information to the iostream provided by set iostream method.
-	- Define the enumuated types for the following log levels Trace, Debug,Info, Warning, Error and Critical.
-	- The default logging function should have following signature log_message(loglevel, const char * fmt, const Args &... 	args)
-	- loglevel should accept the enumated type for the log levels previously defined. 
-    - Support log verbosity levels for each stage **Read**, **Transform**, **Write** (4 distinct levels).
+    - Provide `set` and `get` functions to specify the output stream (e.g., `std::ostream`). The default stream should be `std::cerr`.
+    - **Architecture**: Use a Non-Virtual Public Interface (NVI) pattern:
+        - Public non-virtual `log_message` method for external use.
+        - Protected pure virtual implementation method `do_log` for derived classes.
+        - Use the `override` keyword in derived classes.
+    - **Log Levels**: Define an enumeration for the following levels: `Trace`, `Debug`, `Info`, `Warning`, `Error`, `Critical`.
+	    - Log levels should have strings that can used in place of enumerated log level values in messages.
+    - **Log Public and private log function Signature**: The logging functions must support a variadic template signature: `void do_log(LogLevel level, const char* fmt, Args&&... args)`.
 - **Independent Stage Logging**:
     - Provide independent enable/disable flags and verbosity level settings for the **Read**, **Transform**, and **Write** stages.
-    - Each stage must check its specific flag and verbosity level before adding a message to the log queue.
+    - Each stage must check its specific flag and verbosity level before calling the log implementation.
 
 ## Execution Model & Threading
 - The read, transform, and write functions will run in separate threads using `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
