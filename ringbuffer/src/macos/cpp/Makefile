@@ -1,0 +1,52 @@
+# Makefile for swtr Ringbuffer (macOS, C++)
+# Based on requirements in ringbuffer/prompts/macos/cpp/build.md
+
+# Include versioning
+include version.mk
+
+# Toolchain Configuration
+CXX      := clang++
+ARCH     := -arch arm64 -arch x86_64
+CXXFLAGS := $(ARCH) -std=c++20 -O3 -Wall -Wextra -Wpedantic -ffunction-sections -fdata-sections -fPIC
+LDFLAGS  := -Wl,--gc-sections
+
+# Output Directory
+LIB_DIR  := lib
+
+# Targets
+STATIC_LIB  := $(LIB_DIR)/libswtr_ringbuffer.a
+SHARED_LIB  := $(LIB_DIR)/libswtr_ringbuffer.dylib
+
+# Source and Object files
+SRCS     := $(wildcard *.cpp)
+OBJS     := $(SRCS:.cpp=.o)
+
+# Header dependencies
+DEPS     := status.hpp ringbuffer.hpp swtr_ringbuffer_impl.hpp
+
+.PHONY: all clean dist-clean
+
+all: $(LIB_DIR) $(STATIC_LIB) $(SHARED_LIB)
+
+$(LIB_DIR):
+	@mkdir -p $(LIB_DIR)
+
+$(STATIC_LIB): $(OBJS)
+	@echo "Linking Universal Static Library: $@"
+	ar rcs $@ $(OBJS)
+
+$(SHARED_LIB): $(OBJS)
+	@echo "Linking Universal Shared Library: $@"
+	$(CXX) $(LDFLAGS) -dynamiclib -o $@ $(OBJS)
+
+%.o: %.cpp $(DEPS)
+	@echo "Compiling $< for universal binary..."
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+clean:
+	@echo "Cleaning build artifacts and lib directory..."
+	rm -rf $(LIB_DIR)
+	rm -f $(OBJS)
+
+dist-clean: clean
+	@echo "Performing dist-clean..."
