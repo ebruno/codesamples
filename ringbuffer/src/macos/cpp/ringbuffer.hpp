@@ -44,7 +44,7 @@ struct alignas(64) BufferSlot {
     uint64_t checksum_val;
     std::vector<uint8_t> data;
 
-    BufferSlot() : idx(0), status(BufferStatus::READ_FOR_READ), max_data_buffer_size(0), 
+    BufferSlot() : idx(0), status(BufferStatus::READY_FOR_READ), max_data_buffer_size(0), 
                    data_buffer_size(0), transformed_data_buffer_size(0), 
                    checksum_alg(ChecksumAlgorithm::NONE), checksum_val(0) {}
     
@@ -66,7 +66,7 @@ public:
      * @brief Constructs the ringbuffer. 
      * @throws std::invalid_argument if num_slots < MIN_NUMBER_SLOTS or buffer_size < MIN_BUFFER_SIZE.
      */
-    RingBuffer(size_t num_slots = MIN_NUMBER_SLOTS, BufferStatus initial_status = BufferStatus::READ_FOR_READ, size_t buffer_size = DEFAULT_BUFFER_SIZE);
+    RingBuffer(size_t num_slots = MIN_NUMBER_SLOTS, BufferStatus initial_status = BufferStatus::READY_FOR_READ, size_t buffer_size = DEFAULT_BUFFER_SIZE);
 
     void start(int read_fd, int write_fd, 
                std::function<void(std::vector<uint8_t>&, size_t&)> transform_func,

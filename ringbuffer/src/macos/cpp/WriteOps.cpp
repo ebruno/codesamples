@@ -24,7 +24,7 @@ void RingBuffer::write_op(std::stop_token st, int fd) {
             
             if (bytes_written >= 0) {
                 m_slots[idx]->data_buffer_size = 0;
-                m_slots[idx]->status = BufferStatus::READ_FOR_READ;
+                m_slots[idx]->status = BufferStatus::READY_FOR_READ;
                 log_message(LogLevel::Debug, "WRITE", "Wrote data from slot {} {}", idx, is_last ? "(LAST)" : "");
             } else {
                 log_message(LogLevel::Error, "WRITE", "Write error on descriptor {}", fd);

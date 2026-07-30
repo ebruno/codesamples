@@ -16,7 +16,7 @@ namespace swtr {
  */
 class RingBufferImpl : public RingBuffer {
 public:
-    RingBufferImpl(size_t num_slots, BufferStatus initial_status = BufferStatus::READ_FOR_READ, size_t buffer_size = 4096);
+    RingBufferImpl(size_t num_slots = MIN_NUMBER_SLOTS, BufferStatus initial_status = BufferStatus::READY_FOR_READ, size_t buffer_size = DEFAULT_BUFFER_SIZE);
 
 protected:
     /**
