@@ -16,11 +16,11 @@ namespace swtr {
 RingBuffer::RingBuffer(size_t num_slots, BufferStatus initial_status, size_t buffer_size) 
     : m_num_slots(num_slots) {
     
-    if (num_slots <= 1) {
-        throw std::invalid_argument("Number of slots must be greater than 1");
+    if (num_slots < MIN_NUMBER_SLOTS) {
+        throw std::invalid_argument(std::format("Number of slots must be at least {}. Provided: {}", MIN_NUMBER_SLOTS, num_slots));
     }
-    if (buffer_size <= 1) {
-        throw std::invalid_argument("Buffer size per slot must be greater than 1");
+    if (buffer_size < MIN_BUFFER_SIZE) {
+        throw std::invalid_argument(std::format("Buffer size per slot must be at least {}. Provided: {}", MIN_BUFFER_SIZE, buffer_size));
     }
     
     m_slots.reserve(num_slots);
