@@ -4,11 +4,19 @@
 - **Compiler**: GNU Compiler Collection (GCC) or Clang.
 - **Standard**: C++20 compliant.
 - **Build System**: CMake (preferred) or GNU Make.
+- **Binary Format**: macOS Universal Binaries (Fat Binaries) supporting both `arm64` (Apple Silicon) and `x86_64` (Intel).
+
+## Versioning
+- **Version File**: A `version.mk` file must be present in the source directory.
+- **Variables**: The file must define `MAJOR`, `MINOR`, `SUBVERSION`, and `BUILD_ID`.
+- **Integration**: The build system (Makefile) must include `version.mk` to manage library versioning.
 
 ## Compilation Flags
 To ensure maximum performance and the smallest possible binary footprint, the following flags must be used:
 
 ### Compiler Flags
+- `-arch arm64 -arch x86_64`: Required to produce universal binaries.
+- `-fPIC`: Position Independent Code, required for shared library creation.
 - `-Wall -Wextra -Wpedantic`: Enable all common warnings to ensure code quality.
 - `-O3`: Enable high-level optimizations.
 - `-ffunction-sections`: Place each function in its own section in the object file.
@@ -16,7 +24,12 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 
 ### Linker Flags
 - `--gc-sections`: (Linux/BSD/MacOS where supported) Remove unused sections (dead code elimination).
-- `-Wl,--gc-sections`: Alternative syntax for passing the flag to the linker.
+- `-dynamiclib`: Used specifically for the shared library target to create a `.dylib`.
+
+## Output Artifacts
+- **Static Library**: `lib/libswtr_ringbuffer.a`
+- **Shared Library**: `lib/libswtr_ringbuffer.dylib`
+- **Artifact Location**: All built libraries must be placed in a subdirectory named `lib`.
 
 ## Binary Optimization Goals
 - **Dead Code Elimination**: The primary goal of using `-ffunction-sections` and `--gc-sections` is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible static binary.
@@ -24,6 +37,7 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 
 ## Build Process
 1. Configure the project using CMake or a Makefile.
-2. Compile all source modules into object files.
-3. Link the object files into a static and a shared library the libraries should be MacOS universal binaries.
-4. Verify the binary size using `size` or `nm`.
+2. Compile all source modules into position-independent object files.
+3. Link the object files into both a static library (`.a`) and a shared library (`.dylib`).
+4. Place the output artifacts in the `lib` directory.
+5. Verify the universal binary architecture using the `lipo -info` command.
