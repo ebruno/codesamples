@@ -63,4 +63,18 @@ Test binaries must be configured to verify different linking scenarios:
     - The output binary should be placed in the `bin/` directory.
 - **Headers**: Must include the directory `ringbuffer/src/macos/cpp` in the search path.
 
+## Test Program Interface (`test001_staticlib`)
+The test program must support the following command-line interface:
+`test001_staticlib [-o output_file] [-l log_file] <input_file>`
+
+- **Arguments**:
+    - `<input_file>`: Required. Path to the binary input file to be processed.
+- **Options**:
+    - `-o output_file`: Optional. Specifies a file to use for the RingBuffer's `write_fd`. If specified, the file is overwritten. Defaults to `stdout`.
+    - `-l log_file`: Optional. Specifies a file for logger output. If specified, the file is overwritten. Defaults to `stderr`.
+- **Behavior**:
+    - Must print "waiting for ringbuffer" to `stdout` before calling `rb.wait()`.
+    - Must flush `stdout` after the RingBuffer completes processing.
+    - Must return exit status `1` if the input file cannot be opened or if a fatal exception occurs.
+
 
