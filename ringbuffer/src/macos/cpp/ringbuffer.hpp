@@ -117,6 +117,8 @@ public:
         }
 
         std::string msg = std::vformat(fmt, std::make_format_args(args...));
+        
+        std::lock_guard lock(m_mutex);
         do_log(level, msg);
     }
 
