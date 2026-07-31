@@ -20,7 +20,7 @@ void RingBufferImpl::do_log(LogLevel level, const std::string& message) {
     auto in_time_t = std::chrono::system_clock::to_time_t(now);
     
     *m_log_stream << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X") 
-                 << " [LVL " << static_cast<int>(level) << "] " << message << std::endl;
+                 << " [" << log_level_to_string(level) << "] " << message << std::endl;
 }
 
 } // namespace swtr
