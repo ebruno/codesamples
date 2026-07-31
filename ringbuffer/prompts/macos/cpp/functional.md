@@ -52,16 +52,19 @@
     - **Read Function**:
         - Should use POSIX file descriptors for reading.
         - After filling the buffer, it will mark the slot as `readyfortransform`.
-        - It will set the `data buffer size` after loading the buffer.
+        - It must set the `data buffer size` to the exact number of bytes read.
+        - In the event of EOF or a read error, the `data buffer size` should be reset to 0.
     - **Transform Function**:
         - The class should accept a `std::function` to define the transformation operation.
         - The transform function will apply this operation to the data and mark the slot as `readyforwrite`.
         - It will set the `transformed data buffer size` after the transform is complete.
-        - **Optional Transform**: If no transform function is specified, the transform method should simply mark the buffer as `readyforwrite` (or `LAST_BUFFER_TO_WRITE` if applicable) and allow it to proceed to the writer.
+        - **Optional Transform**: If no transform function is specified, the transform method should set the `transformed data buffer size` equal to the `data buffer size`, report this in a log message, and mark the buffer as `readyforwrite` (or `LAST_BUFFER_TO_WRITE` if applicable) to allow it to proceed to the writer.
     - **Write Function**:
         - Should use POSIX file descriptors for writing.
         - It will write the data to the descriptor, clear the buffer, and mark the slot as `readyforread`.
-        - It will set the `data buffer size` to 0.
+        - It must set the `data buffer size` to 0 after writing.
+        - The log message for a successful write must report both the number of bytes written and the slot's original `data buffer size`.
+        - It must perform a flush (e.g., `fsync`) on the file descriptor after writing the final buffer (`LAST_BUFFER_TO_WRITE`).
 - **Data Accessors**:
     - **State & Checksum**: Generate `get`, `set`, and `test` functions for:
         - `buffer status`

@@ -37,6 +37,7 @@ The libraries must be named using the version variables from `version.mk` in the
 To provide a consistent interface for consumers, the following symbolic links must be created in the `lib` directory:
 - `libswtr_ringbuffer.a` $\rightarrow$ points to the current versioned static library.
 - `libswtr_ringbuffer.dylib` $\rightarrow$ points to the current versioned shared library.
+- **Requirement**: Symbolic links must be created using a relative path within the `lib` directory (e.g., by changing the working directory to `lib` before creating the link) to ensure the links remain valid if the library folder is moved.
 
 ## Binary Optimization Goals
 - **Dead Code Elimination**: The primary goal of using `-ffunction-sections` and `--gc-sections` is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible static binary.
