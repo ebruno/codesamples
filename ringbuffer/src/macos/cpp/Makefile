@@ -22,6 +22,7 @@ SHARED_LIB  := $(LIB_DIR)/libswtr_ringbuffer-$(VERSION_STR).dylib
 # Alias Targets
 STATIC_ALIAS := $(LIB_DIR)/libswtr_ringbuffer.a
 SHARED_ALIAS := $(LIB_DIR)/libswtr_ringbuffer.dylib
+SHARED_ALIAS_NAMEONLY := libswtr_ringbuffer.dylib
 
 # Source and Object files
 SRCS     := $(wildcard *.cpp)
@@ -43,7 +44,7 @@ $(STATIC_LIB): $(OBJS)
 
 $(SHARED_LIB): $(OBJS)
 	@echo "Linking Universal Shared Library: $@"
-	$(CXX) $(LDFLAGS) -dynamiclib -o $@ $(OBJS)
+	$(CXX) $(LDFLAGS) -dynamiclib -install_name "@rpath/$(SHARED_ALIAS_NAMEONLY)" -o $@ $(OBJS)
 
 $(STATIC_ALIAS): $(STATIC_LIB)
 	@echo "Creating static alias..."
