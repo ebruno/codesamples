@@ -83,6 +83,7 @@
         - Public non-virtual `log_message` method for external use.
         - Protected pure virtual implementation method `do_log` for derived classes.
         - Use the `override` keyword in derived classes.
+    - **Thread Safety**: Log messages must be printed atomically. The library must ensure that messages from different threads are not interleaved in the output stream.
     - **Log Levels**: Define an enumeration for the following levels: `Trace`, `Debug`, `Info`, `Warning`, `Error`, `Critical`.
 	    - Log output must use the string representation of the log level (e.g., `[INFO]`, `[DEBUG]`) rather than its numeric enumeration value.
     - **Log Public and private log function Signature**: The logging functions must support a variadic template signature: `void do_log(LogLevel level, const char* fmt, Args&&... args)`.
