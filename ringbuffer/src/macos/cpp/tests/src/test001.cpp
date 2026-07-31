@@ -73,7 +73,6 @@ int main(int argc, char* argv[]) {
             rb.set_output_stream(log_file);
         }
 
-        std::cout << "waiting for ringbuffer" << std::endl;
         rb.start(read_fd, write_fd, nullptr, nullptr);
 
         rb.wait();
