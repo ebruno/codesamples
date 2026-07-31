@@ -4,7 +4,6 @@
  */
 
 #include "ringbuffer.hpp"
-#include <iostream>
 
 namespace swtr {
 
@@ -38,7 +37,6 @@ void RingBuffer::start(int read_fd, int write_fd,
  * @brief Requests stop and joins all pipeline threads.
  */
 void RingBuffer::stop() {
-    std::cout << "[swtr] Stop signal received: initiating immediate pipeline shutdown..." << std::endl;
     m_stop_source.request_stop();
     m_cv.notify_all();
     
