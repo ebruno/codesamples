@@ -56,4 +56,11 @@ A Zsh script must be provided at `tests/utils/bin/generate_test_data.zsh` to aut
     - `output_file`: Optional. If specified, the output is written to this file. If omitted, output is printed to `stdout`.
 - **Logic**: Must implement the zig-zag space pattern described in the "Test Data Generation" section.
 
+## Test Binary Build Requirements
+Test binaries must be configured to verify different linking scenarios:
+- **Static Linking (`test001_staticlib`)**:
+    - Must link directly to the static library file (e.g., using the path `../lib/libswtr_ringbuffer.a`) rather than the `-lswtr_ringbuffer` flag. This ensures the linker does not prefer the shared library (`.dylib`).
+    - The output binary should be placed in the `bin/` directory.
+- **Headers**: Must include the directory `ringbuffer/src/macos/cpp` in the search path.
+
 
