@@ -20,6 +20,7 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 ### Linker Flags
 - `--gc-sections`: (Linux/BSD/MacOS where supported) Remove unused sections (dead code elimination).
 - `-dynamiclib`: Used specifically for the shared library target to create a `.dylib`.
+- `-install_name`: Used to set the install name of the shared library. For this project, it must be set to `@rpath/libswtr_ringbuffer.dylib` to enable flexible loading via RPATH.
 
 ## Output Artifacts
 All built libraries must be placed in a subdirectory named `lib`.
