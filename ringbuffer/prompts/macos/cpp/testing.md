@@ -26,6 +26,7 @@ tests/
 - All test directories must contain a `.required_directory` file.
 - Test binaries should be isolated in the `bin/` directory.
 - Use `tests/data/inputs` for source files and `tests/data/expected` for verification of the final output.
+- A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests.
 ## Test Data Generation
 Generate 5 test files in `tests/data/inputs/` (named `test001.txt` through `test005.txt`) using the zig-zag space pattern:
 - `test001.txt`: 25 lines
