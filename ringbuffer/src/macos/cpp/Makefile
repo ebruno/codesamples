@@ -1,67 +1,74 @@
-# Makefile for swtr Ringbuffer (macOS, C++)
-# Based on requirements in ringbuffer/prompts/macos/cpp/build.md
-
-# Include versioning
+# Include versioning variables
 include version.mk
 
-# Toolchain Configuration
-CXX      := clang++
-RM       := rm -f
-ARCH     := -arch arm64 -arch x86_64
-CXXFLAGS := $(ARCH) -std=c++20 -O3 -Wall -Wextra -Wpedantic -ffunction-sections -fdata-sections -fPIC
-LDFLAGS  := -Wl,-dead_strip
+# Toolchain
+CXX = clang++
+LIBTOOL = libtool
+LIPO = lipo
+RM = rm -rf
 
-# Output Directory
-LIB_DIR  := lib
+# Compilation Flags
+# Each architecture must be compiled separately
+CXXFLAGS_BASE = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
+CXXFLAGS_ARM64 = $(CXXFLAGS_BASE) -arch arm64
+CXXFLAGS_X86_64 = $(CXXFLAGS_BASE) -arch x86_64
 
-# Targets
-VERSION_STR := $(MAJOR).$(MINOR).$(SUBVERSION)-$(BUILD_ID)
-STATIC_LIB  := $(LIB_DIR)/libswtr_ringbuffer-$(VERSION_STR).a
-SHARED_LIB  := $(LIB_DIR)/libswtr_ringbuffer-$(VERSION_STR).dylib
+# Linker Flags
+LDFLAGS_BASE = -dead_strip
+LDFLAGS_DYLIB = -dynamiclib -install_name @rpath/libswtr_ringbuffer.dylib
 
-# Alias Targets
-STATIC_ALIAS := $(LIB_DIR)/libswtr_ringbuffer.a
-SHARED_ALIAS := $(LIB_DIR)/libswtr_ringbuffer.dylib
-SHARED_ALIAS_NAMEONLY := libswtr_ringbuffer.dylib
+# Versioned artifact name
+LIB_NAME = libswtr_ringbuffer-$(MAJOR).$(MINOR).$(SUBVERSION)-$(BUILD_ID)
 
-# Source and Object files
-SRCS     := $(wildcard *.cpp)
-OBJS     := $(SRCS:.cpp=.o)
+# Directories
+LIB_DIR = lib
+OBJ_DIR = build/obj
 
-# Header dependencies
-DEPS     := status.hpp ringbuffer.hpp swtr_ringbuffer_impl.hpp
+# Source files
+SRCS = $(wildcard *.cpp)
+# We need object files for both architectures
+OBJS_ARM64 = $(SRCS:%.cpp=$(OBJ_DIR)/%.arm64.o)
+OBJS_X86_64 = $(SRCS:%.cpp=$(OBJ_DIR)/%.x86_64.o)
 
-.PHONY: all clean dist-clean
+# Default target
+all: $(LIB_DIR)/$(LIB_NAME).a $(LIB_DIR)/$(LIB_NAME).dylib symlinks
 
-all: $(LIB_DIR) $(STATIC_LIB) $(SHARED_LIB) $(STATIC_ALIAS) $(SHARED_ALIAS)
-
-$(LIB_DIR):
+# Static Library (Fat binary using libtool)
+$(LIB_DIR)/$(LIB_NAME).a: $(OBJS_ARM64) $(OBJS_X86_64)
 	@mkdir -p $(LIB_DIR)
+	$(LIBTOOL) -static -o $(LIB_DIR)/$(LIB_NAME).a $(OBJS_ARM64) $(OBJS_X86_64)
 
-$(STATIC_LIB): $(OBJS)
-	@echo "Linking Universal Static Library: $@"
-	libtool -static -o $@ $(OBJS)
+# Shared Library (Two-stage process)
+$(LIB_DIR)/$(LIB_NAME).dylib: $(OBJ_DIR)/libswtr_ringbuffer.arm64.dylib $(OBJ_DIR)/libswtr_ringbuffer.x86_64.dylib
+	@mkdir -p $(LIB_DIR)
+	$(LIPO) -create $(OBJ_DIR)/libswtr_ringbuffer.arm64.dylib $(OBJ_DIR)/libswtr_ringbuffer.x86_64.dylib -output $(LIB_DIR)/$(LIB_NAME).dylib
 
-$(SHARED_LIB): $(OBJS)
-	@echo "Linking Universal Shared Library: $@"
-	$(CXX) $(LDFLAGS) -dynamiclib -install_name "@rpath/$(SHARED_ALIAS_NAMEONLY)" -o $@ $(OBJS)
+# Intermediate Shared Libraries (Single architecture)
+$(OBJ_DIR)/libswtr_ringbuffer.arm64.dylib: $(OBJS_ARM64)
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) -arch arm64 $(LDFLAGS_BASE) $(LDFLAGS_DYLIB) -o $@ $(OBJS_ARM64)
 
-$(STATIC_ALIAS): $(STATIC_LIB)
-	@echo "Creating static alias..."
-	cd $(LIB_DIR) && ln -sf $(notdir $(STATIC_LIB)) $(notdir $(STATIC_ALIAS))
+$(OBJ_DIR)/libswtr_ringbuffer.x86_64.dylib: $(OBJS_X86_64)
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) -arch x86_64 $(LDFLAGS_BASE) $(LDFLAGS_DYLIB) -o $@ $(OBJS_X86_64)
 
-$(SHARED_ALIAS): $(SHARED_LIB)
-	@echo "Creating shared alias..."
-	cd $(LIB_DIR) && ln -sf $(notdir $(SHARED_LIB)) $(notdir $(SHARED_ALIAS))
+# Object files - ARM64
+$(OBJ_DIR)/%.arm64.o: %.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS_ARM64) -c $< -o $@
 
-%.o: %.cpp $(DEPS)
-	@echo "Compiling $< for universal binary..."
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# Object files - X86_64
+$(OBJ_DIR)/%.x86_64.o: %.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS_X86_64) -c $< -o $@
 
+# Symbolic links
+symlinks:
+	cd $(LIB_DIR) && ln -sf $(LIB_NAME).a libswtr_ringbuffer.a
+	cd $(LIB_DIR) && ln -sf $(LIB_NAME).dylib libswtr_ringbuffer.dylib
+
+# Clean target
 clean:
-	@echo "Cleaning build artifacts and lib directory..."
-	$(RM) -r $(LIB_DIR)
-	$(RM) $(OBJS)
+	$(RM) $(OBJ_DIR) $(LIB_DIR)
 
-dist-clean: clean
-	@echo "Performing dist-clean..."
+.PHONY: all clean symlinks
