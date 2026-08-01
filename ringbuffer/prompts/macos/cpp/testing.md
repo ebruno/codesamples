@@ -94,7 +94,7 @@ The test program must support the following command-line interface:
         - `2`: Non-fatal error (return zero from handler, pipeline must continue).
     - `-r`: Optional. Indicates that `read_fd` should be attached to a socket.
         - The application must open a socket on `127.0.0.1`.
-        - It must obtain the port number and print `"LISTEN_PORT=<port>\n"` to `stdout`.
+        - It must obtain the port number and print `"LISTEN_PORT=<port>"` followed by `std::endl` to `stdout`.
         - It must call `accept()`.
         - If `accept()` returns a value other than `-1`, that value is used as the `read_fd` passed to the ringbuffer.
         - If `accept()` returns `-1`, the socket must be closed and the program must exit.
