@@ -49,6 +49,24 @@ Usage: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-
     - `-t transform_type`: `0`: None, `1`: Uppercase, `2`: XOR 0xFF.
     - `-e error_mode`: `0`: No error, `1`: Fatal (pipeline stops), `2`: Non-fatal (pipeline continues).
 
+## Running Tests
+
+### Examples: Running Test Matrix Scenarios
+Here are examples of how to execute the first few scenarios from the test matrix using the static library binary:
+
+- **T001 (Standard Run)**: Exact match with input.
+  ```bash
+  ./bin/test001_staticlib data/inputs/test001.txt 2> t001.log
+  ```
+- **T002 (Stress Test)**: Minimum slots and buffer size.
+  ```bash
+  ./bin/test001_staticlib -s 1 -b 1 data/inputs/test001.txt 2> t002.log
+  ```
+- **T003 (Uppercase Transform)**: Small buffer with uppercase transformation.
+  ```bash
+  ./bin/test001_staticlib -b 10 -t 1 data/inputs/test001.txt 2> t003.log
+  ```
+
 ## Test Matrix
 The test suite executes the following scenarios:
 
