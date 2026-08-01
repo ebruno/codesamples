@@ -239,4 +239,3 @@ int main(int argc, char* argv[]) {
     if (write_fd != STDOUT_FILENO) close(write_fd);
     return 0;
 }
-<EOF>
