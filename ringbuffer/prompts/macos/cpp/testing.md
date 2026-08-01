@@ -109,3 +109,5 @@ The test suite must execute the following scenarios to ensure full coverage:
 | `T005` | `test001.txt` | 4 | 4096 | 0 | 1 | Pipeline stop; Exit status 1. |
 | `T006` | `test001.txt` | 4 | 4096 | 0 | 2 | Pipeline continues; Success. |
 | `T007` | `test001.txt` | 4 | 4096 | 2 | 0 | Bit-inverted output; Success. |
+
+- All code is covered under a BSD 3-Clause License.

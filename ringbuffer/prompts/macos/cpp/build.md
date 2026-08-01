@@ -61,3 +61,5 @@ To provide a consistent interface for consumers, the following symbolic links mu
     - Verify the shared library install name using `otool -L` (must be `@rpath/libswtr_ringbuffer.dylib`).
     - Verify the final binary size using `size -m`.
 8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `lib/` directories.
+
+- All code is covered under a BSD 3-Clause License.
