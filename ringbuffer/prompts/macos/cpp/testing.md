@@ -75,7 +75,7 @@ Test binaries must be configured to verify different linking scenarios:
 
 ## Test Program Interface (`test001_staticlib`)
 The test program must support the following command-line interface:
-`test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] <input_file>`
+`test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] [-r] [-w <ip:port>] <input_file>`
 
 - **Arguments**:
     - `<input_file>`: Required. Path to the binary input file to be processed.
@@ -92,6 +92,17 @@ The test program must support the following command-line interface:
         - `0`: No error.
         - `1`: Fatal error (return non-zero from handler, pipeline must stop).
         - `2`: Non-fatal error (return zero from handler, pipeline must continue).
+    - `-r`: Optional. Indicates that `read_fd` should be attached to a socket.
+        - The application must open a socket on `127.0.0.1`.
+        - It must obtain the port number and print `LISTEN_PORT=<port>` to `stdout`.
+        - It must call `accept()`.
+        - If `accept()` returns a value other than `-1`, that value is used as the `read_fd` passed to the ringbuffer.
+        - If `accept()` returns `-1`, the socket must be closed and the program must exit.
+    - `-w <ip:port>`: Optional. Indicates that `write_fd` should be attached to a socket.
+        - The parameter must be a string in the format `N[NN].N[NN].N[NN].N[NN]:<port>`.
+        - The application must attempt to connect to the specified IP and port.
+        - If the connection is successful, the resulting socket file descriptor is used as the `write_fd` passed to the ringbuffer.
+        - If the connection fails, the program must report an error and terminate.
 - **Behavior**:
     - Must print "waiting for ringbuffer" to `stdout` before calling `rb.wait()`.
     - Must flush `stdout` after the RingBuffer completes processing.
