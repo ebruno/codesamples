@@ -39,7 +39,7 @@ Test binaries are configured to verify different linking scenarios:
 - **Static Linking (`test001_staticlib`)**: Links directly to the static library file (`../lib/libswtr_ringbuffer.a`) to ensure the linker does not prefer the shared library.
 
 ## Test Program Interface (`test001_staticlib`)
-Usage: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] <input_file>`
+Usage: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] [-r] [-w <ip:port>] <input_file>`
 
 - **Options**:
     - `-o output_file`: Destination for `write_fd` (default: `stdout`).
@@ -48,6 +48,8 @@ Usage: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-
     - `-b size`: Buffer size per slot (default: `4096`).
     - `-t transform_type`: `0`: None, `1`: Uppercase, `2`: XOR 0xFF.
     - `-e error_mode`: `0`: No error, `1`: Fatal (pipeline stops), `2`: Non-fatal (pipeline continues).
+    - `-r`: Optional. Attaches `read_fd` to a socket. The app opens a socket on `127.0.0.1`, prints `LISTEN_PORT=<port>` to `stdout`, and uses the socket returned by `accept()` as the `read_fd`.
+    - `-w <ip:port>`: Optional. Attaches `write_fd` to a socket. The app connects to the specified IP and port and uses the resulting socket as the `write_fd`.
 
 ## Running Tests
 
