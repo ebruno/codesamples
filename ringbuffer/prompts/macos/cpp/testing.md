@@ -15,6 +15,9 @@ tests/
 │   └── .required_directory
 ├── bin/                # Compiled test binaries
 │   └── .required_directory
+├── containers/             # OS-specific container configurations
+│   └── macos/
+│       └── .required_directory
 ├── utils/              # Test utility scripts and tools
 │   ├── bin/            # Compiled utility binaries
 │   │   └── .required_directory
@@ -54,7 +57,11 @@ Generate 5 test files in `tests/data/inputs/` (named `test001.txt` through `test
 7. This zig-zag continues until the target number of lines is reached.
 
 ## Test Utility Scripts
-A Zsh script must be provided at `tests/utils/bin/generate_test_data.zsh` to automate the generation of test data.
+The following scripts must be provided to automate the generation of test data:
+- Zsh script: `tests/utils/bin/generate_test_data.zsh`
+- Bash script: `tests/utils/bin/generate_test_data.sh`
+- Tcsh script: `tests/utils/bin/generate_test_data.tcsh`
+- Bourne shell script: `tests/utils/bin/generate_test_data_bin_sh.sh`
 
 **Script Requirements**:
 - **Shebang**: `#!/usr/bin/env zsh`
