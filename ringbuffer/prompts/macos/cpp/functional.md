@@ -20,19 +20,67 @@
     - `SHA512`
     - `NONE` (for cases where no checksum is required)
 
+## Header Requirements
+- **Self-Sufficiency**: The primary header file (`ringbuffer.hpp`) must be self-sufficient. It must include every standard library header and internal dependency it directly uses. Any translation unit that includes `ringbuffer.hpp` should be able to compile without requiring additional standard includes for the `swtr` namespace types.
+- **Primary Header Inclusion**: Every source file (`.cpp`) within the project must include the primary class definition header (`ringbuffer.hpp`) to ensure type consistency and that the implementation remains in sync with the interface.
+- **Logging Stream Storage**: To allow for flexible runtime reconfiguration and avoid initialization order issues, the output stream must be stored as a pointer (`std::ostream*`), not a reference. 
+    - The setter method for the output stream must accept a reference (`std::ostream&`) for caller convenience but store the address of that stream (`&stream`) in the pointer member.
+    - The default output stream must be initialized to `std::cerr`.
+- **Stop Token Header**: The `<stop_token>` header must be included in the concrete implementation header (`swtr_ringbuffer_impl.hpp`). This is required because:
+    - The header declares thread function signatures that use `std::stop_token` as a parameter type.
+    - The `.cpp` files use `std::stop_callback`, which is also declared in `<stop_token>`.
+    - While `<thread>` provides `std::jthread` and `std::stop_token` in some implementations, `std::stop_callback` is only guaranteed by `<stop_token>`. Relying on transitive inclusion from `<thread>` is non-portable between Clang and GCC.
+
 ## Performance & Binary Optimization
 - **Dead Code Elimination**: The library must be compatible with dead code elimination (e.g., using `-ffunction-sections` and `-fdata-sections`) to ensure the "small binary" goal is verifiable during testing.
 - **Memory Alignment**: Buffer slots and index counters should be aligned to cache line boundaries (e.g., using `alignas(64)`) to prevent false sharing between threads.
 
-## Source Organization
-- Group functions logically in source files:
-    - **Lifecycle**: Use `Lifecycle.cpp` for the constructor and destructor.
-    - **Operations**: Group read-related, transform-related, and write-related functions into their own respective logical groups.
-    - **Accessors**: Group getter and setter functions together that process the same data.
-- **Git Collision Mitigation**: Limit to a maximum of 3 functions per source file to avoid source code collisions in git.
+## Source Organization & Deterministic Naming
+To ensure build consistency and prevent git collisions, the following strict file mapping MUST be followed. No other source files shall be created unless explicitly requested.
+
+### File Mapping Table
+| Requirement / Logic Group | Exact Filename |
+| :--- | :--- |
+| Primary Abstract Interface | `ringbuffer.hpp` |
+| Status and Checksum Enums | `status.hpp` |
+| Concrete Implementation Class | `swtr_ringbuffer_impl.hpp` (see note) |
+| Concrete Implementation Logging | `swtr_ringbuffer_impl.cpp` |
+| Constructor and Destructor | `Lifecycle.cpp` |
+| Read Pipeline Logic | `ReadOps.cpp` |
+| Transform Pipeline Logic | `TransformOps.cpp` |
+| Write Pipeline Logic | `WriteOps.cpp` |
+| Thread Management (`start`, `stop`, `wait`) | `Threading.cpp` |
+| Error Handling (`handle_error`) | `ErrorOps.cpp` |
+
+- **Required includes in `swtr_ringbuffer_impl.hpp`**: `<functional>`, `<mutex>`, `<stop_token>`, `<string>`, `<thread>`, `<vector>`, `"ringbuffer.hpp"`, `"status.hpp"`.
+
+### Accessor File Pattern
+Accessors must be split into separate files based on the data they process to minimize git collisions. The filename MUST follow the pattern `Accessors_[GroupName].cpp`.
+- **Status Accessors**: `Accessors_Status.cpp`
+- **Checksum Algorithm Accessors**: `Accessors_ChecksumAlg.cpp`
+- **Checksum Value Accessors**: `Accessors_ChecksumVal.cpp`
+- **Max Size Accessors**: `Accessors_Size_Max.cpp`
+- **Data Size Accessors**: `Accessors_Size_Data.cpp`
+- **Transformed Size Accessors**: `Accessors_Size_Transformed.cpp`
+
+### Naming & Distribution Rules
+- **Casing**: Use `snake_case` for primary headers and the implementation class files. Use `PascalCase` for all operation and lifecycle `.cpp` files.
+- **Function Distribution**: To prevent git collisions, limit each `.cpp` file to a maximum of 3 functions. If a logic group exceeds this, it must be further subdivided into numbered files (e.g., `ReadOps_1.cpp`, `ReadOps_2.cpp`).
 - **Documentation**: A `README.md` file must be provided in the source directory describing the library and how to build it.
 
+### Include Discipline
+To maintain a clean and predictable compilation environment, all source files must follow this include order:
+1. **Primary Project Header**: The first non-comment include must be the primary class header (`ringbuffer.hpp`).
+2. **Standard Library Headers**: All required `<header>` files, sorted alphabetically (e.g., `<atomic>`, `<iostream>`, `<vector>`).
+3. **Third-Party Libraries**: Any external dependencies.
+4. **Local Project Headers**: Other `.hpp` files from the project (e.g., `status.hpp`).
+
+**Rules for Includes**:
+- **No redundant includes**: Do not include headers in a `.cpp` file that are already provided by the primary project header unless the `.cpp` file uses a type from that header that is not exposed in the primary header.
+- **Avoid pollution**: Headers should only include what is strictly necessary for the declarations within that header. Implementation-specific includes (like `<unistd.h>` for POSIX calls) must be placed in `.cpp` files, not headers, to avoid leaking platform-specific macros into the public API.
+
 ## Constructor Requirements
+- **Member Initializer List**: All member variables must be initialized in the constructor's member initializer list or via in-class default initializers. The constructor body must only contain validation logic and slot initialization.
 - **Automatic Start**: The constructor MUST NOT start the read, transform, or write threads automatically.
 - Allow specification of the number of slots in the ring buffer (default: MIN_NUMBER_SLOTS).
 - Allow specification of the initial status of the ringbuffer (default: readytoread).
