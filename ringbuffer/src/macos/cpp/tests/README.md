@@ -1,72 +1,63 @@
-# Ringbuffer Test Suite (macOS, C++)
+# Testing Requirements - Ringbuffer (macOS, C++)
 
-This directory contains the test suite for the `swtr_ringbuffer` library. It is designed to verify the functional requirements of the three-stage pipeline (Read $\rightarrow$ Transform $\rightarrow$ Write) under various linking scenarios and data patterns.
-
-## Directory Structure
+## Test Directory Structure
+The testing environment is organized as follows to ensure isolation of test logic, data, and artifacts:
 
 ```text
 tests/
-├── src/                # Test source code (e.g., test001.cpp)
+├── src/                # Test source code
 ├── data/               # Test assets and fixtures
-│   ├── inputs/         # Source files for the Reader stage
-│   └── expected/       # Golden files for verifying the Writer output
+│   ├── inputs/         # Files for the Reader to process
+│   └── expected/       # "Golden" files for verifying Writer output
 ├── bin/                # Compiled test binaries
-└── utils/              # Test utility scripts
-    └── bin/            # Compiled utility binaries (e.g., generate_test_data.zsh)
+└── utils/              # Test utility scripts and tools
+    └── bin/            # Compiled utility binaries
 ```
 
-## Building the Tests
+## General Requirements
+- All test directories contain a `.required_directory` file.
+- Test binaries are isolated in the `bin/` directory.
+- A `README.md` is provided in the `tests/` directory describing the test suite and build process.
 
-The test suite uses GNU Make. To build the tests, ensure the main library is built first, then run `make` from the `tests/` directory.
-
-```bash
-# From ringbuffer/src/macos/cpp/tests
-make
-```
-
-### Target Binaries
-The build process generates two versions of the same test logic to verify linking:
-- `bin/test001_staticlib`: Linked against the static library (`libswtr_ringbuffer.a`).
-- `bin/test001_dynlib`: Linked against the shared library (`libswtr_ringbuffer.dylib`) with an embedded absolute RPATH.
-
-## Running Tests
-
-The test binaries accept the following command-line interface:
-
-```bash
-./bin/test001_{staticlib|dynlib} [-o output_file] [-l log_file] <input_file>
-```
-
-### Arguments & Options
-- `<input_file>`: **Required**. Path to the binary input file to be processed.
-- `-o output_file`: **Optional**. File to use for the writer output. If omitted, output goes to `stdout`.
-- `-l log_file`: **Optional**. File to use for logger output. If omitted, logs go to `stderr`.
-
-### Example
-To process a test file, save the output to a file, and capture logs:
-```bash
-./bin/test001_staticlib -o results.txt -l test.log data/inputs/test001.txt
-```
+## Artifact Verification
+Before running functional tests, the build artifacts must be verified:
+- **Architecture**: Use `lipo -info <artifact>` to verify both `arm64` and `x86_64` slices.
+- **Install Name**: Use `otool -L <dylib>` to verify the install name is `@rpath/libswtr_ringbuffer.dylib`.
+- **Binary Size**: Use `size -m <artifact>` to verify dead code elimination efficiency.
+- **Symbol Visibility**: Use `nm -gjU <artifact>` to verify internal symbols are hidden.
 
 ## Test Data Generation
-
-A utility script is provided to generate specific test patterns used to verify the ring buffer's stability and correctness.
+Test files (`test001.txt` through `test005.txt`) are generated in `tests/data/inputs/` using a zig-zag space pattern.
 
 ### Utility Script
-Location: `utils/bin/generate_test_data.zsh`
+A Zsh script is provided at `tests/utils/bin/generate_test_data.zsh` to automate this:
+- **Usage**: `generate_test_data.zsh [-l lines] [output_file]`
+- **Options**: `-l lines` (default: 10), `-h` (usage).
 
-**Usage**:
-```bash
-./utils/bin/generate_test_data.zsh [-l lines] [output_file]
-```
-- `-l lines`: Number of lines to generate (default: 10).
-- `output_file`: Optional file to write to. Defaults to `stdout`.
+## Test Binary Build Requirements
+Test binaries are configured to verify different linking scenarios:
+- **Static Linking (`test001_staticlib`)**: Links directly to the static library file (`../lib/libswtr_ringbuffer.a`) to ensure the linker does not prefer the shared library.
 
-### The Zig-Zag Pattern
-The script generates a "zig-zag" space pattern to test data consistency:
-1. **Line 1**: No space in the template.
-2. **Right Shift**: The space moves from the 2nd character ('B') one position to the right per line until the last character ('>') is reached.
-3. **Left Shift**: The space moves one position to the left per line until the 1st character ('A') is reached.
-4. **Repeat**: This pattern continues until the requested number of lines is reached.
+## Test Program Interface (`test001_staticlib`)
+Usage: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] <input_file>`
 
-This pattern ensures that every single byte position in the buffer is exercised as a "gap" or "modification" during the pipeline's lifecycle.
+- **Options**:
+    - `-o output_file`: Destination for `write_fd` (default: `stdout`).
+    - `-l log_file`: Logger output (default: `stderr`).
+    - `-s slots`: Number of ringbuffer slots (default: `4`).
+    - `-b size`: Buffer size per slot (default: `4096`).
+    - `-t transform_type`: `0`: None, `1`: Uppercase, `2`: XOR 0xFF.
+    - `-e error_mode`: `0`: No error, `1`: Fatal (pipeline stops), `2`: Non-fatal (pipeline continues).
+
+## Test Matrix
+The test suite executes the following scenarios:
+
+| Test ID | Input File | Slots | Size | Transform | Error | Expected Outcome |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `T001` | `test001.txt` | 4 | 4096 | 0 | 0 | Exact match with input; Success. |
+| `T002` | `test001.txt` | 1 | 1 | 0 | 0 | Exact match (Stress test); Success. |
+| `T003` | `test001.txt` | 4 | 10 | 1 | 0 | All chars uppercase; Success. |
+| `T004` | `test001.txt` | 4 | 4096 | 0 | 0 | Input < 1 slot; fast EOF termination; Success. |
+| `T005` | `test001.txt` | 4 | 4096 | 0 | 1 | Pipeline stop; Exit status 1. |
+| `T006` | `test001.txt` | 4 | 4096 | 0 | 2 | Pipeline continues; Success. |
+| `T007` | `test001.txt` | 4 | 4096 | 2 | 0 | Bit-inverted output; Success. |
