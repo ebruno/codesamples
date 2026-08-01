@@ -26,7 +26,7 @@ tests/
 - All test directories must contain a `.required_directory` file.
 - Test binaries should be isolated in the `bin/` directory.
 - Use `tests/data/inputs` for source files and `tests/data/expected` for verification of the final output.
-- A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests.
+- A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003.
 - **Verification Scope**: Tests must verify not only the functional output (data integrity) but also the operational constraints (memory alignment, thread termination, and binary size).
 
 ## Artifact Verification
