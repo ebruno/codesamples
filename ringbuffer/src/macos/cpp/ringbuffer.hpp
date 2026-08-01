@@ -1,159 +1,86 @@
-/**
- * @file ringbuffer.hpp
- * @brief Main abstract base class definition for the swtr ringbuffer implementation.
- */
-
 #ifndef SWTR_RINGBUFFER_HPP
 #define SWTR_RINGBUFFER_HPP
 
-#include <vector>
-#include <atomic>
-#include <mutex>
-#include <condition_variable>
-#include <stop_token>
-#include <thread>
 #include <functional>
 #include <iostream>
+#include <mutex>
 #include <string>
-#include <unordered_map>
-#include <memory>
+#include <vector>
 #include <format>
-#include <stdexcept>
 #include "status.hpp"
 
 namespace swtr {
 
-inline constexpr size_t MIN_NUMBER_SLOTS = 1;
-inline constexpr size_t MIN_BUFFER_SIZE = 1;
-inline constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
-
-/**
- * @struct BufferSlot
- * @brief Represents a single slot in the ringbuffer with alignment to prevent false sharing.
- * 
- * Note: Contains std::atomic, which makes the struct non-copyable and non-movable.
- * We store these via unique_ptr in a vector to allow heap allocation and stability.
- */
-struct alignas(64) BufferSlot {
-    size_t idx;
-    std::atomic<BufferStatus> status;
-    size_t max_data_buffer_size;
-    size_t data_buffer_size;
-    size_t transformed_data_buffer_size;
-    ChecksumAlgorithm checksum_alg;
-    uint64_t checksum_val;
-    std::vector<uint8_t> data;
-
-    BufferSlot() : idx(0), status(BufferStatus::READY_FOR_READ), max_data_buffer_size(0), 
-                   data_buffer_size(0), transformed_data_buffer_size(0), 
-                   checksum_alg(ChecksumAlgorithm::NONE), checksum_val(0) {}
-    
-    BufferSlot(const BufferSlot&) = delete;
-    BufferSlot& operator=(const BufferSlot&) = delete;
-    BufferSlot(BufferSlot&&) = delete;
-    BufferSlot& operator=(BufferSlot&&) = delete;
+enum class LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warning,
+    Error,
+    Critical
 };
 
-/**
- * @class RingBuffer
- * @brief Abstract base class for a high-performance, thread-safe ringbuffer.
- */
 class RingBuffer {
 public:
-    virtual ~RingBuffer();
+    virtual ~RingBuffer() = default;
 
-    /**
-     * @brief Constructs the ringbuffer. 
-     * @throws std::invalid_argument if num_slots < MIN_NUMBER_SLOTS or buffer_size < MIN_BUFFER_SIZE.
-     */
-    RingBuffer(size_t num_slots = MIN_NUMBER_SLOTS, BufferStatus initial_status = BufferStatus::READY_FOR_READ, size_t buffer_size = DEFAULT_BUFFER_SIZE);
+    // Thread Control
+    virtual void start() = 0;
+    virtual void stop() = 0;
+    virtual void wait() = 0;
 
-    void start(int read_fd, int write_fd, 
-               std::function<void(std::vector<uint8_t>&, size_t&)> transform_func,
-               int (*error_handler)(size_t, BufferStatus));
+    // Logging
+    virtual void set_logging_enabled(bool enabled) = 0;
+    virtual bool get_logging_enabled() const = 0;
+    virtual void set_output_stream(std::ostream& stream) = 0;
+    virtual std::ostream* get_output_stream() const = 0;
 
-    void stop();
-    void wait();
-
-    void read_op(std::stop_token st, int fd);
-    void transform_op(std::stop_token st);
-    void write_op(std::stop_token st, int fd);
-    void handle_error(size_t slot_idx, BufferStatus status);
-
-    // Accessors
-    BufferStatus get_status(size_t idx) const;
-    void set_status(size_t idx, BufferStatus status);
-    bool test_status(size_t idx, BufferStatus status) const;
-    ChecksumAlgorithm get_checksum_alg(size_t idx) const;
-    void set_checksum_alg(size_t idx, ChecksumAlgorithm alg);
-    bool test_checksum_alg(size_t idx, ChecksumAlgorithm alg) const;
-    uint64_t get_checksum_val(size_t idx) const;
-    void set_checksum_val(size_t idx, uint64_t val);
-    bool test_checksum_val(size_t idx, uint64_t val) const;
-    size_t get_max_size(size_t idx) const;
-    void set_max_size(size_t idx, size_t size);
-    size_t get_data_size(size_t idx) const;
-    void set_data_size(size_t idx, size_t size);
-    size_t get_transformed_size(size_t idx) const;
-    void set_transformed_size(size_t idx, size_t size);
-
-    // Logging NVI
-    template <typename... Args>
-    void log_message(LogLevel level, const std::string& stage, const std::string& fmt, Args&&... args) {
-        if (!m_logging_enabled.load()) return;
-
-        LogLevel effective_verbosity = m_global_verbosity.load();
-        if (stage != "GLOBAL") {
-            std::lock_guard lock(m_mutex);
-            auto it = m_stage_configs.find(stage);
-            if (it != m_stage_configs.end()) {
-                if (!it->second.enabled) return;
-                effective_verbosity = it->second.verbosity;
-            }
-        }
-
-        if (static_cast<uint8_t>(level) > static_cast<uint8_t>(effective_verbosity)) {
-            return;
-        }
-
-        std::string msg = std::vformat(fmt, std::make_format_args(args...));
-        
-        std::lock_guard lock(m_mutex);
+    template<typename... Args>
+    void log_message(LogLevel level, std::format_string<Args...> fmt, Args&&... args) {
+        std::string msg = std::format(fmt, std::forward<Args>(args)...);
         do_log(level, msg);
     }
 
-    void set_logging_enabled(bool enabled);
-    bool is_logging_enabled() const;
-    void set_global_verbosity(LogLevel level);
-    LogLevel get_global_verbosity() const;
-    void set_stage_logging_enabled(const std::string& stage, bool enabled);
-    bool is_stage_logging_enabled(const std::string& stage) const;
-    void set_stage_verbosity(const std::string& stage, LogLevel level);
-    LogLevel get_stage_verbosity(const std::string& stage) const;
-    void set_output_stream(std::ostream& os);
-    std::ostream& get_output_stream() const;
+    // Stage Logging
+    virtual void set_read_logging_enabled(bool enabled) = 0;
+    virtual bool get_read_logging_enabled() const = 0;
+    virtual void set_read_verbosity(LogLevel level) = 0;
+    virtual LogLevel get_read_verbosity() const = 0;
+
+    virtual void set_transform_logging_enabled(bool enabled) = 0;
+    virtual bool get_transform_logging_enabled() const = 0;
+    virtual void set_transform_verbosity(LogLevel level) = 0;
+    virtual LogLevel get_transform_verbosity() const = 0;
+
+    virtual void set_write_logging_enabled(bool enabled) = 0;
+    virtual bool get_write_logging_enabled() const = 0;
+    virtual void set_write_verbosity(LogLevel level) = 0;
+    virtual LogLevel get_write_verbosity() const = 0;
+
+    // Accessors
+    virtual BufferStatus get_status(size_t slot_idx) const = 0;
+    virtual void set_status(size_t slot_idx, BufferStatus status) = 0;
+    virtual bool test_status(size_t slot_idx, BufferStatus status) const = 0;
+
+    virtual ChecksumAlgorithm get_checksum_alg(size_t slot_idx) const = 0;
+    virtual void set_checksum_alg(size_t slot_idx, ChecksumAlgorithm alg) = 0;
+    virtual bool test_checksum_alg(size_t slot_idx, ChecksumAlgorithm alg) const = 0;
+
+    virtual uint32_t get_checksum_val(size_t slot_idx) const = 0;
+    virtual void set_checksum_val(size_t slot_idx, uint32_t val) = 0;
+    virtual bool test_checksum_val(size_t slot_idx, uint32_t val) const = 0;
+
+    virtual size_t get_max_size(size_t slot_idx) const = 0;
+    virtual void set_max_size(size_t slot_idx, size_t size) = 0;
+
+    virtual size_t get_data_size(size_t slot_idx) const = 0;
+    virtual void set_data_size(size_t slot_idx, size_t size) = 0;
+
+    virtual size_t get_transformed_size(size_t slot_idx) const = 0;
+    virtual void set_transformed_size(size_t slot_idx, size_t size) = 0;
 
 protected:
     virtual void do_log(LogLevel level, const std::string& message) = 0;
-
-    alignas(64) size_t m_num_slots;
-    std::vector<std::unique_ptr<BufferSlot>> m_slots;
-    alignas(64) std::atomic<size_t> m_read_idx{0};
-    alignas(64) std::atomic<size_t> m_transform_idx{0};
-    alignas(64) std::atomic<size_t> m_write_idx{0};
-    mutable std::mutex m_mutex;
-    std::condition_variable m_cv;
-    std::stop_source m_stop_source;
-    std::jthread m_read_thread;
-    std::jthread m_transform_thread;
-    std::jthread m_write_thread;
-    std::function<void(std::vector<uint8_t>&, size_t&)> m_transform_func;
-    int (*m_error_handler)(size_t, BufferStatus) = nullptr;
-    std::atomic<bool> m_logging_enabled{true};
-    std::atomic<LogLevel> m_global_verbosity{LogLevel::Info};
-    std::ostream* m_log_stream = &std::cerr;
-    struct StageConfig { bool enabled = true; LogLevel verbosity = LogLevel::Info; };
-    std::unordered_map<std::string, StageConfig> m_stage_configs;
 };
 
 } // namespace swtr

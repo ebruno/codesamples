@@ -1,55 +1,46 @@
-/**
- * @file WriteOps.cpp
- * @brief Implementation of write operations for swtr::RingBuffer.
- */
-
 #include "ringbuffer.hpp"
 #include <unistd.h>
+#include <stop_token>
+#include <vector>
+#include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
-void RingBuffer::write_op(std::stop_token st, int fd) {
-    log_message(LogLevel::Info, "WRITE", "Writer thread started on fd {}", fd);
+void SwtrRingBuffer::set_write_fd(int fd) {
+    write_fd_ = fd;
+}
 
+void SwtrRingBuffer::write_loop(std::stop_token st) {
+    size_t current_slot = 0;
     while (!st.stop_requested()) {
-        size_t idx = m_write_idx.load();
-        
-        if (m_slots[idx]->status == BufferStatus::READY_FOR_WRITE || 
-            m_slots[idx]->status == BufferStatus::LAST_BUFFER_TO_WRITE) {
-            
-            bool is_last = (m_slots[idx]->status == BufferStatus::LAST_BUFFER_TO_WRITE);
-            m_slots[idx]->status = BufferStatus::PROCESSING_WRITE;
-            
-            ssize_t bytes_written = write(fd, m_slots[idx]->data.data(), m_slots[idx]->transformed_data_buffer_size);
-            
-            if (bytes_written >= 0) {
-                size_t original_size = m_slots[idx]->data_buffer_size;
-                m_slots[idx]->data_buffer_size = 0;
-                m_slots[idx]->status = BufferStatus::READY_FOR_READ;
-                log_message(LogLevel::Debug, "WRITE", "Wrote {} bytes (original size: {}) from slot {} {}", bytes_written, original_size, idx, is_last ? "(LAST)" : "");
-                
-                if (is_last) {
-                    fsync(fd);
-                }
-            } else {
-                log_message(LogLevel::Error, "WRITE", "Write error on descriptor {}", fd);
-                handle_error(idx, BufferStatus::ERROR);
+        BufferStatus status = slots_[current_slot]->status.load();
+        if (status == BufferStatus::readyforwrite || status == BufferStatus::LAST_BUFFER_TO_WRITE) {
+            if (write_fd_ == -1) {
+                handle_error(current_slot, BufferStatus::STATUS_ERROR);
+                return;
             }
             
-            m_write_idx = (idx + 1) % m_num_slots;
-            m_cv.notify_all();
+            size_t size_to_write = slots_[current_slot]->transformed_data_buffer_size.load();
+            ssize_t bytes_written = write(write_fd_, slots_[current_slot]->data.data(), size_to_write);
             
-            if (is_last) break;
-        } else {
-            std::unique_lock lock(m_mutex);
-            m_cv.wait_for(lock, std::chrono::milliseconds(10), [&]{ 
-                return (m_slots[m_write_idx]->status == BufferStatus::READY_FOR_WRITE || 
-                        m_slots[m_write_idx]->status == BufferStatus::LAST_BUFFER_TO_WRITE) || 
-                        st.stop_requested(); 
-            });
+            if (bytes_written >= 0) {
+                log_message(LogLevel::Info, "Slot {}: written {} bytes (original size {})", 
+                            current_slot, bytes_written, slots_[current_slot]->data_buffer_size.load());
+                slots_[current_slot]->data_buffer_size.store(0);
+                
+                if (status == BufferStatus::LAST_BUFFER_TO_WRITE) {
+                    fsync(write_fd_);
+                    cv_.notify_all();
+                    return;
+                }
+                slots_[current_slot]->status.store(BufferStatus::readforread);
+            } else {
+                handle_error(current_slot, BufferStatus::STATUS_ERROR);
+            }
+            cv_.notify_all();
         }
+        current_slot = (current_slot + 1) % num_slots_;
     }
-    log_message(LogLevel::Info, "WRITE", "Writer thread terminating.");
 }
 
 } // namespace swtr

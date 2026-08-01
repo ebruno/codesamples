@@ -1,25 +1,18 @@
-/**
- * @file Accessors_ChecksumAlg.cpp
- * @brief Implementation of checksum algorithm accessors for swtr::RingBuffer.
- */
-
 #include "ringbuffer.hpp"
+#include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
-ChecksumAlgorithm RingBuffer::get_checksum_alg(size_t idx) const {
-    if (idx >= m_num_slots) return ChecksumAlgorithm::NONE;
-    return m_slots[idx]->checksum_alg;
+ChecksumAlgorithm SwtrRingBuffer::get_checksum_alg(size_t slot_idx) const {
+    return slots_[slot_idx]->checksum_alg.load();
 }
 
-void RingBuffer::set_checksum_alg(size_t idx, ChecksumAlgorithm alg) {
-    if (idx < m_num_slots) {
-        m_slots[idx]->checksum_alg = alg;
-    }
+void SwtrRingBuffer::set_checksum_alg(size_t slot_idx, ChecksumAlgorithm alg) {
+    slots_[slot_idx]->checksum_alg.store(alg);
 }
 
-bool RingBuffer::test_checksum_alg(size_t idx, ChecksumAlgorithm alg) const {
-    return get_checksum_alg(idx) == alg;
+bool SwtrRingBuffer::test_checksum_alg(size_t slot_idx, ChecksumAlgorithm alg) const {
+    return slots_[slot_idx]->checksum_alg.load() == alg;
 }
 
 } // namespace swtr

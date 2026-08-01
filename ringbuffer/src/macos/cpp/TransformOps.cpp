@@ -1,53 +1,35 @@
-/**
- * @file TransformOps.cpp
- * @brief Implementation of transform operations for swtr::RingBuffer.
- */
-
 #include "ringbuffer.hpp"
+#include <stop_token>
+#include <vector>
+#include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
-void RingBuffer::transform_op(std::stop_token st) {
-    log_message(LogLevel::Info, "TRANSFORM", "Transformer thread started");
-
+void SwtrRingBuffer::transform_loop(std::stop_token st) {
+    size_t current_slot = 0;
     while (!st.stop_requested()) {
-        size_t idx = m_transform_idx.load();
-        
-        if (m_slots[idx]->status == BufferStatus::READY_FOR_TRANSFORM || 
-            m_slots[idx]->status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
-            
-            bool is_last = (m_slots[idx]->status == BufferStatus::LAST_BUFFER_TO_TRANSFORM);
-            m_slots[idx]->status = BufferStatus::PROCESSING_TRANSFORM;
-            
-            if (m_transform_func) {
-                try {
-                    m_transform_func(m_slots[idx]->data, m_slots[idx]->transformed_data_buffer_size);
-                    m_slots[idx]->status = is_last ? BufferStatus::LAST_BUFFER_TO_WRITE : BufferStatus::READY_FOR_WRITE;
-                    log_message(LogLevel::Debug, "TRANSFORM", "Transformed slot {} {}", idx, is_last ? "(LAST)" : "");
-                } catch (...) {
-                    log_message(LogLevel::Error, "TRANSFORM", "Exception during transformation of slot {}", idx);
-                    handle_error(idx, BufferStatus::ERROR);
-                }
+        BufferStatus status = slots_[current_slot]->status.load();
+        if (status == BufferStatus::readyfortransform || status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
+            if (transform_fn_) {
+                size_t transformed_size = 0;
+                transform_fn_(slots_[current_slot]->data, transformed_size);
+                slots_[current_slot]->transformed_data_buffer_size.store(transformed_size);
             } else {
-                m_slots[idx]->transformed_data_buffer_size = m_slots[idx]->data_buffer_size;
-                m_slots[idx]->status = is_last ? BufferStatus::LAST_BUFFER_TO_WRITE : BufferStatus::READY_FOR_WRITE;
-                log_message(LogLevel::Debug, "TRANSFORM", "No transform func specified; bypassing slot {} (size: {})", idx, m_slots[idx]->transformed_data_buffer_size);
+                slots_[current_slot]->transformed_data_buffer_size.store(slots_[current_slot]->data_buffer_size.load());
+                log_message(LogLevel::Info, "No transform function specified for slot {}", current_slot);
             }
             
-            m_transform_idx = (idx + 1) % m_num_slots;
-            m_cv.notify_all();
-            
-            if (is_last) break;
-        } else {
-            std::unique_lock lock(m_mutex);
-            m_cv.wait_for(lock, std::chrono::milliseconds(10), [&]{ 
-                return (m_slots[m_transform_idx]->status == BufferStatus::READY_FOR_TRANSFORM || 
-                        m_slots[m_transform_idx]->status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) || 
-                        st.stop_requested(); 
-            });
+            if (status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
+                slots_[current_slot]->status.store(BufferStatus::LAST_BUFFER_TO_WRITE);
+                cv_.notify_all();
+                return;
+            } else {
+                slots_[current_slot]->status.store(BufferStatus::readyforwrite);
+                cv_.notify_all();
+            }
         }
+        current_slot = (current_slot + 1) % num_slots_;
     }
-    log_message(LogLevel::Info, "TRANSFORM", "Transformer thread terminating.");
 }
 
 } // namespace swtr

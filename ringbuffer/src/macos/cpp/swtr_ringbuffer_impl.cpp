@@ -1,26 +1,27 @@
-/**
- * @file swtr_ringbuffer_impl.cpp
- * @brief Implementation of the concrete RingBufferImpl class.
- */
-
-#include "swtr_ringbuffer_impl.hpp"
+#include "ringbuffer.hpp"
 #include <iostream>
-#include <iomanip>
-#include <chrono>
+#include <mutex>
+#include <string>
+#include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
-RingBufferImpl::RingBufferImpl(size_t num_slots, BufferStatus initial_status, size_t buffer_size) 
-    : RingBuffer(num_slots, initial_status, buffer_size) {}
-
-void RingBufferImpl::do_log(LogLevel level, const std::string& message) {
-    if (!m_log_stream) return;
-
-    auto now = std::chrono::system_clock::now();
-    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+void SwtrRingBuffer::do_log(LogLevel level, const std::string& message) {
+    std::lock_guard<std::mutex> lock(log_mutex_);
     
-    *m_log_stream << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X") 
-                 << " [" << log_level_to_string(level) << "] " << message << std::endl;
+    std::string level_str;
+    switch (level) {
+        case LogLevel::Trace:    level_str = "[TRACE]"; break;
+        case LogLevel::Debug:    level_str = "[DEBUG]"; break;
+        case LogLevel::Info:     level_str = "[INFO]"; break;
+        case LogLevel::Warning:  level_str = "[WARNING]"; break;
+        case LogLevel::Error:    level_str = "[ERROR]"; break;
+        case LogLevel::Critical: level_str = "[CRITICAL]"; break;
+    }
+    
+    if (output_stream_) {
+        *output_stream_ << level_str << " " << message << std::endl;
+    }
 }
 
 } // namespace swtr

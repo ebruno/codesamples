@@ -1,49 +1,41 @@
-/**
- * @file ReadOps.cpp
- * @brief Implementation of read operations for swtr::RingBuffer.
- */
-
 #include "ringbuffer.hpp"
 #include <unistd.h>
+#include <stop_token>
+#include <vector>
+#include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
-void RingBuffer::read_op(std::stop_token st, int fd) {
-    log_message(LogLevel::Info, "READ", "Reader thread started on fd {}", fd);
+void SwtrRingBuffer::set_read_fd(int fd) {
+    read_fd_ = fd;
+}
 
+void SwtrRingBuffer::read_loop(std::stop_token st) {
+    size_t current_slot = 0;
     while (!st.stop_requested()) {
-        size_t idx = m_read_idx.load();
-        
-        if (m_slots[idx]->status == BufferStatus::READY_FOR_READ) {
-            m_slots[idx]->status = BufferStatus::PROCESSING_READ;
-            
-            ssize_t bytes_read = read(fd, m_slots[idx]->data.data(), m_slots[idx]->max_data_buffer_size);
-            
-            if (bytes_read > 0) {
-                m_slots[idx]->data_buffer_size = static_cast<size_t>(bytes_read);
-                m_slots[idx]->status = BufferStatus::READY_FOR_TRANSFORM;
-                log_message(LogLevel::Debug, "READ", "Read {} bytes into slot {}", bytes_read, idx);
-            } else if (bytes_read == 0) {
-                m_slots[idx]->data_buffer_size = 0;
-                log_message(LogLevel::Info, "READ", "EOF detected. Marking last buffer and terminating reader.");
-                m_slots[idx]->status = BufferStatus::LAST_BUFFER_TO_TRANSFORM;
-                break; 
-            } else {
-                m_slots[idx]->data_buffer_size = 0;
-                log_message(LogLevel::Error, "READ", "Read error on descriptor {}", fd);
-                handle_error(idx, BufferStatus::ERROR);
+        if (slots_[current_slot]->status.load() == BufferStatus::readforread) {
+            if (read_fd_ == -1) {
+                handle_error(current_slot, BufferStatus::STATUS_ERROR);
+                return;
             }
             
-            m_read_idx = (idx + 1) % m_num_slots;
-            m_cv.notify_all();
-        } else {
-            std::unique_lock lock(m_mutex);
-            m_cv.wait_for(lock, std::chrono::milliseconds(10), [&]{ 
-                return m_slots[m_read_idx]->status == BufferStatus::READY_FOR_READ || st.stop_requested(); 
-            });
+            ssize_t bytes_read = read(read_fd_, slots_[current_slot]->data.data(), slots_[current_slot]->max_data_buffer_size.load());
+            
+            if (bytes_read > 0) {
+                slots_[current_slot]->data_buffer_size.store(static_cast<size_t>(bytes_read));
+                slots_[current_slot]->status.store(BufferStatus::readyfortransform);
+            } else if (bytes_read == 0) {
+                slots_[current_slot]->status.store(BufferStatus::LAST_BUFFER_TO_TRANSFORM);
+                cv_.notify_all();
+                return;
+            } else {
+                slots_[current_slot]->data_buffer_size.store(0);
+                handle_error(current_slot, BufferStatus::STATUS_ERROR);
+            }
+            cv_.notify_all();
         }
+        current_slot = (current_slot + 1) % num_slots_;
     }
-    log_message(LogLevel::Info, "READ", "Reader thread terminating.");
 }
 
 } // namespace swtr

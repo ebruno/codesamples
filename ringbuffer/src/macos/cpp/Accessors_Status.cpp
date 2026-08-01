@@ -1,25 +1,18 @@
-/**
- * @file Accessors_Status.cpp
- * @brief Implementation of status accessors for swtr::RingBuffer.
- */
-
 #include "ringbuffer.hpp"
+#include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
-BufferStatus RingBuffer::get_status(size_t idx) const {
-    if (idx >= m_num_slots) return BufferStatus::ERROR;
-    return m_slots[idx]->status.load();
+BufferStatus SwtrRingBuffer::get_status(size_t slot_idx) const {
+    return slots_[slot_idx]->status.load();
 }
 
-void RingBuffer::set_status(size_t idx, BufferStatus status) {
-    if (idx < m_num_slots) {
-        m_slots[idx]->status = status;
-    }
+void SwtrRingBuffer::set_status(size_t slot_idx, BufferStatus status) {
+    slots_[slot_idx]->status.store(status);
 }
 
-bool RingBuffer::test_status(size_t idx, BufferStatus status) const {
-    return get_status(idx) == status;
+bool SwtrRingBuffer::test_status(size_t slot_idx, BufferStatus status) const {
+    return slots_[slot_idx]->status.load() == status;
 }
 
 } // namespace swtr
