@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Initialize RingBuffer
-    auto rb = std::make_unique<SwtrRingBuffer>(slots, BufferStatus::readforread, buffer_size, test_error_handler, transform_fn);
+    auto rb = std::make_unique<SwtrRingBuffer>(slots, BufferStatus::readyforread, buffer_size, test_error_handler, transform_fn);
     rb->set_output_stream(*logger_stream);
 
     // Input FD
