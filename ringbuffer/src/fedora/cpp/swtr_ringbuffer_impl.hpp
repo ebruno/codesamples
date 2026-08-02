@@ -29,7 +29,7 @@ struct alignas(64) BufferSlot {
 
     BufferSlot() = default;
     BufferSlot(size_t idx, size_t max_size) 
-        : buffer_idx(idx), status(BufferStatus::readforread), 
+        : buffer_idx(idx), status(BufferStatus::readyforread), 
           max_data_buffer_size(max_size), data_buffer_size(0), 
           transformed_data_buffer_size(0), checksum_alg(ChecksumAlgorithm::NONE), 
           checksum_val(0), data(max_size) {}
@@ -45,7 +45,7 @@ public:
     static constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
 
     SwtrRingBuffer(size_t num_slots = MIN_NUMBER_SLOTS, 
-                   BufferStatus initial_status = BufferStatus::readforread, 
+                   BufferStatus initial_status = BufferStatus::readyforread, 
                    size_t buffer_size = DEFAULT_BUFFER_SIZE,
                    ErrorHandler err_handler = nullptr,
                    std::function<void(std::vector<uint8_t>&, size_t&)> transform_fn = nullptr);

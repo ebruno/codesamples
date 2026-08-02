@@ -6,7 +6,7 @@
 namespace swtr {
 
 enum class BufferStatus : uint8_t {
-    readforread = 0,
+    readyforread = 0,
     readyfortransform = 1,
     readyforwrite = 2,
     status_3,
