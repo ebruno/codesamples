@@ -11,17 +11,21 @@ It uses a three-stage pipeline (Read, Transform, Write) running in separate thre
 - POSIX file descriptor support for I/O.
 
 ## Build Instructions
-The library is designed to be buildable using both Clang and GCC. 
 
-To compile:
+The library can be built using the provided Makefile. It is compatible with both GCC and Clang.
+
+To build the library:
 ```bash
-g++ -std=c++20 -O3 -ffunction-sections -fdata-sections *.cpp -o libringbuffer.so -shared -fPIC
+make -j$(nproc)
 ```
 
-Or using Clang:
+This will create versioned static and shared libraries in the `lib/` directory, as well as unversioned symbolic links.
+
+To clean the build artifacts:
 ```bash
-clang++ -std=c++20 -O3 -ffunction-sections -fdata-sections *.cpp -o libringbuffer.so -shared -fPIC
+make clean
 ```
 
 ## License
 This project is licensed under the BSD 3-Clause License.
+<EOF>
