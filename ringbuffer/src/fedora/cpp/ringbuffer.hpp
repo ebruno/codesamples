@@ -1,12 +1,14 @@
-#ifndef SWTR_RINGBUFFER_HPP
-#define SWTR_RINGBUFFER_HPP
+#ifndef RINGBUFFER_HPP
+#define RINGBUFFER_HPP
 
+#include <atomic>
+#include <cstdint>
+#include <format>
 #include <functional>
 #include <iostream>
 #include <mutex>
 #include <string>
 #include <vector>
-#include <format>
 #include "status.hpp"
 
 namespace swtr {
@@ -20,6 +22,17 @@ enum class LogLevel {
     Critical
 };
 
+struct alignas(64) BufferSlot {
+    size_t buffer_idx;
+    std::atomic<BufferStatus> status;
+    std::atomic<size_t> max_data_buffer_size;
+    std::atomic<size_t> data_buffer_size;
+    std::atomic<size_t> transformed_data_buffer_size;
+    std::atomic<ChecksumAlgorithm> checksum_alg;
+    std::atomic<uint32_t> checksum_val;
+    std::vector<uint8_t> data;
+};
+
 class RingBuffer {
 public:
     virtual ~RingBuffer() = default;
@@ -28,6 +41,10 @@ public:
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual void wait() = 0;
+
+    // Configuration
+    virtual void set_read_fd(int fd) = 0;
+    virtual void set_write_fd(int fd) = 0;
 
     // Logging
     virtual void set_logging_enabled(bool enabled) = 0;
@@ -85,4 +102,4 @@ protected:
 
 } // namespace swtr
 
-#endif // SWTR_RINGBUFFER_HPP
+#endif // RINGBUFFER_HPP

@@ -1,5 +1,5 @@
-#ifndef SWTR_STATUS_HPP
-#define SWTR_STATUS_HPP
+#ifndef STATUS_HPP
+#define STATUS_HPP
 
 #include <cstdint>
 
@@ -9,26 +9,26 @@ enum class BufferStatus : uint8_t {
     readyforread = 0,
     readyfortransform = 1,
     readyforwrite = 2,
-    status_3,
-    status_4,
-    status_5,
-    status_6,
-    status_7,
-    status_8,
-    status_9,
-    status_10,
     LAST_BUFFER_TO_TRANSFORM,
     LAST_BUFFER_TO_WRITE,
+    STATUS_3,
+    STATUS_4,
+    STATUS_5,
+    STATUS_6,
+    STATUS_7,
+    STATUS_8,
+    STATUS_9,
+    STATUS_10,
     STATUS_ERROR = 13
 };
 
 enum class ChecksumAlgorithm : uint8_t {
+    NONE,
     MD5,
     SHA256,
-    SHA512,
-    NONE
+    SHA512
 };
 
 } // namespace swtr
 
-#endif // SWTR_STATUS_HPP
+#endif // STATUS_HPP

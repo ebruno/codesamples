@@ -1,5 +1,6 @@
 #include "ringbuffer.hpp"
 #include <thread>
+#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
@@ -14,15 +15,28 @@ void SwtrRingBuffer::stop() {
     read_thread_.request_stop();
     transform_thread_.request_stop();
     write_thread_.request_stop();
-    if (read_thread_.joinable()) read_thread_.join();
-    if (transform_thread_.joinable()) transform_thread_.join();
-    if (write_thread_.joinable()) write_thread_.join();
+    
+    if (read_thread_.joinable()) {
+        read_thread_.join();
+    }
+    if (transform_thread_.joinable()) {
+        transform_thread_.join();
+    }
+    if (write_thread_.joinable()) {
+        write_thread_.join();
+    }
 }
 
 void SwtrRingBuffer::wait() {
-    if (read_thread_.joinable()) read_thread_.join();
-    if (transform_thread_.joinable()) transform_thread_.join();
-    if (write_thread_.joinable()) write_thread_.join();
+    if (read_thread_.joinable()) {
+        read_thread_.join();
+    }
+    if (transform_thread_.joinable()) {
+        transform_thread_.join();
+    }
+    if (write_thread_.joinable()) {
+        write_thread_.join();
+    }
 }
 
 } // namespace swtr

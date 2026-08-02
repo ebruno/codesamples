@@ -1,7 +1,8 @@
 #include "ringbuffer.hpp"
-#include <stdexcept>
 #include <memory>
+#include <stdexcept>
 #include <vector>
+#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
@@ -16,9 +17,18 @@ SwtrRingBuffer::SwtrRingBuffer(size_t num_slots, BufferStatus initial_status, si
         throw std::invalid_argument("Buffer size must be at least MIN_BUFFER_SIZE");
     }
 
+    slots_.reserve(num_slots_);
     for (size_t i = 0; i < num_slots_; ++i) {
-        slots_.push_back(std::make_unique<BufferSlot>(i, buffer_size));
-        slots_[i]->status.store(initial_status);
+        auto slot = std::make_unique<BufferSlot>();
+        slot->buffer_idx = i;
+        slot->status.store(initial_status);
+        slot->max_data_buffer_size.store(buffer_size);
+        slot->data_buffer_size.store(0);
+        slot->transformed_data_buffer_size.store(0);
+        slot->checksum_alg.store(ChecksumAlgorithm::NONE);
+        slot->checksum_val.store(0);
+        slot->data.assign(buffer_size, 0);
+        slots_.push_back(std::move(slot));
     }
 }
 

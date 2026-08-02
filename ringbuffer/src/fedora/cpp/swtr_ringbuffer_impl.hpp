@@ -17,27 +17,6 @@ namespace swtr {
 
 using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);
 
-struct alignas(64) BufferSlot {
-    size_t buffer_idx;
-    std::atomic<BufferStatus> status;
-    std::atomic<size_t> max_data_buffer_size;
-    std::atomic<size_t> data_buffer_size;
-    std::atomic<size_t> transformed_data_buffer_size;
-    std::atomic<ChecksumAlgorithm> checksum_alg;
-    std::atomic<uint32_t> checksum_val;
-    std::vector<uint8_t> data;
-
-    BufferSlot() = default;
-    BufferSlot(size_t idx, size_t max_size) 
-        : buffer_idx(idx), status(BufferStatus::readyforread), 
-          max_data_buffer_size(max_size), data_buffer_size(0), 
-          transformed_data_buffer_size(0), checksum_alg(ChecksumAlgorithm::NONE), 
-          checksum_val(0), data(max_size) {}
-    
-    BufferSlot(const BufferSlot&) = delete;
-    BufferSlot& operator=(const BufferSlot&) = delete;
-};
-
 class __attribute__((visibility("default"))) SwtrRingBuffer : public RingBuffer {
 public:
     static constexpr size_t MIN_NUMBER_SLOTS = 1;
@@ -51,12 +30,13 @@ public:
                    std::function<void(std::vector<uint8_t>&, size_t&)> transform_fn = nullptr);
     ~SwtrRingBuffer() override;
 
-    // Methods declared in the public section for implementation visibility
-
     // RingBuffer implementation
     void start() override;
     void stop() override;
     void wait() override;
+
+    void set_read_fd(int fd) override;
+    void set_write_fd(int fd) override;
 
     void set_logging_enabled(bool enabled) override;
     bool get_logging_enabled() const override;
@@ -98,10 +78,6 @@ public:
 
     size_t get_transformed_size(size_t slot_idx) const override;
     void set_transformed_size(size_t slot_idx, size_t size) override;
-
-    // Concrete implementation specifics
-    void set_read_fd(int fd);
-    void set_write_fd(int fd);
 
 protected:
     void do_log(LogLevel level, const std::string& message) override;
