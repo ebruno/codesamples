@@ -1,83 +1,54 @@
-# Testing Requirements - Ringbuffer (macOS, C++)
+# Ringbuffer Test Suite (macOS)
 
-## Test Directory Structure
-The testing environment is organized as follows to ensure isolation of test logic, data, and artifacts:
+This directory contains the test suite for the Ringbuffer library on macOS.
 
-```text
-tests/
-├── src/                # Test source code
-├── data/               # Test assets and fixtures
-│   ├── inputs/         # Files for the Reader to process
-│   └── expected/       # "Golden" files for verifying Writer output
-├── bin/                # Compiled test binaries
-└── utils/              # Test utility scripts and tools
-    └── bin/            # Compiled utility binaries
+## Directory Structure
+- `src/`: Test source code.
+- `data/inputs/`: Input files for the Reader.
+- `data/expected/`: Golden files for verification.
+- `bin/`: Compiled test binaries.
+- `utils/bin/`: Test utility scripts.
+- `containers/`: Standardized container build environments (see [containers/README.md](containers/README.md)).
+
+## Build Process
+The test binaries are built by linking against the static library:
+```bash
+clang++ -std=c++20 -I../ -o bin/test001_staticlib src/test001_staticlib.cpp ../lib/libswtr_ringbuffer.a
 ```
 
-## General Requirements
-- All test directories contain a `.required_directory` file.
-- Test binaries are isolated in the `bin/` directory.
-- A `README.md` is provided in the `tests/` directory describing the test suite and build process.
+## Running Test Scenarios
 
-## Artifact Verification
-Before running functional tests, the build artifacts must be verified:
-- **Architecture**: Use `lipo -info <artifact>` to verify both `arm64` and `x86_64` slices.
-- **Install Name**: Use `otool -L <dylib>` to verify the install name is `@rpath/libswtr_ringbuffer.dylib`.
-- **Binary Size**: Use `size -m <artifact>` to verify dead code elimination efficiency.
-- **Symbol Visibility**: Use `nm -gjU <artifact>` to verify internal symbols are hidden.
+### T001: Exact Match
+Verify that input is passed through without changes.
+```bash
+./bin/test001_staticlib -o data/expected/t001.out data/inputs/test001.txt 2> t001.log
+diff data/inputs/test001.txt data/expected/t001.out
+```
 
-## Test Data Generation
-Test files (`test001.txt` through `test005.txt`) are generated in `tests/data/inputs/` using a zig-zag space pattern.
+### T002: Stress Test (Smallest Config)
+Verify stability with 1 slot and 1 byte buffer size.
+```bash
+./bin/test001_staticlib -o data/expected/t002.out -s 1 -b 1 data/inputs/test001.txt 2> t002.log
+diff data/inputs/test001.txt data/expected/t002.out
+```
 
-### Utility Script
-A Zsh script is provided at `tests/utils/bin/generate_test_data.zsh` to automate this:
-- **Usage**: `generate_test_data.zsh [-l lines] [output_file]`
-- **Options**: `-l lines` (default: 10), `-h` (usage).
+### T003: Uppercase Transform
+Verify that the uppercase transformation is applied.
+```bash
+./bin/test001_staticlib -o data/expected/t003.out -b 10 -t 1 data/inputs/test001.txt 2> t003.log
+# Verification: check if all alphabetic chars in output are uppercase.
+```
 
-## Test Binary Build Requirements
-Test binaries are configured to verify different linking scenarios:
-- **Static Linking (`test001_staticlib`)**: Links directly to the static library file (`../lib/libswtr_ringbuffer.a`) to ensure the linker does not prefer the shared library.
+## Containerized Build Environment
+To ensure build reproducibility, this project provides container configurations in the `containers/` directory. These allow you to build the library in a controlled environment using Apple Container Utility, Docker, or Podman. 
+For detailed setup and usage instructions, please refer to the [containers/README.md](containers/README.md) file.
 
-## Test Program Interface (`test001_staticlib`)
-Usage: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] [-r] [-w <ip:port>] <input_file>`
+## Verification of Artifacts
+To verify the binary properties on macOS:
+- `lipo -info lib/libswtr_ringbuffer.dylib`
+- `otool -L lib/libswtr_ringbuffer.dylib`
+- `size -m lib/libswtr_ringbuffer.dylib`
+- `nm -gjU lib/libswtr_ringbuffer.dylib`
 
-- **Options**:
-    - `-o output_file`: Destination for `write_fd` (default: `stdout`).
-    - `-l log_file`: Logger output (default: `stderr`).
-    - `-s slots`: Number of ringbuffer slots (default: `4`).
-    - `-b size`: Buffer size per slot (default: `4096`).
-    - `-t transform_type`: `0`: None, `1`: Uppercase, `2`: XOR 0xFF.
-    - `-e error_mode`: `0`: No error, `1`: Fatal (pipeline stops), `2`: Non-fatal (pipeline continues).
-    - `-r`: Optional. Attaches `read_fd` to a socket. The app opens a socket on `127.0.0.1`, prints `LISTEN_PORT=<port>` to `stdout`, and uses the socket returned by `accept()` as the `read_fd`.
-    - `-w <ip:port>`: Optional. Attaches `write_fd` to a socket. The app connects to the specified IP and port and uses the resulting socket as the `write_fd`.
-
-## Running Tests
-
-### Examples: Running Test Matrix Scenarios
-Here are examples of how to execute the first few scenarios from the test matrix using the static library binary:
-
-- **T001 (Standard Run)**: Exact match with input.
-  ```bash
-  ./bin/test001_staticlib data/inputs/test001.txt 2> t001.log
-  ```
-- **T002 (Stress Test)**: Minimum slots and buffer size.
-  ```bash
-  ./bin/test001_staticlib -s 1 -b 1 data/inputs/test001.txt 2> t002.log
-  ```
-- **T003 (Uppercase Transform)**: Small buffer with uppercase transformation.
-  ```bash
-  ./bin/test001_staticlib -b 10 -t 1 data/inputs/test001.txt 2> t003.log
-  ```
-
-## Test Matrix
-The test suite executes the following scenarios:
-
-| Test ID | Input File | Slots | Size | Transform | Error | Expected Outcome |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `T001` | `test001.txt` | 4 | 4096 | 0 | 0 | Exact match with input; Success. |
-| `T002` | `test001.txt` | 1 | 1 | 0 | 0 | Exact match (Stress test); Success. |
-| `T003` | `test001.txt` | 4 | 10 | 1 | 0 | All chars uppercase; Success. |
-| `T004` | `test001.txt` | 4 | 4096 | 0 | 0 | Input < 1 slot; fast EOF termination; Success. |
-| `T005` | `test001.txt` | 4 | 4096 | 0 | 1 | Pipeline stop; Exit status 1. |
-| `T006` | `test001.txt` | 4 | 4096 | 0 | 2 | Pipeline continues; Success. |
-| `T007` | `test001.txt` | 4 | 4096 | 2 | 0 | Bit-inverted output; Success. |
+## License
+This project is licensed under the BSD 3-Clause License.
