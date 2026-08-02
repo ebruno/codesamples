@@ -5,12 +5,19 @@
 - Code should be buildable using both clang and gcc tool chains.
 - A ring buffer (also called a circular buffer) is a fixed-size, first-in-first-out (FIFO) data structure that connects its memory end-to-end in a loop. It uses a read pointer and a write pointer that wrap around to the start of the array when they reach the end.
 - Fixed Array: A pre-allocated block of memory that never changes size.
-- The ringbuffer structure will be as follows:
-  
-  |buffer idx number|buffer status|max data buffer size|data buffer size|transformed data buffer size|checksum algorithm|checksum value|data buffer|
+- The `BufferSlot` structure must include:
+    - `buffer_idx` (index of the slot)
+    - `status` (BufferStatus)
+    - `max_data_buffer_size`
+    - `data_buffer_size`
+    - `transformed_data_buffer_size`
+    - `checksum_alg` (ChecksumAlgorithm)
+    - `checksum_val` (uint32_t)
+    - `data` (the internal data buffer)
   
 - Total of 14 buffer status values should be defined using an `enum class`.
-- The status values `readforread`, `readyfortransform`, and `readyforwrite` should be aliased to the first 3 values of the `enum class`.
+- The status values `readforread`, `readyfortransform`, and `readyforwrite` should be the first 3 values of the `enum class`.
+- `STATUS_ERROR` must be the final value of the `enum class` (index 13).
 - **Special Terminal Statuses**: 
     - `LAST_BUFFER_TO_TRANSFORM`: Indicates the final buffer to be processed by the transformer.
     - `LAST_BUFFER_TO_WRITE`: Indicates the final buffer to be processed by the writer.
@@ -34,6 +41,10 @@
 ## Performance & Binary Optimization
 - **Dead Code Elimination**: The library must be compatible with dead code elimination (e.g., using `-ffunction-sections` and `-fdata-sections`) to ensure the "small binary" goal is verifiable during testing.
 - **Memory Alignment**: Buffer slots and index counters should be aligned to cache line boundaries (e.g., using `alignas(64)`) to prevent false sharing between threads.
+- **Naming Convention**: All private member variables MUST follow the trailing underscore naming convention (e.g., `member_variable_`).
+- **Slot Storage**: The ring buffer must store slots using `std::vector<std::unique_ptr<BufferSlot>>`.
+- **Atomic Operations**: 
+    - All members of `BufferSlot` that are `std::atomic` MUST be accessed using `.load()` and `.store()` methods rather than direct assignment or implicit conversion, especially when passed to functions or used in `std::format` strings, as `std::format` does not support `std::atomic` types directly.
 
 ## Source Organization & Deterministic Naming
 To ensure build consistency and prevent git collisions, the following strict file mapping MUST be followed. No other source files shall be created unless explicitly requested.
@@ -44,7 +55,7 @@ To ensure build consistency and prevent git collisions, the following strict fil
 | Primary Abstract Interface | `ringbuffer.hpp` |
 | Status and Checksum Enums | `status.hpp` |
 | Concrete Implementation Class | `swtr_ringbuffer_impl.hpp` |
-| Concrete Implementation Logging | `swtr_ringbuffer_impl.cpp` |
+| Concrete Implementation Logging | `LoggingOps_1.cpp` (and numbered files if necessary) |
 | Constructor and Destructor | `Lifecycle.cpp` |
 | Read Pipeline Logic | `ReadOps.cpp` |
 | Transform Pipeline Logic | `TransformOps.cpp` |
@@ -83,9 +94,12 @@ To maintain a clean and predictable compilation environment, all source files mu
 ## Constructor Requirements
 - **Member Initializer List**: All member variables must be initialized in the constructor's member initializer list or via in-class default initializers. The constructor body must only contain validation logic and slot initialization.
 - **Automatic Start**: The constructor MUST NOT start the read, transform, or write threads automatically.
-- Allow specification of the number of slots in the ring buffer (default: MIN_NUMBER_SLOTS).
-- Allow specification of the initial status of the ringbuffer (default: readyforread).
-- Allow specification of the buffer size per slot (default: DEFAULT_BUFFER_SIZE = 4096).
+- The constructor must support the following parameters:
+    - Number of slots (default: MIN_NUMBER_SLOTS).
+    - Initial status of the ring buffer (default: readyforread).
+    - Buffer size per slot (default: DEFAULT_BUFFER_SIZE = 4096).
+    - Error Handler function (`ErrorHandler err_handler = nullptr`).
+    - Transform function (`std::function<void(std::vector<uint8_t>&, size_t&)> transform_fn = nullptr`).
 - **Initialization**: The `max data buffer size` for each slot must be initialized with the "buffer size per slot" value provided to the constructor.
    - The constructor should fail if number slots is not equal to or  greater than 1 and the buffer size is not equal to or greater than 1, and exeception should fail reporting why it failed.
    - Create a macro or const MIN\_NUMBER\_SLOTS and set to 1 use this for the test in constructor.
@@ -108,8 +122,8 @@ To maintain a clean and predictable compilation environment, all source files mu
     - **Transform Function**:
         - The class should accept a `std::function` to define the transformation operation.
         - The transform function will apply this operation to the data and mark the slot as `readyforwrite`.
-        - It will set the `transformed data buffer size` after the transform is complete.
-        - **Optional Transform**: If no transform function is specified, the transform method should set the `transformed data buffer size` equal to the `data buffer size`, report this in a log message, and mark the buffer as `readyforwrite` (or `LAST_BUFFER_TO_WRITE` if applicable) to allow it to proceed to the writer.
+        - Because the buffer sizes are stored as `std::atomic`, the transform function (which takes a `size_t&`) must be called by loading the atomic value into a local temporary, passing that temporary to the function, and then storing the result back into the atomic member.
+        - **Optional Transform**: If no transform function is specified, the transform method should set the `transformed data buffer size` equal to the `data buffer size` using `.store()` and `.load()` to avoid illegal atomic assignments, report this in a log message, and mark the buffer as `readyforwrite` (or `LAST_BUFFER_TO_WRITE` if applicable) to allow it to proceed to the writer.
     - **Write Function**:
         - Should use POSIX file descriptors for writing.
         - It will write the data to the descriptor, clear the buffer, and mark the slot as `readyforread`.
@@ -128,8 +142,10 @@ To maintain a clean and predictable compilation environment, all source files mu
 
 ## Logging and Diagnostics
 - **Logging Control**:
-    - Provide a global logging enabled/disabled flag with `set` and `get` functions.
-    - Provide `set` and `get` functions to specify the output stream (e.g., `std::ostream`). The default stream should be `std::cerr`.
+    - Provide `set_logging_enabled(bool enabled)` and `get_logging_enabled()` functions.
+    - Provide `set_output_stream(std::ostream& stream)` which stores the address of the stream in a pointer.
+    - Provide `get_output_stream()` which returns the `std::ostream*` pointer.
+    - The default stream should be initialized to `std::cerr`.
     - **Architecture**: Use a Non-Virtual Public Interface (NVI) pattern:
         - Public non-virtual `log_message` variadic template method for external use. This method should use `std::format` to construct a log message string.
         - Protected pure virtual implementation method `do_log(LogLevel level, const std::string& message)` for derived classes.
@@ -138,11 +154,16 @@ To maintain a clean and predictable compilation environment, all source files mu
     - **Log Levels**: Define an enumeration for the following levels: `Trace`, `Debug`, `Info`, `Warning`, `Error`, `Critical`.
 	    - The implementation of `do_log` must use the string representation of the log level (e.g., `[INFO]`, `[DEBUG]`) rather than its numeric enumeration value.
 - **Independent Stage Logging**:
-    - Provide independent enable/disable flags and verbosity level settings for the **Read**, **Transform**, and **Write** stages.
+    - Provide the following functions for each stage (**Read**, **Transform**, and **Write**):
+        - `set_[stage]_logging_enabled(bool enabled)`
+        - `get_[stage]_logging_enabled()`
+        - `set_[stage]_verbosity(LogLevel level)`
+        - `get_[stage]_verbosity()`
     - Each stage must check its specific flag and verbosity level before calling the log implementation.
 
 ## Execution Model & Threading
-- The read, transform, and write functions will run in separate threads using `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
+- The read, transform, and write pipelines must be implemented as `read_loop`, `transform_loop`, and `write_loop` respectively. Each must accept a `std::stop_token` as its first parameter.
+- These functions will run in separate threads using `std::jthread`, cooperative cancellation, and synchronization using `std::mutex sync_mutex_` and `std::condition_variable_any cv_`.
 - **Thread Control**:
     - All threads must check and honor the `std::stop_token` from `std::jthread`.
     - Use `std::stop_callback` to ensure immediate resource release and improve responsiveness during cancellation.
