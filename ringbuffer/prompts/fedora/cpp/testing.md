@@ -49,7 +49,7 @@ A Dockerfile must be created at `tests/containers/fedora/Dockerfile` with the fo
 ### Container README Requirements
 A `README.md` must be provided in `tests/containers/` describing the configuration and usage:
 - **Configuration**: Summarize the installed toolchain and base image.
-- **Operational Examples**: Provide build and run commands for the following tools, ensuring that the host directory is mapped to `/workspace` and the container is run interactively (`-it`) and is removed on exit (`--rm`):
+- **Operational Examples**: Provide build and run commands for the following tools, assuming they are run from the `src/fedora/cpp` directory (meaning the Dockerfile path is `tests/containers/fedora`). Ensure that the host directory is mapped to `/workspace` and the container is run interactively (`-it`) and is removed on exit (`--rm`):
     - **Apple Container Utility**: Located at `/usr/local/bin/container`. Must include the `system start` command before building/running.
     - **Docker**: Standard `docker build` and `docker run` commands.
     - **Podman**: Standard `podman build` and `podman run` commands.
@@ -140,7 +140,7 @@ The test program must support the following command-line interface:
         - `1`: Fatal error (return non-zero from handler, pipeline must stop).
         - `2`: Non-fatal error (return zero from handler, pipeline must continue).
     - `-r`: Optional. Indicates that `read_fd` should be attached to a socket.
-        - The application must open a socket on `127.0.0.1`.
+        - The application must open a socket and use `SO_REUSEADDR` to allow immediate reuse of the port.
         - It must obtain the port number and print `"LISTEN_PORT=<port>"` followed by `std::endl` to `stdout`.
         - It must call `accept()`.
         - If `accept()` returns a value other than `-1`, that value is used as the `read_fd` passed to the ringbuffer.
@@ -150,7 +150,10 @@ The test program must support the following command-line interface:
         - The application must attempt to connect to the specified IP and port.
         - If the connection is successful, the resulting socket file descriptor is used as the `write_fd` passed to the ringbuffer.
         - If the connection fails, the program must report an error and terminate.
+- **Implementation Note**: Use `std::make_unique<SwtrRingBuffer>` to instantiate the ring buffer.
+
 - **Behavior**:
+    - Before calling `wait()`, the program must print `"waiting for ringbuffer"` followed by `std::endl` to `stdout`.
     - Must flush `stdout` after the RingBuffer completes processing.
     - Must return exit status `1` if the input file cannot be opened, a fatal exception occurs, or the error mode was set to `1`.
 

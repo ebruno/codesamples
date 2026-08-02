@@ -43,7 +43,7 @@ To ensure build consistency and prevent git collisions, the following strict fil
 | :--- | :--- |
 | Primary Abstract Interface | `ringbuffer.hpp` |
 | Status and Checksum Enums | `status.hpp` |
-| Concrete Implementation Class | `swtr_ringbuffer_//impl.hpp` |
+| Concrete Implementation Class | `swtr_ringbuffer_impl.hpp` |
 | Concrete Implementation Logging | `swtr_ringbuffer_impl.cpp` |
 | Constructor and Destructor | `Lifecycle.cpp` |
 | Read Pipeline Logic | `ReadOps.cpp` |
@@ -84,7 +84,7 @@ To maintain a clean and predictable compilation environment, all source files mu
 - **Member Initializer List**: All member variables must be initialized in the constructor's member initializer list or via in-class default initializers. The constructor body must only contain validation logic and slot initialization.
 - **Automatic Start**: The constructor MUST NOT start the read, transform, or write threads automatically.
 - Allow specification of the number of slots in the ring buffer (default: MIN_NUMBER_SLOTS).
-- Allow specification of the initial status of the ringbuffer (default: readytoread).
+- Allow specification of the initial status of the ringbuffer (default: readyforread).
 - Allow specification of the buffer size per slot (default: DEFAULT_BUFFER_SIZE = 4096).
 - **Initialization**: The `max data buffer size` for each slot must be initialized with the "buffer size per slot" value provided to the constructor.
    - The constructor should fail if number slots is not equal to or  greater than 1 and the buffer size is not equal to or greater than 1, and exeception should fail reporting why it failed.
@@ -131,13 +131,12 @@ To maintain a clean and predictable compilation environment, all source files mu
     - Provide a global logging enabled/disabled flag with `set` and `get` functions.
     - Provide `set` and `get` functions to specify the output stream (e.g., `std::ostream`). The default stream should be `std::cerr`.
     - **Architecture**: Use a Non-Virtual Public Interface (NVI) pattern:
-        - Public non-virtual `log_message` method for external use.
-        - Protected pure virtual implementation method `do_log` for derived classes.
+        - Public non-virtual `log_message` variadic template method for external use. This method should use `std::format` to construct a log message string.
+        - Protected pure virtual implementation method `do_log(LogLevel level, const std::string& message)` for derived classes.
         - Use the `override` keyword in derived classes.
-    - **Thread Safety**: Log messages must be printed atomically. The library must ensure that messages from different threads are not interleaved in the output stream.
+    - **Thread Safety**: Log messages must be printed atomically. The library must ensure that messages from different threads are not interleaved in the output stream (e.g., using a mutex).
     - **Log Levels**: Define an enumeration for the following levels: `Trace`, `Debug`, `Info`, `Warning`, `Error`, `Critical`.
-	    - Log output must use the string representation of the log level (e.g., `[INFO]`, `[DEBUG]`) rather than its numeric enumeration value.
-    - **Log Public and private log function Signature**: The logging functions must support a variadic template signature: `void do_log(LogLevel level, const char* fmt, Args&&... args)`.
+	    - The implementation of `do_log` must use the string representation of the log level (e.g., `[INFO]`, `[DEBUG]`) rather than its numeric enumeration value.
 - **Independent Stage Logging**:
     - Provide independent enable/disable flags and verbosity level settings for the **Read**, **Transform**, and **Write** stages.
     - Each stage must check its specific flag and verbosity level before calling the log implementation.
