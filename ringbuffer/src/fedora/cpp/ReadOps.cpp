@@ -13,7 +13,7 @@ void SwtrRingBuffer::set_read_fd(int fd) {
 void SwtrRingBuffer::read_loop(std::stop_token st) {
     size_t current_slot = 0;
     while (!st.stop_requested()) {
-        if (slots_[current_slot]->status.load() == BufferStatus::readforread) {
+        if (slots_[current_slot]->status.load() == BufferStatus::readyforread) {
             if (read_fd_ == -1) {
                 handle_error(current_slot, BufferStatus::STATUS_ERROR);
                 return;

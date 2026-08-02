@@ -33,7 +33,7 @@ void SwtrRingBuffer::write_loop(std::stop_token st) {
                     cv_.notify_all();
                     return;
                 }
-                slots_[current_slot]->status.store(BufferStatus::readforread);
+                slots_[current_slot]->status.store(BufferStatus::readyforread);
             } else {
                 handle_error(current_slot, BufferStatus::STATUS_ERROR);
             }
