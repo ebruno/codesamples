@@ -1,6 +1,7 @@
 # Test Build Makefile
 
 # Toolchain
+RM = rm -f
 CXX = g++
 CXXFLAGS = -std=c++20 -I../ -Wall -Wextra -Wpedantic -O3
 
@@ -31,6 +32,10 @@ $(BIN_DIR)/test001_dynamiclib: $(SRC_DIR)/test001.cpp
 
 # Clean target
 clean:
-	rm -rf $(BIN_DIR)/*
+	$(RM) -r $(BIN_DIR)/* data/expected/*
+	$(RM) -f *~ #*#
 
-.PHONY: all clean
+# Dist-clean target
+dist-clean: clean
+
+.PHONY: all clean dist-clean

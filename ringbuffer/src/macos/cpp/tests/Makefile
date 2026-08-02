@@ -36,6 +36,7 @@ $(BIN_DIR):
 
 clean:
 	$(RM) $(OBJS) $(TARGETS)
+	$(RM) -r $(BIN_DIR)/* data/expected/*
+	$(RM) -f *~ #*#
 
 dist-clean: clean
-	# Additional cleanup if necessary
