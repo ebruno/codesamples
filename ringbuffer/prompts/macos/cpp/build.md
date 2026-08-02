@@ -1,4 +1,3 @@
-This file was generated on: 2026-Aug-02 01:24:03 by Llama-3.1-70B-Instruct (Q8_0), System Prompt v1.0
 # Build Requirements - Ringbuffer (macOS, C++)
 
 ## Toolchain Requirements
