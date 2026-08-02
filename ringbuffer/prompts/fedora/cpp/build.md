@@ -1,3 +1,4 @@
+This file was generated on: 2026-Aug-02 01:24:03 by Llama-3.1-70B-Instruct (Q8_0), System Prompt v1.0
 # Build Requirements - Ringbuffer (Fedora 44, C++)
 
 ## Toolchain Requirements
@@ -57,7 +58,7 @@ To provide a consistent interface for consumers, the following symbolic links mu
     - Verify the binary architecture using the `file` command on both the `.a` and `.so`.
     - Verify the shared library SONAME using `readelf -d <so>` (must contain `SONAME [libswtr_ringbuffer.so]`).
     - Verify the final binary size using `size -m`.
-8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `lib/` directories.
+8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `lib/` directories, as well as any backup files (`*~` and `#*#`) using `$(RM)`.
 
 - All code is covered under a BSD 3-Clause License.
 <EOF>

@@ -1,3 +1,4 @@
+This file was generated on: 2026-Aug-02 01:24:03 by Llama-3.1-70B-Instruct (Q8_0), System Prompt v1.0
 # Build Requirements - Ringbuffer (macOS, C++)
 
 ## Toolchain Requirements
@@ -60,6 +61,6 @@ To provide a consistent interface for consumers, the following symbolic links mu
     - Verify the universal binary architecture using the `lipo -info` command on both the `.a` and `.dylib`.
     - Verify the shared library install name using `otool -L` (must be `@rpath/libswtr_ringbuffer.dylib`).
     - Verify the final binary size using `size -m`.
-8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `lib/` directories.
+8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `lib/` directories, as well as any backup files (`*~` and `#*#`) using `$(RM)`.
 
 - All code is covered under a BSD 3-Clause License.

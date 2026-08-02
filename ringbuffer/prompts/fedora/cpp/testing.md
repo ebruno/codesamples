@@ -1,3 +1,4 @@
+This file was generated on: 2026-Aug-02 01:24:03 by Llama-3.1-70B-Instruct (Q8_0), System Prompt v1.0
 # Testing Requirements - Ringbuffer (Fedora 44, C++)
 
 ## Test Directory Structure
@@ -105,11 +106,22 @@ Each of the following scripts must be documented (via usage messages and/or comm
 ## Test Binary Build Requirements
 Test binaries must be configured to verify different linking scenarios:
 - **Static Linking (`test001_staticlib`)**:
-    - Must link directly to the static library file (e.g., using the path `../lib/libswtr_ringbuffer.a`) rather than the `-lswtr_ringbuffer` flag. This ensures the linker does not prefer the shared library (`.so`).
+    - MUST link directly to the static library file (e.g., using the path `../lib/libswtr_ringbuffer.a`).
+    - MUST NOT use the `-lswtr_ringbuffer` flag or any other mechanism that might resolve to the shared library (`.so`).
+    - The output binary should be placed in the `bin/` directory.
+- **Dynamic Linking (`test001_dynamiclib`)**:
+    - MUST link against the shared library using the `-lswtr_ringbuffer` flag.
+    - MUST use the `rpath` option (e.g., `-Wl,-rpath,$(abspath ../lib)`) to ensure the binary can locate the shared library at runtime.
     - The output binary should be placed in the `bin/` directory.
 - **Headers**: Must include the directory `ringbuffer/src/fedora/cpp` in the search path.
+- **Mandatory Includes**: Must include `<fcntl.h>` to provide access to file control options like `O_RDONLY` and `O_WRONLY`.
+- **Code Quality**: Must handle unused function parameters (e.g., using `(void)param;`) to ensure the code compiles without `-Wunused-parameter` warnings.
+- **Makefile Macros**: MUST define a macro `RM = rm -f` and use it for all file removal operations.
+- **Cleanup Requirements**: The `Makefile` must provide the following targets:
+    - `clean`: Must remove all compiled binaries in `bin/` using `$(RM) -r`, all generated output files in `data/expected/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
+    - `dist-clean`: Must perform a full cleanup by calling the `clean` target.
 
-## Test Program Interface (`test001_staticlib`)
+## Test Program Interface (`test001`)
 The test program must support the following command-line interface:
 `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] [-r] [-w <ip:port>] <input_file>`
 
@@ -140,7 +152,6 @@ The test program must support the following command-line interface:
         - If the connection is successful, the resulting socket file descriptor is used as the `write_fd` passed to the ringbuffer.
         - If the connection fails, the program must report an error and terminate.
 - **Behavior**:
-    - Must print "waiting for ringbuffer" to `stdout` before calling `rb.wait()`.
     - Must flush `stdout` after the RingBuffer completes processing.
     - Must return exit status `1` if the input file cannot be opened, a fatal exception occurs, or the error mode was set to `1`.
 
