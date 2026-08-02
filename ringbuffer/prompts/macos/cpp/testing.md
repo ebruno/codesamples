@@ -32,6 +32,29 @@ tests/
 - A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files (e.g., `2> t001.log`).
 - **Verification Scope**: Tests must verify not only the functional output (data integrity) but also the operational constraints (memory alignment, thread termination, and binary size).
 
+## Containerized Build Environment
+To ensure build reproducibility across different host environments, a containerized build environment must be provided.
+
+### Dockerfile Requirements
+A Dockerfile must be created at `tests/containers/fedora/Dockerfile` with the following specifications:
+- **Base Image**: `fedora:44`.
+- **Working Directory**: Set to `/workspace`.
+- **Toolchain Installation**: Use `dnf` to install the following packages:
+    - GNU: `gcc`, `gcc-c++`, `binutils`, `make`.
+    - Build & Docs: `cmake`, `doxygen`.
+    - LLVM/Clang: `clang`, `clang-tools-extra` (for `clang-tidy` and `clang-format`).
+    - Utilities: `procps-ng`, `coreutils`, `findutils`, `which`.
+- **Environment**: Set `ENV CXX=g++` and `ENV CC=gcc`.
+
+### Container README Requirements
+A `README.md` must be provided in `tests/containers/` describing the configuration and usage:
+- **Configuration**: Summarize the installed toolchain and base image.
+- **Operational Examples**: Provide build and run commands for the following tools, ensuring that the host directory is mapped to `/workspace` and the container is run interactively (`-it`) and is removed on exit (`--rm`):
+    - **Apple Container Utility**: Located at `/usr/local/bin/container`. Must include the `system start` command before building/running.
+    - **Docker**: Standard `docker build` and `docker run` commands.
+    - **Podman**: Standard `podman build` and `podman run` commands.
+- **Cleanup**: Provide examples for removing images (`rmi`) and removing containers (`rm`) for all three tools.
+
 ## Artifact Verification
 Before running functional tests, the build artifacts must be verified to ensure they meet the "Small Binary" and Toolchain goals:
 - **Architecture**: Use `lipo -info <artifact>` to verify that both `arm64` and `x86_64` slices are present.
