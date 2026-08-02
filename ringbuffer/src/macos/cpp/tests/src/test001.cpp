@@ -28,10 +28,14 @@ void print_usage(const char* prog_name) {
 
 // Error Handler implementations
 int fatal_error_handler(size_t slot_idx, swtr::BufferStatus status) {
+    (void)slot_idx;
+    (void)status;
     return 1;
 }
 
 int non_fatal_error_handler(size_t slot_idx, swtr::BufferStatus status) {
+    (void)slot_idx;
+    (void)status;
     return 0;
 }
 
@@ -221,7 +225,6 @@ int main(int argc, char* argv[]) {
 
         rb.start(read_fd, write_fd, transform, handler);
 
-        std::cout << "waiting for ringbuffer" << std::endl;
         rb.wait();
         std::cout.flush();
 
