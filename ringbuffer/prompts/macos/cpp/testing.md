@@ -86,9 +86,15 @@ The following scripts must be provided to automate the generation of test data:
 - Tcsh script: `tests/utils/bin/generate_test_data.tcsh`
 - Bourne shell script: `tests/utils/bin/generate_test_data_bin_sh.sh`
 
-**Script Requirements**:
-- **Shebang**: `#!/usr/bin/env zsh`
-- **Usage**: `generate_test_data.zsh [-l lines] [output_file]`
+**Script Documentation Requirements**:
+Each of the following scripts must be documented (via usage messages and/or comments) to include their purpose, usage, and options:
+- `generate_test_data.zsh`
+- `generate_test_data.sh`
+- `generate_test_data.tcsh`
+- `generate_test_data_bin_sh.sh`
+
+**General Script Requirements**:
+- **Usage**: `generate_test_data.[ext] [-l lines] [output_file]`
 - **Options**:
     - `-l lines`: Number of lines to generate. Defaults to `10`.
     - `-h`: Display usage information.

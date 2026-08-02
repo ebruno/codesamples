@@ -29,7 +29,7 @@ tests/
 - All test directories must contain a `.required_directory` file.
 - Test binaries should be isolated in the `bin/` directory.
 - Use `tests/data/inputs` for source files and `tests/data/expected` for verification of the final output.
-- A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files (e.g., `2> t001.log`).
+- A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files (e.g., `2> t001.log`). This file must also document the purpose and usage of the `tests/containers` directory.
 - **Verification Scope**: Tests must verify not only the functional output (data integrity) but also the operational constraints (memory alignment, thread termination, and binary size).
 
 ## Containerized Build Environment
@@ -86,9 +86,15 @@ The following scripts must be provided to automate the generation of test data:
 - Tcsh script: `tests/utils/bin/generate_test_data.tcsh`
 - Bourne shell script: `tests/utils/bin/generate_test_data_bin_sh.sh`
 
-**Script Requirements**:
-- **Shebang**: `#!/usr/bin/env zsh`
-- **Usage**: `generate_test_data.zsh [-l lines] [output_file]`
+**Script Documentation Requirements**:
+Each of the following scripts must be documented (via usage messages and/or comments) to include their purpose, usage, and options:
+- `generate_test_data.zsh`
+- `generate_test_data.sh`
+- `generate_test_data.tcsh`
+- `generate_test_data_bin_sh.sh`
+
+**General Script Requirements**:
+- **Usage**: `generate_test_data.[ext] [-l lines] [output_file]`
 - **Options**:
     - `-l lines`: Number of lines to generate. Defaults to `10`.
     - `-h`: Display usage information.
