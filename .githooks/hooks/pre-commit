@@ -18,11 +18,17 @@ else
 	exit_status=1;
     fi;
 fi;
+
+# Model info for prompts
+MODEL_INFO="Llama-3.1-70B-Instruct (Q8_0), System Prompt v1.0"
+TARGET_PATTERN="ringbuffer/prompts/(fedora|macos)/cpp/(functional|build|testing)\.md"
+
 if [ ${exit_status} -eq 0 ]; then
    tmpfile="$(mktemp)";
    git diff --cached --name-only > "${tmpfile}";
    while read line
    do
+       # YAML tab removal
        if [[ "${line}" =~ .yml$ ]] || [[ "${line}" =~ .yaml$ ]]; then
 	  case ${ID} in
 	      macOS|MacOS|freebsd)
@@ -41,6 +47,29 @@ if [ ${exit_status} -eq 0 ]; then
 	      rm -f "${line}.bak";
 	  fi;
        fi;
+
+       # Prompt header update
+       if [[ "${line}" =~ $TARGET_PATTERN ]]; then
+           TIMESTAMP=$(date "+%Y-%b-%d %H:%M:%S")
+           HEADER="This file was generated on: ${TIMESTAMP} by ${MODEL_INFO}"
+           
+           if grep -q "^This file was generated on:" "${line}"; then
+               case ${ID} in
+                   macOS|MacOS|freebsd)
+                       sed -i '' "1s/^This file was generated on:.*/${HEADER}/" "${line}"
+                       ;;
+                   debian|rhel|fedora|ubuntu|arch)
+                       sed -i "1s/^This file was generated on:.*/${HEADER}/" "${line}"
+                       ;;
+                   *)
+                       echo "[WARNING] Unsupported ID=${ID}, skipping header update."
+                       ;;
+               esac
+           else
+               echo "${HEADER}" | cat - "${line}" > "${line}.tmp" && mv "${line}.tmp" "${line}"
+           fi
+           git add "${line}"
+       fi
    done < "${tmpfile}";
    rm -f "${tmpfile}";
 fi;
