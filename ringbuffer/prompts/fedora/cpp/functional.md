@@ -16,7 +16,7 @@
     - `data` (the internal data buffer)
   
 - Total of 14 buffer status values should be defined using an `enum class`.
-- The status values `readforread`, `readyfortransform`, and `readyforwrite` should be the first 3 values of the `enum class`.
+- The status values `readyforread`, `readyfortransform`, and `readyforwrite` should be the first 3 values of the `enum class`.
 - `STATUS_ERROR` must be the final value of the `enum class` (index 13).
 - **Special Terminal Statuses**: 
     - `LAST_BUFFER_TO_TRANSFORM`: Indicates the final buffer to be processed by the transformer.
@@ -104,7 +104,7 @@ To maintain a clean and predictable compilation environment, all source files mu
    - The constructor should fail if number slots is not equal to or  greater than 1 and the buffer size is not equal to or greater than 1, and exeception should fail reporting why it failed.
    - Create a macro or const MIN\_NUMBER\_SLOTS and set to 1 use this for the test in constructor.
    - Create a macro or const MIN\_BUFFER\_SIZE and set to 1 use this for the test in constructor.
-- Default behavior for `readytoread`.
+- Default behavior for `readyforread`.
 
 ## Public Member Functions
 - **Thread Control**:
