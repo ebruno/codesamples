@@ -43,7 +43,7 @@ To ensure build consistency and prevent git collisions, the following strict fil
 | :--- | :--- |
 | Primary Abstract Interface | `ringbuffer.hpp` |
 | Status and Checksum Enums | `status.hpp` |
-| Concrete Implementation Class | `swtr_ringbuffer_impl.hpp` (see note) |
+| Concrete Implementation Class | `swtr_ringbuffer_//impl.hpp` |
 | Concrete Implementation Logging | `swtr_ringbuffer_impl.cpp` |
 | Constructor and Destructor | `Lifecycle.cpp` |
 | Read Pipeline Logic | `ReadOps.cpp` |
@@ -53,6 +53,7 @@ To ensure build consistency and prevent git collisions, the following strict fil
 | Error Handling (`handle_error`) | `ErrorOps.cpp` |
 
 - **Required includes in `swtr_ringbuffer_impl.hpp`**: `<functional>`, `<mutex>`, `<stop_token>`, `<string>`, `<thread>`, `<vector>`, `"ringbuffer.hpp"`, `"status.hpp"`.
+- **Symbol Visibility**: To support shared library linking while using `-fvisibility=hidden`, the `SwtrRingBuffer` class must be explicitly marked with `__attribute__((visibility("default")))`.
 
 ### Accessor File Pattern
 Accessors must be split into separate files based on the data they process to minimize git collisions. The filename MUST follow the pattern `Accessors_[GroupName].cpp`.
@@ -97,6 +98,8 @@ To maintain a clean and predictable compilation environment, all source files mu
     - Provide a `stop` function to trigger cooperative cancellation and join all threads.
     - Provide a `wait` function that blocks the caller until all three pipeline threads have naturally terminated (e.g., after an EOF sequence).
 - **Core Operations** (Must be implemented as class member functions):
+    - **Configuration**:
+        - Provide `set_read_fd(int fd)` and `set_write_fd(int fd)` to configure the POSIX file descriptors used by the pipeline.
     - **Read Function**:
         - Should use POSIX file descriptors for reading.
         - After filling the buffer, it will mark the slot as `readyfortransform`.
@@ -152,6 +155,7 @@ To maintain a clean and predictable compilation environment, all source files mu
 ## Error Handling and Recovery
 - If a slot enters a `STATUS_ERROR` state, the system should call an error handling routine.
 - **Error Handler Signature**: The error handling routine must follow the signature: `int (*ErrorHandler)(size_t slot_idx, BufferStatus status)`.
+- **Implementation Note**: Error handlers that do not use `slot_idx` or `status` should explicitly cast them to `(void)` to avoid `-Wunused-parameter` warnings.
 - If the error handling routine returns a non-zero value, the entire pipeline should stop (triggering cooperative cancellation of all threads).
 
 ## Licensing
