@@ -5,7 +5,7 @@ include version.mk
 CXX = clang++
 LIBTOOL = libtool
 LIPO = lipo
-RM = rm -rf
+RM = rm -f
 
 # Compilation Flags
 # Each architecture must be compiled separately
@@ -69,6 +69,7 @@ symlinks:
 
 # Clean target
 clean:
-	$(RM) $(OBJ_DIR) $(LIB_DIR)
+	$(RM) -r $(OBJ_DIR) $(LIB_DIR)
+	$(RM) *~ #*#
 
 .PHONY: all clean symlinks

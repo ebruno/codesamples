@@ -4,7 +4,7 @@ include version.mk
 # Toolchain
 CXX = g++
 AR = ar
-RM = rm -rf
+RM = rm -f
 
 # Compilation Flags
 CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
@@ -46,6 +46,7 @@ symlinks:
 
 # Clean target
 clean:
-	$(RM) $(OBJ_DIR) $(LIB_DIR)
+	$(RM) -r $(OBJ_DIR) $(LIB_DIR)
+	$(RM) *~ #*#
 
 .PHONY: all clean symlinks
