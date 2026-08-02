@@ -38,7 +38,7 @@ struct alignas(64) BufferSlot {
     BufferSlot& operator=(const BufferSlot&) = delete;
 };
 
-class SwtrRingBuffer : public RingBuffer {
+class __attribute__((visibility("default"))) SwtrRingBuffer : public RingBuffer {
 public:
     static constexpr size_t MIN_NUMBER_SLOTS = 1;
     static constexpr size_t MIN_BUFFER_SIZE = 1;
@@ -50,6 +50,8 @@ public:
                    ErrorHandler err_handler = nullptr,
                    std::function<void(std::vector<uint8_t>&, size_t&)> transform_fn = nullptr);
     ~SwtrRingBuffer() override;
+
+    // Methods declared in the public section for implementation visibility
 
     // RingBuffer implementation
     void start() override;
