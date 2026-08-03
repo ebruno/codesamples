@@ -1,0 +1,2 @@
+Please implement the Ringbuffer for Debian. Use `ringbuffer/prompts/debian/cpp/functional.md` as the primary directive and follow all referenced requirements in the common specifications. Ensure that the generated source code is placed in `ringbuffer/src/debian/cpp` and that you perform the 'Final Verification Step' self-audit before finishing to ensure absolute compliance with the interface and architectural constraints.
+<EOF>

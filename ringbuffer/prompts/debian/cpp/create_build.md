@@ -1,0 +1,2 @@
+Please configure the build system for the Ringbuffer on Debian. Use `ringbuffer/prompts/debian/cpp/build.md` as the primary directive and follow all referenced requirements in the common specifications. Ensure that the build configuration (e.g., Makefile or CMakeLists.txt) is placed in `ringbuffer/src/debian/cpp` and that the resulting libraries are correctly deployed to the `lib` subdirectory. Verify that all mandated compiler and linker flags are applied to ensure binary symmetry and dead code elimination.
+<EOF>
