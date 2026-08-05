@@ -61,5 +61,12 @@ To provide a consistent interface for consumers, the following symbolic links mu
     - Verify the final binary size using `size -m`.
 8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `lib/` directories, as well as any backup files (`*~` and `#*#`) using `$(RM)`.
 
+## Containerized Build Environment
+To ensure build reproducibility and toolchain consistency, a containerized build environment must be provided:
+- **Container Naming**: The resulting image must be named following the pattern `ringbuffer_[platform]_build`.
+- **Configuration**: A `Dockerfile` must be provided to define the build environment.
+- **Location**: The `Dockerfile` must be located at `src/[platform]/containers/Dockerfile`.
+- **Capability**: The environment must contain all necessary toolchains and utilities to execute the full build process, including versioning, compilation, linking, and artifact verification.
+
 - All code is covered under a BSD 3-Clause License.
 <EOF>

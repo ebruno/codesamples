@@ -181,6 +181,10 @@ The following virtual functions MUST be implemented exactly as specified. Do not
 
 ## Execution Model & Threading
 - Pipelines: `read_loop`, `transform_loop`, `write_loop` (all accepting `std::stop_token`).
+- **Startup Order**: Threads MUST be started in the following order:
+    1. Write thread
+    2. Transform thread
+    3. Read thread
 - Use `std::jthread`, cooperative cancellation, `std::mutex sync_mutex_` and `std::condition_variable_any cv_`.
 - Use `std::stop_callback` for immediate resource release.
 

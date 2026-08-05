@@ -33,6 +33,9 @@ tests/
 - Test binaries should be isolated in the `bin/` directory.
 - Use `tests/data/inputs` for source files and `tests/data/expected` for verification of the final output.
 - A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files (e.g., `2> t001.log`). This file must also document the purpose and usage of the `tests/containers` directory.
+- **Container Command Usage**: When providing examples for using the containers in the `README.md` or other documentation:
+    - On **macOS**, use the `container` command instead of `docker`.
+    - On **Fedora** and **Debian**, use the `podman` command instead of `docker`.
 - **Verification Scope**: Tests must verify not only the functional output (data integrity) but also the operational constraints (memory alignment, thread termination, and binary size).
 
 ## Artifact Verification
@@ -142,7 +145,7 @@ The test program must support the following command-line interface:
     - If no input file is provided, the program MUST print a usage message to `std::cerr` and return exit status `1`.
     - All operational errors (e.g., socket creation, bind, accept, or file open failures) MUST be reported to `std::cerr` with descriptive messages.
     - The program MUST use `try-catch` blocks to handle `std::exception` and print the error message to `std::cerr`.
-    - Before calling `wait()`, the program must print `"waiting for ringbuffer"` followed by `std::endl` to `stdout`.
+
     - Must flush `stdout` after the RingBuffer completes processing.
     - Must return exit status `1` if the input file cannot be opened, a fatal exception occurs, or the error mode was set to `1`.
 
