@@ -13,7 +13,7 @@ Refer to the following document for all shared requirements, data generation, an
         - GNU: `gcc`, `gcc-c++`, `binutils`, `make`.
         - Build & Docs: `cmake`, `doxygen`.
         - LLVM/Clang: `clang`, `clang-tools-extra` (for `clang-tidy` and `clang-format`).
-        - Utilities: `procps-ng`, `coreutils`, `findutils`, `which`.
+        - Utilities: `procps-ng`, `coreutils`, `findutils`, `which`, `file`, `strace`, `emacs-nox`.
 - **Container Path**: Use `tests/containers/fedora/Dockerfile`.
 - **Header Search Path**: Use `ringbuffer/src/fedora/cpp`.
 <EOF>
