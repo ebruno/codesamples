@@ -43,12 +43,17 @@ Before running functional tests, the build artifacts must be verified to ensure 
 - **Symbol Visibility**: Use `nm -gjU <artifact>` to verify that internal symbols are hidden and that the public API is strictly limited to the intended interface.
 
 ## Test Data Generation
-Generate 5 test files in `tests/data/inputs/` (named `test001.txt` through `test005.txt`) using the zig-zag space pattern:
+After the test utility scripts are created, the following 5 test files MUST be generated in `tests/data/inputs/` (named `test001.txt` through `test005.txt`) using the zig-zag space pattern:
 - `test001.txt`: 25 lines
 - `test002.txt`: 50 lines
 - `test003.txt`: 75 lines
 - `test004.txt`: 100 lines
 - `test005.txt`: 150 lines
+
+**Generation Tool Selection**:
+Depending on the environment where the generation is performed:
+- **Linux (Fedora, Debian, etc.)**: Use the `tests/utils/bin/generate_test_data.sh` script.
+- **Darwin/macOS**: Use the `tests/utils/bin/generate_test_data.zsh` script.
 
 **Pattern Specification**:
 1. Template line: `NNNN ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<> NNNN`
@@ -81,6 +86,7 @@ Each of the following scripts must be documented (via usage messages and/or comm
 - **Arguments**:
     - `output_file`: Optional. If specified, the output is written to this file. If omitted, output is printed to `stdout`.
 - **Logic**: Must implement the zig-zag space pattern described in the "Test Data Generation" section.
+- **Permissions**: All utility scripts MUST be configured with execute permissions (e.g., `chmod 755`), resulting in file permissions `rwxr-x-rx`.
 
 ## Test Binary Build Requirements
 Test binaries must be configured to verify different linking scenarios:
@@ -93,7 +99,7 @@ Test binaries must be configured to verify different linking scenarios:
     - MUST use the `rpath` option (e.g., `-Wl,-rpath,$(abspath ../lib)`) to ensure the binary can locate the shared library at runtime.
     - The output binary should be placed in the `bin/` directory.
 - **Headers**: Must include the project's primary implementation directory in the search path.
-- **Mandatory Includes**: Must include `<fcntl.h>` to provide access to file control options like `O_RDONLY` and `O_WRONLY`.
+- **Mandatory Includes**: Must include `<fcntl.h>` for file control options, `<iostream>` for standard I/O, and the following networking headers: `<netinet/in.h>`, `<sys/socket.h>`, and `<arpa/inet.h>`.
 - **Code Quality**: Must handle unused function parameters (e.g., using `(void)param;`) to ensure the code compiles without `-Wunused-parameter` warnings.
 - **Makefile Macros**: MUST define a macro `RM = rm -f` and use it for all file removal operations.
 - **Cleanup Requirements**: The `Makefile` must provide the following targets:
@@ -130,9 +136,12 @@ The test program must support the following command-line interface:
         - The application must attempt to connect to the specified IP and port.
         - If the connection is successful, the resulting socket file descriptor is used as the `write_fd` passed to the ringbuffer.
         - If the connection fails, the program must report an error and terminate.
-- **Implementation Note**: Use `std::make_unique<SwtrRingBuffer>` to instantiate the ring buffer.
+- **Implementation Note**: Use `std::make_unique<SwtrRingBuffer>` to instantiate the ring buffer. The `ErrorHandler` function passed to the constructor MUST be a non-capturing lambda (or a raw function pointer) to ensure it is convertible to the `ErrorHandler` type and compatible with `std::make_unique`.
 
 - **Behavior**:
+    - If no input file is provided, the program MUST print a usage message to `std::cerr` and return exit status `1`.
+    - All operational errors (e.g., socket creation, bind, accept, or file open failures) MUST be reported to `std::cerr` with descriptive messages.
+    - The program MUST use `try-catch` blocks to handle `std::exception` and print the error message to `std::cerr`.
     - Before calling `wait()`, the program must print `"waiting for ringbuffer"` followed by `std::endl` to `stdout`.
     - Must flush `stdout` after the RingBuffer completes processing.
     - Must return exit status `1` if the input file cannot be opened, a fatal exception occurs, or the error mode was set to `1`.

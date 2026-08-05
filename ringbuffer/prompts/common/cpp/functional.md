@@ -65,7 +65,7 @@ To ensure build consistency and prevent git collisions, the following strict fil
 | Thread Management (`start`, `stop`, `wait`) | `Threading.cpp` |
 | Error Handling (`handle_error`) | `ErrorOps.cpp` |
 
-- **Required includes in `swtr_ringbuffer_impl.hpp`**: `<functional>`, `<mutex>`, `<stop_token>`, `<string>`, `<thread>`, `<vector>`, `"ringbuffer.hpp"`, `"status.hpp"`.
+- **Required includes in `swtr_ringbuffer_impl.hpp`**: `<atomic>`, `<condition_variable>`, `<functional>`, `<mutex>`, `<stop_token>`, `<string>`, `<thread>`, `<vector>`, `"ringbuffer.hpp"`, `"status.hpp"`.
 - **Symbol Visibility**: To support shared library linking while using `-fvisibility=hidden`, the `SwtrRingBuffer` class must be explicitly marked with `__attribute__((visibility("default")))`.
 
 ### Accessor File Pattern
@@ -81,6 +81,17 @@ Accessors must be split into separate files based on the data they process to mi
 - **Casing**: Use `snake_case` for primary headers and the implementation class files. Use `PascalCase` for all operation and lifecycle `.cpp` files.
 - **Function Distribution**: To prevent git collisions, limit each `.cpp` file to a maximum of 3 functions. If a logic group exceeds this, it must be further subdivided into numbered files (e.g., `ReadOps_1.cpp`, `ReadOps_2.cpp`).
 - **Documentation**: A `README.md` file must be provided in the source directory describing the library and how to build it.
+
+## Generation Process Logging
+To ensure traceability during the code generation process, the following logging requirements MUST be implemented:
+- **Log Directory**: Create a directory at `ringbuffer/src/<os>/<lang>/logs/`.
+- **Log Files**: Maintain three separate log files to track progress across the different prompt specifications:
+    - `functional.log`: Logs actions performed as part of `functional.md`.
+    - `build.log`: Logs actions performed as part of `build.md`.
+    - `testing.log`: Logs actions performed as part of `testing.md`.
+- **Log Format**: Each entry MUST be date-stamped in the format `[YYYY-MM-DD HH:MM:SS +/-HHMM] <Action Description>`, where the offset is the local time zone offset from UTC.
+- **Log Persistence**: If a log file already exists, new entries MUST be appended to the end of the file; the file MUST NOT be overwritten.
+- **Requirement**: Every significant milestone (e.g., file creation, build step completion, test data generation) MUST be recorded in the corresponding log file.
 
 ### Include Discipline
 To maintain a clean and predictable compilation environment, all source files must follow this include order:
