@@ -31,73 +31,48 @@ The project's prompts are designed to ensure that the generated source code is f
 - **Operating System**: macOS 26.5.2 (Build 25F84)
 - **Kernel**: Darwin 25.5.0
 - **Architecture**: arm64 (Apple Silicon)
-- **Hardware**: 
-    - **Model**: Mac16,11 (Mac mini)
-    - **CPU**: 14-core Apple Silicon processor
-    - **Memory**: 64 GB Unified Memory
+- **Hardware**: Mac mini (Mac16,11), 14-core CPU, 64 GB Unified Memory
 
 ### AI Tools
-- **Agent Harness**: LM Studio Bionic Version 1.0.4+9
-- **LLM**: `google/gemma-4-31B-it-qat`
-- **Model Specifications**: 
-    - **Architecture**: Decoder-only Transformer.
-    - **Parameters**: ~31 Billion.
-    - **Optimization**: Quantization-Aware Training (QAT) for high-efficiency inference without significant loss in reasoning or coding capability.
-    - **Specialization**: Instruct-tuned for advanced reasoning, complex coding tasks, and precise instruction following.
+- **Agent Harness**: LM Studio Bionic
+- **LLM**: `gemma-4`
+- **Model Specs**: ~31B Parameter Decoder-only Transformer, Quantization-Aware Training (QAT) for high-efficiency inference, and Instruct-tuned for advanced reasoning and precise coding tasks.
 
 ## Project Structure
 The project follows a strict deterministic file mapping to ensure build consistency and minimize version control collisions, separating interfaces, implementation logic, and accessors into discrete files.
 
+## Developer & Maintainer Guide
+
+### The Golden Rules
+To maintain the integrity of the library, all contributors MUST adhere to these standards:
+- **Binary Symmetry**: Source code MUST be identical across all target OSs. No platform-specific coding styles.
+- **Strict File Distribution**: No `.cpp` file may exceed 3 functions. Use numbered files (e.g., `ReadOps_1.cpp`) if logic exceeds this limit.
+- **Include Discipline**: Every `.cpp` must start with `ringbuffer.hpp`, followed by alphabetical standard headers.
+- **Naming**: Private members MUST use the trailing underscore (e.g., `sync_mutex_`).
+- **Hierarchy**: Adhere strictly to the `RingBuffer` (Interface) $\rightarrow$ `SwtrRingBuffer` (Impl) chain.
+
+### Prompt-Driven Workflow
+This project is maintained via a set of common prompts in `ringbuffer/prompts/common/`. Use them in the following order:
+
+1. **`implement_functional.md`**: Use when starting a new OS implementation or updating core logic.
+   - **Command Example**: `"implement functional for debian"`
+2. **`verify_builds.md`**: Use after implementation to perform a sanity check that the library compiles.
+   - **Command Example**: `"run build_verify for fedora"`
+3. **`regression_test.md`**: Use as the final step to verify that both the library and the test suite pass.
+   - **Command Example**: `"do regression_test on debian, fedora, macos"`
+
 ## Supported Platforms
-- **Archlinux**
-    - C: To Be Supplied
-    - C++: To Be Supplied
-    - Go: To Be Supplied
-    - Java: To Be Supplied
-    - Python: To Be Supplied
-    - Rust: To Be Supplied
-- **Debian**
-    - C: To Be Supplied
-    - C++: Work in Progress
-    - Go: To Be Supplied
-    - Java: To Be Supplied
-    - Python: To Be Supplied
-    - Rust: To Be Supplied
-- **Fedora**
-    - C: To Be Supplied
-    - C++: Work in Progress
-    - Go: To Be Supplied
-    - Java: To Be Supplied
-    - Python: To Be Supplied
-    - Rust: To Be Supplied
-- **Freebsd14**
-    - C: To Be Supplied
-    - C++: To Be Supplied
-    - Go: To Be Supplied
-    - Java: To Be Supplied
-    - Python: To Be Supplied
-    - Rust: To Be Supplied
-- **Freebsd15**
-    - C: To Be Supplied
-    - C++: To Be Supplied
-    - Go: To Be Supplied
-    - Java: To Be Supplied
-    - Python: To Be Supplied
-    - Rust: To Be Supplied
-- **Macos**
-    - C: To Be Supplied
-    - C++: Work in Progress
-    - Go: To Be Supplied
-    - Java: To Be Supplied
-    - Python: To Be Supplied
-    - Rust: To Be Supplied
-- **Ubuntu**
-    - C: To Be Supplied
-    - C++: To Be Supplied
-    - Go: To Be Supplied
-    - Java: To Be Supplied
-    - Python: To Be Supplied
-    - Rust: To Be Supplied
+| OS | C | C++ | Go | Java | Python | Rust |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Archlinux** | TBS | TBS | TBS | TBS | TBS | TBS |
+| **Debian** | TBS | v1.0.0 | TBS | TBS | TBS | TBS |
+| **Fedora** | TBS | v1.0.0 | TBS | TBS | TBS | TBS |
+| **Macos** | TBS | v1.0.0 | TBS | TBS | TBS | TBS |
+| **Ubuntu** | TBS | TBS | TBS | TBS | TBS | TBS |
+| **Freebsd14** | TBS | TBS | TBS | TBS | TBS | TBS |
+| **Freebsd15** | TBS | TBS | TBS | TBS | TBS | TBS |
+
+`*TBS: To Be Supplied | WIP: Work In Progress`
 
 ## License
 This project is licensed under the **BSD 3-Clause License**.
