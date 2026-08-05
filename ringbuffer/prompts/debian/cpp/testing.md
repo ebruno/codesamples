@@ -13,7 +13,7 @@ Refer to the following document for all shared requirements, data generation, an
         - GNU: `gcc`, `g++`, `binutils`, `make`.
         - Build & Docs: `cmake`, `doxygen`.
         - LLVM/Clang: `clang`, `clang-tidy`, `clang-format`.
-        - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `strace`, `emacs-nox`.
+        - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `strace`, `emacs-nox`, `patchelf`.
 - **Container Path**: Use `tests/containers/debian/Dockerfile`.
 - **Header Search Path**: Use `ringbuffer/src/debian/cpp`.
 <EOF>

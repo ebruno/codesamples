@@ -1,2 +1,13 @@
-Please implement the Ringbuffer for Debian. Use `ringbuffer/prompts/debian/cpp/functional.md` as the primary directive and follow all referenced requirements in the common specifications. Ensure that the generated source code is placed in `ringbuffer/src/debian/cpp` and that you perform the 'Final Verification Step' self-audit before finishing to ensure absolute compliance with the interface and architectural constraints.
-<EOF>
+Please implement the Ringbuffer for Debian. 
+
+**Directives:**
+1. Use `ringbuffer/prompts/debian/cpp/functional.md` for platform-specific requirements.
+2. Use `ringbuffer/prompts/common/cpp/functional.md` as the primary architectural and functional specification.
+
+**Immediate Requirements:**
+- **Logging:** Before creating any source files, initialize the logging system at `ringbuffer/src/debian/cpp/logs/` and create `functional.log` with the first entry.
+- **Source Tree:** Implement the full set of files defined in the **File Mapping Table** of the common specification. 
+- **Strict Compliance:** Adhere strictly to the "maximum 3 functions per file" rule and the trailing underscore naming convention for private members.
+- **Location:** All generated source code and the `LICENSE` file must be placed in `ringbuffer/src/debian/cpp`.
+
+Perform the 'Final Verification Step' self-audit before finishing to ensure absolute compliance with the interface and architectural constraints.
