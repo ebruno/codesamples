@@ -1,78 +1,67 @@
-# Ringbuffer Library
+# Ringbuffer
 
-A high-performance, C++20-based circular buffer (FIFO) library designed for robust data pipelining across multiple platforms.
+A high-performance, binary-symmetric ringbuffer implementation designed for deterministic cross-platform behavior.
 
 ## Overview
-The Ringbuffer library provides a fixed-size, first-in-first-out data structure that facilitates a three-stage pipeline: **Read $\rightarrow$ Transform $\rightarrow$ Write**. It is engineered for systems where binary symmetry, memory efficiency, and deterministic behavior are critical.
+The Ringbuffer implements a three-stage pipeline (**Read $\rightarrow$ Transform $\rightarrow$ Write**) with a core focus on binary symmetry. This architecture ensures that data is ingested, processed, and persisted with minimal overhead and identical behavior across all supported operating systems.
 
 ## Primary Goal
-The project's prompts are designed to ensure that the generated source code is fully functional and consistently compiles and runs immediately upon the completion of the source code generation process using the predefined prompts.
+The primary objective is to achieve prompt-driven, immediate build-and-run functionality, where AI-generated source code is deterministic, verifiable, and consistent across diverse toolchains.
 
 ## Key Specifications
-- **Multi-OS Support**: Designed for deployment across various Linux distributions, ensuring identical source code and binary symmetry.
-- **Multi-Toolchain Compatible**: Fully buildable and testable using both **GCC** and **Clang** toolchains.
-- **Modern C++ Standard**: Leverages **C++20** features, including `std::jthread`, cooperative cancellation via `std::stop_token`, and advanced synchronization primitives.
+- **Multi-OS Support**: Native implementations for Linux (Debian, Fedora) and macOS.
+- **Multi-Toolchain Compatibility**: Optimized for both GCC and Clang.
+- **Standard**: Strict adherence to the C++20 standard.
 
 ## Core Features
-- **Pipelined Architecture**:
-    - **Read Stage**: Efficiently fills buffer slots from POSIX file descriptors.
-    - **Transform Stage**: Applies customizable transformation logic to data.
-    - **Write Stage**: Writes processed data to POSIX file descriptors with support for `fsync` on completion.
-- **Performance Optimization**:
-    - **Cache Alignment**: Buffer slots and counters are aligned to cache line boundaries to prevent false sharing.
-    - **Small Binary Footprint**: Optimized for dead code elimination (`-ffunction-sections`, `-fdata-sections`) to minimize the final binary size.
-- **Data Integrity & Reliability**:
-    - **Checksums**: Integrated support for checksum algorithms (MD5, SHA256, SHA512) to verify data.
-    - **Robust Error Handling**: Customizable error handlers can trigger graceful cooperative cancellation of the entire pipeline.
-- **Diagnostics**:
-    - **Flexible Logging**: Non-Virtual Public Interface (NVI) logging with multiple levels (`Trace` to `Critical`) and configurable output streams.
+- **Pipelined Architecture**: Decoupled read, transform, and write stages for maximum throughput.
+- **Performance**: Cache-aligned structures and small binary footprints to minimize latency.
+- **Data Integrity**: Built-in checksum algorithms to verify data consistency throughout the pipeline.
+- **Diagnostics**: Non-Virtual Interface (NVI) logging for deep visibility into internal state without sacrificing performance.
 
 ## Initial Development Environment
-- **Operating System**: macOS 26.5.2 (Build 25F84)
-- **Kernel**: Darwin 25.5.0
-- **Architecture**: arm64 (Apple Silicon)
-- **Hardware**: Mac mini (Mac16,11), 14-core CPU, 64 GB Unified Memory
-
-### AI Tools
-- **Agent Harness**: LM Studio Bionic
-- **LLM**: `gemma-4`
-- **Model Specs**: ~31B Parameter Decoder-only Transformer, Quantization-Aware Training (QAT) for high-efficiency inference, and Instruct-tuned for advanced reasoning and precise coding tasks.
+- **OS**: macOS 26.5.2 (Build 25F84)
+- **Hardware**: Apple M4 Pro (arm64)
+- **AI Tools**:
+    - **Agent Harness**: LM Studio Bionic
+    - **Model Name**: `google/gemma-4-31B-it-qat`
+    - **Model Specs**: 31B Parameter Decoder-only Transformer, Quantization-Aware Training (QAT), Instruct-tuned for complex coding.
 
 ## Project Structure
-The project follows a strict deterministic file mapping to ensure build consistency and minimize version control collisions, separating interfaces, implementation logic, and accessors into discrete files.
+The project employs a deterministic file mapping strategy. Source code is distributed across multiple small files (max 3 functions per file) to ensure modularity and ease of verification. Each platform implementation is mirrored exactly to maintain binary symmetry.
 
 ## Developer & Maintainer Guide
 
-### The Golden Rules
-To maintain the integrity of the library, all contributors MUST adhere to these standards:
-- **Binary Symmetry**: Source code MUST be identical across all target OSs. No platform-specific coding styles.
-- **Strict File Distribution**: No `.cpp` file may exceed 3 functions. Use numbered files (e.g., `ReadOps_1.cpp`) if logic exceeds this limit.
-- **Include Discipline**: Every `.cpp` must start with `ringbuffer.hpp`, followed by alphabetical standard headers.
-- **Naming**: Private members MUST use the trailing underscore (e.g., `sync_mutex_`).
-- **Hierarchy**: Adhere strictly to the `RingBuffer` (Interface) $\rightarrow$ `SwtrRingBuffer` (Impl) chain.
+### The Golden Rules (Coding Standards)
+- **Binary Symmetry**: Source code MUST be identical across all platforms.
+- **File Distribution**: Max 3 functions per `.cpp` file.
+- **Include Discipline**: `ringbuffer.hpp` first $\rightarrow$ Alphabetical Standard Headers $\rightarrow$ Local Headers.
+- **Naming**: Private members MUST use trailing underscores (`member_variable_`).
+- **Hierarchy**: `RingBuffer` $\rightarrow$ `SwtrRingBuffer`.
 
-### Prompt-Driven Workflow
-This project is maintained via a set of common prompts in `ringbuffer/prompts/common/`. Use them in the following order:
+### The Prompt-Driven Workflow
+The agent requires a valid path to the prompt file to execute the workflow. Use the following common prompts:
 
-1. **`implement_functional.md`**: Use when starting a new OS implementation or updating core logic.
-   - **Command Example**: `"implement functional for debian"`
-2. **`verify_builds.md`**: Use after implementation to perform a sanity check that the library compiles.
-   - **Command Example**: `"run build_verify for fedora"`
-3. **`regression_test.md`**: Use as the final step to verify that both the library and the test suite pass.
-   - **Command Example**: `"do regression_test on debian, fedora, macos"`
+- `ringbuffer/prompts/common/implement_functional.md`: Use this when initiating source code creation or updating core logic.
+  - *Syntax Example:* `"Use ringbuffer/prompts/common/implement_functional.md to implement functional for debian and fedora"`
+- `ringbuffer/prompts/common/verify_builds.md`: Use this for a first-pass sanity check on library compilation.
+  - *Syntax Example:* `"Use ringbuffer/prompts/common/verify_builds.md to run build_verify for debian and fedora"`
+- `ringbuffer/prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
+  - *Syntax Example:* `"Use ringbuffer/prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
 
 ## Supported Platforms
-| OS | C | C++ | Go | Java | Python | Rust |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Archlinux** | TBS | TBS | TBS | TBS | TBS | TBS |
-| **Debian** | TBS | v1.0.0 | TBS | TBS | TBS | TBS |
-| **Fedora** | TBS | v1.0.0 | TBS | TBS | TBS | TBS |
-| **Macos** | TBS | v1.0.0 | TBS | TBS | TBS | TBS |
-| **Ubuntu** | TBS | TBS | TBS | TBS | TBS | TBS |
-| **Freebsd14** | TBS | TBS | TBS | TBS | TBS | TBS |
-| **Freebsd15** | TBS | TBS | TBS | TBS | TBS | TBS |
+
+| OS | Language | Version |
+| :--- | :--- | :--- |
+| Debian | C++ | v1.0.0 |
+| Fedora | C++ | v1.0.0 |
+| macOS | C++ | v1.0.0 |
+| ArchLinux | C++ | WIP |
+| FreeBSD 14 | C++ | WIP |
+| FreeBSD 15 | C++ | WIP |
+| Ubuntu | C++ | WIP |
 
 `*TBS: To Be Supplied | WIP: Work In Progress`
 
 ## License
-This project is licensed under the **BSD 3-Clause License**.
+This project is licensed under the BSD 3-Clause License.
