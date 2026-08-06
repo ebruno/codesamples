@@ -41,13 +41,13 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    - **Hierarchy**: `RingBuffer` $\rightarrow$ `SwtrRingBuffer`.
 
    **Part B: The Prompt-Driven Workflow**
-   Explain how and when to use the following common prompts, including **example command syntax** for each:
-   - `implement_functional.md`: Use this when initiating source code creation or updating core logic. 
-     - *Syntax Example:* `"implement functional for debian"`
-   - `verify_builds.md`: Use this for a first-pass sanity check on library compilation.
-     - *Syntax Example:* `"run build_verify for fedora"`
-   - `regression_test.md`: Use this for final validation of the library and test suite.
-     - *Syntax Example:* `"do regression_test on debian, fedora, macos"`
+   Explain that the agent requires a valid path to the prompt file to execute the workflow. Provide the following common prompts with their **exact paths** and **example command syntax**:
+   - `ringbuffer/prompts/common/implement_functional.md`: Use this when initiating source code creation or updating core logic. 
+     - *Syntax Example:* `"Use ringbuffer/prompts/common/implement_functional.md to implement functional for debian and fedora"`
+   - `ringbuffer/prompts/common/verify_builds.md`: Use this for a first-pass sanity check on library compilation.
+     - *Syntax Example:* `"Use ringbuffer/prompts/common/verify_builds.md to run build_verify for debian and fedora"`
+   - `ringbuffer/prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
+     - *Syntax Example:* `"Use ringbuffer/prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
 
 4. **Platforms Table Requirements**:
    - **Values**: 

@@ -18,27 +18,26 @@ Ensure the C++ implementation and its associated tests build successfully across
         - Linux: `podman images | grep ringbuffer_<os>_build`
       - **Action**: If the image is missing or outdated, navigate to `ringbuffer/src/<os>/cpp` and execute `make container` to initialize the environment before proceeding.
 
-   1. **Library Build**:
-      - **Host-OS Optimization**: If the host operating system is the same as the target `<os>`, the build in `src/<os>/cpp` may be performed natively without using the container. However, the container MUST be used if this prompt was initiated with the statement `read build_verify use container`, `run build_verify use container`, or `use build_verify use container`.
+   1. **Consolidated Build and Verification**:
+      - **Host-OS Optimization**: If the host operating system is the same as the target `<os>`, the build may be performed natively. However, the container MUST be used if this prompt was initiated with the statement `read build_verify use container`, `run build_verify use container`, or `use build_verify use container`.
       - **Navigate**: `cd ringbuffer/src/<os>`
-      - **Execute**: 
-        - macOS: `container run --rm -v $(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp && make clean && make"`
-        - Linux: `podman run --rm -v $(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp && make clean && make"`
-      - **Evaluate**: If this fails, analyze logs, apply fixes to the workspace, and repeat this step. If successful, proceed to the Test Build.
-
-   2. **Test Application Build**:
-      - **Navigate**: `cd ringbuffer/src/<os>`
-      - **Execute**: 
-        - macOS: `container run --rm -v $(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp/tests && make clean && make"`
-        - Linux: `podman run --rm -v $(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp/tests && make clean && make"`
-      - **Verify**: Confirm that both `test001_staticlib` and `test001_dynamiclib` were created in the `bin/` directory.
-      - **Evaluate**: If this fails, analyze logs, apply fixes to the workspace (either in the library or the test source), and repeat the entire process from Step 1 (as library changes affect tests).
+      - **Execute (Combined Pipeline)**:
+        - Execute the following sequence in a single container session to minimize overhead. Use `JOBS` (e.g., 4 or 8) to enable parallel compilation.
+        - macOS: `container run --rm -v \$(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp && make clean && make -j\$(JOBS) && cd tests && make clean && make -j\$(JOBS) && cd .. && make verify"`
+        - Linux: `podman run --rm -v \$(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp && make clean && make -j\$(JOBS) && cd tests && make clean && make -j\$(JOBS) && cd .. && make verify"`
+      - **Verify Artifacts**:
+        - Confirm that both `test001_staticlib` and `test001_dynamiclib` were created in the `bin/` directory of the tests folder.
+        - Confirm that the `make verify` target passed for the main library.
+      - **Evaluate**: If any step fails, analyze logs, apply fixes to the workspace (either in the library or the test source), and repeat the entire consolidated pipeline.
 
 **Reporting:**
 For each platform processed, generate a detailed report at `ringbuffer/src/<os>/reports/build_verification_report.md` using the following format:
 
 # Build Verification Report - [OS Name]
 **Date:** [YYYY-MM-DD HH:MM:SS]
+**Start Time:** [YYYY-MM-DD HH:MM:SS]
+**End Time:** [YYYY-MM-DD HH:MM:SS]
+**Elapsed Time:** [Duration]
 **Host OS:** [Host OS Name/Version]
 
 ## Status

@@ -31,6 +31,9 @@ For each platform processed, generate a detailed report at `ringbuffer/src/<os>/
 
 # Build Verification Report - [OS Name]
 **Date:** [YYYY-MM-DD HH:MM:SS]
+**Start Time:** [YYYY-MM-DD HH:MM:SS]
+**End Time:** [YYYY-MM-DD HH:MM:SS]
+**Elapsed Time:** [Duration]
 **Host OS:** [Host OS Name/Version]
 
 ## Status
