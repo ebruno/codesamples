@@ -54,9 +54,9 @@ To ensure build consistency and prevent git collisions, the following strict fil
 ### File Mapping Table
 | Requirement / Logic Group | Exact Filename |
 | :--- | :--- |
-| Primary Abstract Interface | `ringbuffer.hpp` |
+| Primary Abstract Interface (Defines `RingBuffer` only) | `ringbuffer.hpp` |
 | Status and Checksum Enums | `status.hpp` |
-| Concrete Implementation Class | `swtr_ringbuffer_impl.hpp` |
+| Concrete Implementation Class (Defines `SwtrRingBuffer`) | `swtr_ringbuffer_impl.hpp` |
 | Concrete Implementation Logging | `LoggingOps_1.cpp` (and numbered files if necessary) |
 | Constructor and Destructor | `Lifecycle.cpp` |
 | Read Pipeline Logic | `ReadOps.cpp` |
@@ -79,8 +79,15 @@ Accessors must be split into separate files based on the data they process to mi
 
 ### Naming & Distribution Rules
 - **Casing**: Use `snake_case` for primary headers and the implementation class files. Use `PascalCase` for all operation and lifecycle `.cpp` files.
-- **Function Distribution**: To prevent git collisions, limit each `.cpp` file to a maximum of 3 functions. If a logic group exceeds this, it must be further subdivided into numbered files (e.g., `ReadOps_1.cpp`, `ReadOps_2.cpp`).
+- **STRICT MAXIMUM (Function Distribution)**: No `.cpp` file may contain more than **3 function definitions**. This is a hard architectural constraint to minimize git collisions. If a logic group (e.g., Logging or Accessors) contains more than 3 functions, you **MUST** subdivide them into numbered files (e.g., `LoggingOps_1.cpp`, `LoggingOps_2.cpp`, etc.) until every file has $\le 3$ functions.
+- **Function Verification**: In the final `implementation_report.md`, you must include a "Function Count Table" listing every `.cpp` file and the exact number of functions it contains.
 - **Documentation**: A `README.md` file must be provided in the source directory describing the library and how to build it.
+
+## Filename Integrity & Path Discipline
+To ensure build system compatibility and prevent file system corruption:
+- **Allowed Characters**: Filenames MUST only contain alphanumeric characters, underscores (`_`), and the file extension (e.g., `.cpp`, `.hpp`, `.md`).
+- **Forbidden Characters**: Do NOT include curly braces (`{`, `}`), backticks (`` ` ``), markdown markers, or internal prompt tokens (e.g., `<tool_call|>`) in any filename or path.
+- **Tool Call Verification**: Before executing a `replace_file` or `shell_command` to create a file, verify that the target path is a clean string containing only the intended filename and directory.
 
 ## Generation Process Logging
 To ensure traceability during the code generation process, the following logging requirements MUST be implemented:
@@ -91,7 +98,7 @@ To ensure traceability during the code generation process, the following logging
     - `testing.log`: Logs actions performed as part of `testing.md`.
 - **Log Format**: Each entry MUST be date-stamped in the format `[YYYY-MM-DD HH:MM:SS +/-HHMM] <Action Description>`, where the offset is the local time zone offset from UTC.
 - **Log Persistence**: If a log file already exists, new entries MUST be appended to the end of the file; the file MUST NOT be overwritten.
-- **Requirement**: Every significant milestone (e.g., file creation, build step completion, test data generation) MUST be recorded in the corresponding log file.
+- **Requirement**: Every significant milestone (e.g., file creation, build step completion, test data generation) MUST be recorded in the corresponding log file. A final entry MUST be made in `functional.log` marking the completion of the functional implementation phase, including the total elapsed time from the start of the process.
 
 ### Include Discipline
 To maintain a clean and predictable compilation environment, all source files must follow this include order:
