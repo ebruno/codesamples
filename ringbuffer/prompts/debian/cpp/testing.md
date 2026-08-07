@@ -14,6 +14,8 @@ Refer to the following document for all shared requirements, data generation, an
         - Build & Docs: `cmake`, `doxygen`.
         - LLVM/Clang: `clang`, `clang-tidy`, `clang-format`.
         - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `strace`, `emacs-nox`, `patchelf`.
+    - **Container Configuration**: The `Dockerfile` MUST set `WORKDIR /app` to align with the host volume mounts and the execution workflow.
+    - **Toolchain Verification**: Upon first container initialization, verify the toolchain by executing `g++ --version` and `make --version` to ensure all required build tools are present and operational.
+    - **Audit Trail**: The `verify` target MUST log the exact versions of the compiler and linker (e.g., `g++ -v` and `ld -v`) into the final `regression_report.md` to provide a baseline for binary size analysis.
 - **Container Path**: Use `tests/containers/debian/Dockerfile`.
 - **Header Search Path**: Use `ringbuffer/src/debian/cpp`.
-<EOF>
