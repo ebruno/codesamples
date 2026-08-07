@@ -18,6 +18,10 @@ tests/
 │   └── .required_directory
 ├── bin/                # Compiled test binaries
 │   └── .required_directory
+├── logs/               # Test execution logs
+│   └── .required_directory
+├── reports/            # Machine-readable test reports (JUnit XML)
+│   └── .required_directory
 ├── containers/             # OS-specific container configurations
 │   └── [platform]/
 │       └── .required_directory
@@ -32,11 +36,18 @@ tests/
 - All test directories must contain a `.required_directory` file.
 - Test binaries should be isolated in the `bin/` directory.
 - Use `tests/data/inputs` for source files and `tests/data/expected` for verification of the final output.
-- A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files (e.g., `2> t001.log`). This file must also document the purpose and usage of the `tests/containers` directory.
+- A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files in the logs directory (e.g., `2> logs/t001.log`). This file must also document the purpose and usage of the `tests/containers` directory.
+- **Directory Initialization**: The `tests/logs` and `tests/reports` directories must be created if they do not exist before running any test scenarios.
+- **The `_test` Image Mandate**: The image built from `tests/containers/<platform>/Dockerfile` (named `ringbuffer_<os>_test`) is the **authoritative environment** for the entire verification lifecycle. It MUST be equipped with all dependencies required to compile the main library, compile the test binaries, and execute the full test suite.
 - **Container Command Usage**: When providing examples for using the containers in the `README.md` or other documentation:
     - On **macOS**, use the `container` command instead of `docker`.
     - On **Fedora** and **Debian**, use the `podman` command instead of `docker`.
 - **Verification Scope**: Tests must verify not only the functional output (data integrity) but also the operational constraints (memory alignment, thread termination, and binary size).
+
+## Build Configuration Standard
+To avoid pathing ambiguity across different environments, the following standards MUST be used:
+- **Source Includes**: In test source files, include headers using the relative filename: `#include "ringbuffer.hpp"`. Do NOT use `../` or absolute paths within the `#include` directives.
+- **Makefile Search Path**: The `Makefile` MUST provide the necessary include path using the `-I` flag (e.g., `-I..`) to ensure the compiler finds the headers in the parent implementation directory.
 
 ## Artifact Verification
 Before running functional tests, the build artifacts must be verified to ensure they meet the "Small Binary" and Toolchain goals:
@@ -67,12 +78,27 @@ Depending on the environment where the generation is performed:
 6. Then the pattern reverses, moving the space one position to the left until the 1st character ('A') is replaced.
 7. This zig-zag continues until the target number of lines is reached.
 
+**Data Validation**:
+After generation, the agent MUST verify the integrity of the data:
+- Verify that the line counts for `test001.txt` through `test005.txt` are exactly as specified (25, 50, 75, 100, 150).
+- Use `grep` or `head` to verify that the zig-zag space pattern is correctly implemented (e.g., line 1 has no space, line 2 has space at index 5).
+
 ## Test Utility Scripts
-The following scripts must be provided to automate the generation of test data:
+The following scripts must be provided to automate the generation of test data and report processing:
 - Zsh script: `tests/utils/bin/generate_test_data.zsh`
 - Bash script: `tests/utils/bin/generate_test_data.sh`
 - Tcsh script: `tests/utils/bin/generate_test_data.tcsh`
 - Bourne shell script: `tests/utils/bin/generate_test_data_bin_sh.sh`
+- JUnit XML Generator: `tests/utils/bin/generate_junit_report.sh`
+
+**JUnit Report Generation Requirements**:
+The `generate_junit_report.sh` script must:
+1. Parse the test results (exit codes and logs) from the `logs/` directory.
+2. Capture the execution time for each test scenario.
+3. Generate a `regression_report_junit.xml` in `tests/reports/` following the mandated JUnit XML structure.
+
+**Scripting Standards**:
+- **Arithmetic**: For all numeric comparisons and calculations in Bash/Zsh, use the double-parentheses syntax `(( ... ))` (e.g., `if (( line_num > 1 )); then`) instead of the POSIX `[ ]` bracket syntax to avoid integer expression errors.
 
 **Script Documentation Requirements**:
 Each of the following scripts must be documented (via usage messages and/or comments) to include their purpose, usage, and options:
@@ -80,6 +106,7 @@ Each of the following scripts must be documented (via usage messages and/or comm
 - `generate_test_data.sh`
 - `generate_test_data.tcsh`
 - `generate_test_data_bin_sh.sh`
+- `generate_junit_report.sh`
 
 **General Script Requirements**:
 - **Usage**: `generate_test_data.[ext] [-l lines] [output_file]`
@@ -106,8 +133,19 @@ Test binaries must be configured to verify different linking scenarios:
 - **Code Quality**: Must handle unused function parameters (e.g., using `(void)param;`) to ensure the code compiles without `-Wunused-parameter` warnings.
 - **Makefile Macros**: MUST define a macro `RM = rm -f` and use it for all file removal operations.
 - **Cleanup Requirements**: The `Makefile` must provide the following targets:
-    - `clean`: Must remove all compiled binaries in `bin/` using `$(RM) -r`, all generated output files in `data/expected/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
-    - `dist-clean`: Must perform a full cleanup by calling the `clean` target.
+    - `clean`: Must remove all compiled binaries in `bin/` using `$(RM) -r`, all generated output files in `data/expected/` using `$(RM) -r`, all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
+    - `dist-clean`: Must perform a full cleanup by calling the `clean` target and explicitly removing the `logs/` directory using `$(RM) -r`.
+
+## Test Makefile Requirements
+The `tests/Makefile` is the authoritative orchestrator for the test suite:
+- **`container` Target**: MUST build the `ringbuffer_<os>_test` image from the `Dockerfile` in `tests/containers/<os>/`.
+- **Invalidation Logic**: The `container` target MUST rebuild the image if the `Dockerfile` OR `version.mk` has been modified since the image was created.
+- **`verify` Target**: MUST orchestrate the Artifact Verification, the full Test Matrix execution (capturing execution time for each test), and the generation of the JUnit XML report in `tests/reports/regression_report_junit.xml`.
+- **Dependency**: The `verify` target MUST depend on the library and test binaries being current.
+
+## Implementation Makefile Requirements
+The `cpp/Makefile` provides a convenience entry point for verification:
+- **`verify` Target**: MUST implement a delegation to the tests directory using `$(MAKE) -C tests verify`.
 
 ## Test Program Interface (`test001`)
 The test program must support the following command-line interface:
@@ -163,4 +201,3 @@ The test suite must execute the following scenarios to ensure full coverage:
 | `T007` | `test001.txt` | 4 | 4096 | 2 | 0 | Bit-inverted output; Success. |
 
 - All code is covered under a BSD 3-Clause License.
-<EOF>
