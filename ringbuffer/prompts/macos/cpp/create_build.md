@@ -12,12 +12,13 @@ Please configure the build system for the Ringbuffer on macOS.
 **Immediate Requirements:**
 - **Host Verification**: Before proceeding, verify that the host operating system is macOS by executing `sw_vers --productName`.
 - **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/macos/cpp/logs/build.log`.
-- **Configuration:** Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/macos/cpp`.
-- **Versioning:** The build system MUST source `version.mk` to generate the versioned artifact names.
+- **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/macos/cpp`.
+- **Documentation**: Create `build.md`, `testing.md`, and `artifacts.md` files in the project root.
+- **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
-- **Optimization:** Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-dead_strip` are applied to achieve the "small binary" goal.
+- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-dead_strip` are applied to achieve the "small binary" goal.
 - **Toolchain**: Use Clang by default.
 
 **Verification Criteria:**
