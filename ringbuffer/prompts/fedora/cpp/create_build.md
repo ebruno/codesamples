@@ -11,12 +11,13 @@ Please configure the build system for the Ringbuffer on Fedora.
 
 **Immediate Requirements:**
 - **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/fedora/cpp/logs/build.log`.
-- **Configuration:** Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/fedora/cpp`.
-- **Versioning:** The build system MUST source `version.mk` to generate the versioned artifact names.
+- **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/fedora/cpp`.
+- **Documentation**: Create `build.md`, `testing.md`, and `finds` files in the project root.
+- **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
-- **Optimization:** Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
+- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 
 **Environment Initialization**:
 After creating the build configuration and ensuring the `Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
