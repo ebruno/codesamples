@@ -1,57 +1,61 @@
 #include "ringbuffer.hpp"
-#include <unistd.h>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <stop_token>
+#include <unistd.h>
+#include <vector>
 #include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
 void SwtrRingBuffer::set_write_fd(int fd) {
-    write_fd_ = fd;
+    write_fd_.store(fd);
 }
 
 void SwtrRingBuffer::write_loop(std::stop_token st) {
-    size_t current_slot_idx = 0;
-
     while (!st.stop_requested()) {
-        std::unique_lock lock(sync_mutex_);
-        cv_.wait(lock, st, [this, current_slot_idx] {
-            BufferStatus s = slots_[current_slot_idx]->status.load();
-            return s == BufferStatus::readyforwrite || s == BufferStatus::LAST_BUFFER_TO_WRITE;
-        });
+        size_t current_idx = write_idx_.load() % slots_.size();
+        BufferSlot& slot = *slots_[current_idx];
+        BufferStatus status = slot.status.load();
 
-        if (st.stop_requested()) break;
-
-        BufferStatus status = slots_[current_slot_idx]->status.load();
-        if (status == BufferStatus::readyforwrite || status == BufferStatus::LAST_BUFFER_TO_WRITE) {
-            if (write_fd_ == -1) {
-                handle_error(current_slot_idx, BufferStatus::STATUS_ERROR);
-                return;
+        if (status == BufferStatus::readyforwrite) {
+            int fd = write_fd_.load();
+            if (fd == -1) {
+                handle_error(current_idx, BufferStatus::STATUS_ERROR);
+                break;
             }
 
-            size_t size_to_write = slots_[current_slot_idx]->transformed_data_buffer_size.load();
-            size_t original_size = slots_[current_slot_idx]->data_buffer_size.load();
-            
-            ssize_t bytes_written = write(write_fd_, slots_[current_slot_idx]->data.data(), size_to_write);
-
+            size_t size = slot.transformed_data_buffer_size.load();
+            ssize_t bytes_written = write(fd, slot.data.data(), size);
             if (bytes_written >= 0) {
-                log_message(LogLevel::Info, "Slot {}: written {} bytes (original size {})", 
-                            current_slot_idx, bytes_written, original_size);
-                slots_[current_slot_idx]->data_buffer_size.store(0);
-
-                if (status == BufferStatus::LAST_BUFFER_TO_WRITE) {
-                    fsync(write_fd_);
-                    cv_.notify_all();
-                    return;
-                }
-                slots_[current_slot_idx]->status.store(BufferStatus::readyforread);
+                slot.data_buffer_size.store(0);
+                slot.status.store(BufferStatus::readyforread);
+                write_idx_.fetch_add(1);
+                cv_.notify_all();
             } else {
-                handle_error(current_slot_idx, BufferStatus::STATUS_ERROR);
-                return;
+                handle_error(current_idx, BufferStatus::STATUS_ERROR);
+                break;
             }
+        } else if (status == BufferStatus::LAST_BUFFER_TO_WRITE) {
+            int fd = write_fd_.load();
+            if (fd != -1) {
+                fsync(fd);
+            }
+            slot.status.store(BufferStatus::readyforread);
+            write_idx_.fetch_add(1);
             cv_.notify_all();
+            break;
+        } else {
+            std::unique_lock<std::mutex> lock(sync_mutex_);
+            cv_.wait_for(lock, std::chrono::milliseconds(10), [&] {
+                return slot.status.load() == BufferStatus::readyforwrite || 
+                       slot.status.load() == BufferStatus::LAST_BUFFER_TO_WRITE || 
+                       st.stop_requested();
+            });
         }
-        current_slot_idx = (current_slot_idx + 1) % num_slots_;
     }
 }
 

@@ -1,48 +1,53 @@
 #include "ringbuffer.hpp"
-#include <unistd.h>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <stop_token>
+#include <unistd.h>
+#include <vector>
 #include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
 void SwtrRingBuffer::set_read_fd(int fd) {
-    read_fd_ = fd;
+    read_fd_.store(fd);
 }
 
 void SwtrRingBuffer::read_loop(std::stop_token st) {
-    size_t current_slot_idx = 0;
-
     while (!st.stop_requested()) {
-        std::unique_lock lock(sync_mutex_);
-        cv_.wait(lock, st, [this, current_slot_idx] {
-            return slots_[current_slot_idx]->status.load() == BufferStatus::readyforread;
-        });
+        size_t current_idx = read_idx_.load() % slots_.size();
+        BufferSlot& slot = *slots_[current_idx];
 
-        if (st.stop_requested()) break;
+        if (slot.status.load() == BufferStatus::readyforread) {
+            int fd = read_fd_.load();
+            if (fd == -1) {
+                handle_error(current_idx, BufferStatus::STATUS_ERROR);
+                break;
+            }
 
-        if (read_fd_ == -1) {
-            handle_error(current_slot_idx, BufferStatus::STATUS_ERROR);
-            return;
-        }
-
-        ssize_t bytes_read = read(read_fd_, slots_[current_slot_idx]->data.data(), slots_[current_slot_idx]->max_data_buffer_size.load());
-
-        if (bytes_read > 0) {
-            slots_[current_slot_idx]->data_buffer_size.store(static_cast<size_t>(bytes_read));
-            slots_[current_slot_idx]->status.store(BufferStatus::readyfortransform);
-        } else if (bytes_read == 0) {
-            slots_[current_slot_idx]->status.store(BufferStatus::LAST_BUFFER_TO_TRANSFORM);
-            cv_.notify_all();
-            return;
+            ssize_t bytes_read = read(fd, slot.data.data(), slot.max_data_buffer_size.load());
+            if (bytes_read > 0) {
+                slot.data_buffer_size.store(static_cast<size_t>(bytes_read));
+                slot.status.store(BufferStatus::readyfortransform);
+                read_idx_.fetch_add(1);
+                cv_.notify_all();
+            } else if (bytes_read == 0) {
+                slot.status.store(BufferStatus::LAST_BUFFER_TO_TRANSFORM);
+                read_idx_.fetch_add(1);
+                cv_.notify_all();
+                break;
+            } else {
+                handle_error(current_idx, BufferStatus::STATUS_ERROR);
+                break;
+            }
         } else {
-            slots_[current_slot_idx]->data_buffer_size.store(0);
-            handle_error(current_slot_idx, BufferStatus::STATUS_ERROR);
-            return;
+            std::unique_lock<std::mutex> lock(sync_mutex_);
+            cv_.wait_for(lock, std::chrono::milliseconds(10), [&] {
+                return slot.status.load() == BufferStatus::readyforread || st.stop_requested();
+            });
         }
-
-        cv_.notify_all();
-        current_slot_idx = (current_slot_idx + 1) % num_slots_;
     }
 }
 
