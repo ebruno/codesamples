@@ -5,28 +5,37 @@
 
 namespace swtr {
 
-enum class BufferStatus : uint8_t {
-    readforread = 0,
-    readyfortransform = 1,
-    readyforwrite = 2,
-    status_3,
-    status_4,
-    status_5,
-    status_6,
-    status_7,
-    status_8,
-    status_9,
-    status_10,
+enum class BufferStatus : uint32_t {
+    readyforread = 0,
+    readyfortransform,
+    readyforwrite,
+    processing_read,
+    processing_transform,
+    processing_write,
+    empty,
+    full,
     LAST_BUFFER_TO_TRANSFORM,
     LAST_BUFFER_TO_WRITE,
+    pending_read,
+    pending_transform,
+    pending_write,
     STATUS_ERROR = 13
 };
 
-enum class ChecksumAlgorithm : uint8_t {
+enum class ChecksumAlgorithm : uint32_t {
+    NONE = 0,
     MD5,
     SHA256,
-    SHA512,
-    NONE
+    SHA512
+};
+
+enum class LogLevel : uint32_t {
+    Trace,
+    Debug,
+    Info,
+    Warning,
+    Error,
+    Critical
 };
 
 } // namespace swtr

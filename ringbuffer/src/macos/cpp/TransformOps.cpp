@@ -1,34 +1,47 @@
 #include "ringbuffer.hpp"
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
 #include <stop_token>
 #include <vector>
+#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
 void SwtrRingBuffer::transform_loop(std::stop_token st) {
-    size_t current_slot = 0;
     while (!st.stop_requested()) {
-        BufferStatus status = slots_[current_slot]->status.load();
-        if (status == BufferStatus::readyfortransform || status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
+        size_t current_idx = transform_idx_.load() % slots_.size();
+        BufferSlot& slot = *slots_[current_idx];
+        BufferStatus status = slot.status.load();
+
+        if (status == BufferStatus::readyfortransform) {
+            size_t data_size = slot.data_buffer_size.load();
+            size_t transformed_size = data_size;
+
             if (transform_fn_) {
-                size_t transformed_size = 0;
-                transform_fn_(slots_[current_slot]->data, transformed_size);
-                slots_[current_slot]->transformed_data_buffer_size.store(transformed_size);
-            } else {
-                slots_[current_slot]->transformed_data_buffer_size.store(slots_[current_slot]->data_buffer_size.load());
-                log_message(LogLevel::Info, "No transform function specified for slot {}", current_slot);
+                transform_fn_(slot.data, transformed_size);
             }
             
-            if (status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
-                slots_[current_slot]->status.store(BufferStatus::LAST_BUFFER_TO_WRITE);
-                cv_.notify_all();
-                return;
-            } else {
-                slots_[current_slot]->status.store(BufferStatus::readyforwrite);
-                cv_.notify_all();
-            }
+            slot.transformed_data_buffer_size.store(transformed_size);
+            slot.status.store(BufferStatus::readyforwrite);
+            transform_idx_.fetch_add(1);
+            cv_.notify_all();
+        } else if (status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
+            slot.status.store(BufferStatus::LAST_BUFFER_TO_WRITE);
+            transform_idx_.fetch_add(1);
+            cv_.notify_all();
+            break;
+        } else {
+            std::unique_lock<std::mutex> lock(sync_mutex_);
+            cv_.wait_for(lock, std::chrono::milliseconds(10), [&] {
+                return slot.status.load() == BufferStatus::readyfortransform || 
+                       slot.status.load() == BufferStatus::LAST_BUFFER_TO_TRANSFORM || 
+                       st.stop_requested();
+            });
         }
-        current_slot = (current_slot + 1) % num_slots_;
     }
 }
 
