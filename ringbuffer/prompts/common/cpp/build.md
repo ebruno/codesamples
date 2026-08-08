@@ -4,6 +4,9 @@
 This build specification MUST be followed exactly to ensure binary symmetry across platforms. Platform-specific deviations are permitted only for prerequisite package installation.
 
 ## Toolchain Requirements
+- **Toolchain Configuration**:
+  - The `Makefile` MUST configure `CXXFLAGS` and `LDFLAGS` based on the value of the `CXX` variable.
+  - The only supported values for `CXX` are `g++` and `clang++`.
 - **Required Tools**:
   - `g++` or `clang++` (Compiler/Linker)
   - `make` (Orchestrator)
@@ -52,6 +55,12 @@ To provide a consistent interface for consumers, the following symbolic links mu
 ## Binary Optimization Goals
 - **Dead Code Elimination**: The primary goal of using `-ffunction-sections`, `-fdata-sections`, and `--gc-sections` (combined with `-fvisibility=hidden` and `-flto`) is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible binary.
 - **Verifiability**: The resulting binary size should be monitored during testing to ensure that the dead code elimination is functioning as expected.
+
+## Project Documentation
+The following files MUST be created in the project root to document the implementation:
+- `build.md`: A copy of the build requirements used for this platform.
+- `testing.md`: A copy of the testing requirements used for this platform.
+- `finds`: A file documenting the discovery and location of all project artifacts.
 
 ## Required Makefile Targets
 If using GNU Make, the following targets MUST be implemented:
