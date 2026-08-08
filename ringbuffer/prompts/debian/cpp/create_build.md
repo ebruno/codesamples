@@ -12,7 +12,7 @@ Please configure the build system for the Ringbuffer on Debian.
 **Immediate Requirements:**
 - **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/debian/cpp/logs/build.log`.
 - **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/debian/cpp`.
-- **Documentation**: Create `build.md`, `testing.md`, and `finds` files in the project root.
+- **Documentation**: Create `build.md`, `testing.md`, and `artifacts.md` files in the project root.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.
