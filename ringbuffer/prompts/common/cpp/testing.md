@@ -32,6 +32,10 @@ tests/
 └── .required_directory
 ```
 
+## Temporary Workspace
+- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `ringbuffer/tmp`.
+- **Isolation**: Do NOT create temporary files (e.g., `.py`, `.txt`, `.sh` scripts used for auditing or listing) in the project root, source directories, or any other permanent project location.
+
 ## General Requirements
 - All test directories must contain a `.required_directory` file.
 - Test binaries should be isolated in the `bin/` directory.
@@ -116,6 +120,7 @@ Each of the following scripts must be documented (via usage messages and/or comm
 - **Arguments**:
     - `output_file`: Optional. If specified, the output is written to this file. If omitted, output is printed to `stdout`.
 - **Logic**: Must implement the zig-zag space pattern described in the "Test Data Generation" section.
+- **Shebang Line**: All utility scripts MUST use the `/usr/bin/env` wrapper for their shebang line to ensure portability across different shell installations (e.g., `#!/usr/bin/env zsh`, `#!/usr/bin/env bash`, `#!/usr/bin/env tcsh`, `#!/usr/bin/env sh`). Absolute paths to shells (e.g., `#!/bin/zsh`) MUST NOT be used.
 - **Permissions**: All utility scripts MUST be configured with execute permissions (e.g., `chmod 755`), resulting in file permissions `rwxr-x-rx`.
 
 ## Test Binary Build Requirements
@@ -177,7 +182,7 @@ The test program must support the following command-line interface:
         - The application must attempt to connect to the specified IP and port.
         - If the connection is successful, the resulting socket file descriptor is used as the `write_fd` passed to the ringbuffer.
         - If the connection fails, the program must report an error and terminate.
-- **Implementation Note**: Use `std::make_unique<SwtrRingBuffer>` to instantiate the ring buffer. The `ErrorHandler` function passed to the constructor MUST be a non-capturing lambda (or a raw function pointer) to ensure it is convertible to the `ErrorHandler` type and compatible with `std::make_unique`.
+- **Implementation Note**: Use `std::make_unique<SwtrRingBuffer>` to instantiate the ring buffer. The `ErrorHandler` and `TransformFn` functions passed to the constructor MUST be non-capturing lambdas (or raw function pointers) to ensure they are compatible with the defined types (`ErrorHandler` and `TransformFn`) and compatible with `std::make_unique`.
 
 - **Behavior**:
     - If no input file is provided, the program MUST print a usage message to `std::cerr` and return exit status `1`.
@@ -201,3 +206,7 @@ The test suite must execute the following scenarios to ensure full coverage:
 | `T007` | `test001.txt` | 4 | 4096 | 2 | 0 | Bit-inverted output; Success. |
 
 - All code is covered under a BSD 3-Clause License.
+
+**Tooling and Recovery:**
+- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

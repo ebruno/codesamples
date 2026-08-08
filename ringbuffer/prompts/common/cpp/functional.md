@@ -17,17 +17,14 @@
     - `checksum_val` (uint32_t)
     - `data` (the internal data buffer)
   
-- Total of 14 buffer status values should be defined using an `enum class`.
-- The status values `readyforread`, `readyfortransform`, and `readyforwrite` should be the first 3 values of the `enum class`.
-- `STATUS_ERROR` must be the final value of the `enum class` (index 13).
-- **Special Terminal Statuses**: 
-    - `LAST_BUFFER_TO_TRANSFORM`: Indicates the final buffer to be processed by the transformer.
-    - `LAST_BUFFER_TO_WRITE`: Indicates the final buffer to be processed by the writer.
-- **Checksum Algorithms**: Common checksum algorithms should be defined using an `enum class`, including at minimum:
-    - `MD5`
-    - `SHA256`
-    - `SHA512`
-    - `NONE` (for cases where no checksum is required)
+- **Exact Enum Definitions**:
+    - `BufferStatus` MUST be defined exactly as: `readyforread`, `readyfortransform`, `readyforwrite`, `processing_read`, `processing_transform`, `processing_write`, `empty`, `full`, `LAST_BUFFER_TO_TRANSFORM`, `LAST_BUFFER_TO_WRITE`, `pending_read`, `pending_transform`, `pending_write`, `STATUS_ERROR` (index 13).
+    - `ChecksumAlgorithm` MUST be defined exactly as: `NONE`, `MD5`, `SHA256`, `SHA512`.
+
+## Mandatory Type Definitions
+- `ErrorHandler` MUST be defined as: `using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);`
+- `TransformFn` MUST be defined as: `using TransformFn = std::function<void(std::vector<uint8_t>&, size_t&)>;`
+- `BufferSlot` members `buffer_idx`, `status`, `max_data_buffer_size`, `data_buffer_size`, `transformed_data_buffer_size`, `checksum_alg`, and `checksum_val` MUST all be `std::atomic`.
 
 ## Header Requirements
 - **Self-Sufficiency**: The primary header file (`ringbuffer.hpp`) must be self-sufficient. It must include every standard library header and internal dependency it directly uses. Any translation unit that includes `ringbuffer.hpp` should be able to compile without requiring additional standard includes for the `swtr` namespace types.
@@ -44,6 +41,7 @@
 - **Dead Code Elimination**: The library must be compatible with dead code elimination (e.g., using `-ffunction-sections` and `-fdata-sections`) to ensure the "small binary" goal is verifiable during testing.
 - **Memory Alignment**: Buffer slots and index counters should be aligned to cache line boundaries (e.g., using `alignas(64)`) to prevent false sharing between threads.
 - **Naming Convention**: All private member variables MUST follow the trailing underscore naming convention (e.g., `member_variable_`).
+- `read_fd_` and `write_fd_` MUST be `std::atomic<int>`.
 - **Slot Storage**: The ring buffer must store slots using `std::vector<std::unique_ptr<BufferSlot>>`.
 - **Atomic Operations**: 
     - All members of `BufferSlot` that are `std::atomic` MUST be accessed using `.load()` and `.store()` methods rather than direct assignment or implicit conversion, especially when passed to functions or used in `std::format` strings, as `std::format` does not support `std::atomic` types directly.
@@ -89,6 +87,10 @@ To ensure build system compatibility and prevent file system corruption:
 - **Forbidden Characters**: Do NOT include curly braces (`{`, `}`), backticks (`` ` ``), markdown markers, or internal prompt tokens (e.g., `<tool_call|>`) in any filename or path.
 - **Tool Call Verification**: Before executing a `replace_file` or `shell_command` to create a file, verify that the target path is a clean string containing only the intended filename and directory.
 
+## Temporary Workspace
+- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `ringbuffer/tmp`.
+- **Isolation**: Do NOT create temporary files (e.g., `.py`, `.txt`, `.sh` scripts used for auditing or listing) in the project root, source directories, or any other permanent project location.
+
 ## Generation Process Logging
 To ensure traceability during the code generation process, the following logging requirements MUST be implemented:
 - **Log Directory**: Create a directory at `ringbuffer/src/<os>/<lang>/logs/`.
@@ -114,6 +116,7 @@ To maintain a clean and predictable compilation environment, all source files mu
 ## Constructor Requirements
 - **Member Initializer List**: All member variables must be initialized in the constructor's member initializer list or via in-class default initializers. The constructor body must only contain validation logic and slot initialization.
 - **Automatic Start**: The constructor MUST NOT start the read, transform, or write threads automatically.
+- The destructor MUST be `= default`.
 - The constructor must support the following parameters:
     - Number of slots (default: MIN_NUMBER_SLOTS).
     - Initial status of the ring buffer (default: readyforread).
@@ -177,11 +180,15 @@ The following virtual functions MUST be implemented exactly as specified. Do not
 - **Read Function**: Use POSIX file descriptors. Mark slot `readyfortransform` after fill. Set `data buffer size` to bytes read. Reset to 0 on EOF/error.
 - **Transform Function**: Apply `std::function`. Mark slot `readyforwrite`. Load atomic size to temporary, pass to function, store result back. If no function, set `transformed data buffer size` = `data buffer size` and mark `readyforwrite`.
 - **Write Function**: Use POSIX file descriptors. Write data, clear buffer, mark `readyforread`. Set `data buffer size` to 0. Flush (`fsync`) on `LAST_BUFFER_TO_WRITE`.
-- **EOF Sequence**: Reader $\rightarrow$ `LAST_BUFFER_TO_TRANSFORM` $\rightarrow$ Transformer $\rightarrow$ `LAST_BUFFER_TO_WRITE` $\rightarrow$ Writer.
+- **EOF Sequence and Loop Termination**: 
+    - **Reader**: When EOF is reached, mark the current slot as `LAST_BUFFER_TO_TRANSFORM`, increment the index, notify all, and **break the loop**.
+    - **Transformer**: When `LAST_BUFFER_TO_TRANSFORM` is encountered, mark the slot as `LAST_BUFFER_TO_WRITE`, increment the index, notify all, and **break the loop**.
+    - **Writer**: When `LAST_BUFFER_TO_WRITE` is encountered, flush the output, mark the slot as `readyforread`, increment the index, notify all, and **break the loop**.
+    - This ensures that the `wait()` method (which joins the threads) can return once the final buffer has been processed through the pipeline.
 
 ## Logging and Diagnostics
 - **Architecture**: Use Non-Virtual Public Interface (NVI) pattern:
-    - Public non-virtual `log_message` variadic template method using `std::format`.
+    - Public non-virtual `log_message` variadic template method using `std::format_string<Args...>` for the format argument.
     - Protected pure virtual `do_log(LogLevel level, const std::string& message)`.
 - **Thread Safety**: Log messages must be printed atomically using a mutex.
 - **Log Levels**: `Trace`, `Debug`, `Info`, `Warning`, `Error`, `Critical`. Use string representation (e.g., `[INFO]`).
@@ -193,6 +200,8 @@ The following virtual functions MUST be implemented exactly as specified. Do not
     2. Transform thread
     3. Read thread
 - Use `std::jthread`, cooperative cancellation, `std::mutex sync_mutex_` and `std::condition_variable_any cv_`.
+- The `start()` and `stop()` methods MUST use `std::lock_guard<std::mutex>` with `sync_mutex_`.
+- The `start()` method MUST check `!thread_.joinable()` before creating a new `std::jthread`.
 - Use `std::stop_callback` for immediate resource release.
 
 ## Error Handling and Recovery
@@ -210,4 +219,7 @@ Before providing the final code, you MUST perform a self-audit:
 4. **File Distribution**: Does any `.cpp` file contain more than 3 functions?
 5. **Include Order**: Does every `.cpp` file start with `#include "ringbuffer.hpp"` as the first non-comment include?
 6. **Naming**: Do all private members follow the trailing underscore convention?
-<EOF>
+
+**Tooling and Recovery:**
+- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

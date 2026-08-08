@@ -67,3 +67,7 @@ Once implementation is complete, generate a summary report at `ringbuffer/src/<o
 - **Function Distribution**: Verified no file exceeds 3 functions.
 - **Include Order**: Verified `ringbuffer.hpp` is first in all `.cpp` files.
 - **Naming**: Verified trailing underscore convention for private members.
+
+**Tooling and Recovery:**
+- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
