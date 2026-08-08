@@ -11,7 +11,7 @@ Refer to the following document for all shared requirements, data generation, an
     - **Base Image**: `debian:13`.
     - **Toolchain Installation**: Use `apt-get` to install the following packages:
         - GNU: `gcc`, `g++`, `binutils`, `make`.
-        - Build & Docs: `cmake`, `doxygen`.
+        - Build & Docs: `cmake`, `cmake-data`, `cmake-doc`, `dh-cmake`, `debhelper`, `devscripts`, `doxygen`.
         - LLVM/Clang: `clang`, `clang-tidy`, `clang-format`.
         - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `strace`, `emacs-nox`, `patchelf`.
     - **Container Configuration**: The `Dockerfile` MUST set `WORKDIR /app` to align with the host volume mounts and the execution workflow.
@@ -19,3 +19,7 @@ Refer to the following document for all shared requirements, data generation, an
     - **Audit Trail**: The `verify` target MUST log the exact versions of the compiler and linker (e.g., `g++ -v` and `ld -v`) into the final `regression_report.md` to provide a baseline for binary size analysis.
 - **Container Path**: Use `tests/containers/debian/Dockerfile`.
 - **Header Search Path**: Use `ringbuffer/src/debian/cpp`.
+
+**Tooling and Recovery:**
+- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

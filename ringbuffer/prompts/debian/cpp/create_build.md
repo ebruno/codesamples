@@ -1,3 +1,8 @@
+**Temporary Workspace Lifecycle:**
+1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
+2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
+3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+
 Please configure the build system for the Ringbuffer on Debian.
 
 **Directives:**
@@ -25,3 +30,7 @@ Before finishing, you MUST verify and log the following:
 2. **SONAME**: Use `readelf -d` on the shared library to confirm the SONAME is `libswtr_ringbuffer.so`.
 3. **Binary Size**: Use `size -m` to verify the effectiveness of dead code elimination.
 4. **Cleanliness**: Verify that the `clean` target removes `build/`, `lib/`, and backup files using the `$(RM)` macro.
+
+**Tooling and Recovery:**
+- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

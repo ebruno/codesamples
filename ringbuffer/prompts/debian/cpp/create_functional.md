@@ -1,4 +1,9 @@
-Please implement the Ringbuffer for Debian. 
+**Temporary Workspace Lifecycle:**
+1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
+2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
+3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+
+Please implement the Ringbuffer for Debian 13. 
 
 **Directives:**
 1. Use `ringbuffer/prompts/debian/cpp/functional.md` for platform-specific requirements.
