@@ -1,31 +1,35 @@
-# Ringbuffer Library
+# Swtr Ringbuffer (Debian C++ Implementation)
 
-A high-performance, C++20 compliant ring buffer implementation designed for Fedora 44. 
-It uses a three-stage pipeline (Read, Transform, Write) running in separate threads with cooperative cancellation.
+## Description
+A high-performance, fixed-size circular buffer implementation for C++20. This library provides a three-stage pipeline (Read -> Transform -> Write) with strong thread safety and cache-line alignment to prevent false sharing.
 
 ## Features
-- C++20 compliant.
-- Uses `std::jthread` and `std::stop_token` for thread management.
-- Cache line alignment to prevent false sharing.
-- Flexible logging with NVI pattern and variadic templates.
-- POSIX file descriptor support for I/O.
+- **C++20 Compliant**: Uses `std::jthread`, `std::stop_token`, and `std::format`.
+- **Thread Safe**: Atomic state management and synchronization primitives.
+- **Optimized**: `alignas(64)` on critical structures to avoid cache line contention.
+- **Flexible**: Custom transform functions and error handlers.
 
-## Build Instructions
+## Architecture
+The implementation follows a strict separation of concerns:
+- `RingBuffer`: Abstract interface defining the API.
+- `SwtrRingBuffer`: Concrete implementation.
+- `BufferSlot`: The unit of data storage, containing state and checksum information.
 
-The library can be built using the provided Makefile. It is compatible with both GCC and Clang.
+## Building the Library
+This library is designed to be built with GCC or Clang.
 
-To build the library:
+### Compilation Example
 ```bash
-make -j$(nproc)
-```
-
-This will create versioned static and shared libraries in the `lib/` directory, as well as unversioned symbolic links.
-
-To clean the build artifacts:
-```bash
-make clean
+g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
+    -ffunction-sections -fdata-sections \
+    -Wall -Wextra -Werror \
+    Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
+    WriteOps.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
+    LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
+    Accessors_Status.cpp Accessors_ChecksumAlg.cpp Accessors_ChecksumVal.cpp \
+    Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp \
+    -o libswtr_ringbuffer.so -shared -Wl,--gc-sections
 ```
 
 ## License
 This project is licensed under the BSD 3-Clause License.
-<EOF>
