@@ -1,69 +1,30 @@
 #!/usr/bin/env zsh
-
-# Default values
 lines=10
 output_file=""
-
-# Usage function
-usage() {
-    echo "Usage: $(basename $0) [-l lines] [output_file]"
-    echo "  -l lines: Number of lines to generate. Defaults to 10."
-    echo "  -h: Display usage information."
-    exit 1
-}
-
-# Parse options
 while getopts "l:h" opt; do
     case $opt in
         l) lines=$OPTARG ;;
-        h) usage ;;
-        *) usage ;;
+        h) echo "Usage: generate_test_data.zsh [-l lines] [output_file]"; exit 1 ;;
+        *) exit 1 ;;
     esac
 done
-shift $((OPTIND - 1))
-
-# The remaining argument is the output file
-if [[ -n $1 ]]; then
-    output_file=$1
-fi
-
-# Template and payload
-payload="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-payload_len=${#payload}
-cycle=92
-
-# Function to generate a single line
-generate_line() {
-    local n=$1
-    local seq_num=$(printf "%04d" $n)
-    
-    local p=-1
-    if [[ $n -gt 1 ]]; then
-        local m=$(($(($n - 2)) % $cycle))
-        if [[ $m -lt 46 ]]; then
-            p=$(($m + 1))
-        else
-            p=$(($cycle - 1 - $m))
-        fi
+shift $((OPTIND-1))
+if [[ -n $1 ]]; then output_file=$1; fi
+template="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+L=${#template}
+for (( n=1; n<=lines; n++ )); do
+    seq=$(printf "%04d" $n)
+    content=$template
+    if (( n > 1 )); then
+        idx=$(( n - 2 ))
+        cycle=$(( 2 * (L - 1) ))
+        off=$(( idx % cycle ))
+        if (( off < L - 1 )); then pos=$(( off + 1 )); else pos=$(( cycle - off )); fi
+        # Zsh 1-based indexing for strings
+        # pos is 0-based index from my logic. 
+        # So pos+1 is the 1-based index.
+        content[pos+1]=" "
     fi
-    
-    if [[ $p -ge 0 && $p -lt $payload_len ]]; then
-        local left=${payload:0:$p}
-        local right=${payload:$((p + 1))}
-        echo "${seq_num} ${left} ${right} ${seq_num}"
-    else
-        echo "${seq_num} ${payload} ${seq_num}"
-    fi
-}
-
-# Generate lines
-if [[ -n $output_file ]]; then
-    : > $output_file
-    for (( i=1; i<=lines; i++ )); do
-        generate_line $i >> $output_file
-    done
-else
-    for (( i=1; i<=lines; i++ )); do
-        generate_line $i
-    done
-fi
+    line="${seq} ${content} ${seq}"
+    if [[ -n $output_file ]]; then echo "$line" >> "$output_file"; else echo "$line"; fi
+done
