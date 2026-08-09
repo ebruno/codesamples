@@ -92,11 +92,11 @@ After generation, the agent MUST verify the integrity of the data using a progra
 
 **Strict Line Format Specification**:
 To ensure binary symmetry and prevent generation errors, every line in `test001.txt` through `test005.txt` MUST adhere to these exact constraints:
-- **Total Line Length**: Exactly 57 characters (excluding the newline).
+- **Total Line Length**: Exactly 57 characters (excluding the newline). This is achieved by: 4 digits $\rightarrow$ 1 space $\rightarrow$ exactly 47 characters of template/modified content $\rightarrow$ 1 space $\rightarrow$ 4 digits. The internal template string MUST be exactly 47 characters long.
 - **Prefix**: Characters 1-4 must be digits, and character 5 MUST be a space.
 - **Suffix**: Character 53 MUST be a space, and characters 54-57 must be digits.
 - **Internal Template**: The template content must occupy characters 6 through 52.
-- **Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints.
+- **Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints. The script MUST use the following regular expression to validate line format: `^[0-9]{4} .{47} [0-9]{4}$`.
 
 The agent MUST verify:
 - The line counts for `test001.txt` through `test005.txt` are exactly as specified (25, 50, 75, 100, 150).
@@ -111,8 +111,8 @@ The agent MUST verify:
   - **Zsh**: Version **5.8** or higher.
   - **Bash**: Version **5.0** or higher.
   - **Tcsh**: Version **6.22** or higher.
-- **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. To ensure reliability, use shell-native version variables (e.g., `$ZSH_VERSION` for Zsh, `$BASH_VERSINFO` for Bash) rather than parsing the output of `--version` commands. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
-- **Implementation Style**: Prefer shell built-ins (parameter expansion, arrays) over external tools (sed, awk, cut) to ensure maximum portability and performance.
+- **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. Use shell-native version variables. For Zsh, extract the major and minor versions using parameter expansion (e.g., `major=${ZSH_VERSION%%.*}` and `minor=${ZSH_VERSION#*.}`) and perform numeric comparisons to enforce the minimum version. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
+- **Implementation Style**: MUST use shell built-ins (parameter expansion, arrays, and redirection) for all data processing, file reading, and line counting. The use of external programs (e.g., `wc`, `sed`, `awk`, `cut`, `grep`, `cat`) is strictly prohibited for these tasks to ensure maximum portability and performance.
 - **Shell-Specific Idioms**: 
     - When implementing for **Zsh**, be mindful that string and array indexing is **1-based** by default.
     - Use shell-native string replacement or array assignment to modify specific characters in the template string.
@@ -150,7 +150,7 @@ Each of the following scripts must be documented (via usage messages and/or comm
     - `-h`: Display usage information.
 - **Arguments**:
     - `output_file`: Optional. If specified, the output is written to this file. If omitted, output is printed to `stdout`.
-- **Output Handling**: If an `output_file` is specified, the script MUST overwrite the existing file (truncate) rather than appending to it. This ensures that subsequent runs of the generator do not result in files with incorrect line counts.
+- **Output Handling**: If an `output_file` is specified, the script MUST overwrite the existing file (truncate) using `>` or `exec >` and MUST NOT use the append operator `>>` for the primary output. This ensures that subsequent runs of the generator do not result in files with incorrect line counts.
 - **Logic**: Must implement the zig-zag space pattern described in the "Test Data Generation" section.
 - **Shebang Line**: All utility scripts MUST use the `/usr/bin/env` wrapper for their shebang line to ensure portability across different shell installations (e.g., `#!/usr/bin/env zsh`, `#!/usr/bin/env bash`, `#!/usr/bin/env tcsh`, `#!/usr/bin/env sh`). Absolute paths to shells (e.g., `#!/bin/zsh`) MUST NOT be used.
 - **Permissions**: All utility scripts MUST be configured with execute permissions (e.g., `chmod 755`), resulting in file permissions `rwxr-x-rx`.
