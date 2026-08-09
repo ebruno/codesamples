@@ -76,11 +76,16 @@ Depending on the environment where the generation is performed:
 **Pattern Specification**:
 1. Template line: `NNNN ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<> NNNN`
 2. `NNNN` is a 4-digit sequence number starting at `0001` and incrementing per line.
-3. Line 1 has no space.
-4. Line 2 replaces the 2nd character ('B') with a space.
-5. Subsequent lines move the space one position to the right until the last character ('>') is replaced.
-6. Then the pattern reverses, moving the space one position to the left until the 1st character ('A') is replaced.
-7. This zig-zag continues until the target number of lines is reached.
+3. **Space Position Logic**:
+   - Let $L$ be the length of the internal template string.
+   - For line $n=1$, no space is inserted.
+   - For line $n > 1$, calculate a 0-based index $i$ into the template:
+     - Let $idx = n - 2$.
+     - Let $cycle = 2 \times (L - 1)$.
+     - Let $off = idx \pmod{cycle}$.
+     - If $off < L - 1$, then $i = off + 1$. Otherwise, $i = cycle - off$.
+   - Replace the character at index $i$ with a space.
+4. This ensures the space zig-zags from the 2nd character to the last character and back.
 
 **Data Validation**:
 After generation, the agent MUST verify the integrity of the data using a programmatic validator.
@@ -106,8 +111,12 @@ The agent MUST verify:
   - **Zsh**: Version **5.8** or higher.
   - **Bash**: Version **5.0** or higher.
   - **Tcsh**: Version **6.22** or higher.
-- **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
+- **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. To ensure reliability, use shell-native version variables (e.g., `$ZSH_VERSION` for Zsh, `$BASH_VERSINFO` for Bash) rather than parsing the output of `--version` commands. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
 - **Implementation Style**: Prefer shell built-ins (parameter expansion, arrays) over external tools (sed, awk, cut) to ensure maximum portability and performance.
+- **Shell-Specific Idioms**: 
+    - When implementing for **Zsh**, be mindful that string and array indexing is **1-based** by default.
+    - Use shell-native string replacement or array assignment to modify specific characters in the template string.
+    - Ensure regex patterns in `[[ ... ]]` are properly quoted to avoid expansion errors.
 
 ## Test Utility Scripts
 The following scripts must be provided to automate the generation of test data and report processing:
@@ -141,6 +150,7 @@ Each of the following scripts must be documented (via usage messages and/or comm
     - `-h`: Display usage information.
 - **Arguments**:
     - `output_file`: Optional. If specified, the output is written to this file. If omitted, output is printed to `stdout`.
+- **Output Handling**: If an `output_file` is specified, the script MUST overwrite the existing file (truncate) rather than appending to it. This ensures that subsequent runs of the generator do not result in files with incorrect line counts.
 - **Logic**: Must implement the zig-zag space pattern described in the "Test Data Generation" section.
 - **Shebang Line**: All utility scripts MUST use the `/usr/bin/env` wrapper for their shebang line to ensure portability across different shell installations (e.g., `#!/usr/bin/env zsh`, `#!/usr/bin/env bash`, `#!/usr/bin/env tcsh`, `#!/usr/bin/env sh`). Absolute paths to shells (e.g., `#!/bin/zsh`) MUST NOT be used.
 - **Permissions**: All utility scripts MUST be configured with execute permissions (e.g., `chmod 755`), resulting in file permissions `rwxr-x-rx`.
@@ -160,7 +170,7 @@ Test binaries must be configured to verify different linking scenarios:
 - **Code Quality**: Must handle unused function parameters (e.g., using `(void)param;`) to ensure the code compiles without `-Wunused-parameter` warnings.
 - **Makefile Macros**: MUST define a macro `RM = rm -f` and use it for all file removal operations.
 - **Cleanup Requirements**: The `Makefile` must provide the following targets:
-    - `clean`: Must remove all compiled binaries in `bin/` using `$(RM) -r`, all generated output files in `data/expected/` using `$(RM) -r`, all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
+    - `clean`: Must remove the **contents** of the `bin/` and `data/expected/` directories using `$(RM) -r` (e.g., `bin/*` and `data/expected/*`), while **preserving the directories themselves**. It must also remove all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
     - `dist-clean`: Must perform a full cleanup by calling the `clean` target and explicitly removing both the `logs/` and `reports/` directories using `$(RM) -r`.
 
 ## Test Makefile Requirements
@@ -232,3 +242,4 @@ The test suite must execute the following scenarios to ensure full coverage:
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+<EOF>
