@@ -14,6 +14,11 @@
 - **Constraint Check:** Ensure the "maximum 3 functions per file" rule is still maintained. If a change pushes a file over 3 functions, you MUST signal that a new numbered file (e.g., `LoggingOps_2.cpp`) needs to be created.
 - **Verification:** Ensure the trailing underscore naming convention for private members is preserved.
 
+**State Management:**
+- **Fingerprint Update:** After successfully updating a file, you MUST update its corresponding hash in `.gen_state.json`.
+- **Spec Hash Update:** Update the hash of `common/cpp/functional.md` and the platform-specific `functional.md` in `.gen_state.json` to mark the synchronization as complete.
+- **Manual Override Detection:** If you detect that the current file differs from the stored fingerprint but the specification has NOT changed, this is a **Manual Override**. You must report this to the user and ask whether to overwrite the change or absorb it into the specification.
+
 **Output:**
 - The updated content of the file.
 - A brief summary of what was changed and why.

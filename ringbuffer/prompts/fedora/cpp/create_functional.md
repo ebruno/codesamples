@@ -14,5 +14,6 @@ Please implement the Ringbuffer for Fedora 44.
 - **Source Tree:** Implement the full set of files defined in the **File Mapping Table** of the common specification. 
 - **Strict Compliance:** Adhere strictly to the "maximum 3 functions per file" rule and the trailing underscore naming convention for private members.
 - **Location:** All generated source code and the `LICENSE` file must be placed in `ringbuffer/src/fedora/cpp`.
+- **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/fedora/cpp` containing the SHA-256 hashes of the prompts used and the fingerprints of all generated files to support future incremental updates.
 
 Perform the 'Final Verification Step' self-audit before finishing to ensure absolute compliance with the interface and architectural constraints.

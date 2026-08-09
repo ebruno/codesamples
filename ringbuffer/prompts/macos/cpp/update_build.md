@@ -13,5 +13,8 @@
 - **Flag Update:** If `build.md` has updated compiler flags or optimization levels, apply them to the build script.
 - **Validation:** Ensure the build script still produces the target binary with the correct visibility settings (`-fvisibility=hidden`).
 
+**State Management:**
+- **Spec Hash Update:** Update the hash of the platform-specific `build.md` in `.gen_state.json` upon completion.
+
 **Output:**
 - The updated build file.

@@ -41,13 +41,32 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    - **Hierarchy**: `RingBuffer` $\rightarrow$ `SwtrRingBuffer`.
 
    **Part B: The Prompt-Driven Workflow**
-   Explain that the agent requires a valid path to the prompt file to execute the workflow. Provide the following common prompts with their **exact paths** and **example command syntax**:
-   - `ringbuffer/prompts/common/implement_functional.md`: Use this when initiating source code creation or updating core logic. 
-     - *Syntax Example:* `"Use ringbuffer/prompts/common/implement_functional.md to implement functional for debian and fedora"`
-   - `ringbuffer/prompts/common/verify_builds.md`: Use this for a first-pass sanity check on library compilation.
-     - *Syntax Example:* `"Use ringbuffer/prompts/common/verify_builds.md to run build_verify for debian and fedora"`
-   - `ringbuffer/prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
-     - *Syntax Example:* `"Use ringbuffer/prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
+   Explain that the agent requires a valid path to the prompt file to execute the workflow.
+
+   **1. Prompt-Driven Incremental Regeneration:**
+   Describe the feature that allows the codebase to be synchronized with specifications without redundant writes.
+   - **State Tracking**: Explain the use of `.gen_state.json` to track spec hashes and file fingerprints.
+   - **3-Phase Sync**: Explain the pipeline: **Functional $\rightarrow$ Build $\rightarrow$ Regression**.
+   - **Delta Updates**: Explain that the system uses "Update" prompts to apply targeted diffs rather than rewriting files.
+
+   **2. Execution Examples:**
+   Provide the following common prompts with their **exact paths** and **example command syntax**:
+
+   - **Full Generation (Initial Setup):**
+     - *Prompt:* `ringbuffer/prompts/<os>/cpp/create_functional.md`
+     - *Syntax Example:* `"Use ringbuffer/prompts/debian/cpp/create_functional.md to perform a full generation of the ringbuffer for debian"`
+   
+   - **Incremental Update (Partial Regeneration):**
+     - *Functional Update:* `ringbuffer/prompts/<os>/cpp/update_functional.md`
+     - *Build Update:* `ringbuffer/prompts/<os>/cpp/update_build.md`
+     - *Testing Update:* `ringbuffer/prompts/<os>/cpp/update_testing.md`
+     - *Syntax Example:* `"Use ringbuffer/prompts/debian/cpp/update_functional.md to synchronize the debian implementation with the updated common specifications"`
+   
+   - **Verification & Testing:**
+     - `ringbuffer/prompts/common/verify_builds.md`: Use this for a first-pass sanity check on library compilation.
+       - *Syntax Example:* `"Use ringbuffer/prompts/common/verify_builds.md to run build_verify for debian and fedora"`
+     - `ringbuffer/prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
+       - *Syntax Example:* `"Use ringbuffer/prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
 
 4. **Platforms Table Requirements**:
    - **Values**: 

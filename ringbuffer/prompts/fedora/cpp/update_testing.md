@@ -13,5 +13,8 @@
 - **Regression Check:** Ensure that existing tests still pass and that new tests do not break existing functionality.
 - **Log Validation:** Ensure tests verify that the correct logs are being written to `testing.log`.
 
+**State Management:**
+- **Spec Hash Update:** Update the hash of the platform-specific `testing.md` in `.gen_state.json` upon completion.
+
 **Output:**
 - Updated or new test source files.
