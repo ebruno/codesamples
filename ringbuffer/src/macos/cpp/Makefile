@@ -46,3 +46,5 @@ clean:
 
 dist-clean: clean
 	$(RM) ../reports logs
+verify:
+	$(MAKE) -C tests verify
