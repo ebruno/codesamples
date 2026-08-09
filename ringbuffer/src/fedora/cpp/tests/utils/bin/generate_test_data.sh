@@ -1,69 +1,65 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# Default values
-lines=10
-output_file=""
+# generate_test_data.sh - Generate test data with zig-zag space pattern
 
-# Usage function
 usage() {
-    echo "Usage: $(basename $0) [-l lines] [output_file]"
-    echo "  -l lines: Number of lines to generate. Defaults to 10."
-    echo "  -h: Display usage information."
+    echo "Usage: $(basename "$0") [-l lines] [output_file]"
+    echo "Options:"
+    echo "  -l lines    Number of lines to generate. Defaults to 10."
+    echo "  -h          Display usage information."
     exit 1
 }
 
-# Parse options
+LINES=10
+OUTPUT_FILE=""
+
 while getopts "l:h" opt; do
-    case $opt in
-        l) lines=$OPTARG ;;
+    case "$opt" in
+        l) LINES="$OPTARG" ;;
         h) usage ;;
         *) usage ;;
     esac
 done
-shift $((OPTIND - 1))
+shift $((OPTIND-1))
 
-# The remaining argument is the output file
-if [[ -n $1 ]]; then
-    output_file=$1
+if [ -n "$1" ]; then
+    OUTPUT_FILE="$1"
 fi
 
-# Template and payload
-payload="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-payload_len=${#payload}
-cycle=92
+S_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+S_LEN=${#S_CHARS}
 
-# Function to generate a single line
 generate_line() {
-    local n=$1
-    local seq_num=$(printf "%04d" $n)
+    local line_num=$1
+    local seq=$(printf "%04d" "$line_num")
     
-    local p=-1
-    if [[ $n -gt 1 ]]; then
-        local m=$(( (n - 2) % cycle ))
-        if [[ $m -lt 46 ]]; then
-            p=$((m + 1))
+    local space_pos=-1
+    if (( line_num > 1 )); then
+        local offset=$((line_num - 2))
+        if (( (offset % (2 * S_LEN)) < S_LEN )); then
+            space_L_POS=$((offset % S_LEN))
         else
-            p=$((cycle - 1 - m))
+            space_L_POS=$((2 * S_LEN - 1 - (offset % (2 * S_LEN))))
         fi
+        space_pos=$space_L_POS
     fi
-    
-    if [[ $p -ge 0 && $p -lt $payload_len ]]; then
-        local left=${payload:0:p}
-        local right=${payload:p+1}
-        echo "${seq_num} ${left} ${right} ${seq_num}"
+
+    if (( space_pos >= 0 && space_pos < S_LEN )); then
+        local part1="${S_CHARS:0:space_pos}"
+        local part2="${S_CHARS:space_pos+1}"
+        echo "$seq $part1 $part2 $seq"
     else
-        echo "${seq_num} ${payload} ${seq_num}"
+        echo "$seq $S_CHARS $seq"
     fi
 }
 
-# Generate lines
-if [[ -n $output_file ]]; then
-    : > $output_file
-    for (( i=1; i<=lines; i++ )); do
-        generate_line $i >> $output_file
+if [ -n "$OUTPUT_FILE" ]; then
+    : > "$OUTPUT_FILE"
+    for ((i=1; i<=LINES; i++)); do
+        generate_line "$i" >> "$OUTPUT_FILE"
     done
 else
-    for (( i=1; i<=lines; i++ )); do
-        generate_line $i
+    for ((i=1; i<=LINES; i++)); do
+        generate_line "$i"
     done
 fi

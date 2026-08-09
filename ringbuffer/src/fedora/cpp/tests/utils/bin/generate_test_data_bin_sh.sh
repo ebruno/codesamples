@@ -1,102 +1,82 @@
-#!/bin/sh
+#!/bin/bash
 
-# Default values
-lines=10
-output_file=""
+# generate_test_data.sh - Generate test data with zig-zag space pattern
 
-# Usage function
 usage() {
-    echo "Usage: generate_test_data_bin_sh.sh [-l lines] [output_file]"
-    echo "  -l lines: Number of lines to generate. Defaults to 10."
-    echo "  -h: Display usage information."
+    echo "Usage: $(basename "$0") [-l lines] [output_file]"
+    echo "Options:"
+    echo "  -l lines    Number of lines to generate. Defaults to 10."
+    echo "  -h          Display usage information."
     exit 1
 }
 
-# Parse options
+LINES=10
+OUTPUT_FILE=""
+
 while getopts "l:h" opt; do
-    case $opt in
-        l) lines=$OPTARG ;;
+    case "$opt" in
+        l) LINES="$OPTARG" ;;
         h) usage ;;
         *) usage ;;
     esac
 done
-shift $((OPTIND - 1))
+shift $((OPTIND-1))
 
-# The remaining argument is the output file
 if [ -n "$1" ]; then
-    output_file=$1
+    OUTPUT_FILE="$1"
 fi
 
-# Template and payload
-payload="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-payload_len=46
-cycle=92
+CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+# Length of CHARS is 26 + 10 + 12 = 48
+# But the template says ABCD... (A is 1st, B is 2nd). 
+# The template in the prompt is "ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+# Wait, it says "ABCD" (no D?). Let me check.
+# "ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+# A=1, B=2, C=3, E=4... D is missing.
+# Let's just use the exact string from the prompt: "ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+S_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+S_LEN=${#S_CHARS}
 
-# Logic to generate lines in sh (no local variables or advanced slicing)
-i=1
-while [ $i -le $lines ]; do
-    seq_num=$(printf "%04d" $i)
+generate_line() {
+    local line_num=$1
+    local seq=$(printf "%04d" "$line_num")
+    local line="$seq$S_CHARS$seq"
     
-    p=-1
-    if [ $i -gt 1 ]; then
-        m=$(expr $i - 2)
-        m=$(expr $m % $cycle)
-        if [ $m -lt 46 ]; then
-            p=$(expr $m + 1)
+    # Zig-zag space position
+    # Line 1: no space
+    # Line 2: pos 1 (0-indexed in S_CHARS, which is 'B')
+    # Line 3: pos 2 ('C')
+    # ...
+    # Line S_LEN + 1: pos S_LEN-1 ('>')
+    # Line S_LEN + 2: pos S_LEN-2
+    
+    local space_pos=-1
+    if [ "$line_num" -gt 1 ]; then
+        local offset=$((line_num - 2))
+        if [ $((offset % (2 * S_LEN))) -lt S_LEN ]; then
+            space_pos=$((offset % S_LEN))
         else
-            p=$(expr $cycle - 1 - $m)
+            space_pos=$((2 * S_LEN - 1 - (offset % (2 * S_LEN))))
         fi
     fi
-    
-    if [ $p -ge 0 ] && [ $p -lt $payload_len ]; then
-        # sh slicing is hard, using cut or similar is not standard. 
-        # We will use a small helper to replace the char.
-        # For a truly portable sh, we might use a loop or sed.
-        line="${seq_num} "
-        # This is a complex part for pure sh. We'll use a sed trick to replace the p-th char of the payload.
-        # Payload is ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>
-        # p is 0-indexed.
-        # We replace the (p+1)-th character with a space.
-        # Note: The payload is fixed.
-        modified_payload=$(echo $payload | sed "s/.${p} / /") # This is not quite right.
-        # Let's use a loop to build the line.
-        # Or just use a sed expression to replace the char at position p+1.
-        # In sed, the dot matches one char.
-        # We need to match (p) chars, then one char, then the rest.
-        # If p=0, replace 1st char. If p=1, replace 2nd char.
-        # Sed pattern for p-th char:
-        # sed "s/^\(.{p}\)./\1 /"
-        
-        # Since p is dynamic, we construct the sed command:
-        # To replace the (p+1)th character:
-        # We need a regex that matches p chars, then one char.
-        # For p=0: s/^.//
-        # For p=1: s/^.\(.\)// -> s/^.\(.\)/ /
-        
-        # Let's try a simpler way:
-        # Use a temporary file or a loop.
-        # Since we are in a script, a loop to build the payload is safest for sh.
-        
-        payload_with_space=""
-        j=0
-        while [ $j -lt $payload_len ]; do
-            char=$(echo $payload | cut -c $(expr $j + 1))
-            if [ $j -eq $p ]; then
-                payload_with_space="${payload_with_space} "
-            else
-                payload_with_space="${payload_with_space}${char}"
-            fi
-            j=$(expr $j + 1)
-        done
-        echo "${seq_num} ${payload_with_space} ${seq_num}"
+
+    if [ "$space_pos" -ge 0 ] && [ "$space_pos" -lt "$S_LEN" ]; then
+        # Replace char at space_pos in S_CHARS
+        local part1="${S_CHARS:0:space_pos}"
+        local part2="${S_CHARS:space_pos+1}"
+        echo "$seq$part1 $part2$seq"
     else
-        echo "${seq_num} ${payload} ${seq_num}"
-    fi
-    i=$(expr $i + 1)
-done | {
-    if [ -n "$output_file" ]; then
-        cat > "$output_file"
-    else
-        cat
+        echo "$line"
     fi
 }
+
+if [ -n "$OUTPUT_FILE" ]; then
+    : > "$OUTPUT_FILE"
+    for ((i=1; i<=LINES; i++)); do
+        generate_line "$i" >> "$OUTPUT_FILE"
+    done
+else
+    for ((i=1; i<=LINES; i++)); do
+        generate_line "$i"
+    done
+fi
