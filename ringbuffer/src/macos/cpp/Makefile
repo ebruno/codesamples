@@ -42,9 +42,10 @@ $(VERSIONED_SHARED): $(OBJS_ARM64) $(OBJS_X86_64)
 	$(CXX) $(CXXFLAGS) -arch x86_64 -c $< -o $@
 
 clean:
-	$(RM) $(BUILD_DIR) $(LIB_DIR) \"*~\" \"#*#\"
+	$(RM) $(BUILD_DIR) $(LIB_DIR) *.o \"*~\" \"#*#\"
 
 dist-clean: clean
 	$(RM) ../reports logs
+	$(MAKE) -C tests dist-clean
 verify:
 	$(MAKE) -C tests verify
