@@ -12,9 +12,16 @@ Please implement the full testing suite for the Ringbuffer on Fedora.
 **Scope of Work:**
 1. **Environment Setup**: Create the container configuration (`Dockerfile`) as specified for Fedora 44.
 2. **Directory Structure**: Establish the `tests/` directory structure within `ringbuffer/src/fedora/cpp/tests`, ensuring all directories contain the `.required_directory` marker.
-3. **Data Generation**: Implement the four required shell scripts (`.zsh`, `.sh`, `.tcsh`, `_bin_sh.sh`) using `/usr/bin/env` shebangs, and generate the zig-zag space pattern test files (`test001.txt` to `test005.txt`).
+3. **Data Generation & Validation**: 
+    - Implement the required shell scripts using `/usr/bin/env` shebangs.
+    - **Scripting Mandate**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
+    - Implement the `verify_test_data.sh` validator script to enforce the **Strict Line Format Specification** (Length: 57, Prefix space: 5, Suffix space: 53).
+    - Generate the zig-zag space pattern test files (`test001.txt` to `test005.txt`).
+    - **Validation**: You MUST run the validator and log the success of all five test files.
 4. **Test Program**: Implement the `test001` program with the full CLI interface, supporting both static and dynamic linking.
-5. **Build System**: Create a `Makefile` that supports `clean` and `dist-clean` targets, and handles the specific linking requirements (rpath for dynamic, direct path for static).
+5. **Build System**: 
+    - Create a `Makefile` that supports `clean` and `dist-clean` targets.
+    - **Integration**: Implement a `validate-data` target that the `verify` target depends on.
 6. **Verification**:
     - Perform artifact verification using `file`, `readelf`, `size`, and `nm`.
     - Execute all scenarios in the **Test Matrix (T001-T007)** and verify the results against expected outcomes.

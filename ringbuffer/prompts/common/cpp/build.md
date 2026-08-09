@@ -4,6 +4,17 @@
 This build specification MUST be followed exactly to ensure binary symmetry across platforms. Platform-specific deviations are permitted only for prerequisite package installation.
 
 ## Toolchain Requirements
+- **Shell Scripting Mandate**:
+  - **Language Selection**:
+    - For **macOS** targets: All scripts MUST be written in **Pure Zsh**.
+    - For **Linux** targets (Debian, Fedora, Ubuntu, ArchLinux): All scripts MUST be written in **Pure Bash**.
+    - For **Tcsh** scripts: All scripts MUST be written in **Pure Tcsh**.
+  - **Minimum Version Requirements**:
+    - **Zsh**: Version **5.8** or higher.
+    - **Bash**: Version **5.0** or higher.
+    - **Tcsh**: Version **6.22** or higher.
+  - **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
+  - **Implementation Style**: Prefer shell built-ins (parameter expansion, arrays) over external tools (sed, awk, cut) to ensure maximum portability and performance.
 - **Toolchain Configuration**:
   - The `Makefile` MUST configure `CXXFLAGS` and `LDFLAGS` based on the value of the `CXX` variable.
   - The only supported values for `CXX` are `g++` and `clang++`.
@@ -68,7 +79,7 @@ If using GNU Make, the following targets MUST be implemented:
 - `static`: Build the versioned static library and create the unversioned symbolic link.
 - `shared`: Build the versioned shared library and create the unversioned symbolic link.
 - `clean`: Remove the `build/` and `./lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
-- `dist-clean`: Perform a full reset by calling `clean`, removing the `../reports` and `cpp/logs` directories, and any platform-specific environment cleanup (e.g., `container-clean`).
+- `dist-clean`: Perform a full reset by calling `clean`, removing the `../reports` directory (the platform-level reports folder), the `cpp/logs` directory, and any platform-specific environment cleanup (e.g., `container-clean`).
 
 ## Temporary Workspace
 - **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `ringbuffer/tmp`.

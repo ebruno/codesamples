@@ -20,6 +20,7 @@ Please configure the build system for the Ringbuffer on macOS.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-dead_strip` are applied to achieve the "small binary" goal.
 - **Toolchain**: Use Clang by default.
+- **Scripting**: All utility scripts MUST be written in **Pure Zsh** (version 5.8+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
 
 **Verification Criteria:**
 Before finishing, you MUST verify and log the following:

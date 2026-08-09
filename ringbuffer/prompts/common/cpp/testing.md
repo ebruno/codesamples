@@ -83,9 +83,31 @@ Depending on the environment where the generation is performed:
 7. This zig-zag continues until the target number of lines is reached.
 
 **Data Validation**:
-After generation, the agent MUST verify the integrity of the data:
-- Verify that the line counts for `test001.txt` through `test005.txt` are exactly as specified (25, 50, 75, 100, 150).
-- Use `grep` or `head` to verify that the zig-zag space pattern is correctly implemented (e.g., line 1 has no space, line 2 has space at index 5).
+After generation, the agent MUST verify the integrity of the data using a programmatic validator.
+
+**Strict Line Format Specification**:
+To ensure binary symmetry and prevent generation errors, every line in `test001.txt` through `test005.txt` MUST adhere to these exact constraints:
+- **Total Line Length**: Exactly 57 characters (excluding the newline).
+- **Prefix**: Characters 1-4 must be digits, and character 5 MUST be a space.
+- **Suffix**: Character 53 MUST be a space, and characters 54-57 must be digits.
+- **Internal Template**: The template content must occupy characters 6 through 52.
+- **Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints.
+
+The agent MUST verify:
+- The line counts for `test001.txt` through `test005.txt` are exactly as specified (25, 50, 75, 100, 150).
+- The `verify_test_data.sh` script returns a success exit code for all five files.
+
+## Shell Scripting Mandate
+- **Language Selection**:
+  - For **macOS** targets: All scripts MUST be written in **Pure Zsh**.
+  - For **Linux** targets (Debian, Fedora, Ubuntu, ArchLinux): All scripts MUST be written in **Pure Bash**.
+  - For **Tcsh** scripts: All scripts MUST be written in **Pure Tcsh**.
+- **Minimum Version Requirements**:
+  - **Zsh**: Version **5.8** or higher.
+  - **Bash**: Version **5.0** or higher.
+  - **Tcsh**: Version **6.22** or higher.
+- **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
+- **Implementation Style**: Prefer shell built-ins (parameter expansion, arrays) over external tools (sed, awk, cut) to ensure maximum portability and performance.
 
 ## Test Utility Scripts
 The following scripts must be provided to automate the generation of test data and report processing:
@@ -139,7 +161,7 @@ Test binaries must be configured to verify different linking scenarios:
 - **Makefile Macros**: MUST define a macro `RM = rm -f` and use it for all file removal operations.
 - **Cleanup Requirements**: The `Makefile` must provide the following targets:
     - `clean`: Must remove all compiled binaries in `bin/` using `$(RM) -r`, all generated output files in `data/expected/` using `$(RM) -r`, all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
-    - `dist-clean`: Must perform a full cleanup by calling the `clean` target and explicitly removing the `logs/` directory using `$(RM) -r`.
+    - `dist-clean`: Must perform a full cleanup by calling the `clean` target and explicitly removing both the `logs/` and `reports/` directories using `$(RM) -r`.
 
 ## Test Makefile Requirements
 The `tests/Makefile` is the authoritative orchestrator for the test suite:
