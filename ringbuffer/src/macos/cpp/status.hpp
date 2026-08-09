@@ -1,11 +1,9 @@
 #ifndef SWTR_STATUS_HPP
 #define SWTR_STATUS_HPP
 
-#include <cstdint>
-
 namespace swtr {
 
-enum class BufferStatus : uint32_t {
+enum class BufferStatus : int {
     readyforread = 0,
     readyfortransform,
     readyforwrite,
@@ -22,15 +20,15 @@ enum class BufferStatus : uint32_t {
     STATUS_ERROR = 13
 };
 
-enum class ChecksumAlgorithm : uint32_t {
+enum class ChecksumAlgorithm : int {
     NONE = 0,
     MD5,
     SHA256,
     SHA512
 };
 
-enum class LogLevel : uint32_t {
-    Trace,
+enum class LogLevel : int {
+    Trace = 0,
     Debug,
     Info,
     Warning,

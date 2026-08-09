@@ -1,15 +1,10 @@
 #include "ringbuffer.hpp"
-#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
-void SwtrRingBuffer::handle_error(size_t slot_idx, BufferStatus status) {
-    if (err_handler_) {
-        if (err_handler_(slot_idx, status) != 0) {
-            stop();
-        }
-    }
-}
+// This file is reserved for centralized error handling logic.
+// Currently, error handling is performed directly in the pipeline loops
+// by calling the provided ErrorHandler.
 
 } // namespace swtr

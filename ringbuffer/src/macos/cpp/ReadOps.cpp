@@ -1,13 +1,7 @@
 #include "ringbuffer.hpp"
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <mutex>
-#include <stop_token>
-#include <unistd.h>
-#include <vector>
-#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
+#include <unistd.h>
+#include <algorithm>
 
 namespace swtr {
 
@@ -17,18 +11,19 @@ void SwtrRingBuffer::set_read_fd(int fd) {
 
 void SwtrRingBuffer::read_loop(std::stop_token st) {
     while (!st.stop_requested()) {
-        size_t current_idx = read_idx_.load() % slots_.size();
-        BufferSlot& slot = *slots_[current_idx];
+        size_t idx = read_idx_.load();
+        BufferSlot& slot = *slots_[idx % num_slots_];
 
         if (slot.status.load() == BufferStatus::readyforread) {
-            std::cout << "Read loop: slot " << current_idx << " is readyforread" << std::endl;
             int fd = read_fd_.load();
             if (fd == -1) {
-                handle_error(current_idx, BufferStatus::STATUS_ERROR);
-                break;
+                log_message(LogLevel::Error, "Read FD not set");
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;
             }
 
             ssize_t bytes_read = read(fd, slot.data.data(), slot.max_data_buffer_size.load());
+            
             if (bytes_read > 0) {
                 slot.data_buffer_size.store(static_cast<size_t>(bytes_read));
                 slot.status.store(BufferStatus::readyfortransform);
@@ -40,7 +35,12 @@ void SwtrRingBuffer::read_loop(std::stop_token st) {
                 cv_.notify_all();
                 break;
             } else {
-                handle_error(current_idx, BufferStatus::STATUS_ERROR);
+                slot.status.store(BufferStatus::STATUS_ERROR);
+                if (error_handler_) {
+                    if (error_handler_(idx % num_slots_, BufferStatus::STATUS_ERROR) != 0) {
+                        stop();
+                    }
+                }
                 break;
             }
         } else {

@@ -1,21 +1,30 @@
 #ifndef SWTR_RINGBUFFER_HPP
 #define SWTR_RINGBUFFER_HPP
 
-#include <format>
-#include <functional>
 #include <iostream>
-#include <string>
-#include <string_view>
 #include <vector>
+#include <functional>
+#include <cstdint>
+#include <format>
+#include <string_view>
 #include "status.hpp"
 
 namespace swtr {
 
 using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);
+using TransformFn = std::function<void(std::vector<uint8_t>&, size_t&)>;
 
 class RingBuffer {
 public:
     virtual ~RingBuffer() = default;
+
+    // NVI Logging
+    template<typename... Args>
+    void log_message(LogLevel level, std::format_string<Args...> fmt, Args&&... args) {
+        if (get_logging_enabled()) {
+            do_log(level, std::format(fmt, std::forward<Args>(args)...));
+        }
+    }
 
     // Thread Control
     virtual void start() = 0;
@@ -62,13 +71,6 @@ public:
     virtual void set_transformed_size(size_t slot_idx, size_t size) = 0;
 
 protected:
-    template <typename... Args>
-    void log_message(LogLevel level, std::format_string<Args...> fmt, Args&&... args) {
-        if (get_logging_enabled()) {
-            do_log(level, std::format(fmt, std::forward<Args>(args)...));
-        }
-    }
-
     virtual void do_log(LogLevel level, const std::string& message) = 0;
 };
 
