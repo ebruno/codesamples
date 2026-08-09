@@ -1,7 +1,12 @@
 # Testing Requirements - Ringbuffer (Common C++)
 
 **Implementation Directive:**
-This testing specification MUST be followed exactly to ensure that the validation process is identical across all target platforms.
+This testing specification MUST be followed exactly to ensure that the validation process is identical across all target platforms and ensures binary symmetry.
+
+## Infrastructure
+To ensure consistency across environments, the following infrastructure strategy MUST be used:
+- **Linux (Debian, Fedora, etc.)**: All build, verification, and testing activities MUST be performed within the `ringbuffer_<os>_test` container. The container is the authoritative environment.
+- **macOS**: All activities MUST be performed natively on the host system using native build artifacts. Containers MUST NOT be used for macOS targets.
 
 ## Test Directory Structure
 The testing environment must follow this directory structure to ensure isolation of test logic, data, and artifacts:
@@ -42,7 +47,7 @@ tests/
 - Use `tests/data/inputs` for source files and `tests/data/expected` for verification of the final output.
 - A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files in the logs directory (e.g., `2> logs/t001.log`). This file must also document the purpose and usage of the `tests/containers` directory.
 - **Directory Initialization**: The `tests/logs` and `tests/reports` directories must be created if they do not exist before running any test scenarios.
-- **The `_test` Image Mandate**: The image built from `tests/containers/<platform>/Dockerfile` (named `ringbuffer_<os>_test`) is the **authoritative environment** for the entire verification lifecycle. It MUST be equipped with all dependencies required to compile the main library, compile the test binaries, and execute the full test suite.
+- **The `_test` Image Mandate**: For Linux platforms, the image built from `tests/containers/<platform>/Dockerfile` (named `ringbuffer_<os>_test`) is the **authoritative environment** for the entire verification lifecycle. It MUST be equipped with all dependencies required to compile the main library, compile the test binaries, and execute the full test suite.
 - **Container Command Usage**: When providing examples for using the containers in the `README.md` or other documentation:
     - On **macOS**, use the `container` command instead of `docker`.
     - On **Fedora** and **Debian**, use the `podman` command instead of `docker`.
@@ -61,20 +66,31 @@ Before running functional tests, the build artifacts must be verified to ensure 
 - **Symbol Visibility**: Use `nm -gjU <artifact>` to verify that internal symbols are hidden and that the public API is strictly limited to the intended interface.
 
 ## Test Data Generation
-After the test utility scripts are created, the following 5 test files MUST be generated in `tests/data/inputs/` (named `test001.txt` through `test005.txt`) using the zig-zag space pattern:
+After the test utility scripts are created, the following 7 test files MUST be generated in `tests/data/inputs/` (named `test001.txt` through `test007.txt`) using the zig-zag space pattern:
 - `test001.txt`: 25 lines
 - `test002.txt`: 50 lines
 - `test003.txt`: 75 lines
 - `test004.txt`: 100 lines
 - `test005.txt`: 150 lines
+- `test006.txt`: 200 lines
+- `test007.txt`: 250 lines
 
 **Generation Tool Selection**:
-Depending on the environment where the generation is performed:
+The authoritative scripts are located in `ringbuffer/prompts/common/cpp/utils/bin/`. They MUST be deployed to `tests/utils/bin/` during environment setup.
 - **Linux (Fedora, Debian, etc.)**: Use the `tests/utils/bin/generate_test_data.sh` script.
 - **Darwin/macOS**: Use the `tests/utils/bin/generate_test_data.zsh` script.
 
+**Format and Character Set Specification**:
+To ensure binary symmetry and prevent generation errors, all input files MUST adhere to these exact constraints:
+- **Literal Character Set**: The internal template string MUST be exactly: `"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"`. Do not omit any characters or add any others.
+- **Strict Line Format**: Every line MUST follow this exact format: `[4-digit sequence] [single space] [47-char payload] [single space] [4-digit sequence]`.
+- **Total Line Length**: Exactly 57 characters (excluding the newline). This is achieved by: 4 digits $\rightarrow$ 1 space $\rightarrow$ exactly 47 characters of template/modified content $\rightarrow$ 1 space $\rightarrow$ 4 digits.
+- **Prefix**: Characters 1-4 must be digits, and character 5 MUST be a space.
+- **Suffix**: Character 53 MUST be a space, and characters 54-57 must be digits.
+- **Internal Template**: The template content must occupy characters 6 through 52.
+
 **Pattern Specification**:
-1. Template line: `NNNN ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<> NNNN`
+1. Template line: `NNNN ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<> NNNN`
 2. `NNNN` is a 4-digit sequence number starting at `0001` and incrementing per line.
 3. **Space Position Logic**:
    - Let $L$ be the length of the internal template string.
@@ -90,17 +106,11 @@ Depending on the environment where the generation is performed:
 **Data Validation**:
 After generation, the agent MUST verify the integrity of the data using a programmatic validator.
 
-**Strict Line Format Specification**:
-To ensure binary symmetry and prevent generation errors, every line in `test001.txt` through `test005.txt` MUST adhere to these exact constraints:
-- **Total Line Length**: Exactly 57 characters (excluding the newline). This is achieved by: 4 digits $\rightarrow$ 1 space $\rightarrow$ exactly 47 characters of template/modified content $\rightarrow$ 1 space $\rightarrow$ 4 digits. The internal template string MUST be exactly 47 characters long.
-- **Prefix**: Characters 1-4 must be digits, and character 5 MUST be a space.
-- **Suffix**: Character 53 MUST be a space, and characters 54-57 must be digits.
-- **Internal Template**: The template content must occupy characters 6 through 52.
-- **Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints. The script MUST use the following regular expression to validate line format: `^[0-9]{4} .{47} [0-9]{4}$`.
+**Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints. The script MUST use the following regular expression to validate line format: `^[0-9]{4} .{47} [0-9]{4}$`.
 
 The agent MUST verify:
-- The line counts for `test001.txt` through `test005.txt` are exactly as specified (25, 50, 75, 100, 150).
-- The `verify_test_data.sh` script returns a success exit code for all five files.
+- The line counts for `test001.txt` through `test007.txt` are exactly as specified.
+- The `verify_test_data.sh` script returns a success exit code for all seven files.
 
 ## Shell Scripting Mandate
 - **Language Selection**:
@@ -117,9 +127,12 @@ The agent MUST verify:
     - When implementing for **Zsh**, be mindful that string and array indexing is **1-based** by default.
     - Use shell-native string replacement or array assignment to modify specific characters in the template string.
     - Ensure regex patterns in `[[ ... ]]` are properly quoted to avoid expansion errors.
+- **Script Portability Standard**:
+  - **Shebang**: All utility scripts MUST use the `/usr/bin/env` wrapper for their shebang line to ensure portability across different shell installations (e.g., `#!/usr/bin/env zsh`, `#!/usr/bin/env bash`, `#!/usr/bin/env tcsh`, `#!/usr/bin/env sh`). Absolute paths to shells (e.g., `#!/bin/zsh`) MUST NOT be used.
+  - **Utility Usage**: Avoid platform-specific flags for standard utilities. For example, when using `sed -i`, be aware that macOS (BSD) and Linux (GNU) have different syntax. Prefer using temporary files or standard redirection for modifications to ensure cross-platform compatibility.
 
 ## Test Utility Scripts
-The following scripts must be provided to automate the generation of test data and report processing:
+The following scripts must be provided to automate the generation of test data and report processing. These scripts are centrally managed in `ringbuffer/prompts/common/cpp/utils/bin/` and MUST be copied/symlinked to `tests/utils/bin/` during setup:
 - Zsh script: `tests/utils/bin/generate_test_data.zsh`
 - Bash script: `tests/utils/bin/generate_test_data.sh`
 - Tcsh script: `tests/utils/bin/generate_test_data.tcsh`
@@ -152,8 +165,6 @@ Each of the following scripts must be documented (via usage messages and/or comm
     - `output_file`: Optional. If specified, the output is written to this file. If omitted, output is printed to `stdout`.
 - **Output Handling**: If an `output_file` is specified, the script MUST overwrite the existing file (truncate) using `>` or `exec >` and MUST NOT use the append operator `>>` for the primary output. This ensures that subsequent runs of the generator do not result in files with incorrect line counts.
 - **Logic**: Must implement the zig-zag space pattern described in the "Test Data Generation" section.
-- **Shebang Line**: All utility scripts MUST use the `/usr/bin/env` wrapper for their shebang line to ensure portability across different shell installations (e.g., `#!/usr/bin/env zsh`, `#!/usr/bin/env bash`, `#!/usr/bin/env tcsh`, `#!/usr/bin/env sh`). Absolute paths to shells (e.g., `#!/bin/zsh`) MUST NOT be used.
-- **Permissions**: All utility scripts MUST be configured with execute permissions (e.g., `chmod 755`), resulting in file permissions `rwxr-x-rx`.
 
 ## Test Binary Build Requirements
 Test binaries must be configured to verify different linking scenarios:
@@ -170,7 +181,7 @@ Test binaries must be configured to verify different linking scenarios:
 - **Code Quality**: Must handle unused function parameters (e.g., using `(void)param;`) to ensure the code compiles without `-Wunused-parameter` warnings.
 - **Makefile Macros**: MUST define a macro `RM = rm -f` and use it for all file removal operations.
 - **Cleanup Requirements**: The `Makefile` must provide the following targets:
-    - `clean`: Must remove the **contents** of the `bin/` and `data/expected/` directories using `$(RM) -r` (e.g., `bin/*` and `data/expected/*`), while **preserving the directories themselves**. It must also remove all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
+    - `clean`: MUST remove the **contents** of the `bin/` and `data/expected/` directories using `$(RM) -r` (e.g., `bin/*` and `data/expected/*`), while **preserving the directories themselves**. It MUST also remove all object files (`*.o`), all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
     - `dist-clean`: Must perform a full cleanup by calling the `clean` target and explicitly removing both the `logs/` and `reports/` directories using `$(RM) -r`.
 
 ## Test Makefile Requirements
@@ -179,10 +190,7 @@ The `tests/Makefile` is the authoritative orchestrator for the test suite:
 - **Invalidation Logic**: The `container` target MUST rebuild the image if the `Dockerfile` OR `version.mk` has been modified since the image was created.
 - **`verify` Target**: MUST orchestrate the Artifact Verification, the full Test Matrix execution (capturing execution time for each test), and the generation of the JUnit XML report in `tests/reports/regression_report_junit.xml`.
 - **Dependency**: The `verify` target MUST depend on the library and test binaries being current.
-
-## Implementation Makefile Requirements
-The `cpp/Makefile` provides a convenience entry point for verification:
-- **`verify` Target**: MUST implement a delegation to the tests directory using `$(MAKE) -C tests verify`.
+- **Utility Deployment**: The `Makefile` MUST ensure that authoritative scripts from `ringbuffer/prompts/common/cpp/utils/bin/` are copied or symlinked into `tests/utils/bin/` before any generation or verification steps are performed.
 
 ## Test Program Interface (`test001`)
 The test program must support the following command-line interface:
@@ -238,8 +246,3 @@ The test suite must execute the following scenarios to ensure full coverage:
 | `T007` | `test001.txt` | 4 | 4096 | 2 | 0 | Bit-inverted output; Success. |
 
 - All code is covered under a BSD 3-Clause License.
-
-**Tooling and Recovery:**
-- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
-- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
-<EOF>

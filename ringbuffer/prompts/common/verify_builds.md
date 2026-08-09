@@ -11,10 +11,16 @@ Ensure the C++ implementation builds successfully across all supported operating
 2. **Execution Steps**:
    For the selected OS directory, perform the following:
 
-   0. **Container Pre-check and Resource Allocation**:
-      - Verify that the required build container `ringbuffer_<os>_build` exists on the host system.
-      - **Command**: Use the appropriate container runtime for the host (e.g., `podman` on Linux, `container` on macOS) to check for the image: `<runtime> images | grep ringbuffer_<os>_build`.
-      - **Action**: If the image is missing or outdated, navigate to `ringbuffer/src/<os>/cpp` and execute `make container` to initialize the environment before proceeding.
+   0. **Execution Strategy**:
+      0.1 **Execution Path Decision**:
+         - **Native Execution**: If `host_os == <os>` OR if the target `<os>` is `macos`, the build and verification pipeline MUST be performed natively on the host. Containers MUST NOT be used for macOS targets.
+         - **Container Execution**: If `host_os != <os>` AND the target `<os>` is NOT `macos`, or if the mode 'use container' was specified (and target is not macos), the workflow MUST use the `ringbuffer_<os>_test` container.
+      0.2 **Container Pre-check and Resource Allocation**:
+         - Verify that the required build container `ringbuffer_<os>_test` exists on the host system.
+         - **Command**: Use the appropriate container runtime for the host (e.g., `podman` on Linux, `container` on macOS) to check for the image: `<runtime> images | grep ringbuffer_<os>_test`.
+         - **Action**: If the image is missing or outdated, navigate to `ringbuffer/src/<os>/cpp` and execute `make container` to initialize the environment before proceeding.
+      0.3 **Image Management**:
+         - For Linux platforms (Debian, Fedora), the `ringbuffer_<os>_test` image is the authoritative environment for all subsequent build and verify steps.
 
    1. **Build System Validation**:
       - Navigate to `ringbuffer/src/<os>/cpp`.
@@ -23,12 +29,13 @@ Ensure the C++ implementation builds successfully across all supported operating
       - **Recovery**: If build files are missing, analyze the `cpp` directories of other supported OSs to recreate them, adapting toolchains and extensions (e.g., `.so` to `.dylib`) as appropriate for the target `<os>`.
 
    2. **Library Build**:
-      - **Host-OS Optimization**: If the host operating system is the same as the target `<os>`, the build in `src/<os>/cpp` may be performed natively. For macOS, native building is the only supported method. For other OSs, the container MUST be used if this prompt was initiated with the statement `read build_verify use container`, `run build_verify use container`, or `use build_verify use container`.
-      - **Navigate**: `cd ringbuffer/src/<os>`
-      - **Execute**: 
-        - Ensure the container execution timeout is set to a maximum of 600,000 ms (10 minutes).
-        - Use the appropriate container runtime for the host (e.g., `podman` on Linux, `container` on macOS): `<runtime> run --rm -m 2G -v $(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp && make clean && make"`.
-      - **Evaluate**: If this fails, analyze logs, apply fixes to the workspace, and repeat this step.
+      - **Execution**:
+        - **Navigate**: `cd ringbuffer/src/<os>`
+        - **Execute**: 
+          - Ensure the container execution timeout is set to a maximum of 600,000 ms (10 minutes).
+          - If executing in a container: Use the appropriate container runtime for the host (e.g., `podman` on Linux, `container` on macOS): `<runtime> run --rm -m 2G -v $(pwd):/app ringbuffer_<os>_test sh -c "cd /app/cpp && make clean && make"`.
+          - If executing natively: `cd cpp && make clean && make`.
+        - **Evaluate**: If this fails, analyze logs, apply fixes to the workspace, and repeat this step.
 
    3. **Source Consistency Check**:
       - List all `.cpp` files in the source directory.

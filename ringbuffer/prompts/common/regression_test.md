@@ -24,8 +24,8 @@ Ensure the C++ implementation and its associated tests build successfully across
 
    0.1 **Execution Path Decision**:
       - Compare `host_os` with the target `<os>` (debian, fedora, macos).
-      - **Native Execution**: If `host_os == <os>`, the build and verification pipeline may be performed natively on the host.
-      - **Container Execution**: If `host_os != <os>`, or if the mode "use container" was specified, the workflow MUST use the `ringbuffer_<os>_test` container.
+      - **Native Execution**: If `host_os == <os>` OR if the target `<os>` is `macos`, the build and verification pipeline MUST be performed natively on the host. Containers MUST NOT be used for macOS targets.
+      - **Container Execution**: If `host_os != <os>` AND the target `<os>` is NOT `macos`, or if the mode "use container" was specified (and target is not macos), the workflow MUST use the `ringbuffer_<os>_test` container.
 
    0.2 **Baseline Image Bootstrap (Level 0)**:
       - **Requirement**: Before creating the `_test` image, the base `ringbuffer_<os>_build` image MUST be present and current.
@@ -33,9 +33,8 @@ Ensure the C++ implementation and its associated tests build successfully across
       - **Verification**: Confirm that `ringbuffer_<os>_build` exists using `container images | grep ringbuffer_<os>_build`.
 
    0.3 **`ringbuffer_<os>_test` Image Management**:
-      - **Mandate**: The `ringbuffer_<os>_test` image is the authoritative environment for all subsequent build and verify steps.
+      - **Mandate**: For Linux platforms (Debian, Fedora), the `ringbuffer_<os>_test` image is the authoritative environment for all subsequent build and verify steps.
       - **Bootstrap Step**: Use the base build image to trigger the creation/update of the test image:
-        - macOS: `container run --rm -v \$(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp/tests && make container"`
         - Linux: `podman run --rm -v \$(pwd):/app ringbuffer_<os>_build sh -c "cd /app/cpp/tests && make container"`
       - **Lifecycle Check**: The `make container` target in `tests/Makefile` MUST:
         1. Check if `ringbuffer_<os>_test` exists.
@@ -116,3 +115,4 @@ For each platform processed, generate a detailed report at `ringbuffer/src/<os>/
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+<EOF>

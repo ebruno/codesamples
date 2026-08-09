@@ -78,8 +78,8 @@ If using GNU Make, the following targets MUST be implemented:
 - `all`: Build both static and shared libraries.
 - `static`: Build the versioned static library and create the unversioned symbolic link.
 - `shared`: Build the versioned shared library and create the unversioned symbolic link.
-- `clean`: Remove the `build/` and `./lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
-- `dist-clean`: Perform a full reset by calling `clean`, removing the `../reports` directory (the platform-level reports folder), the `cpp/logs` directory, and any platform-specific environment cleanup (e.g., `container-clean`).
+- `clean`: MUST remove the `build/` and `./lib/` directories, all object files (`*.o`) using a wildcard, and all backup files (`*~`, `#*#`).
+- `dist-clean`: Perform a full reset by calling `clean`, removing the `../reports` directory (the platform-level reports folder), the `cpp/logs` directory, any platform-specific environment cleanup (e.g., `container-clean`), and MUST execute `make -C tests dist-clean`.
 
 ## Temporary Workspace
 - **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `ringbuffer/tmp`.
