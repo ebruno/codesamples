@@ -24,7 +24,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-template="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+template="ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
 len=$(echo "$template" | wc -c)
 len=$(expr $len - 1)
 

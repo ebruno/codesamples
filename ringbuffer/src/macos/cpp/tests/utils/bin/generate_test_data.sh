@@ -49,7 +49,7 @@ done
 # Internal: 47 chars
 # Suffix: space + 4 digits (5 chars)
 # Total: 57 chars
-template="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>" # 47 chars
+template="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>" # 48 chars
 
 L=${#template}
 cycle=$(( 2 * (L - 1) ))
