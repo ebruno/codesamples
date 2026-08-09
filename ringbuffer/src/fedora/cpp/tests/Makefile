@@ -19,6 +19,10 @@ OBJS = $(SRCS:.cpp=.o)
 
 RM = rm -f
 
+# Utility Scripts Configuration
+UTILS_PROMPT_DIR = ../../../../prompts/common/cpp/utils/bin
+UTILS_BIN_DIR = utils/bin
+
 # Container Configuration
 CONTAINER_IMAGE = ringbuffer_debian_test
 DOCKERFILE = containers/debian/Dockerfile
@@ -43,7 +47,7 @@ $(BIN_DIR):
 # --- Verification Targets ---
 
 # Main verification entry point
-verify: artifact_verify test001 test002 test003 test004 test005 test006 test007
+verify: deploy_utils artifact_verify test001 test002 test003 test004 test005 test006 test007
 	@echo "All verification tests completed successfully."
 
 # Static artifact verification
@@ -99,6 +103,10 @@ clean:
 
 dist-clean: clean
 	$(RM) -r $(LOG_DIR)
+
+deploy_utils:
+	mkdir -p $(UTILS_BIN_DIR)
+	cp $(UTILS_PROMPT_DIR)/* $(UTILS_BIN_DIR)/
 
 # Container Management
 container:
