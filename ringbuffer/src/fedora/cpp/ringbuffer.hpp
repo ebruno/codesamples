@@ -1,6 +1,7 @@
 #ifndef SWTR_RINGBUFFER_HPP
 #define SWTR_RINGBUFFER_HPP
 
+#include <atomic>
 #include <format>
 #include <functional>
 #include <iostream>
@@ -12,6 +13,28 @@
 namespace swtr {
 
 using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);
+using TransformFn = std::function<void(std::vector<uint8_t>&, size_t&)>;
+
+struct BufferSlot {
+    alignas(64) std::atomic<size_t> buffer_idx;
+    alignas(64) std::atomic<BufferStatus> status;
+    alignas(64) std::atomic<size_t> max_data_buffer_size;
+    alignas(64) std::atomic<size_t> data_buffer_size;
+    alignas(64) std::atomic<size_t> transformed_data_buffer_size;
+    alignas(64) std::atomic<ChecksumAlgorithm> checksum_alg;
+    alignas(64) std::atomic<uint32_t> checksum_val;
+    std::vector<uint8_t> data;
+
+    BufferSlot(size_t idx, size_t max_size) 
+        : buffer_idx(idx), 
+          status(BufferStatus::readyforread), 
+          max_data_buffer_size(max_size), 
+          data_buffer_size(0), 
+          transformed_data_buffer_size(0), 
+          checksum_alg(ChecksumAlgorithm::NONE), 
+          checksum_val(0), 
+          data(max_size) {}
+};
 
 class RingBuffer {
 public:

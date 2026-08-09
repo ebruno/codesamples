@@ -14,27 +14,6 @@
 
 namespace swtr {
 
-struct alignas(64) BufferSlot {
-    std::atomic<size_t> buffer_idx;
-    std::atomic<BufferStatus> status;
-    std::atomic<size_t> max_data_buffer_size;
-    std::atomic<size_t> data_buffer_size;
-    std::atomic<size_t> transformed_data_buffer_size;
-    std::atomic<ChecksumAlgorithm> checksum_alg;
-    std::atomic<uint32_t> checksum_val;
-    std::vector<uint8_t> data;
-
-    BufferSlot(size_t idx, size_t max_size) 
-        : buffer_idx(idx), 
-          status(BufferStatus::readyforread), 
-          max_data_buffer_size(max_size), 
-          data_buffer_size(0), 
-          transformed_data_buffer_size(0), 
-          checksum_alg(ChecksumAlgorithm::NONE), 
-          checksum_val(0), 
-          data(max_size) {}
-};
-
 class __attribute__((visibility("default"))) SwtrRingBuffer : public RingBuffer {
 public:
     static constexpr size_t MIN_NUMBER_SLOTS = 1;
