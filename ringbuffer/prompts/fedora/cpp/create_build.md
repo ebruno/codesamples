@@ -12,7 +12,7 @@ Please configure the build system for the Ringbuffer on Fedora.
 **Immediate Requirements:**
 - **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/fedora/cpp/logs/build.log`.
 - **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/fedora/cpp`.
-- **Documentation**: Create `build.md`, `testing.md`, and `artifacts.md` files in the project root.
+- **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing.md`, and `artifacts.md` files within it.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.

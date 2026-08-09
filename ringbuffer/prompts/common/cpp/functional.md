@@ -79,7 +79,7 @@ Accessors must be split into separate files based on the data they process to mi
 - **Casing**: Use `snake_case` for primary headers and the implementation class files. Use `PascalCase` for all operation and lifecycle `.cpp` files.
 - **STRICT MAXIMUM (Function Distribution)**: No `.cpp` file may contain more than **3 function definitions**. This is a hard architectural constraint to minimize git collisions. If a logic group (e.g., Logging or Accessors) contains more than 3 functions, you **MUST** subdivide them into numbered files (e.g., `LoggingOps_1.cpp`, `LoggingOps_2.cpp`, etc.) until every file has $\le 3$ functions.
 - **Function Verification**: In the final `implementation_report.md`, you must include a "Function Count Table" listing every `.cpp` file and the exact number of functions it contains.
-- **Documentation**: A `README.md` file must be provided in the source directory describing the library and how to build it.
+- **Documentation**: A `README.md` file must be provided in the source directory describing the library and how to build it. The build instructions MUST include explicit compilation examples for both `g++` and `clang++` toolchains.
 
 ## Filename Integrity & Path Discipline
 To ensure build system compatibility and prevent file system corruption:

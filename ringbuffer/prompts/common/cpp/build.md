@@ -68,10 +68,10 @@ To provide a consistent interface for consumers, the following symbolic links mu
 - **Verifiability**: The resulting binary size should be monitored during testing to ensure that the dead code elimination is functioning as expected.
 
 ## Project Documentation
-The following files MUST be created in the project root to document the implementation:
-- `build.md`: A copy of the build requirements used for this platform.
-- `testing.md`: A copy of the testing requirements used for this platform.
-- `artifacts.md`: A file documenting the discovery and location of all project artifacts.
+The following files MUST be created in a subdirectory named `specs/` to document the implementation:
+- `specs/build.md`: A copy of the build requirements used for this platform.
+- `specs/testing.md`: A copy of the testing requirements used for this platform.
+- `specs/artifacts.md`: A file documenting the discovery and location of all project artifacts.
 
 ## Required Makefile Targets
 If using GNU Make, the following targets MUST be implemented:
