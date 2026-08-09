@@ -46,7 +46,7 @@ verify: all
 	@echo "Verification complete."
 
 clean:
-	$(RM) -r $(BIN_DIR) $(LOG_DIR) $(REPORT_DIR)
+	$(RM) -r $(BIN_DIR)/* $(LOG_DIR)/* $(REPORT_DIR)/*
 	$(RM) *.o $(BIN_DIR)/*.o
 
 dist-clean: clean
