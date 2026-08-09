@@ -16,4 +16,8 @@ Please implement the Ringbuffer for Fedora 44.
 - **Location:** All generated source code and the `LICENSE` file must be placed in `ringbuffer/src/fedora/cpp`.
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/fedora/cpp` containing the SHA-256 hashes of the prompts used and the fingerprints of all generated files to support future incremental updates.
 
+- **Documentation Synchronization:**
+    - **Generator Audit:** Review `ringbuffer/prompts/common/generate_toplevel_readme.md` to ensure the generation logic is still aligned with the current project structure. Update the generator prompt if the README's required sections or format need to change.
+    - **README Update:** Use the (potentially updated) `ringbuffer/prompts/common/generate_toplevel_readme.md` to regenerate the top-level `README.md`, ensuring the new platform and its status are correctly reflected.
+
 Perform the 'Final Verification Step' self-audit before finishing to ensure absolute compliance with the interface and architectural constraints.

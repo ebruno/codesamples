@@ -16,5 +16,8 @@
 **State Management:**
 - **Spec Hash Update:** Update the hash of the platform-specific `testing.md` in `.gen_state.json` upon completion.
 
+**Documentation Synchronization:**
+- **README Update:** If the build or testing changes affect the high-level project status (e.g., a platform is now "WIP" instead of "TBS"), use `ringbuffer/prompts/common/generate_toplevel_readme.md` to update the top-level `README.md`.
+
 **Output:**
 - Updated or new test source files.
