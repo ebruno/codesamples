@@ -1,75 +1,48 @@
-# Include versioning variables
 include version.mk
 
-# Toolchain
 CXX = clang++
-LIBTOOL = libtool
-LIPO = lipo
-RM = rm -f
+CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
+LDFLAGS = -dead_strip
+RM = rm -rf
 
-# Compilation Flags
-# Each architecture must be compiled separately
-CXXFLAGS_BASE = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
-CXXFLAGS_ARM64 = $(CXXFLAGS_BASE) -arch arm64
-CXXFLAGS_X86_64 = $(CXXFLAGS_BASE) -arch x86_64
-
-# Linker Flags
-LDFLAGS_BASE = -dead_strip
-LDFLAGS_DYLIB = -dynamiclib -install_name @rpath/libswtr_ringbuffer.dylib
-
-# Versioned artifact name
-LIB_NAME = libswtr_ringbuffer-$(MAJOR).$(MINOR).$(SUBVERSION)-$(BUILD_ID)
-
-# Directories
-LIB_DIR = lib
-OBJ_DIR = build/obj
-
-# Source files
 SRCS = $(wildcard *.cpp)
-# We need object files for both architectures
-OBJS_ARM64 = $(SRCS:%.cpp=$(OBJ_DIR)/%.arm64.o)
-OBJS_X86_64 = $(SRCS:%.cpp=$(OBJ_DIR)/%.x86_64.o)
+OBJS_ARM64 = $(SRCS:%.cpp=%.arm64.o)
+OBJS_X86_64 = $(SRCS:%.cpp=%.x86_64.o)
 
-# Default target
-all: $(LIB_DIR)/$(LIB_NAME).a $(LIB_DIR)/$(LIB_NAME).dylib symlinks
+LIB_DIR = lib
+BUILD_DIR = build
 
-# Static Library (Fat binary using libtool)
-$(LIB_DIR)/$(LIB_NAME).a: $(OBJS_ARM64) $(OBJS_X86_64)
+VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
+VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).dylib
+
+all: static shared
+
+static: $(VERSIONED_STATIC)
+	@cd $(LIB_DIR) && ln -sf libswtr_ringbuffer-$(VERSION).a libswtr_ringbuffer.a
+
+$(VERSIONED_STATIC): $(OBJS_ARM64) $(OBJS_X86_64)
 	@mkdir -p $(LIB_DIR)
-	$(LIBTOOL) -static -o $(LIB_DIR)/$(LIB_NAME).a $(OBJS_ARM64) $(OBJS_X86_64)
+	libtool -static -o $(VERSIONED_STATIC) $(OBJS_ARM64) $(OBJS_X86_64)
 
-# Shared Library (Two-stage process)
-$(LIB_DIR)/$(LIB_NAME).dylib: $(OBJ_DIR)/libswtr_ringbuffer.arm64.dylib $(OBJ_DIR)/libswtr_ringbuffer.x86_64.dylib
-	@mkdir -p $(LIB_DIR)
-	$(LIPO) -create $(OBJ_DIR)/libswtr_ringbuffer.arm64.dylib $(OBJ_DIR)/libswtr_ringbuffer.x86_64.dylib -output $(LIB_DIR)/$(LIB_NAME).dylib
+shared: $(VERSIONED_SHARED)
+	@cd $(LIB_DIR) && ln -sf libswtr_ringbuffer-$(VERSION).dylib libswtr_ringbuffer.dylib
 
-# Intermediate Shared Libraries (Single architecture)
-$(OBJ_DIR)/libswtr_ringbuffer.arm64.dylib: $(OBJS_ARM64)
-	@mkdir -p $(OBJ_DIR)
-	$(CXX) -arch arm64 $(LDFLAGS_BASE) $(LDFLAGS_DYLIB) -o $@ $(OBJS_ARM64)
+$(VERSIONED_SHARED): $(OBJS_ARM64) $(OBJS_X86_64)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) -arch arm64 -dynamiclib -install_name @rpath/libswtr_ringbuffer.dylib $(LDFLAGS) -o $(BUILD_DIR)/libswtr_ringbuffer_arm64.dylib $(OBJS_ARM64)
+	$(CXX) -arch x86_64 -dynamiclib -install_name @rpath/libswtr_ringbuffer.dylib $(LDFLAGS) -o $(BUILD_DIR)/libswtr_ringbuffer_x86_64.dylib $(OBJS_X86_64)
+	lipo -create $(BUILD_DIR)/libswtr_ringbuffer_arm64.dylib $(BUILD_DIR)/libswtr_ringbuffer_x86_64.dylib -output $(VERSIONED_SHARED)
 
-$(OBJ_DIR)/libswtr_ringbuffer.x86_64.dylib: $(OBJS_X86_64)
-	@mkdir -p $(OBJ_DIR)
-	$(CXX) -arch x86_64 $(LDFLAGS_BASE) $(LDFLAGS_DYLIB) -o $@ $(OBJS_X86_64)
+%.arm64.o: %.cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -arch arm64 -c $< -o $@
 
-# Object files - ARM64
-$(OBJ_DIR)/%.arm64.o: %.cpp
-	@mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS_ARM64) -c $< -o $@
+%.x86_64.o: %.cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -arch x86_64 -c $< -o $@
 
-# Object files - X86_64
-$(OBJ_DIR)/%.x86_64.o: %.cpp
-	@mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS_X86_64) -c $< -o $@
-
-# Symbolic links
-symlinks:
-	cd $(LIB_DIR) && ln -sf $(LIB_NAME).a libswtr_ringbuffer.a
-	cd $(LIB_DIR) && ln -sf $(LIB_NAME).dylib libswtr_ringbuffer.dylib
-
-# Clean target
 clean:
-	$(RM) -r $(OBJ_DIR) $(LIB_DIR)
-	$(RM) *~ #*#
+	$(RM) $(BUILD_DIR) $(LIB_DIR) \"*~\" \"#*#\"
 
-.PHONY: all clean symlinks
+dist-clean: clean
+	$(RM) ../reports logs

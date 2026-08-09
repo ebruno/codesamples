@@ -1,23 +1,25 @@
-# Ringbuffer Library (macOS)
+# Swtr Ringbuffer Library (macOS)
 
-A high-performance, C++20 compliant ring buffer implementation designed for macOS.
-It uses a three-stage pipeline (Read, Transform, Write) running in separate threads with cooperative cancellation.
-
-## Features
-- C++20 compliant.
-- Uses `std::jthread` and `std::stop_token` for thread management.
-- Cache line alignment to prevent false sharing.
-- Flexible logging with NVI pattern and variadic templates.
-- POSIX file descriptor support for I/O.
-- Universal Binary support (arm64 and x86_64).
+## Description
+A high-performance, thread-safe C++20 ring buffer implementation designed for pipeline processing (Read -> Transform -> Write).
 
 ## Build Instructions
-The library is designed to be built using Clang on macOS.
 
-To compile the fat binaries:
+### Using g++
 ```bash
-make -j$(sysctl -n hw.ncpu)
+g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
+    Lifecycle.cpp LoggingOps_*.cpp ReadOps.cpp TransformOps.cpp \
+    WriteOps.cpp Threading.cpp ErrorOps.cpp Accessors_*.cpp \
+    -o libswtr_ringbuffer.dylib -dynamiclib
 ```
 
-## License
-This project is licensed under the BSD 3-Clause License.
+### Using clang++
+```bash
+clang++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
+    Lifecycle.cpp LoggingOps_*.cpp ReadOps.cpp TransformOps.cpp \
+    WriteOps.cpp Threading.cpp ErrorOps.cpp Accessors_*.cpp \
+    -o libswtr_ringbuffer.dylib -dynamiclib
+```
+
+## API Overview
+The library provides a `RingBuffer` abstract interface and a `SwtrRingBuffer` concrete implementation.
