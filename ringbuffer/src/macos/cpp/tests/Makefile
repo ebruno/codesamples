@@ -6,6 +6,9 @@ LDFLAGS = -Wl,-rpath,$(abspath ../lib)
 
 RM = rm -f
 
+UTILS_PROMPT_DIR = ../../../../prompts/common/cpp/utils/bin
+UTILS_BIN_DIR = utils/bin
+
 BIN_DIR = bin
 LIB_DIR = ../lib
 LOG_DIR = logs
@@ -21,10 +24,14 @@ test001_dynamiclib: src/test001.cpp
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) src/test001.cpp -L$(LIB_DIR) -lswtr_ringbuffer -o $(BIN_DIR)/test001_dynamiclib
 
+deploy_utils:
+	mkdir -p $(UTILS_BIN_DIR)
+	cp $(UTILS_PROMPT_DIR)/* $(UTILS_BIN_DIR)/
+
 container:
 	@echo "Container not used for macOS native build"
 
-verify: all
+verify: deploy_utils all
 	@mkdir -p $(LOG_DIR) $(REPORT_DIR)
 	@echo "Running Test Matrix..."
 	@# T001
