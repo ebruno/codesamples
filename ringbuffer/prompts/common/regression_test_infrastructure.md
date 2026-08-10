@@ -54,6 +54,32 @@
         2. Compare the modification date of `tests/containers/<os>/Dockerfile` AND `version.mk` with the image creation date.
         3. Build the image using `<runtime> build -t ringbuffer_<os>_test -f tests/containers/<os>/Dockerfile .` if either file is newer or the image is missing, where `<runtime>` is `container` on macOS or `podman` on Linux.
 
+   **Container Build Failure Handling:**
+   If any container image build step (Step 3 or Step 4) fails, the following procedure MUST be followed:
+
+   1. **Capture and Report**: Record the full error output from the failed `make container` or `<runtime> build` command. Display it to the user in a clearly marked error block:
+      ```
+      CONTAINER BUILD FAILED — [OS Name]
+
+      Command that failed: <the exact command>
+      Exit code: <exit_code>
+
+      Error output:
+      <full error output>
+      ```
+
+   2. **Suggest Fixes** based on the failure category:
+      - **Dockerfile not found**: "The file `tests/containers/<os>/Dockerfile` (or `containers/Dockerfile`) does not exist. Generate it from the specifications in `prompts/<os>/cpp/build.md`."
+      - **Insufficient disk space**: "Free at least 5 GB of disk space and retry. Check with `df -h`."
+      - **Insufficient memory**: "Allocate more memory to the container runtime. On macOS, increase Docker Desktop / Podman VM memory in settings."
+      - **Network timeout (pulling base image)**: "Check network connectivity. Retry with `--network=host` or configure a mirror registry."
+      - **Permission denied**: "Ensure the current user has permissions to run `<runtime>` without sudo. On Linux, add the user to the `podman` or `docker` group."
+      - **Unknown/other**: "Review the error output above. If the cause is not clear, run the command manually in a terminal to inspect it interactively."
+
+   3. **Exit**: After reporting the error and suggestions, STOP all further processing for this OS target. Do NOT attempt retries or proceed to subsequent steps.
+
+   **Maximum Retry Policy**: If a fix is applied and the build is retried, allow at most **2 retry attempts**. If all retries fail, report the final failure and exit.
+
    5. **Resource Allocation (macOS Host)**:
       - Run `vm_stat`.
       - Extract the page size from the first line (e.g., `16384`).

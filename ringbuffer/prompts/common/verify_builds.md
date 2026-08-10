@@ -48,12 +48,36 @@ Ensure the C++ implementation builds successfully across all supported operating
           - Ensure the container execution timeout is set to a maximum of 600,000 ms (10 minutes).
           - If executing in a container: Use the appropriate container runtime for the host (e.g., `podman` on Linux, `container` on macOS): `<runtime> run --rm -m 2G -v $(pwd):/app ringbuffer_<os>_test sh -c "cd /app/cpp && make clean && make"`.
           - If executing natively: `cd cpp && make clean && make`.
-        - **Evaluate**: If this fails, analyze logs, apply fixes to the workspace, and repeat this step.
+        - **Evaluate**: If this fails, follow the procedure below. Do NOT loop indefinitely.
+
+        **Library Build Failure Procedure:**
+        1. Capture the full error output from `make`.
+        2. Analyze logs to determine root cause (compiler errors, missing files, toolchain issues).
+        3. Apply the minimal fix required.
+        4. Retry at most **2 times**.
+        5. If all retries fail, STOP and report:
+           ```
+           LIBRARY BUILD FAILED — [OS Name]
+
+           Command: make clean && make
+           Exit code: <exit_code>
+
+           Error output:
+           <full error output>
+
+           Fixes attempted:
+           - <fix 1>: <description>
+
+           Recommendation: Investigate manually. Check `cpp/logs/build.log`.
+           ```
 
    3. **Source Consistency Check**:
       - List all `.cpp` files in the source directory.
       - Compare this list against the object files generated in the build directory or the `SRCS` variable in the `Makefile`.
-      - **Action**: If any `.cpp` file is missing from the build, update the `Makefile` and repeat the **Library Build** step.
+      - **Action**: If any `.cpp` file is missing from the build:
+        1. Update the `Makefile` to include the missing file(s) in the `SRCS` variable.
+        2. Retry the **Library Build** step (Step 2) at most **1 time**.
+        3. If the build still fails after this single retry, STOP and report the failure using the procedure in Step 2.
 
 **Reporting:**
 For each platform processed, generate a detailed report at `ringbuffer/src/<os>/reports/build_verification_report.md` using the following format:

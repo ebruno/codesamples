@@ -70,6 +70,16 @@ The `container` target must perform the following logic:
     - The `dist-clean` target MUST call this container cleanup rule and remove the `../reports` and `cpp/logs` directories to ensure a complete environment reset.
 4. **Documentation**: This automation logic (including host detection, the `make container` trigger, and the cleanup process) MUST be clearly documented in the project's `README.md` files, providing explicit instructions on how the user can set up and tear down their build environment.
 
+## Container Build Failure Handling
+If the `make container` target fails during image creation or update:
+
+1. **Report**: Display the full error output from the failed container build command.
+2. **Diagnose** using these common failure modes:
+   - **Dockerfile errors**: Syntax errors, missing base image, failed `RUN` commands. Check the Dockerfile at `src/<os>/cpp/containers/Dockerfile`.
+   - **Package installation failures**: Package names may have changed in newer base images. Verify package availability with `dnf list <package>` (Fedora) or `apt-cache search <package>` (Debian/Ubuntu).
+   - **Network issues**: Base image pull failures. Retry or configure a mirror registry.
+3. **Fix and retry** at most **2 times**. If all retries fail, STOP and report the final error. Do NOT proceed to build or test steps.
+
 - All code is covered under a BSD 3-Clause License.
 
 **Tooling and Recovery:**

@@ -24,7 +24,31 @@
      - Confirm that both `test001_staticlib` and `test001_dynamiclib` were created in the `bin/` directory of the tests folder.
      - Confirm that the `make verify` target passed for the main library.
      - **JUnit Report**: Confirm that `tests/reports/regression_report_junit.xml` was generated and follows the required JUnit XML structure.
-   - **Evaluate**: If any step fails, analyze logs, apply fixes to the workspace (either in the library or the test source), and repeat the entire consolidated pipeline.
+   - **Evaluate**: If any step fails, follow the procedure below. Do NOT loop indefinitely.
+
+      **Build/Verification Failure Procedure:**
+      1. Capture the full error output (compiler errors, linker errors, test failures).
+      2. Analyze the logs to determine the root cause:
+         - **Compiler errors**: Check for missing includes, type mismatches, or syntax errors in the source files.
+         - **Linker errors**: Verify that all object files are present and that library dependencies are correctly specified.
+         - **Test failures**: Compare actual output against expected results in `tests/data/expected/`.
+      3. Apply the minimal fix required to address the root cause.
+      4. Retry the **entire consolidated pipeline** (build + verify) at most **2 times**.
+      5. If all retries fail, STOP and report the final failure with:
+         - The original error output
+         - A list of all fixes attempted
+         - A recommendation to investigate manually
+         ```
+         BUILD/VERIFICATION FAILED — [OS Name]
+
+         Fixes attempted:
+         - <fix 1>: <description>
+         - <fix 2>: <description>
+
+         Final error: <last error output>
+
+         Recommendation: Investigate the root cause manually. Check `cpp/logs/build.log` and `tests/logs/` for detailed output.
+         ```
 
 ## Reporting
 
