@@ -5,7 +5,9 @@ Implement the C++ Ringbuffer library by strictly following the specifications de
 
 **Process:**
 1. **Target Selection**:
-   - **Targeting**: If the user request specifies a target platform (e.g., "implement functional for debian"), perform the following steps **only** for that OS. Otherwise, iterate through **all** OS directories found in `ringbuffer/src/` (e.g., debian, fedora, macos).
+   - **Targeting**: 
+     - **Specified Platform**: If the user request specifies a target platform (e.g., "implement functional for debian"), verify its existence in `ringbuffer/src/`. If the requested platform is missing from `ringbuffer/src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `ringbuffer/src/`). Process only the requested platforms that are implemented.
+     - **General Request**: Otherwise, iterate through **all** OS directories found in `ringbuffer/src/` (e.g., debian, fedora, macos).
    - **Entry Point**: When targeting a specific OS, first consult `ringbuffer/prompts/<os>/cpp/create_functional.md` (if it exists) for immediate requirements and platform-specific directives.
    - **Language**: This workflow specifically targets the C++ implementation.
 
