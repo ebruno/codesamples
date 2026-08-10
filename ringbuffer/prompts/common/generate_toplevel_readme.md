@@ -6,7 +6,7 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
 **Process:**
 1. **Information Gathering**:
    - **Environment**: Detect the current host OS, kernel version, architecture, and hardware specifications. For macOS, use `sw_vers` to retrieve the `ProductName`, `ProductVersion`, and `BuildVersion`.
-   - **AI Tooling**: Identify the current LLM and agent harness being used (e.g., LM Studio Bionic).
+   - **AI Tooling**: Identify the current LLM and agent harness being used (e.g., LM Studio Bionic). If `lms` is in the system path, execute `lms ps` to determine the active model. Extract the value from the **MODEL** column and use it as the **Model Name**.
    - **Platform Matrix**: Scan `ringbuffer/src/` and `ringbuffer/prompts/` to determine which OS and Language combinations are implemented. For C++, check for the existence of `ringbuffer/src/<os>/cpp/version.mk`.
     - If `version.mk` exists: Read `MAJOR`, `MINOR`, and `SUBVERSION`.
         - If `MAJOR > 0`: Use `vMAJOR.MINOR.SUBVERSION`.
