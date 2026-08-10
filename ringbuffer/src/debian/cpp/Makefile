@@ -1,7 +1,7 @@
 include version.mk
 
 # Toolchain
-CXX = g++
+CXX ?= g++
 CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 \
            -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 LDFLAGS = -Wl,--gc-sections
@@ -54,7 +54,7 @@ else
     CONTAINER_CMD = podman
 endif
 
-.PHONY: all static shared clean dist-clean container container-clean verify
+.PHONY: all static shared clean dist-clean container container-clean verify lint format
 
 all: $(STATIC_LIB) $(SHARED_LIB)
 
@@ -88,10 +88,22 @@ verify:
 
 # Container Management
 container:
+	@mkdir -p logs
 	@echo "Checking build container..."
+	@if [ "$(UNAME_S)" = "Darwin" ]; then \
+		if ! $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+			echo "Container service not running. Starting..."; \
+			$(CONTAINER_CMD) system start; \
+			sleep 2; \
+			if ! $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+				echo "ERROR: Failed to start container service."; \
+				exit 1; \
+			fi; \
+		fi; \
+	fi
 	@if ! $(CONTAINER_CMD) image ls | grep -q $(CONTAINER_IMAGE); then \
 		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
-		$(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
+		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
 	else \
 		echo "Image $(CONTAINER_IMAGE) already exists. Skipping build."; \
 	fi
@@ -101,3 +113,44 @@ container-clean:
 	@echo "Removing build container image..."
 	@$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) || true
 	@echo "Container environment cleaned."
+
+# Container Health Check
+container-info:
+	@echo "Container runtime: $(CONTAINER_CMD)"
+	@if [ "$(UNAME_S)" = "Darwin" ]; then \
+		if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+			echo "Container service: RUNNING"; \
+		else \
+			echo "Container service: NOT RUNNING (run 'container system start')"; \
+		fi; \
+	else \
+		if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+			echo "Container service: RUNNING"; \
+		else \
+			echo "Container service: NOT RUNNING"; \
+		fi; \
+	fi
+	@echo "Available images:"
+	@$(CONTAINER_CMD) image ls | grep ringbuffer || echo "  (none)"
+
+# Build Only (no container, no tests)
+build-only:
+	@echo "Building library only..."
+	$(MAKE) clean
+	$(MAKE) all
+	@echo "Build complete. Artifacts in lib/"
+
+# Optional lint and format targets (requires clang-tidy / clang-format)
+lint:
+	@echo "Running clang-tidy..."
+	@for f in *.cpp; do \
+		clang-tidy $$f -- $(CXXFLAGS) -I. 2>/dev/null || true; \
+	done
+	@echo "Lint complete."
+
+format:
+	@echo "Running clang-format..."
+	@for f in *.cpp *.hpp; do \
+		clang-format -i $$f 2>/dev/null || true; \
+	done
+	@echo "Format complete."

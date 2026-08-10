@@ -1,6 +1,6 @@
 include version.mk
 
-CXX = clang++
+CXX ?= clang++
 CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 LDFLAGS = -dead_strip
 RM = rm -rf
@@ -14,6 +14,8 @@ BUILD_DIR = build
 
 VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).dylib
+
+.PHONY: all static shared clean dist-clean verify lint format
 
 all: static shared
 
@@ -49,3 +51,18 @@ dist-clean: clean
 	$(MAKE) -C tests dist-clean
 verify:
 	$(MAKE) -C tests verify
+
+# Optional lint and format targets (requires clang-tidy / clang-format)
+lint:
+	@echo "Running clang-tidy..."
+	@for f in *.cpp; do \
+		clang-tidy $$f -- $(CXXFLAGS) -I. 2>/dev/null || true; \
+	done
+	@echo "Lint complete."
+
+format:
+	@echo "Running clang-format..."
+	@for f in *.cpp *.hpp; do \
+		clang-format -i $$f 2>/dev/null || true; \
+	done
+	@echo "Format complete."
