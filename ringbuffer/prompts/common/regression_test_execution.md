@@ -4,6 +4,9 @@
 
 **Prerequisite:** Infrastructure setup from `regression_test_infrastructure.md` must be completed before proceeding.
 
+## When to Use This Document
+This document should ONLY be invoked when the user explicitly requests testing or verification (e.g., "run tests", "verify the build", "do regression_test"). It MUST NOT be invoked as a continuation of a build request. If the user only asked to build, stop after producing library artifacts and report success — do not proceed to this document.
+
 ## Execution Steps
 
 7. **Consolidated Build and Verification**:
@@ -33,10 +36,12 @@
          - **Linker errors**: Verify that all object files are present and that library dependencies are correctly specified.
          - **Test failures**: Compare actual output against expected results in `tests/data/expected/`.
       3. Apply the minimal fix required to address the root cause.
-      4. Retry the **entire consolidated pipeline** (build + verify) at most **2 times**.
-      5. If all retries fail, STOP and report the final failure with:
+      4. Retry the **entire consolidated pipeline** (build + verify) at most **1 time**.
+      5. If all retries fail, STOP immediately. Do NOT retry again.
+         Report the error with diagnostic output and escalate to the user:
          - The original error output
-         - A list of all fixes attempted
+         - A list of all fixes attempted (max 1)
+         - Diagnostic results (container status, disk space, Dockerfile syntax check)
          - A recommendation to investigate manually
          ```
          BUILD/VERIFICATION FAILED — [OS Name]

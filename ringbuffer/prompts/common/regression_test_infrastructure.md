@@ -78,7 +78,7 @@
 
    3. **Exit**: After reporting the error and suggestions, STOP all further processing for this OS target. Do NOT attempt retries or proceed to subsequent steps.
 
-   **Maximum Retry Policy**: If a fix is applied and the build is retried, allow at most **2 retry attempts**. If all retries fail, report the final failure and exit.
+   **Maximum Retry Policy**: If a fix is applied and the build is retried, allow at most **1 retry attempt**. If all retries fail, STOP immediately. Do NOT retry again. Report the final failure with diagnostic output and escalate to the user.
 
    5. **Resource Allocation (macOS Host)**:
       - Run `vm_stat`.

@@ -107,4 +107,15 @@ If using GNU Make, the following targets MUST be implemented:
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+
+## Scope Boundary — Build Phase Only
+The purpose of this prompt is to compile the library and produce artifacts in `./lib/`. **Your task ends once both `libswtr_ringbuffer.a` and `libswtr_ringbuffer.so` (or `.dylib`) exist with correct symlinks.**
+
+You MUST NOT:
+- Run `make verify` or `make -C tests`
+- Generate test data, compile test binaries, or execute any tests
+- Invoke `regression_test_execution.md` or any testing workflow
+- Proceed to verification, reporting, or test matrix execution
+
+If the user wants testing, they will issue a separate request (e.g., "run tests" or "verify the build"). Do not assume testing is part of a build request.
 <EOF>

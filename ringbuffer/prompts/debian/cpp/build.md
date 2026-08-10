@@ -50,7 +50,8 @@ When the host OS is macOS and the target OS is Debian, the `container` command M
 To simplify environment setup, the `Makefile` MUST implement a `container` target.
 
 ### Container Target Checklist
-The `container` target MUST satisfy these four conditions:
+The `container` target MUST satisfy these five conditions:
+0. [ ] **Service Pre-flight**: Before any container operation, verify the runtime service is running. On macOS (`container` command), run `container info >/dev/null 2>&1`; if it fails, start the service with `container system start` and wait up to 5 seconds. On Linux (`podman`), verify with `podman info >/dev/null 2>&1`. If the service cannot be started, STOP and report.
 1. [ ] **Host Detection**: Use `uname -s` to select `container` for macOS and `podman` for Linux.
 2. [ ] **Existence Check**: Use `image ls | grep` to check for the image before calling `build`.
 3. [ ] **Image Naming**: Use the pattern `ringbuffer_[platform]_build`.
@@ -69,6 +70,17 @@ The `container` target must perform the following logic:
     - A separate `Makefile` target (e.g., `container-clean`) MUST be implemented to remove the `ringbuffer_debian_build` image from the host system.
     - The `dist-clean` target MUST call this container cleanup rule and remove the `../reports` and `cpp/logs` directories to ensure a complete environment reset.
 4. **Documentation**: This automation logic (including host detection, the `make container` trigger, and the cleanup process) MUST be clearly documented in the project's `README.md` files, providing explicit instructions on how the user can set up and tear down their build environment.
+
+## Scope Boundary — Build Phase Only
+The purpose of this prompt is to compile the library and produce artifacts in `./lib/`. **Your task ends once both static (`.a`) and shared (`.so`) library artifacts exist with correct symlinks.**
+
+You MUST NOT:
+- Run `make verify` or `make -C tests`
+- Generate test data, compile test binaries, or execute any tests
+- Invoke `regression_test_execution.md` or any testing workflow
+- Proceed to verification, reporting, or test matrix execution
+
+If the user wants testing, they will issue a separate request. Do not assume testing is part of a build request.
 
 ## Container Build Failure Handling
 If the `make container` target fails during image creation or update:

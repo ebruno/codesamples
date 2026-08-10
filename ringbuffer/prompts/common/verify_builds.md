@@ -54,8 +54,9 @@ Ensure the C++ implementation builds successfully across all supported operating
         1. Capture the full error output from `make`.
         2. Analyze logs to determine root cause (compiler errors, missing files, toolchain issues).
         3. Apply the minimal fix required.
-        4. Retry at most **2 times**.
-        5. If all retries fail, STOP and report:
+        4. Retry at most **1 time**.
+        5. If the retry fails, STOP immediately. Do NOT retry again.
+           Report the error with diagnostic output and escalate to the user:
            ```
            LIBRARY BUILD FAILED — [OS Name]
 
