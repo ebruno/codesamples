@@ -2,16 +2,32 @@
 
 **Objective:** Update the build configuration to reflect changes in the source tree or build specifications.
 
+**Temporary Workspace Lifecycle:**
+1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
+2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
+3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+
 **Inputs:**
 1. The current build file (e.g., `Makefile` or `CMakeLists.md`).
 2. The current list of files in `src/macos/cpp`.
 3. `ringbuffer/prompts/macos/cpp/build.md`.
+
+**Directives:**
+1. Use `ringbuffer/prompts/macos/cpp/build.md` for platform-specific prerequisites.
+2. Use `ringbuffer/prompts/common/cpp/build.md` as the primary build specification.
 
 **Instructions:**
 - **Source Sync:** If new `.cpp` or `.hpp` files have been added to the source tree, add them to the build targets.
 - **Cleanup:** Remove references to any files that have been deleted.
 - **Flag Update:** If `build.md` has updated compiler flags or optimization levels, apply them to the build script.
 - **Validation:** Ensure the build script still produces the target binary with the correct visibility settings (`-fvisibility=hidden`).
+
+**Architecture Changes:**
+When the source tree changes in ways not covered by the File Mapping Table (e.g., new logic groups, refactored files, or additional operation categories):
+1. **New Source Files:** If new `.cpp` or `.hpp` files exist that are not referenced in the Makefile's `SRCS` variable, add them to the appropriate build target.
+2. **New Makefile Targets:** If a new library type or artifact is required (e.g., a static-only variant), add the corresponding Makefile target and update `.PHONY` accordingly.
+3. **File Mapping Table Updates:** If the common spec's File Mapping Table has been updated (e.g., new accessor groups), ensure the Makefile includes all referenced files. If a file in the table is missing from the source tree, report it as an error rather than silently skipping it.
+4. **Function Count Constraint:** Verify that no `.cpp` file exceeds the 3-function limit after changes. If a new file would cause an existing file to exceed this limit, split the functions into numbered files (e.g., `LoggingOps_7.cpp`).
 
 **State Management:**
 - **Spec Hash Update:** Update the hash of the platform-specific `build.md` in `.gen_state.json` upon completion.
@@ -21,3 +37,8 @@
 
 **Output:**
 - The updated build file.
+
+**Tooling and Recovery:**
+- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+<EOF>

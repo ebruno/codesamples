@@ -3,6 +3,8 @@
 **Implementation Directive:**
 This build specification MUST be followed exactly to ensure binary symmetry across platforms. Platform-specific deviations are permitted only for prerequisite package installation.
 
+**Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
+
 ## Toolchain Requirements
 - **Shell Scripting Mandate**:
   - **Language Selection**:
@@ -25,7 +27,7 @@ This build specification MUST be followed exactly to ensure binary symmetry acro
   - `nm` (Symbol Analysis)
   - `readelf` (Binary Analysis - Linux)
 - **Standard**: C++20 compliant.
-- **Build System**: CMake (preferred) or GNU Make.
+- **Build System**: GNU Make is the current implementation standard. CMake may be used for new projects, but all existing platforms use GNU Make and must continue to do so unless explicitly directed otherwise.
 - **Binary Format**: ELF (Standard Linux Binary).
 
 ## Compilation Flags

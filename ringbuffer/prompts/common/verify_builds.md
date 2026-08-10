@@ -17,6 +17,17 @@ Ensure the C++ implementation builds successfully across all supported operating
       0.1 **Execution Path Decision**:
          - **Native Execution**: If `host_os == <os>` OR if the target `<os>` is `macos`, the build and verification pipeline MUST be performed natively on the host. Containers MUST NOT be used for macOS targets.
          - **Container Execution**: If `host_os != <os>` AND the target `<os>` is NOT `macos`, or if the mode 'use container' was specified (and target is not macos), the workflow MUST use the `ringbuffer_<os>_test` container.
+      0.15 **Container Runtime Pre-flight Check**:
+         - **Trigger Condition**: If the Execution Path Decision (step 0.1) determined that container execution is required AND `host_os` is `Darwin` (macOS), the `container` command MUST be available in the system PATH before any container operations proceed.
+         - **Verification**: Execute `command -v container` (or `which container`) to verify the command exists.
+         - **Error Handling**: If `container` is NOT found in PATH, STOP immediately and display the following error message to the user:
+           ```
+           ERROR: The 'container' command is required for cross-OS builds from macOS to Linux targets, but it was not found in PATH.
+           
+           Please install Apple Container from: https://github.com/apple/container
+           
+           After installation, ensure the 'container' command is available in your PATH and re-run the build or test workflow.
+           ```
       0.2 **Container Pre-check and Resource Allocation**:
          - Verify that the required build container `ringbuffer_<os>_test` exists on the host system.
          - **Command**: Use the appropriate container runtime for the host (e.g., `podman` on Linux, `container` on macOS) to check for the image: `<runtime> images | grep ringbuffer_<os>_test`.

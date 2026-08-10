@@ -2,6 +2,8 @@
 
 **Cross-Platform Consistency Requirement:** This library is deployed across multiple Linux distributions. To ensure maintainability and binary symmetry, the source code MUST be identical across all platforms. Do not adapt the coding style, naming, or architecture to the specific distribution; follow these specifications strictly.
 
+**Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/functional.md`) conflict with common specs (`prompts/common/cpp/functional.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
+
 - Code should be C++20 compliant.
 - Code should use `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
 - Code should be buildable using both clang and gcc tool chains.

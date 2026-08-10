@@ -3,6 +3,8 @@
 **Implementation Directive:**
 This testing specification MUST be followed exactly to ensure that the validation process is identical across all target platforms and ensures binary symmetry.
 
+**Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/testing.md`) conflict with common specs (`prompts/common/cpp/testing.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
+
 ## Infrastructure
 To ensure consistency across environments, the following infrastructure strategy MUST be used:
 - **Linux (Debian, Fedora, etc.)**: All build, verification, and testing activities MUST be performed within the `ringbuffer_<os>_test` container. The container is the authoritative environment.
@@ -49,8 +51,8 @@ tests/
 - **Directory Initialization**: The `tests/logs` and `tests/reports` directories must be created if they do not exist before running any test scenarios.
 - **The `_test` Image Mandate**: For Linux platforms, the image built from `tests/containers/<platform>/Dockerfile` (named `ringbuffer_<os>_test`) is the **authoritative environment** for the entire verification lifecycle. It MUST be equipped with all dependencies required to compile the main library, compile the test binaries, and execute the full test suite.
 - **Container Command Usage**: When providing examples for using the containers in the `README.md` or other documentation:
-    - On **macOS**, use the `container` command instead of `docker`.
-    - On **Fedora** and **Debian**, use the `podman` command instead of `docker`.
+    - On **macOS (including arm64 Apple Silicon)**, use the `container` command instead of `docker`. Docker (`docker`) is NOT allowed on macOS.
+    - On **Fedora**, **Debian**, and **Ubuntu**, use the `podman` command instead of `docker`. Docker (`docker`) is NOT allowed on Linux.
 - **Verification Scope**: Tests must verify not only the functional output (data integrity) but also the operational constraints (memory alignment, thread termination, and binary size).
 
 ## Build Configuration Standard
@@ -101,6 +103,36 @@ To ensure binary symmetry and prevent generation errors, all input files MUST ad
      - Let $off = idx \pmod{cycle}$.
      - If $off < L - 1$, then $i = off + 1$. Otherwise, $i = cycle - off$.
    - Replace the character at index $i$ with a space.
+
+**Reference Implementation (Python)**:
+The following Python script serves as the ground truth for the zig-zag pattern. Shell implementations MUST produce identical output:
+
+```python
+def generate_zigzag_line(n: int) -> str:
+    """Generate a single zig-zag test data line."""
+    template = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+    prefix = f"{n:04d} "
+    suffix = f" {n:04d}"
+    
+    if n == 1:
+        return prefix + template + suffix
+    
+    L = len(template)
+    idx = n - 2
+    cycle = 2 * (L - 1)
+    off = idx % cycle
+    
+    if off < L - 1:
+        i = off + 1
+    else:
+        i = cycle - off
+    
+    chars = list(template)
+    chars[i] = ' '
+    return prefix + ''.join(chars) + suffix
+```
+
+To generate all test files, call `generate_zigzag_line(n)` for each line number $n$ from 1 to the desired count.
 4. This ensures the space zig-zags from the 2nd character to the last character and back.
 
 **Data Validation**:

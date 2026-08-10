@@ -35,6 +35,18 @@ Build and test prompts may only be executed under the following conditions:
 - **macOS host**: The target OS MUST be macOS. No container support is available for macOS — builds must run natively.
 - **Linux host**: If the host distro does not match the target distro (e.g., Fedora build run from macOS or Ubuntu host), a container matching the target OS MUST be used. The Makefile's container-build override handles this automatically: `UNAME_S=macOS` ⇒ `container` command; non-matching Linux distro ⇒ `podman`. When the host already matches the target (e.g., Fedora build on Fedora), native execution is permitted.
 
+## Container Runtime Pre-flight (macOS Host)
+When the host OS is macOS and the target OS is Fedora, the `container` command MUST be available in PATH before any container operations proceed.
+- **Verification**: Execute `command -v container` to confirm availability.
+- **Error Handling**: If `container` is NOT found, STOP and display:
+  ```
+  ERROR: The 'container' command is required for cross-OS builds from macOS to Linux targets, but it was not found in PATH.
+  
+  Please install Apple Container from: https://github.com/apple/container
+  
+  After installation, ensure the 'container' command is available in your PATH and re-run the build workflow.
+  ```
+
 ## Container Lifecycle Automation
 To simplify environment setup, the `Makefile` MUST implement a `container` target.
 

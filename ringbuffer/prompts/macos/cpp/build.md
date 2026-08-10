@@ -45,6 +45,7 @@ To provide a consistent interface for consumers, the following symbolic links mu
 macOS builds are native-only. The host OS MUST be macOS; no containerized cross-compilation is supported.
 - **Host Detection**: Verify the host OS using `sw_vers --productName` (must return "macOS").
 - **Container Prohibition**: The Makefile MUST NOT define a `container`, `container-clean`, or any container-related target. If an agent encounters a prompt requesting cross-compilation from macOS to Linux, it MUST refuse and require the build to run on a native Linux host or inside a Linux container managed externally.
+- **Docker Prohibition**: Docker (`docker`) MUST NOT be used on macOS under any circumstances. The `container` command is the only supported container runtime for macOS, and even that is prohibited — macOS builds must run natively.
 
 ## Required Makefile Targets
 - `dist-clean`: Must perform a full reset by calling `clean` and removing the `../reports` and `logs` directories.
