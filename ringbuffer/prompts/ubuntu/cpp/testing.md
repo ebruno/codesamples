@@ -20,6 +20,10 @@ Refer to the following document for all shared requirements, data generation, an
 - **Container Path**: Use `tests/containers/ubuntu/Dockerfile`.
 - **Header Search Path**: Use `ringbuffer/src/ubuntu/cpp`.
 
+**Host-Target Compatibility:**
+- **macOS host**: The target OS MUST be macOS. No container support is available for macOS — testing must run natively.
+- **Linux host**: If the host distro does not match the target distro (e.g., Ubuntu testing run from macOS or Fedora host), a container matching the target OS MUST be used. The Makefile's container-build override handles this automatically: `UNAME_S=macOS` ⇒ `container` command; non-matching Linux distro ⇒ `podman`. When the host already matches the target (e.g., Ubuntu testing on Ubuntu), native execution is permitted.
+
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

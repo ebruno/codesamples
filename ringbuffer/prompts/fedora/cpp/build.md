@@ -30,6 +30,11 @@ Refer to the following document for all shared requirements, flags, and process:
 - **Container Path**: Use `src/fedora/cpp/containers/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
+## Host-Target Compatibility
+Build and test prompts may only be executed under the following conditions:
+- **macOS host**: The target OS MUST be macOS. No container support is available for macOS — builds must run natively.
+- **Linux host**: If the host distro does not match the target distro (e.g., Fedora build run from macOS or Ubuntu host), a container matching the target OS MUST be used. The Makefile's container-build override handles this automatically: `UNAME_S=macOS` ⇒ `container` command; non-matching Linux distro ⇒ `podman`. When the host already matches the target (e.g., Fedora build on Fedora), native execution is permitted.
+
 ## Container Lifecycle Automation
 To simplify environment setup, the `Makefile` MUST implement a `container` target.
 

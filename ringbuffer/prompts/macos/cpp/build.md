@@ -41,6 +41,11 @@ To provide a consistent interface for consumers, the following symbolic links mu
 - `libswtr_ringbuffer.a` → points to the current versioned static library.
 - `libswtr_ringbuffer.dylib` → points to the current versioned shared library.
 
+## Host-Target Compatibility
+macOS builds are native-only. The host OS MUST be macOS; no containerized cross-compilation is supported.
+- **Host Detection**: Verify the host OS using `sw_vers --productName` (must return "macOS").
+- **Container Prohibition**: The Makefile MUST NOT define a `container`, `container-clean`, or any container-related target. If an agent encounters a prompt requesting cross-compilation from macOS to Linux, it MUST refuse and require the build to run on a native Linux host or inside a Linux container managed externally.
+
 ## Required Makefile Targets
 - `dist-clean`: Must perform a full reset by calling `clean` and removing the `../reports` and `logs` directories.
 
