@@ -1,0 +1,36 @@
+{
+  "model": "pending",
+  "os": "ubuntu",
+  "language": "cpp",
+  "spec_hashes": {
+    "prompts/ubuntu/cpp/build.md": "9d01d7385dd73da7aa68b6bc853cc7ce454f2ae42fc19ce2e375cb1bf704c34c",
+    "prompts/common/cpp/build.md": "591f21c372477391f00fdeed3bf862732930e5951e6ba767dae36dbf167bcfdf"
+  },
+  "file_fingerprints": {
+    "Accessors_ChecksumAlg.cpp": "4042b814f0c2707ff4a89350e72ac0a2ef812f52cf71e4b5ddfc3d54483a0ffd",
+    "Accessors_ChecksumVal.cpp": "6f0a7b162d2bb989fad08498e52e8ce6a3b1dafff5cb519a02457b8a15800ff3",
+    "Accessors_Size_Data.cpp": "c047d820be39740b9ebda276d690903295bf4c9145f3106d41ebaa903166a14d",
+    "Accessors_Size_Max.cpp": "cafa9fef0a92a40d2c4a35cf435cff43c8211f070133b7b06be81880e4c89971",
+    "Accessors_Size_Transformed.cpp": "e324959c2275faa6f9a2910188142d5cc5687bc793861e81213c0965ee47bfca",
+    "Accessors_Status.cpp": "f65bdc911931c5e7f54e81bcb40dc8f9a831d19396843f7789dc75ac337beb4e",
+    "ErrorOps.cpp": "820971cc5ff715d0305a1c43e7892b614bdf74a7a656904d978dcb42f558b9c5",
+    "Lifecycle.cpp": "91c8b66440a9f3ccbd7e6b9e4170ccf2e1fe0b3c82fd4e74e12bb37d7bb453c5",
+    "LICENSE": "e31a1573ddc1c4175184d0004b116655493448b746fc25c69389f3450180ee7e",
+    "LoggingOps_1.cpp": "9dbcfd6a6f269d259b9a6eeeaad065b064faca7120d0659c69099ef11780b044",
+    "LoggingOps_2.cpp": "cddc4608b5730c82a0e0a8f62f7b5a079fec9a65936c597cb2089ee5448ca4c3",
+    "LoggingOps_3.cpp": "70e0854693cdd966254e51a1d68c2780f72350b4f4ae52a45ee58ee497af1f63",
+    "LoggingOps_4.cpp": "bd9704e14565469c005a0b27e32bc0438c06f73cf22316da9bfab1aee1da917f",
+    "LoggingOps_5.cpp": "7bc373aacdedc52ca3967a246ca84b6f5eb5937fb486f928a56d6c8d84287c1e",
+    "LoggingOps_6.cpp": "ee0a3df44045f7067aaa3854af468fbb135f92d4e1105d004e9ab193554589d9",
+    "Makefile": "d9d310ef5dc91cdd33fcdc26180a120524f466b9ef5f82ade5aa69b73a2da53c",
+    "README.md": "e150ec17d6d8e234d8d365e55a4df4d153fa0c1fa710274df9114bb54851bcf7",
+    "ReadOps.cpp": "bb19e0e34d4b0d60d57e6ef4c67662048436330d73cae957a7ea3e91e92e2854",
+    "ringbuffer.hpp": "203710c4c2102390d4b395e310e3e9320b4b99ae4a6e1515f549b3a083661254",
+    "status.hpp": "df9b8bef06cd061e1e8b236fb12b2205e16afacb97934c175e32ed87f956e8ae",
+    "swtr_ringbuffer_impl.hpp": "0d07fa380a2e3ffaebaa6a806595cc01231f1fb585c058c125aae614d5db1e39",
+    "Threading.cpp": "dd455e68d97f8406c8de7b8d154d623b0944664b3d629db6f3617809d908b393",
+    "TransformOps.cpp": "291ff7063d898a4d3fd27fb2f61008250f4efcf45cb60a4867cafcfe747ec296",
+    "WriteOps.cpp": "3d57767a2bd27a4358244f5843f2ab55924692e527185e354ae4c4a0c9929e05",
+    "version.mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a"
+  }
+}
