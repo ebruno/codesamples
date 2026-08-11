@@ -83,8 +83,9 @@ private:
     std::vector<std::unique_ptr<BufferSlot>> slots_;
     size_t num_slots_;
 
-    // Index tracking (atomic for cross-thread access) — exactly two counters
+    // Index tracking (atomic for cross-thread access) — one per pipeline stage
     alignas(64) std::atomic<size_t> read_index_{0};
+    alignas(64) std::atomic<size_t> transform_index_{0};
     alignas(64) std::atomic<size_t> write_index_{0};
 
     // File descriptors (atomic for cross-thread access)

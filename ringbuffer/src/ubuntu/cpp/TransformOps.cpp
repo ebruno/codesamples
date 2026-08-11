@@ -9,7 +9,7 @@ namespace swtr {
 
 void SwtrRingBuffer::transform_loop(std::stop_token st) {
     while (!st.stop_requested()) {
-        size_t current_idx = read_index_.load() % slots_.size();
+        size_t current_idx = transform_index_.load() % slots_.size();
         BufferSlot& slot = *slots_[current_idx];
         BufferStatus status = slot.status.load();
 
@@ -23,11 +23,11 @@ void SwtrRingBuffer::transform_loop(std::stop_token st) {
 
             slot.transformed_data_buffer_size.store(transformed_size);
             slot.status.store(BufferStatus::readyforwrite);
-            write_index_.fetch_add(1);
+            transform_index_.fetch_add(1);
             cv_.notify_all();
         } else if (status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
             slot.status.store(BufferStatus::LAST_BUFFER_TO_WRITE);
-            write_index_.fetch_add(1);
+            transform_index_.fetch_add(1);
             cv_.notify_all();
             break;
         } else {
