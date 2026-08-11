@@ -67,7 +67,7 @@ The purpose of this prompt is to update the build configuration (Makefile, compi
 
 **Allowed scope (build-related only):**
 - Update `Makefile`: add/remove source file references, update compiler flags, add new library targets
-- Update `containers/Dockerfile`: adjust package installations for the build environment
+- Update `src/ubuntu/cpp/containers/Dockerfile`: adjust package installations for the build environment
 - Create/update files in `specs/` directory (build requirements documentation)
 - Update `.gen_state.json` with spec hash
 

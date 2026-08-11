@@ -8,6 +8,8 @@ Refer to the following document for all shared requirements, flags, and process:
 
 Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platform and Container Runtime Reference before planning any build operation.
 
+**Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
+
 **Platform Specifics:**
 - **Target Environment**: Fedora 44, Kernel 7.1.5-200.fc44.
 - **Prerequisites**: Install the following packages via `dnf`:
@@ -29,7 +31,7 @@ Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for
     - Build & Docs: `cmake`, `cmake-doc`, `cmake-data`, `cmake-rpm`, `doxygen`.
     - LLVM/Clang: `clang`, `clang-tools-extra (for clang-tidy and clang-format).`
     - Utilities: `procps-ng`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`, `fedora-packager`.
-- **Container Path**: Use `tests/containers/fedora/Dockerfile`.
+- **Container Path**: Use `src/fedora/cpp/containers/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
 ## Host-Target Compatibility

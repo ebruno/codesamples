@@ -8,6 +8,8 @@ Refer to the following document for all shared requirements, flags, and process:
 
 Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platform and Container Runtime Reference before planning any build operation.
 
+**Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
+
 **Platform Specifics:**
 - **Target Environment**: Debian 13, Linux kernel 6.12 LTS.
 - **Prerequisites**: Install the following packages via `apt-get`:

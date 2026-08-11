@@ -22,7 +22,7 @@ Please configure the build system for the Ringbuffer on Ubuntu 24.04 LTS (Linux 
 - **Makefile Consistency:** The generated `Makefile` MUST match the Debian Makefile exactly, except for platform-specific values (`CONTAINER_IMAGE`, working directory path, host distro check). After generating the Makefile, diff it against `src/debian/cpp/Makefile` and resolve any non-platform-specific differences.
 
 **Environment Initialization**:
-After creating the build configuration and ensuring the `Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
+After creating the build configuration and ensuring the Dockerfile at `src/ubuntu/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
 1. The host OS is correctly detected.
 2. The build image (`ringbuffer_ubuntu_build`) is successfully created or updated.
 3. The container environment is fully operational and ready for subsequent compilation steps.

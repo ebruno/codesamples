@@ -22,3 +22,4 @@ Please implement the Ringbuffer for Fedora 44.
     - **README Update:** Use the (potentially updated) `ringbuffer/prompts/common/generate_toplevel_readme.md` to regenerate the top-level `README.md`, ensuring the new platform and its status are correctly reflected.
 
 Perform the 'Final Verification Step' self-audit before finishing to ensure absolute compliance with the interface and architectural constraints.
+<EOF>
