@@ -23,10 +23,50 @@ This testing specification MUST be followed exactly to ensure that the validatio
 - If the host OS does not match the target OS (e.g., macOS build targeting Ubuntu), a container matching the target OS MUST be used.
 - If the target is macOS or FreeBSD, containers are NEVER used regardless of host OS.
 
+**CRITICAL: Never Attempt Native Linux Builds on macOS**
+
+When the target OS is a Linux distribution (Ubuntu, Fedora, Debian, RHEL, ArchLinux) and the host OS is macOS:
+- **NEVER** attempt to compile or link Linux binaries natively on the macOS host. The resulting binaries will be Mach-O (macOS) format, not ELF (Linux), and will fail at runtime.
+- **NEVER** use `g++` or `clang++` directly on the host to produce Linux artifacts.
+- **ALWAYS** use a container matching the target OS for all build, test, and verification steps.
+- If the container runtime is not available or fails to start, **STOP** and report an error. Do not fall back to native compilation.
+
+This rule exists because macOS `clang++` produces Mach-O binaries and macOS `g++` (if installed via Homebrew) still targets the host architecture. Cross-compilation from macOS to Linux requires a proper cross-toolchain or, more reliably, a container.
+
 ## Infrastructure
 To ensure consistency across environments, the following infrastructure strategy MUST be used:
 - **Linux (Debian, Fedora, etc.)**: All build, verification, and testing activities MUST be performed within the `ringbuffer_<os>_test` container. The container is the authoritative environment.
 - **macOS**: All activities MUST be performed natively on the host system using native build artifacts. Containers MUST NOT be used for macOS targets.
+
+## Execution Workflow — Host Detection Step
+
+Before performing ANY build, test, or verification step, you MUST execute this decision tree:
+
+1. **Detect Host OS**: Run `uname -s` to determine the host operating system.
+2. **Determine Target OS**: Identify which platform you are building/testing for (from the prompt context).
+3. **Apply Routing Rule**:
+   - If host is macOS and target is Linux (Ubuntu, Fedora, Debian, RHEL, ArchLinux):
+     - **MUST** use a container. All build and test commands MUST be wrapped in `container run --rm -v <paths> ringbuffer_<target>_test`.
+     - **NEVER** run `g++`, `clang++`, or `make` directly on the host for Linux targets.
+   - If host is macOS and target is macOS:
+     - Run natively on the host. Containers are prohibited.
+   - If host is Linux and target matches host distro:
+     - Run natively.
+   - If host is Linux and target differs from host distro:
+     - **MUST** use a container matching the target OS.
+   - If target is FreeBSD:
+     - Run natively on FreeBSD host. Containers are prohibited.
+
+4. **Verify Container Availability**: If routing requires a container, verify the runtime is available before proceeding:
+   - macOS: `command -v container` — if not found, STOP and report with installation instructions.
+   - Linux: `command -v podman` — if not found, STOP and report.
+
+5. **Log Your Decision**: Before executing any build or test command, print a one-line summary:
+   ```
+   HOST=<uname -s> TARGET=<target_os> ROUTING=container|native REASON=<brief explanation>
+   ```
+
+This step MUST be performed before every build or test operation, not just once at the beginning.
 
 ## Test Directory Structure
 The testing environment must follow this directory structure to ensure isolation of test logic, data, and artifacts:
@@ -103,11 +143,11 @@ The authoritative scripts are located in `ringbuffer/prompts/common/cpp/utils/bi
 **Format and Character Set Specification**:
 To ensure binary symmetry and prevent generation errors, all input files MUST adhere to these exact constraints:
 - **Literal Character Set**: The internal template string MUST be exactly: `"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"`. Do not omit any characters or add any others.
-- **Strict Line Format**: Every line MUST follow this exact format: `[4-digit sequence] [single space] [47-char payload] [single space] [4-digit sequence]`.
-- **Total Line Length**: Exactly 57 characters (excluding the newline). This is achieved by: 4 digits $\rightarrow$ 1 space $\rightarrow$ exactly 47 characters of template/modified content $\rightarrow$ 1 space $\rightarrow$ 4 digits.
+- **Strict Line Format**: Every line MUST follow this exact format: `[4-digit sequence] [single space] [48-char payload] [single space] [4-digit sequence]`.
+- **Total Line Length**: Exactly 58 characters (excluding the newline). This is achieved by: 4 digits $\rightarrow$ 1 space $\rightarrow$ exactly 48 characters of template/modified content $\rightarrow$ 1 space $\rightarrow$ 4 digits.
 - **Prefix**: Characters 1-4 must be digits, and character 5 MUST be a space.
-- **Suffix**: Character 53 MUST be a space, and characters 54-57 must be digits.
-- **Internal Template**: The template content must occupy characters 6 through 52.
+- **Suffix**: Character 54 MUST be a space, and characters 55-58 must be digits.
+- **Internal Template**: The template content must occupy characters 6 through 53.
 
 **Pattern Specification**:
 1. Template line: `NNNN ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<> NNNN`
@@ -156,7 +196,7 @@ To generate all test files, call `generate_zigzag_line(n)` for each line number 
 **Data Validation**:
 After generation, the agent MUST verify the integrity of the data using a programmatic validator.
 
-**Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints. The script MUST use the following regular expression to validate line format: `^[0-9]{4} .{47} [0-9]{4}$`.
+**Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints. The script MUST use the following regular expression to validate line format: `^[0-9]{4} .{48} [0-9]{4}$`.
 
 The agent MUST verify:
 - The line counts for `test001.txt` through `test007.txt` are exactly as specified.
@@ -272,7 +312,11 @@ The test program must support the following command-line interface:
         - The application must attempt to connect to the specified IP and port.
         - If the connection is successful, the resulting socket file descriptor is used as the `write_fd` passed to the ringbuffer.
         - If the connection fails, the program must report an error and terminate.
-- **Implementation Note**: Use `std::make_unique<SwtrRingBuffer>` to instantiate the ring buffer. The `ErrorHandler` and `TransformFn` functions passed to the constructor MUST be non-capturing lambdas (or raw function pointers) to ensure they are compatible with the defined types (`ErrorHandler` and `TransformFn`) and compatible with `std::make_unique`.
+- **Implementation Note**: Use `std::make_unique<swtr::SwtrRingBuffer>` to instantiate the ring buffer. The `ErrorHandler` type is a **plain C function pointer** (`int (*)(size_t, swtr::BufferStatus)`), NOT a `std::function`. You MUST pass either:
+  - A static/free function (e.g., `static int my_handler(...) { ... }`), or
+  - A non-capturing lambda (e.g., `[](size_t, swtr::BufferStatus) -> int { ... }`)
+  - **NEVER** use a capturing lambda (e.g., `[error_mode](...)`) — it cannot convert to a function pointer and will cause a compilation error.
+  - The `TransformFn` type is `std::function<...>` and CAN accept capturing lambdas.
 
 - **Behavior**:
     - If no input file is provided, the program MUST print a usage message to `std::cerr` and return exit status `1`.

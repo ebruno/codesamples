@@ -15,7 +15,7 @@ Please implement the full testing suite for the Ringbuffer on Ubuntu 24.04 LTS (
 3. **Data Generation & Validation**: 
     - Implement the required shell scripts using `/usr/bin/env` shebangs.
     - **Scripting Mandate**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
-    - Implement the `verify_test_data.sh` validator script to enforce the **Strict Line Format Specification** (Length: 57, Prefix space: 5, Suffix space: 53).
+    - Implement the `verify_test_data.sh` validator script to enforce the **Strict Line Format Specification** (Length: 58, Prefix space at position 5, Suffix space at position 54).
     - Generate the zig-zag space pattern test files (`test001.txt` to `test005.txt`).
     - **Validation**: You MUST run the validator and log the success of all five test files.
 4. **Test Program**: Implement the `test001` program with the full CLI interface, supporting both static and dynamic linking.
@@ -32,6 +32,18 @@ All artifacts must be placed in: `ringbuffer/src/ubuntu/cpp/tests`
 
 **Definition of Done:**
 The task is complete when all binaries are compiled, all test data is generated, all Test Matrix scenarios are verified, and the documentation is complete and accurate.
+
+## First-Attempt Verification Checklist
+
+Before declaring the task complete, you MUST run every item on this checklist and log the results. If ANY check fails, fix it immediately — do not proceed to "Definition of Done" until all checks pass.
+
+1. **Test Data Line Length**: Run `head -1 data/inputs/test001.txt | wc -c` — the output must be `59` (58 chars + newline). If it is not, regenerate the data.
+2. **Test Data Regex Validation**: Run `utils/bin/verify_test_data.sh data/inputs/test*.txt` — all 7 files must pass with exit code 0.
+3. **Static Link Compilation**: Run `make static` — must compile without errors or warnings about unused parameters.
+4. **Dynamic Link Compilation**: Run `make dynamic` — must compile without errors or warnings about unused parameters.
+5. **Binary Format Check**: Run `file bin/test001_staticlib` — must report "ELF 64-bit" (not Mach-O).
+6. **SONAME Check**: Run `readelf -d ../lib/libswtr_ringbuffer.so | grep SONAME` — must show `Library soname: [libswtr_ringbuffer.so]`.
+7. **Container Runtime Check**: If running on macOS, verify `container` is available via `command -v container`. If not found, STOP and report the error with installation instructions.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
