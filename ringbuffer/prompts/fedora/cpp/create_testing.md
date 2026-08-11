@@ -1,7 +1,4 @@
-**Temporary Workspace Lifecycle:**
-1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
-2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
-3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
 
 Please implement the full testing suite for the Ringbuffer on Fedora.
 
@@ -10,7 +7,7 @@ Please implement the full testing suite for the Ringbuffer on Fedora.
 - Follow all requirements in `ringbuffer/prompts/common/cpp/testing.md` for common C++ testing specifications.
 
 **Scope of Work:**
-1. **Environment Setup**: Create the container configuration (`Dockerfile`) as specified for Fedora 44.
+1. **Environment Setup**: Create the container configuration (`Dockerfile`) as specified for Fedora 44, using `FROM fedora:44` as the base image with all required build tools installed via `dnf`.
 2. **Directory Structure**: Establish the `tests/` directory structure within `ringbuffer/src/fedora/cpp/tests`, ensuring all directories contain the `.required_directory` marker.
 3. **Data Generation & Validation**: 
     - Implement the required shell scripts using `/usr/bin/env` shebangs.
@@ -44,7 +41,7 @@ Before declaring the task complete, you MUST run every item on this checklist an
 5. **Binary Format Check**: Run `file bin/test001_staticlib` — must report "ELF 64-bit" (not Mach-O).
 6. **SONAME Check**: Run `readelf -d ../lib/libswtr_ringbuffer.so | grep SONAME` — must show `Library soname: [libswtr_ringbuffer.so]`.
 7. **Container Runtime Check**: If running on macOS, verify `container` is available via `command -v container`. If not found, STOP and report the error with installation instructions.
-8. **Cross-Platform Sync**: Diff the Debian test artifacts (`src/debian/cpp/tests/Makefile`, `tests/reports/regression_report.md`, `tests/reports/regression_report_junit.xml`) against the Fedora equivalents. Resolve any non-platform-specific differences. The test execution flow, report format, and container workflow MUST be identical.
+8. **Cross-Platform Verification**: After generating all test artifacts independently, compare against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output (except for allowed differences) and log: `[timestamp] Cross-platform comparison passed — Fedora matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.

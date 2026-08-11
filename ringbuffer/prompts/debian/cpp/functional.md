@@ -10,6 +10,6 @@ Refer to the common specification for all architectural, interface, and implemen
 - **Toolchains**: Clang and GCC
 - **License**: BSD 3-Clause License. The `LICENSE` file must be created in `src/debian/cpp` with the standard BSD 3-Clause text.
 
-**Tooling and Recovery:**
-- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
-- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+**Version Override Note:** If a version override is provided (e.g., "debian 12"), use this file as the architectural reference but adjust platform-specific details (kernel version, glibc) to match the requested version. For the requested version, check `ringbuffer/src/<os>/cpp/containers/Dockerfile` (if it exists) for the base image tag, or consult Debian's release documentation for kernel/glibc versions.
+
+**Tooling and Recovery:** See `ringbuffer/prompts/common/cpp/functional.md` for the authoritative tooling and recovery directives.

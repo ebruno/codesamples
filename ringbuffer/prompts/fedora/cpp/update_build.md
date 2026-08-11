@@ -50,13 +50,6 @@ If this update involves container operations (e.g., rebuilding the build image),
 **Output:**
 - The updated build file.
 
-## Cross-Platform Update Propagation
-After successfully updating the build system for this platform, you MUST:
-1. Copy the updated `Makefile` to the other Linux platforms' source directories (e.g., Fedora → Debian and Fedora → Ubuntu), adjusting only `CONTAINER_IMAGE`, working directory path, and host distro check.
-2. Verify byte-identity of all non-platform-specific content with `diff`.
-3. Update `.gen_state.json` in **all** platforms.
-4. Log the propagation action in all platform's `logs/build.log`.
-
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

@@ -8,7 +8,9 @@
 - `tests/containers/<os>/Dockerfile` (test container base image)
 - `tests/Makefile` (container image name, Dockerfile path, report title)
 
-All source code files (`*.cpp`, `*.hpp`) MUST be generated from the same canonical template. If you are generating for a new platform, copy the verified source files from an existing platform and only adjust non-source artifacts. Do NOT regenerate source code independently per platform.
+All source code files (`*.cpp`, `*.hpp`) MUST be generated from the same canonical template. Generate each platform's source independently from this spec — do not copy files between platforms.
+
+**Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — <target> matches <reference>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
 **Cross-Platform Build/Test Synchronization Mandate:** The build and test infrastructure MUST be identical across all platforms, with only the following allowed differences:
 - Container image names (`ringbuffer_<os>_build`, `ringbuffer_<os>_test`)

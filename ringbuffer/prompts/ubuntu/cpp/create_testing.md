@@ -1,7 +1,4 @@
-**Temporary Workspace Lifecycle:**
-1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
-2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
-3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
 
 Please implement the full testing suite for the Ringbuffer on Ubuntu 24.04 LTS (Linux kernel 6.N).
 
@@ -44,7 +41,20 @@ Before declaring the task complete, you MUST run every item on this checklist an
 5. **Binary Format Check**: Run `file bin/test001_staticlib` — must report "ELF 64-bit" (not Mach-O).
 6. **SONAME Check**: Run `readelf -d ../lib/libswtr_ringbuffer.so | grep SONAME` — must show `Library soname: [libswtr_ringbuffer.so]`.
 7. **Container Runtime Check**: If running on macOS, verify `container` is available via `command -v container`. If not found, STOP and report the error with installation instructions.
-8. **Cross-Platform Sync**: Diff the Debian test artifacts (`src/debian/cpp/tests/Makefile`, `tests/reports/regression_report.md`, `tests/reports/regression_report_junit.xml`) against the Ubuntu equivalents. Resolve any non-platform-specific differences. The test execution flow, report format, and container workflow MUST be identical.
+8. **Debian Source Availability Check:** Before generating test artifacts, check whether the Debian source directory exists:
+  1. Verify that `ringbuffer/src/debian/cpp/` exists as a directory.
+  2. If it does NOT exist, log: `[timestamp] Debian source directory missing — ringbuffer/src/debian/cpp/ not found. Ubuntu will generate independently.` and skip all comparison/copy steps.
+  3. If it DOES exist, proceed to the Debian Testing Readiness Check below.
+- **Debian Testing Readiness Check:** (Only if `ringbuffer/src/debian/cpp/` exists)
+  1. Verify that `ringbuffer/src/debian/cpp/.gen_state.json` exists.
+  2. Read the `spec_hashes` entries for `testing.md` from that file.
+  3. Compute the current SHA-256 hash of `ringbuffer/prompts/common/cpp/testing.md` and compare it against the stored Debian hash.
+  4. If the hashes match, log: `[timestamp] Debian testing readiness check passed — Debian is built to current testing specs. Ubuntu may copy from Debian.`
+  5. If the hashes do NOT match or `.gen_state.json` is missing, log: `[timestamp] Debian testing readiness check failed — Debian is NOT built to current testing specs. Ubuntu will generate independently.`
+- **Test Artifact Generation Path:** Based on the checks above:
+  - **If Debian source exists AND is ready:** Copy verified test artifacts from `ringbuffer/src/debian/cpp/tests/` to the Ubuntu source directory. Adjust only platform-specific values (container image names, Dockerfile paths, report titles). Log each file copied and each adjustment.
+  - **If Debian source is missing OR not ready:** Generate all test artifacts independently from `ringbuffer/prompts/common/cpp/testing.md` and `ringbuffer/prompts/ubuntu/cpp/testing.md`. Do NOT copy any test files from another platform. Log: `[timestamp] Independent testing generation — no test artifacts copied from other platforms.`
+- **Cross-Platform Verification:** After generating or copying all test artifacts, compare against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output (except for allowed differences) and log: `[timestamp] Cross-platform comparison passed — Ubuntu matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
 **Tooling and Recovery:
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.

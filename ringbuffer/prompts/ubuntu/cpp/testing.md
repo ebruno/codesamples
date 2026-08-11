@@ -22,28 +22,6 @@ Refer to [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md)
 - **Container Path**: Use `tests/containers/ubuntu/Dockerfile`.
 - **Header Search Path**: Use `ringbuffer/src/ubuntu/cpp`.
 
-**Host-Target Compatibility:**
-- **macOS host**: The target OS MUST be macOS. No container support is available for macOS — testing must run natively.
-- **Linux host**: If the host distro does not match the target distro (e.g., Ubuntu testing run from macOS or Fedora host), a container matching the target OS MUST be used. The Makefile's container-build override handles this automatically: `UNAME_S=macOS` ⇒ `container` command; non-matching Linux distro ⇒ `podman`. When the host already matches the target (e.g., Ubuntu testing on Ubuntu), native execution is permitted.
+**Host-Target Compatibility**, **CRITICAL: Never Attempt Native Linux Builds on macOS**, and **Container Runtime Pre-flight**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative host-target, container runtime, and native build prevention directives.
 
-**CRITICAL: Never Attempt Native Linux Builds on macOS**
-When the host OS is macOS and the target OS is Ubuntu (or any Linux distribution):
-- **NEVER** attempt to compile test binaries natively on the macOS host. The resulting Mach-O binaries will not run in the Linux container and are useless for testing.
-- **ALWAYS** execute all build, validation, and test steps inside the `ringbuffer_ubuntu_test` container.
-- If the container cannot be built or started, **STOP** and report an error. Do not attempt native compilation as a fallback.
-
-## Container Runtime Pre-flight (macOS Host)
-When the host OS is macOS and the target OS is Ubuntu, the `container` command MUST be available in PATH before any container operations proceed.
-- **Verification**: Execute `command -v container` to confirm availability.
-- **Error Handling**: If `container` is NOT found, STOP and display:
-  ```
-  ERROR: The 'container' command is required for cross-OS testing from macOS to Linux targets, but it was not found in PATH.
-  
-  Please install Apple Container from: https://github.com/apple/container
-  
-  After installation, ensure the 'container' command is available in your PATH and re-run the test workflow.
-  ```
-
-**Tooling and Recovery:**
-- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
-- **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+**Tooling and Recovery:** See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative tooling and recovery directives.

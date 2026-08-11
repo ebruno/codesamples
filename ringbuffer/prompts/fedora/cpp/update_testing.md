@@ -50,14 +50,6 @@ If this update involves container operations, and the host OS is macOS, the `con
 **Output:**
 - Updated or new test source files.
 
-## Cross-Platform Update Propagation
-After successfully updating the test suite for this platform, you MUST:
-1. Copy the updated `tests/Makefile` to the other Linux platforms' source directories (e.g., Fedora → Debian and Fedora → Ubuntu), adjusting only `CONTAINER_IMAGE`, Dockerfile path, and report title.
-2. Copy any updated test utility scripts from `tests/utils/bin/` to the other platforms.
-3. Verify byte-identity of all non-platform-specific content with `diff`.
-4. Update `.gen_state.json` in **all** platforms.
-5. Log the propagation action in all platform's `logs/testing.log`.
-
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

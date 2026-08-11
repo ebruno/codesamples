@@ -1,7 +1,4 @@
-**Temporary Workspace Lifecycle:**
-1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
-2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
-3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/build.md` for the authoritative temporary workspace directives.
 
 Please configure the build system for the Ringbuffer on Fedora.
 
@@ -19,7 +16,7 @@ Please configure the build system for the Ringbuffer on Fedora.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
-- **Makefile Consistency:** The generated `Makefile` MUST match the Debian Makefile exactly, except for platform-specific values (`CONTAINER_IMAGE`, working directory path, host distro check). After generating the Makefile, diff it against `src/debian/cpp/Makefile` and resolve any non-platform-specific differences.
+- **Makefile Consistency:** The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
 
 **Environment Initialization**:
 After creating the build configuration and ensuring the Dockerfile at `src/fedora/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
