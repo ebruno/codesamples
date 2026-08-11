@@ -7,6 +7,7 @@ Refer to the common specification for all architectural, interface, and implemen
 
 **Platform Specifics:**
 - **Target OS**: Fedora 44 (Linux kernel 7.1.5-200.fc44)
+- **glibc**: Version 2.38+ compatibility required.
 - **Toolchains**: Clang and GCC
 - **License**: BSD 3-Clause License. The `LICENSE` file must be created in `src/fedora/cpp` with the standard BSD 3-Clause text.
 
