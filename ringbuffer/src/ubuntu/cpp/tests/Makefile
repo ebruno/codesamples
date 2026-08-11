@@ -66,7 +66,7 @@ deploy-utils:
 			fi; \
 		done; \
 	else \
-		echo "WARNING: Authoritative scripts directory not found, skipping deployment"; \
+		echo "  Authoritative scripts directory not mounted in container — using existing scripts in $(UTILS_DIR)/bin/"; \
 	fi
 
 # Validate test data
@@ -91,7 +91,7 @@ verify: static dynamic validate-data deploy-utils
 	@file -L $(STATIC_LIB) | grep -q "current ar archive" && echo "Static library: OK" || (echo "Static library: FAIL"; exit 1)
 	@file -L $(SHARED_LIB) | grep -q "shared object" && echo "Shared library: OK" || (echo "Shared library: FAIL"; exit 1)
 	@readelf -d $(SHARED_LIB) | grep -q "SONAME.*libswtr_ringbuffer.so" && echo "SONAME: OK" || (echo "SONAME: FAIL"; exit 1)
-	@size $(SHARED_LIB) | tail -1 | awk '{print "Binary size: " $$3 " bytes"}'
+	@size $(SHARED_LIB) | tail -1 | awk '{total=$$1+$$2+$$3; print "Binary size: " total " bytes (text=" $$1 ", data=" $$2 ", bss=" $$3 ")"}'
 	@echo ""
 	@echo "=== Audit Trail ==="
 	@g++ -v > $(REPORTS_DIR)/compiler_version.txt 2>&1 || true
@@ -179,11 +179,11 @@ dist-clean: clean
 # Container management
 container:
 	@echo "Checking test container..."
-	@if ! $(CONTAINER_CMD) image ls | grep -q $(CONTAINER_IMAGE); then \
+	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q $(CONTAINER_IMAGE); then \
 		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
 		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
 	else \
-		image_created=$$($(CONTAINER_CMD) inspect --format='{{.Created}}' $(CONTAINER_IMAGE) 2>/dev/null | cut -d'.' -f1); \
+		image_created=$$($(CONTAINER_CMD) image inspect $(CONTAINER_IMAGE) 2>/dev/null | grep -o '"creationDate" *: *"[^"]*"' | head -1 | cut -d'"' -f4); \
 		if [ -n "$$image_created" ]; then \
 			dockerfile_mtime=$$(stat -c %Y containers/ubuntu/Dockerfile 2>/dev/null || stat -f %m containers/ubuntu/Dockerfile 2>/dev/null); \
 			version_mtime=$$(stat -c %Y ../version.mk 2>/dev/null || stat -f %m ../version.mk 2>/dev/null); \

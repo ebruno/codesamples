@@ -110,17 +110,17 @@ container:
 	@mkdir -p logs
 	@echo "Checking build container..."
 	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-		if ! $(CONTAINER_CMD) info >/dev/null 2>&1; then \
-			echo "Container service not running. Starting..."; \
+		if ! $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
+			echo "Starting container service..."; \
 			$(CONTAINER_CMD) system start; \
-			sleep 2; \
-			if ! $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+			sleep 3; \
+			if ! $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
 				echo "ERROR: Failed to start container service."; \
 				exit 1; \
 			fi; \
 		fi; \
 	fi
-	@if ! $(CONTAINER_CMD) image ls | grep -q $(CONTAINER_IMAGE); then \
+	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q $(CONTAINER_IMAGE); then \
 		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
 		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
 	else \
@@ -137,7 +137,7 @@ container-clean:
 container-info:
 	@echo "Container runtime: $(CONTAINER_CMD)"
 	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-		if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+		if $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
 			echo "Container service: RUNNING"; \
 		else \
 			echo "Container service: NOT RUNNING (run 'container system start')"; \
@@ -150,7 +150,7 @@ container-info:
 		fi; \
 	fi
 	@echo "Available images:"
-	@$(CONTAINER_CMD) image ls | grep ringbuffer || echo "  (none)"
+	@$(CONTAINER_CMD) image ls --quiet | grep ringbuffer || echo "  (none)"
 
 # Build Only (no container, no tests)
 build-only:

@@ -9,7 +9,7 @@
 #include <cstring>
 
 // Error handler function (must be a plain function pointer, not a lambda)
-static int test_error_handler(size_t slot_idx, swtr::BufferStatus status) {
+static int test_error_handler(size_t slot_idx, BufferStatus status) {
     (void)slot_idx; (void)status;
     // Default: non-fatal error - pipeline continues
     return 0;
@@ -23,7 +23,8 @@ void usage(const char* prog) {
 }
 
 int main(int argc, char* argv[]) {
-    const char* output_file = nullptr;
+    const char* output_file = nullptr;  // Reserved for future file output support
+    (void)output_file;
     const char* log_file = nullptr;
     int slots = 4;
     size_t buffer_size = 4096;
@@ -61,6 +62,7 @@ int main(int argc, char* argv[]) {
         // In a real implementation, we'd open the file and store pointer
         log_stream = &std::cerr; // Simplified for now
     }
+    (void)log_stream;
     
     // Setup transform function
     std::function<void(std::vector<uint8_t>&, size_t&)> transform_fn = nullptr;
@@ -199,7 +201,7 @@ int main(int argc, char* argv[]) {
         }
         
         // Create ring buffer
-        auto rb = std::make_unique<swtr::SwtrRingBuffer>(slots, swtr::BufferStatus::readyforread, buffer_size, err_handler, transform_fn);
+        auto rb = std::make_unique<swtr::SwtrRingBuffer>(slots, BufferStatus::readyforread, buffer_size, err_handler, transform_fn);
         
         rb->set_read_fd(read_fd);
         rb->set_write_fd(write_fd);

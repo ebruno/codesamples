@@ -8,7 +8,7 @@ namespace swtr {
 void SwtrRingBuffer::do_log(LogLevel level, const std::string& message) {
     std::lock_guard<std::mutex> lock(log_mutex_);
 
-    const char* level_str;
+    const char* level_str = "[UNKNOWN]";
     switch (level) {
         case LogLevel::Trace:    level_str = "[TRACE]"; break;
         case LogLevel::Debug:    level_str = "[DEBUG]"; break;
