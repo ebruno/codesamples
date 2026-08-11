@@ -3,6 +3,13 @@
 **Implementation Directive:**
 This build specification MUST be followed exactly to ensure binary symmetry across platforms. Platform-specific deviations are permitted only for prerequisite package installation.
 
+**Build Process Consistency Mandate:** The build process MUST be identical across all Linux platforms. The only permitted differences between platform Makefiles are:
+- `CONTAINER_IMAGE` variable value (`ringbuffer_ubuntu_build`, `ringbuffer_debian_build`, etc.)
+- Working directory path in container run commands (`src/ubuntu/cpp` vs `src/debian/cpp`)
+- Host distro detection check (`ubuntu` vs `debian`)
+
+All other Makefile content — compiler flags, source file lists, build targets, artifact naming, optimization settings — MUST be byte-identical. When updating the Makefile for one platform, apply the same changes to all platforms.
+
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
 ## Platform and Container Runtime Reference

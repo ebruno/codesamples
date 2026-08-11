@@ -26,3 +26,10 @@
 **Output:**
 - The updated content of the file.
 - A brief summary of what was changed and why.
+
+## Cross-Platform Update Propagation
+After successfully updating a file in `src/ubuntu/cpp/`, you MUST:
+1. Copy the updated file to `src/debian/cpp/<filename>` (and vice versa for Debian updates).
+2. Verify byte-identity with `diff` or checksum comparison.
+3. Update `.gen_state.json` in **both** platforms with the new file fingerprint and spec hash.
+4. Log the propagation action in both `src/ubuntu/cpp/logs/functional.log` and `src/debian/cpp/logs/functional.log`.

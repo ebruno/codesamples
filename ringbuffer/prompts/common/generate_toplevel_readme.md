@@ -39,8 +39,9 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    - **Include Discipline**: `ringbuffer.hpp` first $\rightarrow$ Alphabetical Standard Headers $\rightarrow$ Local Headers.
    - **Naming**: Private members MUST use trailing underscores (`member_variable_`).
    - **Hierarchy**: `RingBuffer` $\rightarrow$ `SwtrRingBuffer`.
+   - **Platform Sync**: When updating any platform's source, build, or test artifacts, the same changes MUST be applied to all other Linux platforms. Use the cross-platform update propagation directives in `update_functional.md`, `update_build.md`, and `update_testing.md`.
 
-   **Part B: The Prompt-Driven Workflow**
+   **Part B: The Prompt-Driven Workflow
    Explain that the agent requires a valid path to the prompt file to execute the workflow.
 
    **1. Prompt-Driven Incremental Regeneration:**

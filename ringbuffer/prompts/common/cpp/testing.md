@@ -3,6 +3,14 @@
 **Implementation Directive:**
 This testing specification MUST be followed exactly to ensure that the validation process is identical across all target platforms and ensures binary symmetry.
 
+**Test Process Consistency Mandate:** The test execution process MUST be identical across all Linux platforms. When generating or updating the test suite for any platform:
+- The `tests/Makefile` MUST match across platforms, except for container image name, Dockerfile path, and report title
+- The test matrix (T001–T007) MUST be identical in parameters, expected outcomes, and execution order
+- The regression report format (both Markdown and JUnit XML) MUST be byte-identical across platforms
+- The container build → test execution → report generation workflow MUST follow the same sequence
+
+When updating tests for one platform, apply identical changes to all platforms.
+
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/testing.md`) conflict with common specs (`prompts/common/cpp/testing.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
 ## Platform and Container Runtime Reference

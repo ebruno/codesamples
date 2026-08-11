@@ -2,6 +2,14 @@
 
 **Cross-Platform Consistency Requirement:** This library is deployed across multiple Linux distributions. To ensure maintainability and binary symmetry, the source code MUST be identical across all platforms. Do not adapt the coding style, naming, or architecture to the specific distribution; follow these specifications strictly.
 
+**Cross-Platform Generation Mandate:** When generating source code for any platform, the agent MUST produce byte-identical `.cpp` and `.hpp` files across all Linux distributions (Ubuntu, Debian, Fedora). The only platform-specific artifacts are:
+- `containers/Dockerfile` (base image and package list)
+- `Makefile` (container image name, working directory path, host distro check)
+- `tests/containers/<os>/Dockerfile` (test container base image)
+- `tests/Makefile` (container image name, Dockerfile path, report title)
+
+All source code files (`*.cpp`, `*.hpp`) MUST be generated from the same canonical template. If you are generating for a new platform, copy the verified source files from an existing platform and only adjust non-source artifacts. Do NOT regenerate source code independently per platform.
+
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/functional.md`) conflict with common specs (`prompts/common/cpp/functional.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
 - Code **MUST** be C++20 compliant.

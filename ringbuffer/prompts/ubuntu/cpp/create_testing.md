@@ -44,7 +44,8 @@ Before declaring the task complete, you MUST run every item on this checklist an
 5. **Binary Format Check**: Run `file bin/test001_staticlib` — must report "ELF 64-bit" (not Mach-O).
 6. **SONAME Check**: Run `readelf -d ../lib/libswtr_ringbuffer.so | grep SONAME` — must show `Library soname: [libswtr_ringbuffer.so]`.
 7. **Container Runtime Check**: If running on macOS, verify `container` is available via `command -v container`. If not found, STOP and report the error with installation instructions.
+8. **Cross-Platform Sync**: Diff the Debian test artifacts (`src/debian/cpp/tests/Makefile`, `tests/reports/regression_report.md`, `tests/reports/regression_report_junit.xml`) against the Ubuntu equivalents. Resolve any non-platform-specific differences. The test execution flow, report format, and container workflow MUST be identical.
 
-**Tooling and Recovery:**
+**Tooling and Recovery:
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

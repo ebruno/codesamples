@@ -19,6 +19,7 @@ Please configure the build system for the Ringbuffer on Ubuntu 24.04 LTS (Linux 
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
+- **Makefile Consistency:** The generated `Makefile` MUST match the Debian Makefile exactly, except for platform-specific values (`CONTAINER_IMAGE`, working directory path, host distro check). After generating the Makefile, diff it against `src/debian/cpp/Makefile` and resolve any non-platform-specific differences.
 
 **Environment Initialization**:
 After creating the build configuration and ensuring the `Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
