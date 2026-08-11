@@ -53,9 +53,9 @@ To simplify environment setup, the `Makefile` MUST implement a `container` targe
 
 ### Container Target Checklist
 The `container` target MUST satisfy these five conditions:
-0. [ ] **Service Pre-flight**: Before any container operation, verify the runtime service is running. On macOS (`container` command), run `container info >/dev/null 2>&1`; if it fails, start the service with `container system start` and wait up to 5 seconds. On Linux (`podman`), verify with `podman info >/dev/null 2>&1`. If the service cannot be started, STOP and report.
+0. [ ] **Service Pre-flight**: Before any container operation, verify the runtime service is running. On macOS (`container` command), run `container system status 2>/dev/null | grep -q "status.*running"`; if it fails, start the service with `container system start` and wait up to 5 seconds. On Linux (`podman`), verify with `podman info >/dev/null 2>&1`. If the service cannot be started, STOP and report.
 1. [ ] **Host Detection**: Use `uname -s` to select `container` for macOS and `podman` for Linux.
-2. [ ] **Existence Check**: Use `image ls | grep` to check for the image before calling `build`.
+2. [ ] **Existence Check**: Use `image ls --quiet | grep` to check for the image before calling `build`.
 3. [ ] **Image Naming**: Use the pattern `ringbuffer_[platform]_build`.
 4. [ ] **Cleanup**: Provide a `container-clean` target that removes the image.
 

@@ -53,10 +53,22 @@ declare -A test_descriptions=(
     [T007]="Bit-inverted output"
 )
 
-# Start XML document
+# Expected exit codes per test (authoritative mapping)
+# T005 expects exit=1 (fatal error mode); all others expect exit=0
+declare -A test_expected_exit=(
+    [T001]=0
+    [T002]=0
+    [T003]=0
+    [T004]=0
+    [T005]=1
+    [T006]=0
+    [T007]=0
+)
+
+# Start XML document (attributes populated at end)
 cat > "$output_file" << 'HEADER'
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="Ringbuffer Test Suite" tests="" failures="" errors="" time="">
+<testsuites name="Ringbuffer Test Suite" tests="__TOTAL_TESTS__" failures="__TOTAL_FAILURES__" errors="__TOTAL_ERRORS__" time="__TOTAL_TIME__">
 HEADER
 
 total_tests=0
@@ -101,8 +113,9 @@ for test_num in 001 002 003 004 005 006 007; do
     exec_time_sec=$(awk "BEGIN {printf \"%.3f\", $exec_time_ms / 1000}")
     total_time_ms=$((total_time_ms + exec_time_ms))
     
-    # Determine pass/fail based on exit code
-    if [ "$exit_code" -eq 0 ]; then
+    # Determine pass/fail based on expected exit code
+    expected_exit="${test_expected_exit[$test_id]:-0}"
+    if [ "$exit_code" -eq "$expected_exit" ]; then
         # Test passed
         cat >> "$output_file" << EOF
   <testcase name="$test_id" classname="ringbuffer.test" time="$exec_time_sec">
@@ -129,6 +142,15 @@ EOF
 done
 
 # Close XML document with summary attributes
+# Replace placeholder values in the header with actual totals
+total_time_sec=$(awk "BEGIN {printf \"%.3f\", $total_time_ms / 1000}")
+# Handle sed -i portability: macOS requires backup extension, Linux does not
+if uname -s | grep -q Darwin; then
+    sed -i '' "s/__TOTAL_TESTS__/$total_tests/; s/__TOTAL_FAILURES__/$total_failures/; s/__TOTAL_ERRORS__/$total_errors/; s/__TOTAL_TIME__/$total_time_sec/" "$output_file"
+else
+    sed -i "s/__TOTAL_TESTS__/$total_tests/; s/__TOTAL_FAILURES__/$total_failures/; s/__TOTAL_ERRORS__/$total_errors/; s/__TOTAL_TIME__/$total_time_sec/" "$output_file"
+fi
+
 cat >> "$output_file" << EOF
   <system-out>Total execution time: ${total_time_ms}ms</system-out>
 </testsuites>

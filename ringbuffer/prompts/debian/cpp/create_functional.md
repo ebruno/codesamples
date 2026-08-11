@@ -15,7 +15,7 @@ Please implement the Ringbuffer for Debian 13.
 - **Strict Compliance:** Adhere strictly to the "maximum 3 functions per file" rule and the trailing underscore naming convention for private members.
 - **Location:** All generated source code and the `LICENSE` file must be placed in `ringbuffer/src/debian/cpp`.
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/debian/cpp` containing the SHA-256 hashes of the prompts used and the fingerprints of all generated files to support future incremental updates.
-- **Source Fidelity:** The generated source code MUST be byte-identical to the canonical reference implementation. Before writing any file, compare it against `ringbuffer/src/ubuntu/cpp/` (the canonical reference). If any difference is detected, investigate and resolve it. The only allowed differences are in non-source artifacts (Makefile paths, container image names).
+- **Source Fidelity:** Debian is the canonical reference implementation. Generate source code from `ringbuffer/prompts/common/cpp/functional.md` and verify all generated files against the common spec's exhaustive requirements. When Ubuntu is regenerated, it MUST copy from this Debian source to maintain byte-identical cross-platform consistency.
 
 - **Documentation Synchronization:**
     - **Generator Audit:** Review `ringbuffer/prompts/common/generate_toplevel_readme.md` to ensure the generation logic is still aligned with the current project structure. Update the generator prompt if the README's required sections or format need to change.

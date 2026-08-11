@@ -31,7 +31,7 @@ After creating the build configuration and ensuring the `Dockerfile` is in place
 Before finishing, you MUST verify and log the following:
 1. **Architecture**: Use the `file` command on both `.a` and `.so` files.
 2. **SONAME**: Use `readelf -d` on the shared library to confirm the SONAME is `libswtr_ringbuffer.so`.
-3. **Binary Size**: Use `size -m` to verify the effectiveness of dead code elimination.
+3. **Binary Size**: Use `size` to verify the effectiveness of dead code elimination. Parse the total column for the byte count.
 4. **Cleanliness**: Verify that the `clean` target removes `build/`, `lib/`, and backup files using the `$(RM)` macro.
 
 **Tooling and Recovery:**

@@ -10,6 +10,14 @@
 
 All source code files (`*.cpp`, `*.hpp`) MUST be generated from the same canonical template. If you are generating for a new platform, copy the verified source files from an existing platform and only adjust non-source artifacts. Do NOT regenerate source code independently per platform.
 
+**Cross-Platform Build/Test Synchronization Mandate:** The build and test infrastructure MUST be identical across all platforms, with only the following allowed differences:
+- Container image names (`ringbuffer_<os>_build`, `ringbuffer_<os>_test`)
+- Dockerfile paths (`containers/<os>/Dockerfile` or `tests/containers/<os>/Dockerfile`)
+- Host distro detection strings (`ubuntu`, `debian`, etc.)
+- Report titles (OS name in regression report header)
+
+All Makefile targets, test matrix definitions, verification steps, JUnit XML generation, and report formats MUST be identical. When modifying one platform's build or test infrastructure, apply the same changes to all platforms to maintain synchronization.
+
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/functional.md`) conflict with common specs (`prompts/common/cpp/functional.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
 - Code **MUST** be C++20 compliant.

@@ -166,7 +166,7 @@ The Python reference implementation in the pattern file is the ground truth. All
 **Data Validation**:
 After generation, the agent MUST verify the integrity of the data using a programmatic validator.
 
-**Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints. The script MUST use the following regular expression to validate line format: `^[0-9]{4} .{48} [0-9]{4}$`.
+**Verification Tool**: A script named `tests/utils/bin/verify_test_data.sh` MUST be implemented to programmatically validate these constraints. The script MUST use the following regular expression to validate line format: `^[0-9]{4} .{47} [0-9]{4}$`.
 
 The agent MUST verify:
 - The line counts for `test001.txt` through `test007.txt` are exactly as specified.
@@ -252,11 +252,19 @@ Test binaries must be configured to verify different linking scenarios:
 The `tests/Makefile` is the authoritative orchestrator for the test suite:
 - **`container` Target**: MUST build the `ringbuffer_<os>_test` image from the `Dockerfile` in `tests/containers/<os>/`.
 - **Invalidation Logic**: The `container` target MUST rebuild the image if the `Dockerfile` OR `version.mk` has been modified since the image was created.
+- **Container Staleness Check**: The `container` target's staleness comparison MUST reference the correct platform-specific Dockerfile path (e.g., `containers/debian/Dockerfile` for Debian, `containers/ubuntu/Dockerfile` for Ubuntu). A common mistake is copying the path from another platform — always verify the Dockerfile path matches `$(DOCKERFILE)`.
 - **`verify` Target**: MUST orchestrate the Artifact Verification, the full Test Matrix execution (capturing execution time for each test), and the generation of both:
   - A JUnit XML report at `tests/reports/regression_report_junit.xml`
   - A Markdown regression report at `tests/reports/regression_report.md` containing the audit trail (compiler and linker versions from `g++ -v` and `ld -v`) and a test results table with pass/fail status, execution time (ms), and exit codes for each test scenario.
 - **Dependency**: The `verify` target MUST depend on the library and test binaries being current.
 - **Shell Block Directives:** Inside multi-line shell blocks (lines joined with `\`), use plain `echo ""` — NOT `@echo ""`. The `@` prefix is a Make directive that only works at the top-level recipe line; inside shell blocks it is passed literally to the shell interpreter and causes `"@echo: not found"` errors. To produce blank lines inside shell blocks, use `echo ""` (without the `@` prefix).
+- **No Comments in Shell Blocks:** Inside multi-line shell blocks (lines joined with `\`), do NOT use `#` comments. The Make recipe parser treats them as part of the shell command, which can cause syntax errors. Use `echo "# comment"` if a visible comment is needed in output.
+- **Container Command Compatibility:** When using the `container` command (Apple Container on macOS), note these differences from Docker/Podman:
+  - Use `container system status` to check service health (NOT `container info`, which does not exist).
+  - Use `container image inspect <image>` to get image metadata (NOT `container inspect`, which is for containers).
+  - Use `container image ls --quiet` to list images without headers.
+  - The `--format` flag with Go template syntax (e.g., `{{.Created}}`) is NOT supported; parse JSON output instead.
+  - Image inspection returns JSON with `creationDate` field in ISO format (e.g., `"2026-08-05T23:23:38Z"`).
 - **Utility Deployment**: The `Makefile` MUST ensure that authoritative scripts from `ringbuffer/prompts/common/cpp/utils/bin/` are copied or symlinked into `tests/utils/bin/` before any generation or verification steps are performed.
   - **Host-side deployment:** Script deployment MUST be performed on the host before container execution begins (e.g., as a pre-step in `create_testing.md` or the first action of `verify`).
   - **Container fallback:** If deployment is attempted from within a container and the source path does not exist, the Makefile MUST check whether scripts already exist in `tests/utils/bin/` and skip deployment with a non-fatal warning. If no scripts exist, it MUST report an error and STOP.

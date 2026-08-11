@@ -16,8 +16,8 @@ Please implement the full testing suite for the Ringbuffer on Ubuntu 24.04 LTS (
     - Implement the required shell scripts using `/usr/bin/env` shebangs.
     - **Scripting Mandate**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
     - Implement the `verify_test_data.sh` validator script to enforce the **Strict Line Format Specification** (Length: 58, Prefix space at position 5, Suffix space at position 54).
-    - Generate the zig-zag space pattern test files (`test001.txt` to `test005.txt`).
-    - **Validation**: You MUST run the validator and log the success of all five test files.
+    - Generate the zig-zag space pattern test files (`test001.txt` to `test007.txt`).
+    - **Validation**: You MUST run the validator and log the success of all seven test files.
 4. **Test Program**: Implement the `test001` program with the full CLI interface, supporting both static and dynamic linking.
 5. **Build System**: 
     - Create a `Makefile` that supports `clean` and `dist-clean` targets.
