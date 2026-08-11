@@ -1,82 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env zsh
+# generate_test_data.zsh - Generate zig-zag pattern test data files for Ringbuffer testing
+# Usage: generate_test_data.zsh [-l lines] [output_file]
 
-# generate_test_data.sh - Generate test data with zig-zag space pattern
+set -euo pipefail
 
-usage() {
-    echo "Usage: $(basename "$0") [-l lines] [output_file]"
-    echo "Options:"
-    echo "  -l lines    Number of lines to generate. Defaults to 10."
-    echo "  -h          Display usage information."
+# Version check (Zsh 5.8+)
+major=${ZSH_VERSION%%.*}
+minor=${ZSH_VERSION#*.}
+if (( major < 5 || (major == 5 && minor < 8) )); then
+    echo "ERROR: Zsh version 5.8 or higher is required (current: $ZSH_VERSION)" >&2
     exit 1
-}
-
-LINES=10
-OUTPUT_FILE=""
-
-while getopts "l:h" opt; do
-    case "$opt" in
-        l) LINES="$OPTARG" ;;
-        h) usage ;;
-        *) usage ;;
-    esac
-done
-shift $((OPTIND-1))
-
-if [ -n "$1" ]; then
-    OUTPUT_FILE="$1"
 fi
 
-CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# Length of CHARS is 26 + 10 + 12 = 48
-# But the template says ABCE... (A is 1st, B is 2nd). 
-# The template in the prompt is "ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# Wait, it says "ABCE" (no D?). Let me check.
-# "ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# A=1, B=2, C=3, E=4... D is missing.
-# Let's just use the exact string from the prompt: "ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-S_CHARS="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-S_LEN=${#S_CHARS}
+# Defaults
+lines=10
+output_file=""
+
+# Parse options
+while getopts "l:h" opt; do
+    case $opt in
+        l) lines=$OPTARG ;;
+        h) echo "Usage: generate_test_data.zsh [-l lines] [output_file]"
+           echo "  -l lines    Number of lines to generate (default: 10)"
+           echo "  -h          Display this help message"
+           exit 0 ;;
+        *) echo "Usage: generate_test_data.zsh [-l lines] [output_file]" >&2; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [[ $# -gt 0 ]]; then
+    output_file=$1
+fi
+
+# Template string (48 characters) — authoritative ground truth
+template="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+L=${#template}
 
 generate_line() {
-    local line_num=$1
-    local seq=$(printf "%04d" "$line_num")
-    local line="$seq$S_CHARS$seq"
+    local n=$1
+    local prefix suffix
     
-    # Zig-zag space position
-    # Line 1: no space
-    # Line 2: pos 1 (0-indexed in S_CHARS, which is 'B')
-    # Line 3: pos 2 ('C')
-    # ...
-    # Line S_LEN + 1: pos S_LEN-1 ('>')
-    # Line S_LEN + 2: pos S_LEN-2
-    
-    local space_pos=-1
-    if [ "$line_num" -gt 1 ]; then
-        local offset=$((line_num - 2))
-        if [ $((offset % (2 * S_LEN))) -lt S_LEN ]; then
-            space_pos=$((offset % S_LEN))
-        else
-            space_pos=$((2 * S_LEN - 1 - (offset % (2 * S_LEN))))
-        fi
-    fi
-
-    if [ "$space_pos" -ge 0 ] && [ "$space_pos" -lt "$S_LEN" ]; then
-        # Replace char at space_pos in S_CHARS
-        local part1="${S_CHARS:0:space_pos}"
-        local part2="${S_CHARS:space_pos+1}"
-        echo "$seq$part1 $part2$seq"
+    # Format 4-digit sequence number (Zsh uses 1-based indexing)
+    if (( n < 10 )); then
+        prefix="000${n} "
+    elif (( n < 100 )); then
+        prefix="00${n} "
+    elif (( n < 1000 )); then
+        prefix="0${n} "
     else
-        echo "$line"
+        prefix="${n} "
     fi
+    
+    if (( n == 1 )); then
+        echo "${prefix}${template} ${prefix}"
+        return
+    fi
+    
+    # Calculate zig-zag position (Zsh uses 1-based indexing for strings)
+    local idx=$(( n - 2 ))
+    local cycle=$(( 2 * (L - 1) ))
+    local off=$(( idx % cycle ))
+    local i
+    
+    if (( off < L - 1 )); then
+        i=$(( off + 2 ))  # Convert to 1-based for Zsh string indexing
+    else
+        i=$(( cycle - off + 2 ))
+    fi
+    
+    # Replace character at position i with space (1-based index in Zsh)
+    local chars="${template}"
+    local prefix_part="${chars[1:$((i-1))]}"
+    local suffix_part="${chars[$((i+1)),$L]}"
+    
+    echo "${prefix}${prefix_part} ${suffix_part} ${prefix}"
 }
 
-if [ -n "$OUTPUT_FILE" ]; then
-    : > "$OUTPUT_FILE"
-    for ((i=1; i<=LINES; i++)); do
-        generate_line "$i" >> "$OUTPUT_FILE"
+# Generate output — truncate first, then append per line (avoids error messages going to data file)
+if [[ -n "$output_file" ]]; then
+    > "$output_file"  # Truncate file first
+    for (( n=1; n<=lines; n++ )); do
+        generate_line "$n" >> "$output_file"
     done
 else
-    for ((i=1; i<=LINES; i++)); do
-        generate_line "$i"
+    for (( n=1; n<=lines; n++ )); do
+        generate_line "$n"
     done
 fi

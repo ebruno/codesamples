@@ -1,4 +1,4 @@
-# Swtr Ringbuffer (Debian C++ Implementation)
+# Swtr Ringbuffer (Ubuntu C++ Implementation)
 
 ## Description
 A high-performance, fixed-size circular buffer implementation for C++20. This library provides a three-stage pipeline (Read -> Transform -> Write) with strong thread safety and cache-line alignment to prevent false sharing.
@@ -16,7 +16,7 @@ The implementation follows a strict separation of concerns:
 - `BufferSlot`: The unit of data storage, containing state and checksum information.
 
 ## Building the Library
-This library is designed to be built with GCC or Clang.
+This library is designed to be built with GCC or Clang on Ubuntu 24.04 LTS.
 
 ### Compilation Example
 ```bash

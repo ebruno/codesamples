@@ -1,40 +1,107 @@
-# Test Suite - Ringbuffer (Debian)
+# Ringbuffer Test Suite - Ubuntu
 
 ## Overview
-This directory contains the test suite for the RingBuffer implementation on Debian. It ensures functional correctness and operational constraints.
+This test suite validates the ringbuffer library implementation on Ubuntu 24.04 LTS. It includes:
+- Test data generation with zig-zag space pattern
+- Static and dynamic linking test binaries
+- Full test matrix (T001-T007) covering functional, stress, and error scenarios
+- JUnit XML report generation
 
 ## Directory Structure
-- `src/`: Test source code.
-- `data/`: Test assets.
-    - `inputs/`: Source files.
-    - `expected/`: Golden files for verification.
-- `bin/`: Compiled test binaries.
-- `containers/`: OS-specific container configurations.
-- `utils/`: Test utility scripts.
-
-## Build Process
-The test binaries are built by linking against the static and shared libraries:
-```bash
-# For static linking
-g++ -std=c++20 -I../ -o bin/test001_staticlib src/test001.cpp ../lib/libswtr_ringbuffer.a
-
-# For dynamic linking
-g++ -std=c++20 -I../ -o bin/test001_dynamiclib src/test001.cpp -L../lib -Wl,-rpath,$(pwd)/../lib -lswtr_ringbuffer
 ```
-Use `make` to build all targets.
-
-## Running Test Scenarios
-Run the test program and redirect stderr to log files:
-- **T001: Exact Match**
-  `./bin/test001_staticlib -o data/expected/t001.out data/inputs/test001.txt 2> t001.log`
-- **T002: Stress Test**
-  `./bin/test001_staticlib -o data/expected/t002.out -s 1 -b 1 data/inputs/test001.txt 2> t002.log`
-- **T003: Uppercase Transform**
-  `./bin/test001_staticlib -o data/expected/t003.out -b 10 -t 1 data/inputs/test001.txt 2> t003.log`
-
-## Container Usage
-To run tests inside the Debian container:
-```bash
-podman run --rm -v $(pwd):/app ringbuffer_debian_build sh -c "cd /app/cpp/tests && make"
+tests/
+├── src/                # Test source code (test001.cpp)
+├── data/
+│   ├── inputs/         # Input test files (test001.txt - test007.txt)
+│   └── expected/       # Expected output files for verification
+├── bin/                # Compiled test binaries
+├── logs/               # Test execution logs
+├── reports/            # JUnit XML test reports
+├── containers/ubuntu/  # Dockerfile for Ubuntu test container
+└── utils/bin/          # Utility scripts (data generation, validation)
 ```
-The `tests/containers/debian/Dockerfile` defines the build environment.
+
+## Building and Running Tests
+
+### Prerequisites
+- Ubuntu 24.04 LTS or later
+- g++ (GCC) with C++20 support
+- make
+
+### Build Test Binaries
+```bash
+make all          # Build both static and dynamic test binaries
+make static       # Build only static linking binary
+make dynamic      # Build only dynamic linking binary
+```
+
+### Run Tests
+```bash
+make verify       # Run full test matrix with artifact verification
+```
+
+### Example Test Scenarios
+
+**T001 - Exact match with input (4 slots, 4096 bytes):**
+```bash
+./bin/test001_staticlib -s 4 -b 4096 -t 0 -e 0 data/inputs/test001.txt > data/expected/t001.out 2> logs/t001.log
+```
+
+**T002 - Stress test (1 slot, 1 byte):**
+```bash
+./bin/test001_staticlib -s 1 -b 1 -t 0 -e 0 data/inputs/test001.txt > data/expected/t002.out 2> logs/t002.log
+```
+
+**T003 - Uppercase transform:**
+```bash
+./bin/test001_staticlib -s 4 -b 10 -t 1 -e 0 data/inputs/test001.txt > data/expected/t003.out 2> logs/t003.log
+```
+
+## Container Support
+
+### Building the Test Container
+```bash
+make container    # Build ringbuffer_ubuntu_test image
+```
+
+### Running Tests in Container
+```bash
+container run --rm -v $(pwd):/app ringbuffer_ubuntu_test sh -c "cd /app && make verify"
+```
+
+### Cleaning Container
+```bash
+make container-clean    # Remove test container image
+```
+
+## Test Matrix
+
+| Test ID | Description | Slots | Size | Transform | Error | Expected |
+|---------|-------------|-------|------|-----------|-------|----------|
+| T001 | Exact match with input | 4 | 4096 | None (0) | No error (0) | Output matches input |
+| T002 | Stress test | 1 | 1 | None (0) | No error (0) | Exact match with minimal resources |
+| T003 | Uppercase transform | 4 | 10 | Uppercase (1) | No error (0) | All characters uppercase |
+| T004 | Fast EOF termination | 4 | 4096 | None (0) | No error (0) | Input < 1 slot, fast EOF |
+| T005 | Fatal error handling | 4 | 4096 | None (0) | Fatal (1) | Pipeline stops, exit code 1 |
+| T006 | Non-fatal error handling | 4 | 4096 | None (0) | Non-fatal (2) | Pipeline continues, exit code 0 |
+| T007 | Bit-inverted output | 4 | 4096 | XOR 0xFF (2) | No error (0) | Bit-inverted output |
+
+## Utility Scripts
+
+### Generate Test Data
+```bash
+./utils/bin/generate_test_data.sh -l 25 data/inputs/test001.txt
+./utils/bin/generate_test_data.sh -l 50 data/inputs/test002.txt
+# ... up to test007.txt (250 lines)
+```
+
+### Validate Test Data
+```bash
+./utils/bin/verify_test_data.sh data/inputs/test001.txt
+```
+
+## Clean Up
+```bash
+make clean        # Remove test binaries and logs
+make dist-clean   # Full cleanup including reports directory
+```

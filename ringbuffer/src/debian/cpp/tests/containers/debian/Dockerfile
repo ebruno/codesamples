@@ -1,23 +1,15 @@
 FROM debian:13
 
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    binutils \
-    make \
-    cmake \
-    doxygen \
-    clang \
-    clang-tidy \
-    clang-format \
-    procps \
-    coreutils \
-    findutils \
-    which \
-    file \
-    strace \
-    emacs-nox \
-    patchelf \
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gcc g++ binutils make \
+        cmake cmake-data cmake-doc dh-cmake debhelper devscripts doxygen \
+        clang clang-tidy clang-format \
+        procps coreutils findutils which file strace emacs-nox patchelf \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Verify toolchain
+RUN g++ --version && make --version

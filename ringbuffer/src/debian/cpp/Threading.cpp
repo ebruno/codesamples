@@ -1,14 +1,13 @@
 #include "ringbuffer.hpp"
 #include <mutex>
 #include <thread>
-#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
 void SwtrRingBuffer::start() {
     std::lock_guard<std::mutex> lock(sync_mutex_);
-    
+
     // Start threads in order: Write, Transform, Read
     if (!write_thread_.joinable()) {
         write_thread_ = std::jthread([this](std::stop_token st) { write_loop(st); });
