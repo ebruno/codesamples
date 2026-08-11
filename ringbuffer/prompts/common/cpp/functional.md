@@ -4,9 +4,9 @@
 
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/functional.md`) conflict with common specs (`prompts/common/cpp/functional.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
-- Code should be C++20 compliant.
-- Code should use `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
-- Code should be buildable using both clang and gcc tool chains.
+- Code **MUST** be C++20 compliant.
+- Code **MUST** use `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
+- Code **MUST** be buildable using both clang and gcc tool chains.
 - A ring buffer (also called a circular buffer) is a fixed-size, first-in-first-out (FIFO) data structure that connects its memory end-to-end in a loop. It uses a read pointer and a write pointer that wrap around to the start of the array when they reach the end.
 - Fixed Array: A pre-allocated block of memory that never changes size.
 - The `BufferSlot` structure MUST be defined exactly as:
@@ -26,8 +26,10 @@
     - `buffer_idx`, `max_data_buffer_size`, and `data` are **non-atomic** — they are set once during slot construction and never modified afterward.
     - `status`, `data_buffer_size`, `transformed_data_buffer_size`, `checksum_alg`, and `checksum_val` are **atomic** — they are modified by pipeline threads and must be accessed via `.load()` / `.store()`.
   
+  **Negative Constraint**: Do NOT make any member atomic unless the `BufferSlot` struct definition explicitly wraps it in `std::atomic<T>`. The comments `// non-atomic` are binding, not advisory. Every atomic member MUST use `.load()` and `.store()` for access; every non-atomic member uses direct read/write.
+  
 - **Exact Enum Definitions**:
-    - `BufferStatus` MUST be defined exactly as (with explicit integer values for ABI stability):
+    - `BufferStatus` MUST be defined exactly as (with explicit `int` backing type — signed, not unsigned — for ABI stability):
       ```cpp
       enum class BufferStatus : int {
           readyforread = 0,
@@ -46,7 +48,7 @@
           STATUS_ERROR = 13
       };
       ```
-    - `ChecksumAlgorithm` MUST be defined exactly as (with explicit integer values for ABI stability):
+    - `ChecksumAlgorithm` MUST be defined exactly as (with explicit `int` backing type — signed, not unsigned — for ABI stability):
       ```cpp
       enum class ChecksumAlgorithm : int {
           NONE = 0,
@@ -55,7 +57,7 @@
           SHA512 = 3
       };
       ```
-    - `LogLevel` MUST be defined exactly as (with explicit integer values for ABI stability):
+    - `LogLevel` MUST be defined exactly as (with explicit `int` backing type — signed, not unsigned — for ABI stability):
       ```cpp
       enum class LogLevel : int {
           Trace = 0,
@@ -114,8 +116,15 @@ enum class LogLevel : int {
     Critical = 5
 };
 ```
+
+**Enum Value Completeness Rule**: Every enum value in every enum MUST have an explicit `= N` assignment. No implicit incrementing is allowed anywhere.
+
+**Global Namespace Rule for Enums**: Enums in `status.hpp` are at **global scope** (no namespace wrapper). They are NOT inside `namespace swtr`. Only the abstract class, type aliases, and implementation classes belong in `namespace swtr`.
+
 - `status.hpp` MUST be self-sufficient with only `<cstdint>` as a standard include.
 - `status.hpp` MUST use `#pragma once` for include guards.
+
+**Global Include Guard Rule**: All `.hpp` files in the project MUST use `#pragma once` — never `#ifndef`/`#define`/`#endif` guards. This applies to every header file without exception.
 
 ## Abstract Base Class
 - The `RingBuffer` abstract class MUST be defined as:
@@ -227,6 +236,8 @@ private:
     std::atomic<size_t> read_index_;
     std::atomic<size_t> write_index_;
 
+    **Index Count Constraint**: The class has exactly **two** index counters: `read_index_` and `write_index_`. Do NOT add any additional index members (e.g., no `transform_idx_`).
+
     // File descriptors (atomic for cross-thread access)
     std::atomic<int> read_fd_;
     std::atomic<int> write_fd_;
@@ -263,6 +274,8 @@ private:
     std::mutex log_mutex_;
 };
 ```
+
+**Exhaustive Member List Rule**: The member variable list shown above is exhaustive. Every listed member MUST be present in the implementation class, even if not directly referenced by a virtual method signature. Do NOT omit any listed member and do NOT add members not shown.
 
 **Initialization rules**:
 - `read_index_` and `write_index_` MUST be initialized to `0`.
@@ -347,6 +360,9 @@ To maintain a clean and predictable compilation environment, all source files mu
   constexpr size_t MIN_NUMBER_SLOTS = 1;
   constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
   ```
+
+**Constexpr Placement Rule**: These constexprs are declared at **namespace scope** in `ringbuffer.hpp`, outside the class. The `SwtrRingBuffer` member variable section below must NOT re-declare them as static class members.
+
 - **Constructor Signature** (exact parameter order with defaults):
   ```cpp
   SwtrRingBuffer(
@@ -416,9 +432,13 @@ The following virtual functions MUST be implemented exactly as specified. Do not
 - `test_*` methods MUST perform an equality check using `.load()` on the atomic member and compare against the argument:
   ```cpp
   bool test_status(size_t slot_idx, BufferStatus status) const override {
+      if (slot_idx >= num_slots_) { handle_error(slot_idx, BufferStatus::STATUS_ERROR); return BufferStatus::STATUS_ERROR; }
       return slots_[slot_idx]->status.load() == status;
   }
   ```
+
+**Bounds Checking Pattern**: Every accessor must validate `slot_idx < num_slots_` before accessing `slots_[slot_idx]`. Use the pattern shown above: check bounds, call `handle_error()` on violation, return a safe default. Do NOT use modulo wrapping (`slot_idx % slots_.size()`) as a substitute for validation.
+
 - All accessor methods MUST validate `slot_idx < num_slots_` and call the error handler if out of bounds.
 
 ## Implementation Logic
