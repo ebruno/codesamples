@@ -6,6 +6,8 @@ This testing specification MUST follow the common testing specification exactly 
 Refer to the following document for all shared requirements, data generation, and test matrices:
 [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md)
 
+Refer to [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md) for the Platform and Container Runtime Reference before planning any test operation.
+
 **Platform Specifics:**
 - **Containerized Build Environment**:
     - **Base Image**: `debian:13`.

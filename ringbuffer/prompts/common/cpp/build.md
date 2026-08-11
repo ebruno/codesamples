@@ -5,6 +5,24 @@ This build specification MUST be followed exactly to ensure binary symmetry acro
 
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
+## Platform and Container Runtime Reference
+
+**Native-Only Platforms** (no container support):
+- **macOS**: All builds and tests run natively on the host. Containers are prohibited.
+- **FreeBSD** (any version): All builds and tests run natively on the host. Containers are prohibited.
+
+**Container-Supported Platforms** (Linux distributions):
+- **Fedora**, **Ubuntu**, **Debian**, **RHEL**, **ArchLinux**: Builds and tests run in containers when the host OS does not match the target OS.
+
+**Container Runtime Selection**:
+- **macOS hosts**: Use the `container` command (Apple Container). Docker (`docker`) is NOT allowed.
+- **Linux hosts**: Use `podman`. Docker (`docker`) is NOT allowed.
+
+**Host-Target Rule**:
+- If the host OS matches the target OS (e.g., Fedora build on a Fedora host), native execution is permitted.
+- If the host OS does not match the target OS (e.g., macOS build targeting Ubuntu), a container matching the target OS MUST be used.
+- If the target is macOS or FreeBSD, containers are NEVER used regardless of host OS.
+
 ## Toolchain Requirements
 - **Shell Scripting Mandate**:
   - **Language Selection**:

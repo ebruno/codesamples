@@ -6,6 +6,8 @@ This testing specification MUST follow the common testing specification exactly 
 Refer to the following document for all shared requirements, data generation, and test matrices:
 [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md)
 
+Refer to [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md) for the Platform and Container Runtime Reference before planning any test operation.
+
 **Platform Specifics:**
 - **Host Verification**: Build and test prompts may only be executed if the generating host is macOS and the target OS is macOS. Verify the host OS using the `sw_vers --productName` command (must return "macOS").
 - **No Container Support**: macOS builds must run natively on a macOS host. There is no container target for the macOS Makefile — do not attempt to use containers or cross-compile. The `sw_vers --productName` check above enforces this constraint.
