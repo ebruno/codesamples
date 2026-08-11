@@ -126,78 +126,34 @@ To avoid pathing ambiguity across different environments, the following standard
 
 ## Artifact Verification
 Before running functional tests, the build artifacts must be verified to ensure they meet the "Small Binary" and Toolchain goals:
-- **Architecture**: Use the `file` command to verify the binary architecture (e.g., x86-64).
-- **SONAME**: Use `readelf -d <so>` to verify that the SONAME is set to `libswtr_ringbuffer.so`.
-- **Binary Size**: Use `size -m <artifact>` to verify that dead code elimination has reduced the binary size to the expected baseline.
+- **Architecture**: Use `file -L` (with the `-L` flag to follow symlinks) on both `.a` and `.so` artifacts to verify the binary architecture. The `-L` flag is required because unversioned library names are symbolic links to versioned artifacts.
+- **SONAME**: Use `readelf -d <so>` (or `readelf -d <versioned.so>`) to verify that the SONAME is set to `libswtr_ringbuffer.so`. When using unversioned symlinks, use `readelf -d -L` to follow the symlink.
+- **Binary Size**: Use `size <artifact>` on Linux or `size -m <artifact>` on macOS to verify that dead code elimination has reduced the binary size. The `-m` flag (megabyte output) is a macOS/BSD extension not supported on Linux. The verification step MUST detect the host OS and use the appropriate flag:
+  ```bash
+  if [ "$(uname -s)" = "Darwin" ]; then size -m "$artifact"; else size "$artifact"; fi
+  ```
 - **Symbol Visibility**: Use `nm -gjU <artifact>` to verify that internal symbols are hidden and that the public API is strictly limited to the intended interface.
 
 ## Test Data Generation
-After the test utility scripts are created, the following 7 test files MUST be generated in `tests/data/inputs/` (named `test001.txt` through `test007.txt`) using the zig-zag space pattern:
-- `test001.txt`: 25 lines
-- `test002.txt`: 50 lines
-- `test003.txt`: 75 lines
-- `test004.txt`: 100 lines
-- `test005.txt`: 150 lines
-- `test006.txt`: 200 lines
-- `test007.txt`: 250 lines
+After the test utility scripts are created, the following 7 test files MUST be generated in `tests/data/inputs/` (named `test001.txt` through `test007.txt`) using the pattern defined in the common testing patterns directory.
 
-**Generation Tool Selection**:
+**Pattern Specification:**
+The authoritative pattern specification is located at `ringbuffer/prompts/common/testing/patterns/zigzag.md`. This file contains:
+- The template string (48 characters)
+- Line format constraints (prefix, payload, suffix, total length)
+- The zig-zag space position algorithm
+- Python reference implementation (ground truth for all shell variants)
+- Validation regex: `^[0-9]{4} .{47} [0-9]{4}$`
+- Test file line counts (T001=25, T002=50, T003=75, T004=100, T005=150, T006=200, T007=250)
+- JUnit test matrix with expected exit codes
+
+**Generation Tool Selection:**
 The authoritative scripts are located in `ringbuffer/prompts/common/cpp/utils/bin/`. They MUST be deployed to `tests/utils/bin/` during environment setup.
 - **Linux (Fedora, Debian, etc.)**: Use the `tests/utils/bin/generate_test_data.sh` script.
 - **Darwin/macOS**: Use the `tests/utils/bin/generate_test_data.zsh` script.
 
-**Format and Character Set Specification**:
-To ensure binary symmetry and prevent generation errors, all input files MUST adhere to these exact constraints:
-- **Literal Character Set**: The internal template string MUST be exactly: `"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"`. Do not omit any characters or add any others.
-- **Strict Line Format**: Every line MUST follow this exact format: `[4-digit sequence] [single space] [48-char payload] [single space] [4-digit sequence]`.
-- **Total Line Length**: Exactly 58 characters (excluding the newline). This is achieved by: 4 digits $\rightarrow$ 1 space $\rightarrow$ exactly 48 characters of template/modified content $\rightarrow$ 1 space $\rightarrow$ 4 digits.
-- **Prefix**: Characters 1-4 must be digits, and character 5 MUST be a space.
-- **Suffix**: Character 54 MUST be a space, and characters 55-58 must be digits.
-- **Internal Template**: The template content must occupy characters 6 through 53.
-
-**Pattern Specification**:
-1. Template line: `NNNN ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<> NNNN`
-2. `NNNN` is a 4-digit sequence number starting at `0001` and incrementing per line.
-3. **Space Position Logic**:
-   - Let $L$ be the length of the internal template string.
-   - For line $n=1$, no space is inserted.
-   - For line $n > 1$, calculate a 0-based index $i$ into the template:
-     - Let $idx = n - 2$.
-     - Let $cycle = 2 \times (L - 1)$.
-     - Let $off = idx \pmod{cycle}$.
-     - If $off < L - 1$, then $i = off + 1$. Otherwise, $i = cycle - off$.
-   - Replace the character at index $i$ with a space.
-
-**Reference Implementation (Python)**:
-The following Python script serves as the ground truth for the zig-zag pattern. Shell implementations MUST produce identical output:
-
-```python
-def generate_zigzag_line(n: int) -> str:
-    """Generate a single zig-zag test data line."""
-    template = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-    prefix = f"{n:04d} "
-    suffix = f" {n:04d}"
-    
-    if n == 1:
-        return prefix + template + suffix
-    
-    L = len(template)
-    idx = n - 2
-    cycle = 2 * (L - 1)
-    off = idx % cycle
-    
-    if off < L - 1:
-        i = off + 1
-    else:
-        i = cycle - off
-    
-    chars = list(template)
-    chars[i] = ' '
-    return prefix + ''.join(chars) + suffix
-```
-
-To generate all test files, call `generate_zigzag_line(n)` for each line number $n$ from 1 to the desired count.
-4. This ensures the space zig-zags from the 2nd character to the last character and back.
+**Cross-Platform Consistency:**
+The Python reference implementation in the pattern file is the ground truth. All shell script variants (Bash, Zsh, Tcsh, Bourne) MUST produce byte-identical output. The `create_scripts.md` prompt in `ringbuffer/prompts/common/testing/` governs the creation and updating of these scripts.
 
 **Data Validation**:
 After generation, the agent MUST verify the integrity of the data using a programmatic validator.
@@ -219,6 +175,7 @@ The agent MUST verify:
   - **Tcsh**: Version **6.22** or higher.
 - **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. Use shell-native version variables. For Zsh, extract the major and minor versions using parameter expansion (e.g., `major=${ZSH_VERSION%%.*}` and `minor=${ZSH_VERSION#*.}`) and perform numeric comparisons to enforce the minimum version. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
 - **Implementation Style**: MUST use shell built-ins (parameter expansion, arrays, and redirection) for all data processing, file reading, and line counting. The use of external programs (e.g., `wc`, `sed`, `awk`, `cut`, `grep`, `cat`) is strictly prohibited for these tasks to ensure maximum portability and performance.
+  - **Exception**: Tcsh and POSIX Bourne shell lack native string manipulation capabilities. Scripts for these shells may use `expr` and `cut` as a necessary compromise — the built-ins-only rule cannot be met in pure Tcsh or POSIX sh. Scripts using these exceptions MUST include a comment noting this limitation.
 - **Shell-Specific Idioms**: 
     - When implementing for **Zsh**, be mindful that string and array indexing is **1-based** by default.
     - Use shell-native string replacement or array assignment to modify specific characters in the template string.
@@ -235,11 +192,14 @@ The following scripts must be provided to automate the generation of test data a
 - Bourne shell script: `tests/utils/bin/generate_test_data_bin_sh.sh`
 - JUnit XML Generator: `tests/utils/bin/generate_junit_report.sh`
 
+**Execute Permission:** All utility scripts MUST be created with execute permission (`chmod +x`). Every script file placed in `tests/utils/bin/` must have the executable bit set before any test execution begins.
+
 **JUnit Report Generation Requirements**:
 The `generate_junit_report.sh` script must:
-1. Parse the test results (exit codes and logs) from the `logs/` directory.
-2. Capture the execution time for each test scenario.
-3. Generate a `regression_report_junit.xml` in `tests/reports/` following the mandated JUnit XML structure.
+1. Parse the test results from companion `.exit` files (e.g., `T001.exit`) for pass/fail determination, and `.time` files (e.g., `T001.time`) for per-test execution time. Fall back to log file pattern matching (`grep -q "ERROR:"` / `grep -q "FAIL"`) if companion files are absent.
+2. **Expected Exit Codes:** Maintain an authoritative mapping of expected exit codes per test ID (e.g., T005 expects exit code 1 for fatal error mode). Pass/fail determination MUST compare the actual exit code against the expected one — a test passes when `actual_exit_code == expected_exit_code`. Do NOT treat all non-zero exit codes as failures.
+3. Capture the execution time for each test scenario from `.time` files, with millisecond precision.
+4. Generate a `regression_report_junit.xml` in `tests/reports/` following the mandated JUnit XML structure, including per-test `<testcase time="...">` attributes and a `<system-out>` summary with total execution time.
 
 **Scripting Standards**:
 - **Arithmetic**: For all numeric comparisons and calculations in Bash/Zsh, use the double-parentheses syntax `(( ... ))` (e.g., `if (( line_num > 1 )); then`) instead of the POSIX `[ ]` bracket syntax to avoid integer expression errors.
@@ -259,7 +219,7 @@ Each of the following scripts must be documented (via usage messages and/or comm
     - `-h`: Display usage information.
 - **Arguments**:
     - `output_file`: Optional. If specified, the output is written to this file. If omitted, output is printed to `stdout`.
-- **Output Handling**: If an `output_file` is specified, the script MUST overwrite the existing file (truncate) using `>` or `exec >` and MUST NOT use the append operator `>>` for the primary output. This ensures that subsequent runs of the generator do not result in files with incorrect line counts.
+- **Output Handling**: If an `output_file` is specified, the script MUST first truncate the file using `> "$output_file"`, then append generated lines using `>>`. The `exec >` form is discouraged because it redirects all stdout (including error messages) into the data file. This two-step pattern ensures that subsequent runs of the generator do not result in files with incorrect line counts and that error messages are never captured in data files.
 - **Logic**: Must implement the zig-zag space pattern described in the "Test Data Generation" section.
 
 ## Test Binary Build Requirements
@@ -284,9 +244,14 @@ Test binaries must be configured to verify different linking scenarios:
 The `tests/Makefile` is the authoritative orchestrator for the test suite:
 - **`container` Target**: MUST build the `ringbuffer_<os>_test` image from the `Dockerfile` in `tests/containers/<os>/`.
 - **Invalidation Logic**: The `container` target MUST rebuild the image if the `Dockerfile` OR `version.mk` has been modified since the image was created.
-- **`verify` Target**: MUST orchestrate the Artifact Verification, the full Test Matrix execution (capturing execution time for each test), and the generation of the JUnit XML report in `tests/reports/regression_report_junit.xml`.
+- **`verify` Target**: MUST orchestrate the Artifact Verification, the full Test Matrix execution (capturing execution time for each test), and the generation of both:
+  - A JUnit XML report at `tests/reports/regression_report_junit.xml`
+  - A Markdown regression report at `tests/reports/regression_report.md` containing the audit trail (compiler and linker versions from `g++ -v` and `ld -v`) and a test results table with pass/fail status, execution time (ms), and exit codes for each test scenario.
 - **Dependency**: The `verify` target MUST depend on the library and test binaries being current.
+- **Shell Block Directives:** Inside multi-line shell blocks (lines joined with `\`), use plain `echo ""` — NOT `@echo ""`. The `@` prefix is a Make directive that only works at the top-level recipe line; inside shell blocks it is passed literally to the shell interpreter and causes `"@echo: not found"` errors. To produce blank lines inside shell blocks, use `echo ""` (without the `@` prefix).
 - **Utility Deployment**: The `Makefile` MUST ensure that authoritative scripts from `ringbuffer/prompts/common/cpp/utils/bin/` are copied or symlinked into `tests/utils/bin/` before any generation or verification steps are performed.
+  - **Host-side deployment:** Script deployment MUST be performed on the host before container execution begins (e.g., as a pre-step in `create_testing.md` or the first action of `verify`).
+  - **Container fallback:** If deployment is attempted from within a container and the source path does not exist, the Makefile MUST check whether scripts already exist in `tests/utils/bin/` and skip deployment with a non-fatal warning. If no scripts exist, it MUST report an error and STOP.
 
 ## Test Program Interface (`test001`)
 The test program must support the following command-line interface:

@@ -113,9 +113,9 @@ If using GNU Make, the following targets MUST be implemented:
 5. **Linking — Shared Library**: Link the object files into a shared object (`.so`) using the `-shared` flag and appropriate `-Wl,-soname` setting.
 6. **Deployment**: Place the output artifacts in the `./lib` directory. Create symbolic links from the unversioned names to the versioned artifacts using relative paths.
 7. **Verification**: 
-    - Verify the binary architecture using the `file` command on both the `.a` and `.so`.
+    - Verify the binary architecture using `file -L` (with the `-L` flag to follow symlinks) on both `.a` and `.so`. The `-L` flag is required because unversioned library names are symbolic links to versioned artifacts.
     - Verify the shared library SONAME using `readelf -d <so>` (must contain `SONAME [libswtr_ringbuffer.so]`).
-    - Verify the final binary size using `size -m`.
+    - Verify the final binary size using a platform-aware command: `size -m <artifact>` on macOS or `size <artifact>` on Linux. The `-m` flag is a macOS/BSD extension not supported on Linux.
 8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `./lib/` directories, as well as any backup files (`*~` and `#*#`) using `$(RM)`.
 
 

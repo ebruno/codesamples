@@ -68,6 +68,43 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
      - `ringbuffer/prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
        - *Syntax Example:* `"Use ringbuffer/prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
 
+   **3. Test Data Pattern System:**
+   The Ringbuffer project uses a **pattern-driven** approach to test data generation. Instead of hardcoding pattern logic into each script, patterns are defined in standalone specification files that serve as the single source of truth. This ensures binary symmetry across all platforms and languages.
+
+   - **Pattern files** live in `ringbuffer/prompts/common/testing/patterns/`. Each file defines:
+     - The template string (48 characters)
+     - Line format (prefix, payload, suffix structure)
+     - The transformation algorithm (e.g., zig-zag space position)
+     - A Python reference implementation (ground truth for all shell variants)
+     - Validation regex, test file line counts, and JUnit test matrix
+   - **The `create_scripts.md` prompt** reads a pattern file and generates utility scripts in four shell languages (Bash, Zsh, Tcsh, Bourne) that produce byte-identical output.
+   - **Scripts are deployed** to each platform's `tests/utils/bin/` directory during test environment setup.
+
+   **Directory Structure:**
+   ```
+   ringbuffer/prompts/common/testing/
+   ├── create_scripts.md          ← workflow prompt for generating scripts
+   └── patterns/
+       ├── README.md              ← instructions + copy-paste template for new patterns
+       └── zigzag.md              ← the default zig-zag pattern (also the only one)
+   ```
+
+   **Usage Examples:**
+
+   - **Generate scripts from the default pattern:**
+     - *Prompt:* `ringbuffer/prompts/common/testing/create_scripts.md`
+     - *Syntax Example:* `"Use ringbuffer/prompts/common/testing/create_scripts.md to create utility scripts from the zigzag pattern"`
+
+   - **Update scripts after modifying a pattern:**
+     - *Prompt:* `ringbuffer/prompts/common/testing/create_scripts.md`
+     - *Syntax Example:* `"Use ringbuffer/prompts/common/testing/create_scripts.md to update the utility scripts. The pattern file is at ringbuffer/prompts/common/testing/patterns/zigzag.md"`
+
+   - **Create a new pattern and generate scripts:**
+     - *Syntax Example:* `"Create a new test data pattern at ringbuffer/prompts/common/testing/patterns/sequential.md with template '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()<>', sequential numbering, and validation regex '^[0-9]{4} .{47} [0-9]{4}$'. Then generate the utility scripts."`
+
+   - **Verify generated scripts match the Python reference:**
+     - *Syntax Example:* `"Use ringbuffer/prompts/common/testing/create_scripts.md to regenerate scripts from zigzag.md and verify all shell variants produce byte-identical output against the Python reference implementation"`
+
 4. **Platforms Table Requirements**:
    - **Values**: 
     - Use the version string (e.g., `v1.0.0` or `WIP v0.1.0`) derived from `version.mk` if it exists.

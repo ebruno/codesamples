@@ -9,27 +9,192 @@
 - Code should be buildable using both clang and gcc tool chains.
 - A ring buffer (also called a circular buffer) is a fixed-size, first-in-first-out (FIFO) data structure that connects its memory end-to-end in a loop. It uses a read pointer and a write pointer that wrap around to the start of the array when they reach the end.
 - Fixed Array: A pre-allocated block of memory that never changes size.
-- The `BufferSlot` structure must include:
-    - `buffer_idx` (index of the slot)
-    - `status` (BufferStatus)
-    - `max_data_buffer_size`
-    - `data_buffer_size`
-    - `transformed_data_buffer_size`
-    - `checksum_alg` (ChecksumAlgorithm)
-    - `checksum_val` (uint32_t)
-    - `data` (the internal data buffer)
+- The `BufferSlot` structure MUST be defined exactly as:
+  ```cpp
+  struct BufferSlot {
+      size_t buffer_idx;                                    // non-atomic: slot index
+      std::atomic<BufferStatus> status;                     // atomic: current buffer state
+      size_t max_data_buffer_size;                          // non-atomic: maximum capacity
+      std::atomic<size_t> data_buffer_size;                 // atomic: current bytes in data buffer
+      std::atomic<size_t> transformed_data_buffer_size;     // atomic: current bytes in transformed buffer
+      std::atomic<ChecksumAlgorithm> checksum_alg;          // atomic: algorithm used for checksum
+      std::atomic<uint32_t> checksum_val;                   // atomic: computed checksum value
+      std::vector<uint8_t> data;                            // non-atomic: internal data buffer (raw bytes)
+  };
+  ```
+  **Atomic vs Non-atomic distinction**:
+    - `buffer_idx`, `max_data_buffer_size`, and `data` are **non-atomic** — they are set once during slot construction and never modified afterward.
+    - `status`, `data_buffer_size`, `transformed_data_buffer_size`, `checksum_alg`, and `checksum_val` are **atomic** — they are modified by pipeline threads and must be accessed via `.load()` / `.store()`.
   
 - **Exact Enum Definitions**:
-    - `BufferStatus` MUST be defined exactly as: `readyforread`, `readyfortransform`, `readyforwrite`, `processing_read`, `processing_transform`, `processing_write`, `empty`, `full`, `LAST_BUFFER_TO_TRANSFORM`, `LAST_BUFFER_TO_WRITE`, `pending_read`, `pending_transform`, `pending_write`, `STATUS_ERROR` (index 13).
-    - `ChecksumAlgorithm` MUST be defined exactly as: `NONE`, `MD5`, `SHA256`, `SHA512`.
+    - `BufferStatus` MUST be defined exactly as (with explicit integer values for ABI stability):
+      ```cpp
+      enum class BufferStatus : int {
+          readyforread = 0,
+          readyfortransform = 1,
+          readyforwrite = 2,
+          processing_read = 3,
+          processing_transform = 4,
+          processing_write = 5,
+          empty = 6,
+          full = 7,
+          LAST_BUFFER_TO_TRANSFORM = 8,
+          LAST_BUFFER_TO_WRITE = 9,
+          pending_read = 10,
+          pending_transform = 11,
+          pending_write = 12,
+          STATUS_ERROR = 13
+      };
+      ```
+    - `ChecksumAlgorithm` MUST be defined exactly as (with explicit integer values for ABI stability):
+      ```cpp
+      enum class ChecksumAlgorithm : int {
+          NONE = 0,
+          MD5 = 1,
+          SHA256 = 2,
+          SHA512 = 3
+      };
+      ```
+    - `LogLevel` MUST be defined exactly as (with explicit integer values for ABI stability):
+      ```cpp
+      enum class LogLevel : int {
+          Trace = 0,
+          Debug = 1,
+          Info = 2,
+          Warning = 3,
+          Error = 4,
+          Critical = 5
+      };
+      ```
 
 ## Mandatory Type Definitions
 - `ErrorHandler` MUST be defined as: `using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);`
 - `TransformFn` MUST be defined as: `using TransformFn = std::function<void(std::vector<uint8_t>&, size_t&)>;`
-- `BufferSlot` members `buffer_idx`, `status`, `max_data_buffer_size`, `data_buffer_size`, `transformed_data_buffer_size`, `checksum_alg`, and `checksum_val` MUST all be `std::atomic`.
+- `BufferSlot` members `buffer_idx`, `max_data_buffer_size`, and `data` are **non-atomic**. Members `status`, `data_buffer_size`, `transformed_data_buffer_size`, `checksum_alg`, and `checksum_val` are **atomic**.
+
+## Status Header (`status.hpp`)
+The file `status.hpp` MUST contain exactly the three enum definitions (in this order):
+```cpp
+#pragma once
+#include <cstdint>
+
+// BufferStatus enum (14 values, explicit integer types for ABI stability)
+enum class BufferStatus : int {
+    readyforread = 0,
+    readyfortransform = 1,
+    readyforwrite = 2,
+    processing_read = 3,
+    processing_transform = 4,
+    processing_write = 5,
+    empty = 6,
+    full = 7,
+    LAST_BUFFER_TO_TRANSFORM = 8,
+    LAST_BUFFER_TO_WRITE = 9,
+    pending_read = 10,
+    pending_transform = 11,
+    pending_write = 12,
+    STATUS_ERROR = 13
+};
+
+// ChecksumAlgorithm enum (4 values)
+enum class ChecksumAlgorithm : int {
+    NONE = 0,
+    MD5 = 1,
+    SHA256 = 2,
+    SHA512 = 3
+};
+
+// LogLevel enum (6 values)
+enum class LogLevel : int {
+    Trace = 0,
+    Debug = 1,
+    Info = 2,
+    Warning = 3,
+    Error = 4,
+    Critical = 5
+};
+```
+- `status.hpp` MUST be self-sufficient with only `<cstdint>` as a standard include.
+- `status.hpp` MUST use `#pragma once` for include guards.
+
+## Abstract Base Class
+- The `RingBuffer` abstract class MUST be defined as:
+  ```cpp
+  namespace swtr {
+      class RingBuffer {
+      public:
+          virtual ~RingBuffer() = default;
+
+          // Thread control
+          virtual void start() = 0;
+          virtual void stop() = 0;
+          virtual void wait() = 0;
+
+          // Configuration
+          virtual void set_read_fd(int fd) = 0;
+          virtual void set_write_fd(int fd) = 0;
+
+          // Logging
+          virtual void set_logging_enabled(bool enabled) = 0;
+          virtual bool get_logging_enabled() const = 0;
+          virtual void set_output_stream(std::ostream& stream) = 0;
+          virtual std::ostream* get_output_stream() const = 0;
+          virtual void set_read_logging_enabled(bool enabled) = 0;
+          virtual bool get_read_logging_enabled() const = 0;
+          virtual void set_read_verbosity(LogLevel level) = 0;
+          virtual LogLevel get_read_verbosity() const = 0;
+          virtual void set_transform_logging_enabled(bool enabled) = 0;
+          virtual bool get_transform_logging_enabled() const = 0;
+          virtual void set_transform_verbosity(LogLevel level) = 0;
+          virtual LogLevel get_transform_verbosity() const = 0;
+          virtual void set_write_logging_enabled(bool enabled) = 0;
+          virtual bool get_write_logging_enabled() const = 0;
+          virtual void set_write_verbosity(LogLevel level) = 0;
+          virtual LogLevel get_write_verbosity() const = 0;
+
+          // Accessors
+          virtual BufferStatus get_status(size_t slot_idx) const = 0;
+          virtual void set_status(size_t slot_idx, BufferStatus status) = 0;
+          virtual bool test_status(size_t slot_idx, BufferStatus status) const = 0;
+          virtual ChecksumAlgorithm get_checksum_alg(size_t slot_idx) const = 0;
+          virtual void set_checksum_alg(size_t slot_idx, ChecksumAlgorithm alg) = 0;
+          virtual bool test_checksum_alg(size_t slot_idx, ChecksumAlgorithm alg) const = 0;
+          virtual uint32_t get_checksum_val(size_t slot_idx) const = 0;
+          virtual void set_checksum_val(size_t slot_idx, uint32_t val) = 0;
+          virtual bool test_checksum_val(size_t slot_idx, uint32_t val) const = 0;
+          virtual size_t get_max_size(size_t slot_idx) const = 0;
+          virtual void set_max_size(size_t slot_idx, size_t size) = 0;
+          virtual size_t get_data_size(size_t slot_idx) const = 0;
+          virtual void set_data_size(size_t slot_idx, size_t size) = 0;
+          virtual size_t get_transformed_size(size_t slot_idx) const = 0;
+          virtual void set_transformed_size(size_t slot_idx, size_t size) = 0;
+      };
+  }
+  ```
+- The `SwtrRingBuffer` class MUST inherit from `RingBuffer`:
+  ```cpp
+  class SwtrRingBuffer : public RingBuffer {
+      // ... implementation ...
+  };
+  ```
 
 ## Header Requirements
 - **Self-Sufficiency**: The primary header file (`ringbuffer.hpp`) must be self-sufficient. It must include every standard library header and internal dependency it directly uses. Any translation unit that includes `ringbuffer.hpp` should be able to compile without requiring additional standard includes for the `swtr` namespace types.
+- **Exact Include List for `ringbuffer.hpp`**: The file MUST contain these includes in this exact order:
+  ```cpp
+  #include <cstddef>
+  #include <functional>
+  #include <iostream>
+  #include <string>
+  #include "status.hpp"
+  ```
+- **`ringbuffer.hpp` Content**: The file MUST contain:
+  1. All includes listed above
+  2. `#pragma once` guard
+  3. The `swtr` namespace wrapper
+  4. The `RingBuffer` abstract class definition (as specified in the Abstract Base Class section)
+  5. The `ErrorHandler` and `TransformFn` type aliases (as specified in Mandatory Type Definitions)
+  6. The `MIN_NUMBER_SLOTS` and `DEFAULT_BUFFER_SIZE` constexpr constants (as specified in Constructor Requirements)
 - **Primary Header Inclusion**: Every source file (`.cpp`) within the project must include the primary class definition header (`ringbuffer.hpp`) to ensure type consistency and that the implementation remains in sync with the interface.
 - **Logging Stream Storage**: To allow for flexible runtime reconfiguration and avoid initialization order issues, the output stream must be stored as a pointer (`std::ostream*`), not a reference. 
     - The setter method for the output stream must accept a reference (`std::ostream&`) for caller convenience but store the address of that stream (`&stream`) in the pointer member.
@@ -47,6 +212,64 @@
 - **Slot Storage**: The ring buffer must store slots using `std::vector<std::unique_ptr<BufferSlot>>`.
 - **Atomic Operations**: 
     - All members of `BufferSlot` that are `std::atomic` MUST be accessed using `.load()` and `.store()` methods rather than direct assignment or implicit conversion, especially when passed to functions or used in `std::format` strings, as `std::format` does not support `std::atomic` types directly.
+
+## SwtrRingBuffer Member Variables
+The `SwtrRingBuffer` class MUST declare the following member variables with exact names and types:
+
+```cpp
+class SwtrRingBuffer : public RingBuffer {
+private:
+    // Slot storage
+    std::vector<std::unique_ptr<BufferSlot>> slots_;
+    size_t num_slots_;
+
+    // Index tracking (atomic for cross-thread access)
+    std::atomic<size_t> read_index_;
+    std::atomic<size_t> write_index_;
+
+    // File descriptors (atomic for cross-thread access)
+    std::atomic<int> read_fd_;
+    std::atomic<int> write_fd_;
+
+    // Buffer size per slot
+    size_t buffer_size_;
+
+    // Pipeline functions (non-atomic: set once at construction)
+    ErrorHandler err_handler_;
+    TransformFn transform_fn_;
+
+    // Thread management
+    std::jthread read_thread_;
+    std::jthread transform_thread_;
+    std::jthread write_thread_;
+
+    // Synchronization primitives (aligned to cache line)
+    alignas(64) std::mutex sync_mutex_;
+    std::condition_variable_any cv_;
+
+    // Logging configuration (atomic for runtime reconfiguration)
+    std::atomic<bool> logging_enabled_;
+    std::atomic<bool> read_logging_enabled_;
+    std::atomic<bool> transform_logging_enabled_;
+    std::atomic<bool> write_logging_enabled_;
+    std::atomic<LogLevel> read_verbosity_;
+    std::atomic<LogLevel> transform_verbosity_;
+    std::atomic<LogLevel> write_verbosity_;
+
+    // Output stream (pointer, not reference)
+    std::ostream* output_stream_;
+
+    // Log mutex (separate from sync_mutex_ to avoid nested locking)
+    std::mutex log_mutex_;
+};
+```
+
+**Initialization rules**:
+- `read_index_` and `write_index_` MUST be initialized to `0`.
+- `read_fd_` and `write_fd_` MUST be initialized to `-1`.
+- All logging booleans MUST default to `false`.
+- All log verbosity levels MUST default to `LogLevel::Info`.
+- `output_stream_` MUST default to `&std::cerr`.
 
 ## Source Organization & Deterministic Naming
 To ensure build consistency and prevent git collisions, the following strict file mapping MUST be followed. No other source files shall be created unless explicitly requested.
@@ -119,16 +342,25 @@ To maintain a clean and predictable compilation environment, all source files mu
 - **Member Initializer List**: All member variables must be initialized in the constructor's member initializer list or via in-class default initializers. The constructor body must only contain validation logic and slot initialization.
 - **Automatic Start**: The constructor MUST NOT start the read, transform, or write threads automatically.
 - The destructor MUST be `= default`.
-- The constructor must support the following parameters:
-    - Number of slots (default: MIN_NUMBER_SLOTS).
-    - Initial status of the ring buffer (default: readyforread).
-    - Buffer size per slot (default: DEFAULT_BUFFER_SIZE = 4096).
-    - Error Handler function (`ErrorHandler err_handler = nullptr`).
-    - Transform function (`std::function<void(std::vector<uint8_t>&, size_t&)> transform_fn = nullptr`).
-- **Initialization**: The `max data buffer size` for each slot must be initialized with the "buffer size per slot" value provided to the constructor.
-   - The constructor should fail if number slots is not equal to or  greater than 1 and the buffer size is not equal to or greater than 1, and exeception should fail reporting why it failed.
-   - Create a macro or const MIN\_NUMBER\_SLOTS and set to 1 use this for the test in constructor.
-   - Create a macro or const MIN\_BUFFER\_SIZE and set to 1 use this for the test in constructor.
+- **Constexpr Constants** (defined in the header, outside the class):
+  ```cpp
+  constexpr size_t MIN_NUMBER_SLOTS = 1;
+  constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
+  ```
+- **Constructor Signature** (exact parameter order with defaults):
+  ```cpp
+  SwtrRingBuffer(
+      size_t num_slots = MIN_NUMBER_SLOTS,
+      BufferStatus initial_status = BufferStatus::readyforread,
+      size_t buffer_size = DEFAULT_BUFFER_SIZE,
+      ErrorHandler err_handler = nullptr,
+      TransformFn transform_fn = nullptr
+  );
+  ```
+- **Initialization**: The `max_data_buffer_size` for each slot must be initialized with the "buffer size per slot" value provided to the constructor.
+   - The constructor MUST throw `std::invalid_argument` if `num_slots < MIN_NUMBER_SLOTS` or `buffer_size < 1`, with an error message specifying which parameter failed and why.
+   - Create a constexpr `MIN_NUMBER_SLOTS` set to 1, use this for the validation in constructor.
+   - Create a constexpr `MIN_BUFFER_SIZE` set to 1, use this for the validation in constructor.
 - Default behavior for `readyforread`.
 
 ## Mandatory Public Interface
@@ -178,14 +410,34 @@ The following virtual functions MUST be implemented exactly as specified. Do not
 - `virtual size_t get_transformed_size(size_t slot_idx) const = 0;`
 - `virtual void set_transformed_size(size_t slot_idx, size_t size) = 0;`
 
+**Accessor Implementation Rules**:
+- `get_*` methods MUST use `.load()` on atomic members and direct read on non-atomic members.
+- `set_*` methods MUST use `.store()` on atomic members and direct assignment on non-atomic members.
+- `test_*` methods MUST perform an equality check using `.load()` on the atomic member and compare against the argument:
+  ```cpp
+  bool test_status(size_t slot_idx, BufferStatus status) const override {
+      return slots_[slot_idx]->status.load() == status;
+  }
+  ```
+- All accessor methods MUST validate `slot_idx < num_slots_` and call the error handler if out of bounds.
+
 ## Implementation Logic
-- **Read Function**: Use POSIX file descriptors. Mark slot `readyfortransform` after fill. Set `data buffer size` to bytes read. Reset to 0 on EOF/error.
-- **Transform Function**: Apply `std::function`. Mark slot `readyforwrite`. Load atomic size to temporary, pass to function, store result back. If no function, set `transformed data buffer size` = `data buffer size` and mark `readyforwrite`.
-- **Write Function**: Use POSIX file descriptors. Write data, clear buffer, mark `readyforread`. Set `data buffer size` to 0. Flush (`fsync`) on `LAST_BUFFER_TO_WRITE`.
+- **Read Function**: Use POSIX file descriptors. Mark slot `readyfortransform` after fill. Set `data_buffer_size` to bytes read. Reset to 0 on EOF/error.
+- **Transform Function**: Apply `std::function`. Mark slot `readyforwrite`. Load atomic size to temporary, pass to function, store result back. If no function, set `transformed_data_buffer_size` = `data_buffer_size` and mark `readyforwrite`.
+- **Write Function**: Use POSIX file descriptors. Write data, clear buffer, mark `readyforread`. Set `data_buffer_size` to 0. Flush (`fsync`) on `LAST_BUFFER_TO_WRITE`.
+- **EOF Detection Semantics**: When `read(fd, buf, count)` returns `0`, this indicates EOF. The implementation MUST treat a return value of `0` as EOF and proceed with the EOF sequence. A return value of `-1` indicates an error; set `errno` and handle via the error handler.
+- **Buffer Clearing Method**: After writing data to the output file descriptor, clear the `data` buffer using:
+  ```cpp
+  std::fill(data.begin(), data.end(), 0);
+  ```
+- **Slot Wrapping Strategy**: When advancing to the next slot, use modulo wrapping:
+  ```cpp
+  slot_index_ = (slot_index_ + 1) % num_slots_;
+  ```
 - **EOF Sequence and Loop Termination**: 
-    - **Reader**: When EOF is reached, mark the current slot as `LAST_BUFFER_TO_TRANSFORM`, increment the index, notify all, and **break the loop**.
-    - **Transformer**: When `LAST_BUFFER_TO_TRANSFORM` is encountered, mark the slot as `LAST_BUFFER_TO_WRITE`, increment the index, notify all, and **break the loop**.
-    - **Writer**: When `LAST_BUFFER_TO_WRITE` is encountered, flush the output, mark the slot as `readyforread`, increment the index, notify all, and **break the loop**.
+    - **Reader**: When EOF is reached, mark the current slot as `LAST_BUFFER_TO_TRANSFORM`, increment the index via wrapping (`slot_index_ = (slot_index_ + 1) % num_slots_`), notify all, and **break the loop**.
+    - **Transformer**: When `LAST_BUFFER_TO_TRANSFORM` is encountered, mark the slot as `LAST_BUFFER_TO_WRITE`, increment the index via wrapping (`slot_index_ = (slot_index_ + 1) % num_slots_`), notify all, and **break the loop**.
+    - **Writer**: When `LAST_BUFFER_TO_WRITE` is encountered, flush the output, mark the slot as `readyforread`, increment the index via wrapping (`slot_index_ = (slot_index_ + 1) % num_slots_`), notify all, and **break the loop**.
     - This ensures that the `wait()` method (which joins the threads) can return once the final buffer has been processed through the pipeline.
 
 ## Logging and Diagnostics

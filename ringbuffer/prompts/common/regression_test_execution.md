@@ -57,7 +57,7 @@ This document should ONLY be invoked when the user explicitly requests testing o
 
 ## Reporting
 
-For each platform processed, generate a detailed report at `ringbuffer/src/<os>/reports/regression_report.md` using the following format:
+For each platform processed, generate a detailed report at `ringbuffer/src/<os>/cpp/tests/reports/regression_report.md` using the following format:
 
 # Regression Verification Report - [OS Name]
 **Date:** [YYYY-MM-DD HH:MM:SS ±HHMM]
