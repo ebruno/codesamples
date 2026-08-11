@@ -135,5 +135,21 @@ You MUST NOT:
 - Invoke `regression_test_execution.md` or any testing workflow
 - Proceed to verification, reporting, or test matrix execution
 
+**Directory Scope Restriction:**
+- **NEVER create, modify, or delete any files inside the `tests/` directory.** This includes:
+  - Test source code (`tests/src/`)
+  - Test data files (`tests/data/inputs/`, `tests/data/expected/`)
+  - Test utility scripts (`tests/utils/bin/`)
+  - Test container configurations (`tests/containers/`)
+  - Test Makefiles, logs, or reports
+- If the `tests/` directory is missing required files (e.g., `verify_test_data.sh`, test data, logs/reports directories), **report this as a finding and STOP**. Do not create or fix them.
+- The `tests/` directory is managed exclusively by testing-related prompts (e.g., `create_testing.md`, `update_testing.md`). Build-only prompts must treat it as read-only.
+
+**Excluded Platforms:**
+- **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
+- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
+- If these directories contain any non-zero files, remove them.
+
 If the user wants testing, they will issue a separate request (e.g., "run tests" or "verify the build"). Do not assume testing is part of a build request.
 <EOF>

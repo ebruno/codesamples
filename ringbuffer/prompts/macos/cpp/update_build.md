@@ -41,4 +41,23 @@ When the source tree changes in ways not covered by the File Mapping Table (e.g.
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+
+## Scope Boundary — Build Update Only
+
+The purpose of this prompt is to update the build configuration (Makefile, compiler flags, source file references) for the library. **You MUST NOT touch anything in the `tests/` directory.**
+
+**Allowed scope (build-related only):**
+- Update `Makefile`: add/remove source file references, update compiler flags, add new library targets
+- Update `containers/Dockerfile`: adjust package installations for the build environment
+- Create/update files in `specs/` directory (build requirements documentation)
+- Update `.gen_state.json` with spec hash
+
+**Explicitly forbidden (testing-related):**
+- **NEVER create, modify, or delete any files inside `tests/`** — this includes test source code, test data, utility scripts, container configs, Makefiles, logs, or reports
+- **NEVER create missing directories inside `tests/`** (e.g., `tests/logs`, `tests/reports`)
+- **NEVER create or update test scripts** (e.g., `verify_test_data.sh`, `generate_test_data.sh`)
+- **NEVER create or update test programs** (e.g., `tests/src/test001.cpp`)
+- **NEVER run any test commands** (`make -C tests`, `make verify`, etc.)
+
+If the `tests/` directory is missing required files or directories, **report this as a finding and STOP**. Do not create or fix them. The `tests/` directory is managed exclusively by testing-related prompts (`create_testing.md`, `update_testing.md`).
 <EOF>

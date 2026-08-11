@@ -225,3 +225,9 @@ Before providing the final code, you MUST perform a self-audit:
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
+
+**Excluded Platforms:**
+- **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
+- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
+- If these directories contain any non-zero files, remove them.

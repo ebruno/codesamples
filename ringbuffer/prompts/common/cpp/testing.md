@@ -33,6 +33,12 @@ When the target OS is a Linux distribution (Ubuntu, Fedora, Debian, RHEL, ArchLi
 
 This rule exists because macOS `clang++` produces Mach-O binaries and macOS `g++` (if installed via Homebrew) still targets the host architecture. Cross-compilation from macOS to Linux requires a proper cross-toolchain or, more reliably, a container.
 
+**Excluded Platforms:**
+- **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
+- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
+- If these directories contain any non-zero files, remove them.
+
 ## Infrastructure
 To ensure consistency across environments, the following infrastructure strategy MUST be used:
 - **Linux (Debian, Fedora, etc.)**: All build, verification, and testing activities MUST be performed within the `ringbuffer_<os>_test` container. The container is the authoritative environment.
