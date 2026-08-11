@@ -235,11 +235,10 @@ private:
     std::vector<std::unique_ptr<BufferSlot>> slots_;
     size_t num_slots_;
 
-    // Index tracking (atomic for cross-thread access)
+    // Index tracking — one independent atomic counter per pipeline stage
     std::atomic<size_t> read_index_;
+    std::atomic<size_t> transform_index_;
     std::atomic<size_t> write_index_;
-
-    **Index Count Constraint**: The class has exactly **two** index counters: `read_index_` and `write_index_`. Do NOT add any additional index members (e.g., no `transform_idx_`).
 
     // File descriptors (atomic for cross-thread access)
     std::atomic<int> read_fd_;
@@ -281,7 +280,7 @@ private:
 **Exhaustive Member List Rule**: The member variable list shown above is exhaustive. Every listed member MUST be present in the implementation class, even if not directly referenced by a virtual method signature. Do NOT omit any listed member and do NOT add members not shown.
 
 **Initialization rules**:
-- `read_index_` and `write_index_` MUST be initialized to `0`.
+- `read_index_`, `transform_index_`, and `write_index_` MUST all be initialized to `0`.
 - `read_fd_` and `write_fd_` MUST be initialized to `-1`.
 - All logging booleans MUST default to `false`.
 - All log verbosity levels MUST default to `LogLevel::Info`.
@@ -451,14 +450,25 @@ The following virtual functions MUST be implemented exactly as specified. Do not
   ```cpp
   std::fill(data.begin(), data.end(), 0);
   ```
-- **Slot Wrapping Strategy**: When advancing to the next slot, use modulo wrapping:
+- **Slot Wrapping Strategy**: Each pipeline stage uses its own independent index counter. When advancing to the next slot, use modulo wrapping on that stage's counter:
   ```cpp
-  slot_index_ = (slot_index_ + 1) % num_slots_;
+  // Read loop uses read_index_
+  slot_idx = read_index_.load() % num_slots_;
+  read_index_.fetch_add(1);
+
+  // Transform loop uses transform_index_
+  slot_idx = transform_index_.load() % num_slots_;
+  transform_index_.fetch_add(1);
+
+  // Write loop uses write_index_
+  slot_idx = write_index_.load() % num_slots_;
+  write_index_.fetch_add(1);
   ```
+- **Critical: Independent Index Counters**: Each pipeline stage (read, transform, write) MUST use its own independent atomic index counter. The read loop uses `read_index_`, the transform loop uses `transform_index_`, and the write loop uses `write_index_`. **Do NOT share index counters between stages** — sharing causes threads to operate on wrong slots and breaks the pipeline.
 - **EOF Sequence and Loop Termination**: 
-    - **Reader**: When EOF is reached, mark the current slot as `LAST_BUFFER_TO_TRANSFORM`, increment the index via wrapping (`slot_index_ = (slot_index_ + 1) % num_slots_`), notify all, and **break the loop**.
-    - **Transformer**: When `LAST_BUFFER_TO_TRANSFORM` is encountered, mark the slot as `LAST_BUFFER_TO_WRITE`, increment the index via wrapping (`slot_index_ = (slot_index_ + 1) % num_slots_`), notify all, and **break the loop**.
-    - **Writer**: When `LAST_BUFFER_TO_WRITE` is encountered, flush the output, mark the slot as `readyforread`, increment the index via wrapping (`slot_index_ = (slot_index_ + 1) % num_slots_`), notify all, and **break the loop**.
+    - **Reader** (uses `read_index_`): When EOF is reached, mark the current slot as `LAST_BUFFER_TO_TRANSFORM`, increment via `read_index_.fetch_add(1)`, notify all, and **break the loop**.
+    - **Transformer** (uses `transform_index_`): When `LAST_BUFFER_TO_TRANSFORM` is encountered, mark the slot as `LAST_BUFFER_TO_WRITE`, increment via `transform_index_.fetch_add(1)`, notify all, and **break the loop**.
+    - **Writer** (uses `write_index_`): When `LAST_BUFFER_TO_WRITE` is encountered, flush the output, mark the slot as `readyforread`, increment via `write_index_.fetch_add(1)`, notify all, and **break the loop**.
     - This ensures that the `wait()` method (which joins the threads) can return once the final buffer has been processed through the pipeline.
 
 ## Logging and Diagnostics
