@@ -191,12 +191,15 @@ enum class LogLevel : int {
 - **Self-Sufficiency**: The primary header file (`ringbuffer.hpp`) must be self-sufficient. It must include every standard library header and internal dependency it directly uses. Any translation unit that includes `ringbuffer.hpp` should be able to compile without requiring additional standard includes for the `swtr` namespace types.
 - **Exact Include List for `ringbuffer.hpp`**: The file MUST contain these includes in this exact order:
   ```cpp
+  #include <atomic>
   #include <cstddef>
+  #include <format>
   #include <functional>
   #include <iostream>
   #include <string>
   #include "status.hpp"
   ```
+  **Include Rationale**: `<atomic>` is required because `BufferSlot` declares `std::atomic<T>` members. `<format>` is required because the NVI logging uses `std::format_string` and `std::format`. These are not optional — the header must be self-sufficient.
 - **`ringbuffer.hpp` Content**: The file MUST contain:
   1. All includes listed above
   2. `#pragma once` guard
@@ -429,17 +432,15 @@ The following virtual functions MUST be implemented exactly as specified. Do not
 **Accessor Implementation Rules**:
 - `get_*` methods MUST use `.load()` on atomic members and direct read on non-atomic members.
 - `set_*` methods MUST use `.store()` on atomic members and direct assignment on non-atomic members.
-- `test_*` methods MUST perform an equality check using `.load()` on the atomic member and compare against the argument:
-  ```cpp
-  bool test_status(size_t slot_idx, BufferStatus status) const override {
-      if (slot_idx >= num_slots_) { handle_error(slot_idx, BufferStatus::STATUS_ERROR); return BufferStatus::STATUS_ERROR; }
-      return slots_[slot_idx]->status.load() == status;
-  }
-  ```
+- `test_*` methods MUST perform an equality check using `.load()` on the atomic member and compare against the argument.
 
-**Bounds Checking Pattern**: Every accessor must validate `slot_idx < num_slots_` before accessing `slots_[slot_idx]`. Use the pattern shown above: check bounds, call `handle_error()` on violation, return a safe default. Do NOT use modulo wrapping (`slot_idx % slots_.size()`) as a substitute for validation.
+**Bounds Checking Pattern**: Every accessor must validate `slot_idx < num_slots_` before accessing `slots_[slot_idx]`. Do NOT use modulo wrapping (`slot_idx % slots_.size()`) as a substitute for validation.
 
-- All accessor methods MUST validate `slot_idx < num_slots_` and call the error handler if out of bounds.
+**Const-Correctness Rule**: `handle_error()` is non-const (it calls `stop()`) and CANNOT be invoked from const accessor methods (`get_*` and `test_*`). Const accessors MUST return safe defaults on out-of-bounds indices:
+  - `get_*` methods: return the enum's first/default value (e.g., `BufferStatus::STATUS_ERROR`, `ChecksumAlgorithm::NONE`) or `0` for numeric types.
+  - `test_*` methods: return `false`.
+- Non-const `set_*` methods: simply `return;` on out-of-bounds (no return value).
+- All accessor methods MUST validate `slot_idx < num_slots_`.
 
 ## Implementation Logic
 - **Read Function**: Use POSIX file descriptors. Mark slot `readyfortransform` after fill. Set `data_buffer_size` to bytes read. Reset to 0 on EOF/error.
