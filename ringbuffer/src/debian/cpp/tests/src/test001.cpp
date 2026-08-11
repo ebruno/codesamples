@@ -13,7 +13,14 @@
 #include "ringbuffer.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
+// Global error mode for the handler (thread-unsafe, single-threaded test only)
+static int g_test_error_mode = 0;
 
+// Error handler function pointer (non-capturing, compatible with swtr::ErrorHandler type)
+static int test_error_handler(size_t slot_idx, swtr::BufferStatus status) {
+    std::cerr << "[RingBuffer Error] Slot " << slot_idx << " status " << static_cast<int>(status) << std::endl;
+    return (g_test_error_mode == 1) ? 1 : 0;
+}
 
 void print_usage() {
     std::cerr << "Usage: test001 [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] [-r] [-w <ip:port>] <input_file>\n"
@@ -145,17 +152,11 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Custom handler to support error_mode
-        // Since we need the error_mode, and the handler must be a function pointer,
-        // we'll use a global or static variable.
-        static int g_error_mode = 0;
-        g_error_mode = error_mode;
+        // Set error mode for the handler (thread-unsafe, single-threaded test only)
+        g_test_error_mode = error_mode;
 
-        auto handler = [](size_t slot_idx, swtr::BufferStatus status) -> int {
-            std::cerr << "[RingBuffer Error] Slot " << slot_idx << " status " << static_cast<int>(status) << std::endl;
-            if (g_error_mode == 1) return 1;
-            return 0;
-        };
+        // Use static function pointer (non-capturing, compatible with swtr::ErrorHandler)
+        auto handler = test_error_handler;
 
         std::function<void(std::vector<uint8_t>&, size_t&)> transform = nullptr;
         if (transform_type == 1) {

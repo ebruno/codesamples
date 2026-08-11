@@ -4,12 +4,12 @@
 namespace swtr {
 
 size_t SwtrRingBuffer::get_data_size(size_t slot_idx) const {
-    if (slot_idx >= num_slots_) { handle_error(slot_idx, BufferStatus::STATUS_ERROR); return 0; }
+    if (slot_idx >= num_slots_) return 0;
     return slots_[slot_idx]->data_buffer_size.load();
 }
 
 void SwtrRingBuffer::set_data_size(size_t slot_idx, size_t size) {
-    if (slot_idx >= num_slots_) { handle_error(slot_idx, BufferStatus::STATUS_ERROR); return; }
+    if (slot_idx >= num_slots_) return;
     slots_[slot_idx]->data_buffer_size.store(size);
 }
 
