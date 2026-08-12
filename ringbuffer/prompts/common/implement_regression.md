@@ -1,7 +1,9 @@
-# Regression Test Implementation Workflow
+# Regression Test Infrastructure Setup
 
 **Objective:** 
-Create the test environment, generate test data, build test binaries, execute the full regression test matrix (T001–T007), and generate reports for the Ringbuffer library. This workflow mirrors `implement_build.md` but focuses on testing infrastructure and execution.
+Create the test environment for regression testing on a target platform. This covers infrastructure setup only — host detection, container runtime pre-flight, image bootstrap, resource allocation, and test environment creation (directories, Dockerfile, Makefile, scripts, data).
+
+**Execution:** Use `ringbuffer/prompts/common/run_regression.md` to execute the test matrix on an already-set-up platform.
 
 **Inputs:**
 1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `ringbuffer/src/` are processed.
@@ -19,14 +21,13 @@ Create the test environment, generate test data, build test binaries, execute th
 2. **Execution Steps**:
    For the selected OS directory, perform the following.
 
-   **Workflow Precedence:** Execute this common workflow's Step 0 first for image resolution and execution path decision. Then execute `ringbuffer/prompts/<os>/cpp/create_regression.md` as the **PRIMARY** document and skip this common workflow's Steps 1-7. This common workflow serves as a reference for structure and provides the image resolution mechanism.
+   **Workflow Precedence:** Execute this common workflow's Step 0 first for image resolution and execution path decision. Then execute `ringbuffer/prompts/<os>/cpp/create_regression.md` as the **PRIMARY** document and skip this common workflow's Steps 1-2. This common workflow serves as a reference for structure and provides the image resolution mechanism.
 
    **Note:** `create_regression.md` is read as a data source for image resolution in Step 0, then executed as the PRIMARY document afterward.
 
    0. **Environment Setup**:
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
         - `CONTAINER_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make container`
-        - `TEST_EXECUTION_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for the full test matrix
       - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `ringbuffer/prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). Log: `IMAGE=<resolved_image>`.
       - **Shared Version Context**: Read the version from `ringbuffer/src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `ringbuffer/src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
       - **Execution Path Decision**: Detect the host OS. If `uname -s` returns `Darwin`, set `host_os = macOS`. If it returns `Linux`, read the distro ID from `/etc/os-release` using: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
@@ -44,7 +45,7 @@ Create the test environment, generate test data, build test binaries, execute th
         - Calculate total available bytes: `(Pages free + Pages inactive) * page size`.
         - Convert to GiB: `total bytes / 1,073,741,824`.
         - Set container memory limit (`-m`) to 50% of this value, capped at 3 GB.
-        - Store this as `<memory_limit>` for use in Step 2's container run command.
+        - Store this as `<memory_limit>` for use in `run_regression.md` Step 2's container run command.
       - **Container Runtime Pre-flight Check**: If the Execution Path Decision determined that container execution is required:
         - **macOS host**: The `container` command MUST be available. Execute `command -v container`. If not found, STOP and display:
           ```
@@ -87,7 +88,7 @@ Create the test environment, generate test data, build test binaries, execute th
 
    1.5 **Cross-Platform Verification**: After creating the test Makefile and Dockerfile, verify they conform to the binary symmetry requirements:
       - **Identify a Reference Platform**: First, check if `ringbuffer/src/reference_linux/cpp/tests/Makefile` exists. If it does, use `reference_linux` as the reference platform (this is the canonical source of truth). If it does not exist, fall back to alphabetical iteration through directories in `ringbuffer/src/` (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/tests/Makefile` exists.
-      - **Fallback**: If no reference platform has a test Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to Step 2.
+      - **Fallback**: If no reference platform has a test Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to `run_regression.md`.
       - **Test Makefile Comparison**: Strip the three allowed differences from both the generated test Makefile and the reference:
         1. `CONTAINER_IMAGE` variable value
         2. Dockerfile path in container run commands (`containers/debian/Dockerfile` vs `containers/fedora/Dockerfile`)
@@ -97,148 +98,23 @@ Create the test environment, generate test data, build test binaries, execute th
       - **If differences are found beyond the allowed set**: Log: `[timestamp] Cross-platform verification FAILED — <os> test Makefile/Dockerfile differs from reference beyond allowed differences.` STOP and report the deviation for manual review.
       - **If verification passes**: Log: `[timestamp] Cross-platform verification passed — <os> test Makefile/Dockerfile matches reference (allowed differences only).`
 
-   2. **Consolidated Build and Verification**:
-      - **Timeout Limit**: Maximum of 600,000 ms (10 minutes) for the entire Step 2 pipeline (build + verify combined).
-      - **Execute (Split Pipeline)**:
-        - Use `JOBS` (e.g., 4 or 8) to enable parallel compilation.
-        - **Step 1: Build Library and Tests**:
-          - **Native**: `make clean && make -j$(JOBS) && if [ -d tests ]; then cd tests && make clean && make -j$(JOBS); else echo 'ERROR: Tests directory missing.'; exit 1; fi`
-            - Note: `make clean` removes existing library artifacts (`build/`, `lib/`). This is intentional to ensure a fresh build.
-          - **Container**: `<runtime> run --rm -m <memory_limit> -v $(pwd):/app ringbuffer_<os>_test sh -c "cd /app && make clean && make -j$(JOBS) && if [ -d tests ]; then cd tests && make clean && make -j$(JOBS); else echo 'ERROR: Tests directory missing.'; exit 1; fi"`, where `<runtime>` is `container` on macOS or `podman` on Linux.
-        - **Step 2: Run Verification**:
-          - **Native**: `cd tests && make verify`
-          - **Container**: `<runtime> run --rm -m <memory_limit> -v $(pwd):/app ringbuffer_<os>_test sh -c "cd /app/tests && make verify"`, where `<runtime>` is `container` on macOS or `podman` on Linux.
-      - **Timing Requirements**:
-        - **Start Time**: The report `Start Time` MUST be captured at the exact moment the `make verify` target is invoked in the `tests/Makefile`.
-        - **End Time**: The report `End Time` MUST be captured immediately after the final test scenario (T007) in the test matrix has completed its execution.
-      - **Verify Artifacts**:
-        - Confirm that both `test001_staticlib` and `test001_dynamiclib` exist in the `tests/bin/` directory. If either is missing, STOP and report a build failure.
-        - Confirm that the `make verify` target in the test Makefile completed successfully (this includes library artifact verification, full test matrix execution, and report generation).
-        - **JUnit Report**: Confirm that `tests/reports/regression_report_junit.xml` was generated and follows the required JUnit XML structure.
-      - **Evaluate**: If any step fails, follow the procedure below. Do NOT loop indefinitely.
-
-         **Build/Verification Failure Procedure:**
-         1. Capture the full error output (compiler errors, linker errors, test failures).
-         2. Analyze the logs to determine the root cause:
-            - **Compiler errors**: Check for missing includes, type mismatches, or syntax errors in the source files.
-            - **Linker errors**: Verify that all object files are present and that library dependencies are correctly specified.
-            - **Test failures**: Compare actual output against expected results in `tests/data/expected/`.
-         3. Apply the minimal fix required to address the root cause.
-         4. Retry the **entire consolidated pipeline** (build + verify) at most **1 time**.
-         5. If all retries fail, STOP immediately. Do NOT retry again.
-            Report the error with diagnostic output and escalate to the user:
-            - The original error output
-            - A list of all fixes attempted (max 1)
-            - Diagnostic results (container status, disk space, Dockerfile syntax check)
-            - A recommendation to investigate manually
-            ```
-            BUILD/VERIFICATION FAILED — [Full Platform Name]
-
-            Fixes attempted:
-            - <fix 1>: <description>
-
-            Final error: <last error output>
-
-            Recommendation: Investigate the root cause manually. Check `cpp/logs/build.log` and `tests/logs/` for detailed output.
-            ```
-
-   3. **Test Artifact Verification**:
-      - Verify the produced test artifacts:
-        - **Architecture**: Use `file` on both `test001_staticlib` and `test001_dynamiclib`.
-          - **Linux targets**: PASS if output contains "ELF 64-bit". FAIL otherwise.
-          - **macOS targets**: PASS if output contains "Mach-O". FAIL otherwise.
-        - **Executable**: Both binaries must be executable (`test -x`).
-        - **Library linkage**:
-          - **Linux**: `ldd test001_dynamiclib` should show `libswtr_ringbuffer.so`. `test001_staticlib` should NOT show dynamic library dependencies.
-          - **macOS**: `otool -L test001_dynamiclib` should show the shared library. `test001_staticlib` should not.
-      - Log results to `build.log`.
-
-   4. **Report Generation**:
-      - Generate the Markdown regression report at `tests/reports/regression_report.md` using the following format:
-
-        ```markdown
-        # Regression Verification Report - [Full Platform Name] (use the full platform name from `testing.md`, e.g., 'Fedora 44', 'Debian 13', 'Ubuntu 24.04 LTS')
-        **Date:** [YYYY-MM-DD HH:MM:SS ±HHMM]
-        **Start Time:** [YYYY-MM-DD HH:MM:SS ±HHMM]
-        **End Time:** [YYYY-MM-DD HH:MM:SS ±HHMM]
-        **Elapsed Time:** [Duration]
-        **Host OS:** [Host OS Name/Version]
-
-        ## Status
-        **Final Result:** [PASS / FAIL]
-
-        ## Audit Trail
-        - **Compiler**: [Version output from g++ -v or clang++ -v]
-        - **Linker**: [Version output from ld -v or lld -v]
-
-        ## Test Results
-        | Test ID | Description | Result | Execution Time | Note |
-        | :--- | :--- | :--- | :--- | :--- |
-        | T001 | Exact match with input | [PASS/FAIL] | [Time] | [Brief note] |
-        | T002 | Stress test (1 slot, 1 byte) | [PASS/FAIL] | [Time] | [Brief note] |
-        | T003 | All chars uppercase | [PASS/FAIL] | [Time] | [Brief note] |
-        | T004 | Input < 1 slot (fast EOF) | [PASS/FAIL] | [Time] | [Brief note] |
-        | T005 | Pipeline stop (Fatal Error) | [PASS/FAIL] | [Time] | [Brief note] |
-        | T006 | Pipeline continues (Non-fatal) | [PASS/FAIL] | [Time] | [Brief note] |
-        | T007 | Bit-inverted output | [PASS/FAIL] | [Time] | [Brief note] |
-
-        ## Fixes and Modifications
-        *If files were modified to achieve a successful build, list them here:*
-        - `path/to/file`: [Brief explanation of the fix]
-
-        ## Verification Details
-        - **Library Build**: [Success/Failure] - [Brief note on logs/errors]
-        - **Test Build**: [Success/Failure] - [Brief note on logs/errors]
-        - **Artifacts Verified**: [Yes/No] (Architecture, SONAME/Install Name, Binary Size)
-        ```
-
-      - Generate the JUnit XML report at `tests/reports/regression_report_junit.xml` following the mandated JUnit XML structure, including per-test `<testcase time="...">` attributes and a `<system-out>` summary with total execution time.
-      - Log report generation to `build.log`.
-
-   5. **State Tracking**:
-      - Create or update `.gen_state.json` in `ringbuffer/src/<os>/cpp/` containing:
-        - The resolved version (from shared context or `version.mk`).
-        - The resolved image.
-        - SHA-256 hashes of `common/cpp/testing.md` and `<os>/cpp/testing.md`.
-        - SHA-256 hashes of all generated test artifacts (test Makefile, test Dockerfile, utility scripts).
-        - File fingerprints for all source files.
-      - **Version Change Detection**: Before updating `.gen_state.json`, compare the current `version.mk` values against those stored in `.gen_state.json`. If any value has changed (e.g., `MAJOR`, `MINOR`, `SUBVERSION`, or `BUILD_ID`), regenerate all versioned artifact names and symlinks in the `lib/` directory before proceeding.
-
-   6. **Final Self-Audit**:
-      - Verify the following and log results:
-        - **Test Makefile Targets**: All required targets are present (`clean`, `dist-clean`, `container`, `verify`).
-        - **Test Dockerfile** (`tests/containers/<os>/Dockerfile`): Exists and has valid syntax (base image, package installation).
-        - **Test Data**: All seven test files (`test001.txt`–`test007.txt`) exist in `tests/data/inputs/`.
-        - **Test Binaries**: Both `test001_staticlib` and `test001_dynamiclib` exist in `tests/bin/`.
-        - **Reports**: Both `regression_report.md` and `regression_report_junit.xml` exist in `tests/reports/`.
-        - **Source Consistency**: All test source files in `tests/src/` are listed in the test Makefile's build rules.
-        - **Artifact Verification**: Test binaries (`test001_staticlib`, `test001_dynamiclib`) exist and are executable.
-
-   7. **Finalize Logs**:
-      - Append a final entry to `build.log` stating that the regression test implementation is complete.
-      - Calculate and include the total elapsed time since the start timestamp in this final entry.
-
 **Directives:**
 1. Use `ringbuffer/prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).
 2. Use `ringbuffer/prompts/common/cpp/testing.md` as the primary testing specification.
-(See Steps 1–7 above for detailed requirements.)
-
-**Reporting:**
-The report generated in Step 4 serves as the final summary.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
 
-## Scope Boundary — Regression Test Phase Only
+## Scope Boundary — Infrastructure Setup Only
 
-The purpose of this prompt is to create the test environment, generate test data, build test binaries, execute the full regression test matrix (T001–T007), and generate reports. **Your task ends once both `regression_report.md` and `regression_report_junit.xml` exist with correct content.**
+The purpose of this prompt is to create the test environment: directories, Dockerfile, Makefile, utility scripts, test data, and test binaries. **Your task ends once the `tests/` directory is fully set up with all required artifacts.**
 
 You MUST NOT:
-- Modify source code files in `ringbuffer/src/<os>/cpp/*.cpp` or `ringbuffer/src/<os>/cpp/*.hpp`.
-- Run `make verify` on the main library as a standalone step (this is handled within the consolidated pipeline).
-- Generate new test scenarios beyond T001–T007.
-- Proceed to performance benchmarking or additional validation beyond the defined test matrix.
+- Execute `make verify` or run the test matrix (T001–T007).
+- Generate regression reports (`regression_report.md` or `regression_report_junit.xml`).
+- Update `.gen_state.json` with test execution results.
+- Proceed to build verification or report generation — use `ringbuffer/prompts/common/run_regression.md` for that.
 
 **Directory Scope Restriction:**
 - **NEVER create, modify, or delete any files outside the `tests/` directory and the OS cpp root** (except for `build.log`, `.gen_state.json`, and report files).
@@ -250,4 +126,4 @@ You MUST NOT:
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.
 
-If the user wants build changes, they will issue a separate request (e.g., "implement build" or "fix the Makefile"). Do not assume build changes are part of a regression test request.
+If the user wants to execute tests on an already-set-up platform, they should use `ringbuffer/prompts/common/run_regression.md` instead.
