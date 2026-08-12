@@ -1,7 +1,7 @@
-# Ringbuffer Test Suite - Ubuntu
+# Ringbuffer Test Suite - Debian 13
 
 ## Overview
-This test suite validates the ringbuffer library implementation on Ubuntu 24.04 LTS. It includes:
+This test suite validates the ringbuffer library implementation on Debian 13. It includes:
 - Test data generation with zig-zag space pattern
 - Static and dynamic linking test binaries
 - Full test matrix (T001-T007) covering functional, stress, and error scenarios
@@ -17,14 +17,14 @@ tests/
 ├── bin/                # Compiled test binaries
 ├── logs/               # Test execution logs
 ├── reports/            # JUnit XML test reports
-├── containers/ubuntu/  # Dockerfile for Ubuntu test container
+├── containers/debian/  # Dockerfile for Debian test container
 └── utils/bin/          # Utility scripts (data generation, validation)
 ```
 
 ## Building and Running Tests
 
 ### Prerequisites
-- Ubuntu 24.04 LTS or later
+- Debian 13 or later
 - g++ (GCC) with C++20 support
 - make
 
@@ -61,12 +61,12 @@ make verify       # Run full test matrix with artifact verification
 
 ### Building the Test Container
 ```bash
-make container    # Build ringbuffer_ubuntu_test image
+make container    # Build ringbuffer_debian_test image
 ```
 
 ### Running Tests in Container
 ```bash
-container run --rm -v $(pwd):/app ringbuffer_ubuntu_test sh -c "cd /app && make verify"
+container run --rm -v $(pwd):/app ringbuffer_debian_test sh -c "cd /app && make verify"
 ```
 
 ### Cleaning Container

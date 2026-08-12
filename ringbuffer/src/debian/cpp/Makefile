@@ -67,7 +67,7 @@ else
     all: $(STATIC_LIB) $(SHARED_LIB)
 endif
 
-.PHONY: all static shared clean dist-clean container container-clean verify lint format
+.PHONY: all static shared clean dist-clean container container-clean lint format
 
 # Static Library Target
 static: $(STATIC_LIB)
@@ -99,27 +99,13 @@ clean:
 
 dist-clean: clean container-clean
 	$(RM) ../reports logs
-	$(MAKE) -C tests dist-clean
 
-# Verification
-verify:
-	$(MAKE) -C tests verify
+
 
 # Container Management
 container:
 	@mkdir -p logs
 	@echo "Checking build container..."
-	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-		if ! $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
-			echo "Starting container service..."; \
-			$(CONTAINER_CMD) system start; \
-			sleep 3; \
-			if ! $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
-				echo "ERROR: Failed to start container service."; \
-				exit 1; \
-			fi; \
-		fi; \
-	fi
 	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q $(CONTAINER_IMAGE); then \
 		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
 		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
@@ -136,18 +122,10 @@ container-clean:
 # Container Health Check
 container-info:
 	@echo "Container runtime: $(CONTAINER_CMD)"
-	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-		if $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
-			echo "Container service: RUNNING"; \
-		else \
-			echo "Container service: NOT RUNNING (run 'container system start')"; \
-		fi; \
+	@if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+		echo "Container service: RUNNING"; \
 	else \
-		if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
-			echo "Container service: RUNNING"; \
-		else \
-			echo "Container service: NOT RUNNING"; \
-		fi; \
+		echo "Container service: NOT RUNNING"; \
 	fi
 	@echo "Available images:"
 	@$(CONTAINER_CMD) image ls --quiet | grep ringbuffer || echo "  (none)"

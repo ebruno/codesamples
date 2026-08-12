@@ -58,8 +58,8 @@ $(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp
 # Deploy authoritative utility scripts from prompts
 deploy-utils:
 	@echo "Deploying authoritative utility scripts..."
-	@if [ -d "../../prompts/common/cpp/utils/bin" ]; then \
-		for script in ../../prompts/common/cpp/utils/bin/*; do \
+	@if [ -d "../../../../prompts/common/cpp/utils/bin" ]; then \
+		for script in ../../../../prompts/common/cpp/utils/bin/*; do \
 			if [ -f "$$script" ]; then \
 				cp -f "$$script" "$(UTILS_DIR)/bin/"; \
 				echo "  Deployed: $$(basename $$script)"; \
@@ -185,7 +185,7 @@ container:
 	else \
 		image_created=$$($(CONTAINER_CMD) image inspect $(CONTAINER_IMAGE) 2>/dev/null | grep -o '"creationDate" *: *"[^"]*"' | head -1 | cut -d'"' -f4); \
 		if [ -n "$$image_created" ]; then \
-			dockerfile_mtime=$$(stat -c %Y containers/debian/Dockerfile 2>/dev/null || stat -f %m containers/debian/Dockerfile 2>/dev/null); \
+			dockerfile_mtime=$$(stat -c %Y $(DOCKERFILE) 2>/dev/null || stat -f %m $(DOCKERFILE) 2>/dev/null); \
 			version_mtime=$$(stat -c %Y ../version.mk 2>/dev/null || stat -f %m ../version.mk 2>/dev/null); \
 			image_mtime=$$(date -d "$$image_created" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "$$image_created" +%s 2>/dev/null); \
 			if [ -n "$$dockerfile_mtime" ] && [ "$$dockerfile_mtime" -gt "$$image_mtime" ]; then \
