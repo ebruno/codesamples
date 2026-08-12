@@ -40,7 +40,9 @@ Before declaring the task complete, you MUST run every item on this checklist an
 4. **Dynamic Link Compilation**: Run `make dynamic` — must compile without errors or warnings about unused parameters.
 5. **Binary Format Check**: Run `file bin/test001_staticlib` — must report "ELF 64-bit" (not Mach-O).
 6. **SONAME Check**: Run `readelf -d ../lib/libswtr_ringbuffer.so | grep SONAME` — must show `Library soname: [libswtr_ringbuffer.so]`.
-7. **Container Runtime Check**: If running on macOS, verify `container` is available via `command -v container`. If not found, STOP and report the error with installation instructions.
+7. **Container Runtime Check**: Detect the host OS and verify the appropriate runtime is available:
+   - If `uname -s` returns Darwin (macOS): verify `container` is available via `command -v container`. If not found, STOP and report the error with installation instructions.
+   - If `uname -s` returns Linux: verify `podman` is available via `command -v podman`. If not found, STOP and report the error with installation instructions.
 8. **Cross-Platform Sync**: Diff the Ubuntu test artifacts (`src/ubuntu/cpp/tests/Makefile`, `tests/reports/regression_report.md`, `tests/reports/regression_report_junit.xml`) against the Debian equivalents. Resolve any non-platform-specific differences. The test execution flow, report format, and container workflow MUST be identical.
 
 **Tooling and Recovery:**

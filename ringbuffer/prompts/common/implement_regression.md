@@ -28,9 +28,33 @@ Create the test environment for regression testing on a target platform. This co
    0. **Environment Setup**:
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
         - `CONTAINER_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make container`
-      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `ringbuffer/prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). Log: `IMAGE=<resolved_image>`.
+      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `ringbuffer/prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). For macOS native-only platforms (where Default Image is N/A), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
       - **Shared Version Context**: Read the version from `ringbuffer/src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `ringbuffer/src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
       - **Execution Path Decision**: Detect the host OS. If `uname -s` returns `Darwin`, set `host_os = macOS`. If it returns `Linux`, read the distro ID from `/etc/os-release` using: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
+        - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
+          ```
+          $ sw_vers --productVersion
+          26.5.2
+          ```
+          Full output:
+          ```
+          $ sw_vers
+          ProductName:		macOS
+          ProductVersion:		26.5.2
+          BuildVersion:		25F84
+          ```
+          Help: `sw_vers -h` → Usage: sw_vers [--help|--productName|--productVersion|--productVersionExtra|--buildVersion]
+        - **Apple Container Runtime**: macOS uses the `container` command (Apple Container), NOT Docker or podman. This is unique to macOS Apple Silicon machines. Key subcommands:
+          - `container run` — Run a container (equivalent to `docker run`)
+          - `container build` / `container image build` — Build an image from Dockerfile (equivalent to `docker build`)
+          - `container images` / `container image list` — List images (equivalent to `docker images`)
+          - `container system status` — Show container services status
+          - `container system version` — Show container runtime version
+          Help: `container --help` → Overview of all subcommands (run, build, images, exec, logs, etc.)
+          System help: `container system --help` → df, dns, kernel, logs, property, start, status, stop, version
+        - **Service Management**: The `container` daemon does NOT start automatically on macOS. This workflow includes an automatic service check and start step before any container operations. If you need to manually manage the service:
+          - Check status: `container system status` — shows whether container services are active
+          - Start service: `container system start` — starts the container daemon and required services
         - **Native Execution**: If `host_os == <os>` OR if the target `<os>` is `macos`, all test and verification steps MUST be performed natively on the host. Containers MUST NOT be used for macOS targets.
         - **Container Execution**: If `host_os != <os>` AND the target `<os>` is NOT `macos`, all test and verification steps MUST be performed inside the `ringbuffer_<os>_test` container.
         - **Log Your Decision**: Print a one-line summary to stdout. After log initialization (Step 0, Log Initialization), append the same line to `build.log`.
@@ -64,10 +88,27 @@ Create the test environment for regression testing on a target platform. This co
           
           After installation, ensure the 'podman' command is available in your PATH and re-run the build or test workflow.
           ```
+      - **Apple Container Service Start (macOS host, container execution only)**: If the Execution Path Decision determined container execution AND `host_os` is macOS, ensure the Apple Container daemon is running before any container operations:
+        - Check service status: `container system status`
+        - If the output indicates services are not running (or the command fails), start the daemon: `container system start`
+        - Wait for the service to become ready, then verify again with `container system status`. If services are active, proceed.
+        - Log: `[timestamp] Apple Container service verified — running.` or `[timestamp] Apple Container service started — services active.`
+        - If the service fails to start, STOP and display:
+          ```
+          ERROR: Apple Container daemon failed to start.
+
+          The 'container' command is installed but the service could not be started.
+          Try running manually: container system start
+
+          If the issue persists, check system logs with:
+            container system logs
+
+          After resolving the issue, re-run the build or test workflow.
+          ```
       - **Navigate**: `cd ringbuffer/src/<os>/cpp`
-      - **Validate Existing Dockerfile**: If the build Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
-      - **Validate Test Dockerfile**: If `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
-      - **Build Build Image**: Before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container`. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`.
+      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the build Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
+      - **Validate Test Dockerfile** (Linux targets only): If `target != macos` and `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
+      - **Build Build Image** (Linux targets only): If `target != macos`, before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container` from the source directory. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`. macOS targets skip this step (native-only platform).
       - **Step 0 Dockerfile Marker**: If a minimal test Dockerfile was created in this sub-step, create a marker file at `ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_regression.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists.
       - **Log Initialization**: Create the log directory `logs/` if it does not exist. Initialize `build.log` with the start timestamp, action description, and resolved image/version as per the "Generation Process Logging" requirement.
 

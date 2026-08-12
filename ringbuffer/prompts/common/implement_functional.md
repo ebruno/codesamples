@@ -23,13 +23,54 @@ Implement the C++ Ringbuffer library by strictly following the specifications de
    **Note:** `create_functional.md` is read as a data source for version resolution in Step 0, then executed as the PRIMARY document afterward.
 
    0. **Environment Setup**:
-      - **Resolve Version**: Determine the Target Version from Inputs (see above). If not provided by the user, read the default version from `ringbuffer/prompts/<os>/cpp/create_functional.md`. Log: `VERSION=<resolved_version>`.
-      - **Validate Existing Dockerfile**: If the Dockerfile exists, verify that the resolved Target Version matches its base image tag. If it does not match, log an error and stop processing — the requested version conflicts with the existing container configuration.
-      - **Create & Validate Container**: If the Dockerfile does not exist (functional phase), create a minimal Dockerfile in `ringbuffer/src/<os>/cpp/containers/Dockerfile` using the resolved version as the base image tag (e.g., `FROM fedora:<version>`). Attempt to pull or build the container image using the platform-appropriate runtime:
-        - **macOS host**: use `container` to pull/build the image.
-        - **Linux host**: use `podman` to pull/build the image.
+      - **Resolve Version**: Determine the Target Version from Inputs (see above). If not provided by the user, read the default version from `ringbuffer/prompts/<os>/cpp/create_functional.md`.
+        - **macOS target**: If the user did not provide a version override, detect the host OS.
+          - If `uname -s` returns `Darwin`, run `sw_vers --productVersion` to get the macOS version (e.g., "15.0.1"). Extract the major version number (e.g., `15`). Validate that it is **15 or higher** — valid macOS versions are 15 (Sequoia) and above. Log: `VERSION=<major_version>` (e.g., `VERSION=15`).
+          - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
+            ```
+            $ sw_vers --productVersion
+            26.5.2
+            ```
+            Full output:
+            ```
+            $ sw_vers
+            ProductName:		macOS
+            ProductVersion:		26.5.2
+            BuildVersion:		25F84
+            ```
+            Help: `sw_vers -h` → Usage: sw_vers [--help|--productName|--productVersion|--productVersionExtra|--buildVersion]
+          - **Apple Container Runtime**: macOS uses the `container` command (Apple Container), NOT Docker or podman. This is unique to macOS Apple Silicon machines. Key subcommands:
+            - `container run` — Run a container (equivalent to `docker run`)
+            - `container build` / `container image build` — Build an image from Dockerfile (equivalent to `docker build`)
+            - `container images` / `container image list` — List images (equivalent to `docker images`)
+            - `container system status` — Show container services status
+            - `container system version` — Show container runtime version
+            Help: `container --help` → Overview of all subcommands (run, build, images, exec, logs, etc.)
+            System help: `container system --help` → df, dns, kernel, logs, property, start, status, stop, version
+          - **Service Management**: The `container` daemon does NOT start automatically on macOS. Before using any container commands, ensure the service is running:
+            - Check status: `container system status` — shows whether container services are active
+            - Start service: `container system start` — starts the container daemon and required services
+            - If status shows services are not running, execute `container system start` before proceeding with any container operations.
+          - If the host OS is NOT macOS, STOP and display:
+            ```
+            ERROR: macOS version number is required.
 
-        If the runtime is not available, log: `WARNING: Container runtime unavailable — version <version> could not be validated. Proceeding without container validation.` If the pull/build fails, log: `ERROR: Version <version> is not a supported base image for <OS>. Stopping processing.` and terminate.
+            This workflow targets the macOS platform but the host OS is not macOS.
+            Please either:
+              1. Run this workflow on a macOS host, or
+              2. Provide an explicit version override (e.g., "implement functional for macos --version 15").
+            ```
+      - Log: `VERSION=<resolved_version>`.
+      - **Validate Existing Dockerfile (Linux targets only)**: If the target `<os>` is NOT `macos`:
+        - If the Dockerfile exists, verify that the resolved Target Version matches its base image tag. If it does not match, log an error and stop processing — the requested version conflicts with the existing container configuration.
+      - If the target IS `macos`, log: `[timestamp] Dockerfile validation skipped — macOS is native-only.` and proceed.
+      - **Create & Validate Container (Linux targets only)**: If the target `<os>` is NOT `macos`:
+        - If the Dockerfile does not exist (functional phase), create a minimal Dockerfile in `ringbuffer/src/<os>/cpp/containers/Dockerfile` using the resolved version as the base image tag (e.g., `FROM fedora:<version>`). Attempt to pull or build the container image using the platform-appropriate runtime:
+          - **macOS host**: use `container` to pull/build the image.
+          - **Linux host**: use `podman` to pull/build the image.
+
+          If the runtime is not available, log: `WARNING: Container runtime unavailable — version <version> could not be validated. Proceeding without container validation.` If the pull/build fails, log: `ERROR: Version <version> is not a supported base image for <OS>. Stopping processing.` and terminate.
+      - If the target IS `macos`, log: `[timestamp] Container creation skipped — macOS is native-only.` and proceed.
       - **Navigate**: `cd ringbuffer/src/<os>/cpp`
       - **Log Initialization**: Create the log directory `logs/` if it does not exist. Initialize `functional.log` with the start timestamp, action description, and resolved version as per the "Generation Process Logging" requirement.
 
@@ -39,11 +80,11 @@ Once implementation is complete, generate a summary report at `ringbuffer/src/<o
 
 **Template Precedence:** Use the reporting template defined in `ringbuffer/prompts/<os>/cpp/create_functional.md`. If none is defined, use the generic template below.
 
-# Implementation Report - [OS Name] <use the version resolved in Step 0, e.g., "44">
-**Date:** [YYYY-MM-DD HH:MM:SS]
-**Target Version:** <use the version resolved in Step 0, e.g., "44">
-**Start Time:** [YYYY-MM-DD HH:MM:SS]
-**End Time:** [YYYY-MM-DD HH:MM:SS]
+# Implementation Report - [OS Name] <use the version resolved in Step 0, e.g., "15">
+**Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
+**Target Version:** <use the version resolved in Step 0, e.g., "15">
+**Start Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
+**End Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Elapsed Time:** [Duration]
 
 ## Status

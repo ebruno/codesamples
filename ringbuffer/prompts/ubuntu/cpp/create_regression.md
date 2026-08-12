@@ -24,6 +24,8 @@ Please implement the full regression test suite for the Ringbuffer on Ubuntu 24.
 **Dockerfile Handling**:
 Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (created by `implement_regression.md` Step 0). If it does, **augment** the existing Dockerfile by adding platform-specific package installations — do NOT rewrite or replace it. Read its first line (`FROM ...`) and use that as the base image for any package additions.
 
+**macOS Service Pre-Check**: When generating the `container:` target in the test Makefile, include a macOS service pre-check before any container commands. If `UNAME_S` is Darwin, check if the Apple Container daemon is running with `$(CONTAINER_CMD) system status`. If not running, start it with `$(CONTAINER_CMD) system start` before proceeding. This ensures `make container` works when invoked directly from a macOS host where the daemon may not be running.
+
 **Environment Initialization**:
 After creating the test configuration and ensuring the Dockerfile at `tests/containers/ubuntu/Dockerfile` is in place, you MUST execute `make container` from the tests directory. This step verifies that:
 1. The host OS is correctly detected.

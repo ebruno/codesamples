@@ -114,7 +114,7 @@ To provide a consistent interface for consumers, the following symbolic links mu
 ## Project Documentation
 The following files MUST be created in a subdirectory named `specs/` to document the implementation:
 - `specs/build.md`: A copy of the build requirements used for this platform.
-- `specs/testing.md`: A copy of the testing requirements used for this platform.
+- `specs/testing_requirements.md`: A copy of the testing requirements used for this platform. Do NOT name this file `testing.md` — use `testing_requirements.md` to distinguish it from the testing prompt.
 - `specs/artifacts.md`: A file documenting the discovery and location of all project artifacts.
 
 ## Required Makefile Targets

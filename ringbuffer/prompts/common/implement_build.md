@@ -28,10 +28,34 @@ Create the build environment for the Ringbuffer library by strictly following th
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
         - `CONTAINER_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make container`
         - `LIBRARY_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make clean && make`
-      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_build.md`. Log: `IMAGE=<resolved_image>`.
+      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_build.md`. If no default image is defined (e.g., macOS native-only platform), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
       - **Shared Version Context**: Read the version from `ringbuffer/src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `ringbuffer/src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
-      - **Marker Cleanup**: Remove any existing `.dockerfile_created_by_step0` marker file to ensure a clean state for this run: `rm -f ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0`.
+      - **Marker Cleanup**: If `target != macos`, remove any existing `.dockerfile_created_by_step0` marker file to ensure a clean state for this run: `rm -f ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0`. macOS targets skip this step (native-only platform).
       - **Execution Path Decision**: Detect the host OS. If `uname -s` returns `Darwin`, set `host_os = macOS`. If it returns `Linux`, read the distro ID from `/etc/os-release` using: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
+        - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
+          ```
+          $ sw_vers --productVersion
+          26.5.2
+          ```
+          Full output:
+          ```
+          $ sw_vers
+          ProductName:		macOS
+          ProductVersion:		26.5.2
+          BuildVersion:		25F84
+          ```
+          Help: `sw_vers -h` → Usage: sw_vers [--help|--productName|--productVersion|--productVersionExtra|--buildVersion]
+        - **Apple Container Runtime**: macOS uses the `container` command (Apple Container), NOT Docker or podman. This is unique to macOS Apple Silicon machines. Key subcommands:
+          - `container run` — Run a container (equivalent to `docker run`)
+          - `container build` / `container image build` — Build an image from Dockerfile (equivalent to `docker build`)
+          - `container images` / `container image list` — List images (equivalent to `docker images`)
+          - `container system status` — Show container services status
+          - `container system version` — Show container runtime version
+          Help: `container --help` → Overview of all subcommands (run, build, images, exec, logs, etc.)
+          System help: `container system --help` → df, dns, kernel, logs, property, start, status, stop, version
+        - **Service Management**: The `container` daemon does NOT start automatically on macOS. This workflow includes an automatic service check and start step before any container operations. If you need to manually manage the service:
+          - Check status: `container system status` — shows whether container services are active
+          - Start service: `container system start` — starts the container daemon and required services
         - **Native Execution**: If `host_os == <os>` OR if the target `<os>` is `macos`, all build and verification steps MUST be performed natively on the host. Containers MUST NOT be used for macOS targets.
         - **Container Execution**: If `host_os != <os>` AND the target `<os>` is NOT `macos`, all build and verification steps MUST be performed inside the `ringbuffer_<os>_build` container.
         - **Log Your Decision**: Print a one-line summary to stdout AND append it to `ringbuffer/src/<os>/cpp/logs/build.log`:
@@ -65,25 +89,42 @@ Create the build environment for the Ringbuffer library by strictly following th
           
           After installation, ensure the 'podman' command is available in your PATH and re-run the build or test workflow.
           ```
-      - **Validate Existing Dockerfile**: If the Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
-      - **Create & Validate Container**: If the Dockerfile does not exist (build phase), create a minimal Dockerfile in `ringbuffer/src/<os>/cpp/containers/Dockerfile` using the resolved image as the base image tag (e.g., `FROM fedora:44`). Attempt to pull or build the container image using the platform-appropriate runtime:
+      - **Apple Container Service Start (macOS host, container execution only)**: If the Execution Path Decision determined container execution AND `host_os` is macOS, ensure the Apple Container daemon is running before any container operations:
+        - Check service status: `container system status`
+        - If the output indicates services are not running (or the command fails), start the daemon: `container system start`
+        - Wait for the service to become ready, then verify again with `container system status`. If services are active, proceed.
+        - Log: `[timestamp] Apple Container service verified — running.` or `[timestamp] Apple Container service started — services active.`
+        - If the service fails to start, STOP and display:
+          ```
+          ERROR: Apple Container daemon failed to start.
+
+          The 'container' command is installed but the service could not be started.
+          Try running manually: container system start
+
+          If the issue persists, check system logs with:
+            container system logs
+
+          After resolving the issue, re-run the build or test workflow.
+          ```
+      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
+      - **Create & Validate Container** (Linux targets only): If `target != macos` and the Dockerfile does not exist (build phase), create a minimal Dockerfile in `ringbuffer/src/<os>/cpp/containers/Dockerfile` using the resolved image as the base image tag (e.g., `FROM fedora:44`). Attempt to pull or build the container image using the platform-appropriate runtime:
         - **macOS host**: use `container` to pull/build the image.
         - **Linux host**: use `podman` to pull/build the image.
 
         If the runtime is not available, log: `WARNING: Container runtime unavailable — image <image> could not be validated. Proceeding without container validation.` If the pull/build fails, log: `ERROR: Image <image> is not a supported base image for <OS>. Stopping processing.` and terminate.
-      - **Step 0 Dockerfile Marker**: If a minimal Dockerfile was created in this sub-step, create a marker file at `ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_build.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists.
+      - **Step 0 Dockerfile Marker** (Linux targets only): If `target != macos` and a minimal Dockerfile was created in this sub-step, create a marker file at `ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_build.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists. macOS targets skip this step (native-only platform).
       - **Navigate**: `cd ringbuffer/src/<os>/cpp`
       - **Log Initialization**: Create the log directory `logs/` if it does not exist. Initialize `build.log` with the start timestamp, action description, and resolved image/version as per the "Generation Process Logging" requirement.
 
    1. **Build System Creation**:
       - Execute the directives in `ringbuffer/prompts/<os>/cpp/create_build.md` to create:
         - The `Makefile` in the source directory.
-        - The `containers/Dockerfile` (if not already created in Step 0). If a minimal Dockerfile was created in Step 0, `create_build.md` MUST **augment** it by adding the platform-specific package installations and container settings from `build.md` — do NOT replace or rewrite it. Before creating the Dockerfile, check if `containers/Dockerfile` already exists:
+        - The `containers/Dockerfile` (Linux targets only; macOS is native-only and does not use Dockerfiles). If a minimal Dockerfile was created in Step 0 (Linux targets only), `create_build.md` MUST **augment** it by adding the platform-specific package installations and container settings from `build.md` — do NOT replace or rewrite it. Before creating the Dockerfile, check if `containers/Dockerfile` already exists:
           - If it exists: read its first line (`FROM ...`) and use that as the base image for any package additions. Do NOT rewrite the entire file.
           - If it does not exist: create a new Dockerfile from scratch using the resolved image as the base.
         - The `specs/` subdirectory with `build.md`, `testing_requirements.md`, and `artifacts.md`.
       - The Makefile MUST be generated independently from `ringbuffer/prompts/common/cpp/build.md` and the platform-specific build spec. Do NOT copy Makefiles from other platforms.
-      - The Dockerfile MUST be generated independently from the build spec's container requirements. Do NOT copy Dockerfiles from other platforms.
+      - The Dockerfile MUST be generated independently from the build spec's container requirements (Linux targets only; macOS is native-only). Do NOT copy Dockerfiles from other platforms.
       - **specs/build.md**: Copy of `ringbuffer/prompts/<os>/cpp/build.md` (platform-specific build requirements).
       - **specs/testing_requirements.md**: Copy of `ringbuffer/prompts/<os>/cpp/testing.md` (reference copy for testing requirements — not an instruction to create tests during the build phase). Do NOT name this file `testing.md` — use `testing_requirements.md` to distinguish it from the testing prompt.
       - **Specs Directory Handling**: If the `specs/` directory already exists (e.g., from a previous run), overwrite its contents with the current versions of the prompt files. Do NOT preserve stale copies.
@@ -95,32 +136,32 @@ Create the build environment for the Ringbuffer library by strictly following th
         | Artifact | Path | Description |
         |----------|------|-------------|
         | Static Library | `lib/libswtr_ringbuffer-<MAJOR>.<MINOR>.<SUBVERSION>-<BUILD_ID>.a` | Static archive built with `ar` |
-        | Shared Library | `lib/libswtr_ringbuffer-<MAJOR>.<MINOR>.<SUBVERSION>-<BUILD_ID>.so` | Shared object built with `-shared` |
+        | Shared Library | `lib/libswtr_ringbuffer-<MAJOR>.<MINOR>.<SUBVERSION>-<BUILD_ID>.{so|dylib}` | Shared object built with `-shared` (Linux) or `-dynamiclib` (macOS) |
         | Static Link | `lib/libswtr_ringbuffer.a` → versioned static library | Relative symlink for linking |
-        | Shared Link | `lib/libswtr_ringbuffer.so` → versioned shared library | Relative symlink for linking |
+        | Shared Link | `lib/libswtr_ringbuffer.{so|dylib}` → versioned shared library | Relative symlink for linking |
         ```
       - Log each file creation in `build.log` immediately after the file is written.
 
-   1.5 **Cross-Platform Verification**: After creating the Makefile and Dockerfile, verify they conform to the binary symmetry requirements:
-      - **Identify a Reference Platform**: Find an OS directory in `ringbuffer/src/` that already has a Makefile. Iterate through directories alphabetically (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/Makefile` exists.
-      - **Fallback**: If no reference platform has a Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to Step 2.
-      - **Makefile Comparison**: Strip the three allowed differences from both the generated Makefile and the reference:
-        1. `CONTAINER_IMAGE` variable value
-        2. Working directory path in container run commands
-        3. Host distro detection check
-      - Compare the remaining content byte-for-byte.
-      - **Dockerfile Comparison**: Strip lines starting with `FROM`. Strip any multi-line RUN command where the first line contains a package manager invocation (`dnf install`, `apt-get install`, `yum install`) — strip the entire RUN block, not just the package manager portion. Do NOT strip other Dockerfile instructions (`WORKDIR`, `ENV`, `COPY`, `CMD`, etc.). Compare the remaining content byte-for-byte.
-      - **If differences are found beyond the allowed set**: Log: `[timestamp] Cross-platform verification FAILED — <os> Makefile/Dockerfile differs from reference beyond allowed differences.` STOP and report the deviation for manual review.
-      - **If verification passes**: Log: `[timestamp] Cross-platform verification passed — <os> Makefile/Dockerfile matches reference (allowed differences only).`
+   1.5 **Cross-Platform Verification**:
+      - **macOS skip**: If `target == macos`, log `[timestamp] Cross-platform verification skipped — macOS produces Mach-O binaries (not ELF); byte-identical comparison against Linux reference platforms is not applicable.` and proceed to Step 2.
+      - **Linux targets**: After creating the Makefile and Dockerfile, verify they conform to the binary symmetry requirements:
+        - **Identify a Reference Platform**: Find an OS directory in `ringbuffer/src/` that already has a Makefile. Iterate through directories alphabetically (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/Makefile` exists.
+        - **Fallback**: If no reference platform has a Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to Step 2.
+        - **Makefile Comparison**: Strip the three allowed differences from both the generated Makefile and the reference:
+          1. `CONTAINER_IMAGE` variable value
+          2. Working directory path in container run commands
+          3. Host distro detection check
+        - Compare the remaining content byte-for-byte.
+        - **Dockerfile Comparison**: Strip lines starting with `FROM`. Strip any multi-line RUN command where the first line contains a package manager invocation (`dnf install`, `apt-get install`, `yum install`) — strip the entire RUN block, not just the package manager portion. Do NOT strip other Dockerfile instructions (`WORKDIR`, `ENV`, `COPY`, `CMD`, etc.). Compare the remaining content byte-for-byte.
+        - **If differences are found beyond the allowed set**: Log: `[timestamp] Cross-platform verification FAILED — <os> Makefile/Dockerfile differs from reference beyond allowed differences.` STOP and report the deviation for manual review.
+        - **If verification passes**: Log: `[timestamp] Cross-platform verification passed — <os> Makefile/Dockerfile matches reference (allowed differences only).`
 
-   2. **Container Image Build**:
-      - Execute `make container` from the source directory to build or update the `ringbuffer_<os>_build` image.
-      - Set a timeout of `${CONTAINER_BUILD_TIMEOUT_MS}` ms for this operation. If the timeout is exceeded, log: `[timestamp] Container build timed out after ${CONTAINER_BUILD_TIMEOUT_MS} ms. Stopping.` and STOP processing this platform.
+   2. **Container Image Build** (Linux targets only): If `target != macos`, execute `make container` from the source directory to build or update the `ringbuffer_<os>_build` image. Set a timeout of `${CONTAINER_BUILD_TIMEOUT_MS}` ms for this operation. If the timeout is exceeded, log: `[timestamp] Container build timed out after ${CONTAINER_BUILD_TIMEOUT_MS} ms. Stopping.` and STOP processing this platform.
       - This step verifies that:
         1. The host OS is correctly detected.
         2. The build image (`ringbuffer_<os>_build`) is successfully created or updated.
         3. The container environment is fully operational and ready for subsequent compilation steps.
-      - Log the result to `build.log`.
+      - Log the result to `build.log`. macOS targets skip this step (native-only platform).
 
       **Container Build Failure Procedure:** If `make container` fails:
         1. Capture the full error output from the failed command.
@@ -174,7 +215,7 @@ Create the build environment for the Ringbuffer library by strictly following th
 
    4. **Artifact Verification**:
       - Verify the produced artifacts:
-        - **Architecture**: Use `file -L` on both `.a` and `.so` files. The `-L` flag follows symlinks to versioned artifacts.
+        - **Architecture**: Use `file -L` on both `.a` and the shared library (`.so` for Linux, `.dylib` for macOS). The `-L` flag follows symlinks to versioned artifacts.
           - **Linux targets**: PASS if output contains "ELF 64-bit". FAIL otherwise.
           - **macOS targets**: PASS if output contains "Mach-O" or "ar archive". FAIL otherwise.
         - **SONAME**: Use the appropriate tool for the host OS:
@@ -192,15 +233,15 @@ Create the build environment for the Ringbuffer library by strictly following th
         - The resolved version (from shared context or `version.mk`).
         - The resolved image.
         - SHA-256 hashes of `common/cpp/build.md` and `<os>/cpp/build.md`.
-        - SHA-256 hashes of all generated build artifacts (Makefile, Dockerfile, specs files).
+        - SHA-256 hashes of all generated build artifacts (Makefile, specs files; Dockerfile for Linux targets only).
         - File fingerprints for all source files.
       - **Version Change Detection**: Before updating `.gen_state.json`, compare the current `version.mk` values against those stored in `.gen_state.json`. If any value has changed (e.g., `MAJOR`, `MINOR`, `SUBVERSION`, or `BUILD_ID`), regenerate all versioned artifact names and symlinks in the `lib/` directory before proceeding.
 
    7. **Final Self-Audit**:
       - Verify the following and log results:
-        - **Makefile Targets**: All required targets are present (`all`, `static`, `shared`, `clean`, `dist-clean`, `container`).
+        - **Makefile Targets**: All required targets are present (`all`, `static`, `shared`, `clean`, `dist-clean`). If `target != macos`, also verify the `container` target exists. macOS targets do not have a container target (native-only platform).
         - **`dist-clean` Behavior**: The `dist-clean` target MUST include a conditional check for the `tests/` directory. If `tests/` exists, it MUST execute `make -C tests dist-clean`. Verify this by inspecting the Makefile source.
-        - **Dockerfile**: Exists and has valid syntax (base image, package installation).
+        - **Dockerfile** (Linux targets only): If `target != macos`, verify it exists and has valid syntax (base image, package installation). macOS targets skip this check (native-only platform).
         - **Specs Directory**: `specs/` contains `build.md`, `testing_requirements.md`, and `artifacts.md`.
         - **Source Consistency**: All `.cpp` files are listed in the Makefile's `SRCS`.
         - **Artifact Verification**: Library artifacts exist with correct symlinks.
@@ -221,7 +262,7 @@ Create the build environment for the Ringbuffer library by strictly following th
 - **Artifacts**: 
     - Deploy libraries to the `lib/` subdirectory.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
-- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
+- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections` are applied. For Linux targets, also add `-Wl,--gc-sections`. For macOS targets, use `-dead_strip` instead of `--gc-sections`.
 - **Makefile Consistency**: The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
 - **`dist-clean` Target**: The Makefile's `dist-clean` target MUST check whether a `tests/` directory exists. If it does, it MUST execute `make -C tests dist-clean` to recursively clean the test subdirectory. If `tests/` does not exist, it MUST skip silently (no error). This ensures that running `make dist-clean` at the project root fully cleans all build artifacts across both library and test directories.
 
@@ -229,32 +270,32 @@ Create the build environment for the Ringbuffer library by strictly following th
 Once implementation is complete, generate a summary report at `ringbuffer/src/<os>/reports/build_creation_report.md`:
 
 # Build Creation Report - [OS Name]
-**Date:** [YYYY-MM-DD HH:MM:SS]
+**Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Target Image:** <resolved_image>
 **Ringbuffer Version:** <resolved_version from shared context>
-**Start Time:** [YYYY-MM-DD HH:MM:SS]
-**End Time:** [YYYY-MM-DD HH:MM:SS]
+**Start Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
+**End Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Elapsed Time:** [Duration]
 
 ## Status
 **Build System Created:** [Yes/No]
-**Container Image Built:** [Yes/No]
+**Container Image Built:** [Yes/No — Linux targets only; macOS is native-only]
 **Library Build Successful:** [Yes/No]
 **Self-Audit Passed:** [Yes/No]
 
 ## Artifacts Created
 - **Makefile**: `ringbuffer/src/<os>/cpp/Makefile`
-- **Dockerfile**: `ringbuffer/src/<os>/cpp/containers/Dockerfile`
+- **Dockerfile** (Linux targets only): `ringbuffer/src/<os>/cpp/containers/Dockerfile`
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
-- **Library Artifacts**: [List of `.a` and `.so` files in `lib/`]
+- **Library Artifacts**: [List of `.a` and `.so` or `.dylib` files in `lib/`]
 - **Logs**: `build.log` created and updated.
 
 ## Self-Audit Results
-- **Makefile Targets**: [PASS/FAIL] — `all`, `static`, `shared`, `clean`, `dist-clean`, `container`
-- **Dockerfile**: [PASS/FAIL] — base image, package installation
+- **Makefile Targets**: [PASS/FAIL] — `all`, `static`, `shared`, `clean`, `dist-clean` (and `container` for Linux targets)
+- **Dockerfile** (Linux targets only): [PASS/FAIL] — base image, package installation
 - **Specs Directory**: [PASS/FAIL] — `build.md`, `testing_requirements.md`, `artifacts.md` present
 - **Source Consistency**: [PASS/FAIL] — all `.cpp` files in `SRCS`
-- **Artifact Verification**: [PASS/FAIL] — architecture, SONAME, symlinks
+- **Artifact Verification**: [PASS/FAIL] — architecture, SONAME/install name, symlinks
 
 ## Fixes and Modifications
 *If files were modified to achieve a successful build, list them here:*

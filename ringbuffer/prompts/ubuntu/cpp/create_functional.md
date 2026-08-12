@@ -51,33 +51,19 @@ Default version for this platform: Ubuntu 24.04 LTS (overridable via Target Vers
 - **Strict Compliance:** Adhere strictly to the "maximum 3 functions per file" rule and the trailing underscore naming convention for private members.
 - **Location:** All generated source code and the `LICENSE` file must be placed in `ringbuffer/src/ubuntu/cpp`.
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/ubuntu/cpp` containing the SHA-256 hashes of the prompts used and the fingerprints of all generated files to support future incremental updates.
-- **Debian Source Availability Check:** Before generating any source files, check whether the Debian source directory exists:
-  1. Verify that `ringbuffer/src/debian/cpp/` exists as a directory.
-  2. If it does NOT exist, log: `[timestamp] Debian source directory missing — ringbuffer/src/debian/cpp/ not found. Ubuntu will generate independently.` and skip all comparison/copy steps.
-  3. If it DOES exist, proceed to the Debian Readiness Check below.
-- **Debian Readiness Check:** (Only if `ringbuffer/src/debian/cpp/` exists)
-  1. Verify that `ringbuffer/src/debian/cpp/.gen_state.json` exists.
-  2. Read the `spec_hashes` entries for `functional.md` from that file.
-  3. Compute the current SHA-256 hash of `ringbuffer/prompts/common/cpp/functional.md` and compare it against the stored Debian hash.
-  4. If the hashes match, log: `[timestamp] Debian readiness check passed — Debian is built to current functional specs. Ubuntu may copy from Debian.`
-  5. If the hashes do NOT match or `.gen_state.json` is missing, log: `[timestamp] Debian readiness check failed — Debian is NOT built to current functional specs. Ubuntu will generate independently.`
-- **Source Generation Path:** Based on the checks above:
-  - **If Debian source exists AND is ready:** Copy verified source files from `ringbuffer/src/debian/cpp/` to `ringbuffer/src/ubuntu/cpp/`. After copying, adjust only platform-specific artifacts (Makefile paths, container image names, host distro check). Log each file copied.
-  - **If Debian source is missing OR not ready:** Generate all source files independently from `ringbuffer/prompts/common/cpp/functional.md`. Do NOT copy any `.cpp` or `.hpp` files from another platform. Log: `[timestamp] Independent generation — no source copied from other platforms.`
-- **Cross-Platform Verification:** After generating or copying all files, compare output against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — Ubuntu matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
+- **Source Fidelity:** The generated source code MUST be byte-identical to the common specification. Generate all files independently from `ringbuffer/prompts/common/cpp/functional.md` — do not copy source files from any other platform.
+- **Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — Ubuntu matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
-- **Documentation Synchronization:**
-    - **Generator Audit:** Review `ringbuffer/prompts/common/generate_toplevel_readme.md` to ensure the generation logic is still aligned with the current project structure. Update the generator prompt if the README's required sections or format need to change.
-    - **README Update:** Use the (potentially updated) `ringbuffer/prompts/common/generate_toplevel_readme.md` to regenerate the top-level `README.md`, ensuring the new platform and its status are correctly reflected.
+- **Documentation:** Create a `README.md` in the source directory describing the library and build instructions.
 
 **Reporting:**
 Once implementation is complete, generate a summary report at `ringbuffer/src/ubuntu/cpp/reports/implementation_report.md`:
 
 # Implementation Report - Ubuntu <use the version resolved in Step 0, e.g., "24.04 LTS">
-**Date:** [YYYY-MM-DD HH:MM:SS]
+**Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Target Version:** <use the version resolved in Step 0, e.g., "24.04 LTS">
-**Start Time:** [YYYY-MM-DD HH:MM:SS]
-**End Time:** [YYYY-MM-DD HH:MM:SS]
+**Start Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
+**End Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Elapsed Time:** [Duration]
 
 ## Status

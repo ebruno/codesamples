@@ -55,18 +55,16 @@ Default version for this platform: Fedora 44 (overridable via Target Version inp
 
 - **Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — Fedora matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
-- **Documentation Synchronization:**
-    - **Generator Audit:** Review `ringbuffer/prompts/common/generate_toplevel_readme.md` to ensure the generation logic is still aligned with the current project structure. Update the generator prompt if the README's required sections or format need to change.
-    - **README Update:** Use the (potentially updated) `ringbuffer/prompts/common/generate_toplevel_readme.md` to regenerate the top-level `README.md`, ensuring the new platform and its status are correctly reflected.
+- **Documentation:** Create a `README.md` in the source directory describing the library and build instructions.
 
 **Reporting:**
 Once implementation is complete, generate a summary report at `ringbuffer/src/fedora/cpp/reports/implementation_report.md`:
 
 # Implementation Report - Fedora <use the version resolved in Step 0, e.g., "44">
-**Date:** [YYYY-MM-DD HH:MM:SS]
+**Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Target Version:** <use the version resolved in Step 0, e.g., "44">
-**Start Time:** [YYYY-MM-DD HH:MM:SS]
-**End Time:** [YYYY-MM-DD HH:MM:SS]
+**Start Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
+**End Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Elapsed Time:** [Duration]
 
 ## Status

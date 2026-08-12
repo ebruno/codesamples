@@ -51,20 +51,18 @@ Default version for this platform: Debian 13 (overridable via Target Version inp
 - **Strict Compliance:** Adhere strictly to the "maximum 3 functions per file" rule and the trailing underscore naming convention for private members.
 - **Location:** All generated source code and the `LICENSE` file must be placed in `ringbuffer/src/debian/cpp`.
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/debian/cpp` containing the SHA-256 hashes of the prompts used and the fingerprints of all generated files to support future incremental updates.
-- **Source Fidelity:** Generate source code from `ringbuffer/prompts/common/cpp/functional.md` and verify all generated files against the common spec's exhaustive requirements. When Ubuntu is regenerated, it MUST copy from this Debian source to maintain byte-identical cross-platform consistency.
+- **Source Fidelity:** The generated source code MUST be byte-identical to the common specification. Generate all files independently from `ringbuffer/prompts/common/cpp/functional.md` — do not copy source files from any other platform.
 
-- **Documentation Synchronization:**
-    - **Generator Audit:** Review `ringbuffer/prompts/common/generate_toplevel_readme.md` to ensure the generation logic is still aligned with the current project structure. Update the generator prompt if the README's required sections or format need to change.
-    - **README Update:** Use the (potentially updated) `ringbuffer/prompts/common/generate_toplevel_readme.md` to regenerate the top-level `README.md`, ensuring the new platform and its status are correctly reflected.
+- **Documentation:** Create a `README.md` in the source directory describing the library and build instructions.
 
 **Reporting:**
 Once implementation is complete, generate a summary report at `ringbuffer/src/debian/cpp/reports/implementation_report.md`:
 
 # Implementation Report - Debian <use the version resolved in Step 0, e.g., "13">
-**Date:** [YYYY-MM-DD HH:MM:SS]
+**Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Target Version:** <use the version resolved in Step 0, e.g., "13">
-**Start Time:** [YYYY-MM-DD HH:MM:SS]
-**End Time:** [YYYY-MM-DD HH:MM:SS]
+**Start Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
+**End Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **Elapsed Time:** [Duration]
 
 ## Status

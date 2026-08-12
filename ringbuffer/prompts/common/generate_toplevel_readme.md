@@ -64,8 +64,8 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
      - *Syntax Example:* `"Use ringbuffer/prompts/debian/cpp/update_functional.md to synchronize the debian implementation with the updated common specifications"`
    
    - **Verification & Testing:**
-     - `ringbuffer/prompts/common/verify_builds.md`: Use this for a first-pass sanity check on library compilation.
-       - *Syntax Example:* `"Use ringbuffer/prompts/common/verify_builds.md to run build_verify for debian and fedora"`
+     - `ringbuffer/prompts/common/verify_build.md`: Use this for a first-pass sanity check on library compilation.
+       - *Syntax Example:* `"Use ringbuffer/prompts/common/verify_build.md to run build_verify for debian and fedora"`
      - `ringbuffer/prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
        - *Syntax Example:* `"Use ringbuffer/prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
 

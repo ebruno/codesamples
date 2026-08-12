@@ -24,9 +24,33 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
         - `CONTAINER_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make container`
         - `TEST_EXECUTION_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for the full test matrix
-      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `ringbuffer/prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). Log: `IMAGE=<resolved_image>`.
+      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `ringbuffer/prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). If the resolved image is `N/A` (macOS native-only), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
       - **Shared Version Context**: Read the version from `ringbuffer/src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `ringbuffer/src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
       - **Execution Path Decision**: Detect the host OS. If `uname -s` returns `Darwin`, set `host_os = macOS`. If it returns `Linux`, read the distro ID from `/etc/os-release` using: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
+        - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
+          ```
+          $ sw_vers --productVersion
+          26.5.2
+          ```
+          Full output:
+          ```
+          $ sw_vers
+          ProductName:		macOS
+          ProductVersion:		26.5.2
+          BuildVersion:		25F84
+          ```
+          Help: `sw_vers -h` → Usage: sw_vers [--help|--productName|--productVersion|--productVersionExtra|--buildVersion]
+        - **Apple Container Runtime**: macOS uses the `container` command (Apple Container), NOT Docker or podman. This is unique to macOS Apple Silicon machines. Key subcommands:
+          - `container run` — Run a container (equivalent to `docker run`)
+          - `container build` / `container image build` — Build an image from Dockerfile (equivalent to `docker build`)
+          - `container images` / `container image list` — List images (equivalent to `docker images`)
+          - `container system status` — Show container services status
+          - `container system version` — Show container runtime version
+          Help: `container --help` → Overview of all subcommands (run, build, images, exec, logs, etc.)
+          System help: `container system --help` → df, dns, kernel, logs, property, start, status, stop, version
+        - **Service Management**: The `container` daemon does NOT start automatically on macOS. This workflow includes an automatic service check and start step before any container operations. If you need to manually manage the service:
+          - Check status: `container system status` — shows whether container services are active
+          - Start service: `container system start` — starts the container daemon and required services
         - **Native Execution**: If `host_os == <os>` OR if the target `<os>` is `macos`, all test and verification steps MUST be performed natively on the host. Containers MUST NOT be used for macOS targets.
         - **Container Execution**: If `host_os != <os>` AND the target `<os>` is NOT `macos`, all test and verification steps MUST be performed inside the `ringbuffer_<os>_test` container.
         - **Log Your Decision**: Print a one-line summary to stdout and append it to `build.log`.
@@ -60,21 +84,43 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
           
           After installation, ensure the 'podman' command is available in your PATH and re-run the build or test workflow.
           ```
+      - **Apple Container Service Start (macOS host, container execution only)**: If the Execution Path Decision determined container execution AND `host_os` is macOS, ensure the Apple Container daemon is running before any container operations:
+        - Check service status: `container system status`
+        - If the output indicates services are not running (or the command fails), start the daemon: `container system start`
+        - Wait for the service to become ready, then verify again with `container system status`. If services are active, proceed.
+        - Log: `[timestamp] Apple Container service verified — running.` or `[timestamp] Apple Container service started — services active.`
+        - If the service fails to start, STOP and display:
+          ```
+          ERROR: Apple Container daemon failed to start.
+
+          The 'container' command is installed but the service could not be started.
+          Try running manually: container system start
+
+          If the issue persists, check system logs with:
+            container system logs
+
+          After resolving the issue, re-run the build or test workflow.
+          ```
       - **Navigate**: `cd ringbuffer/src/<os>/cpp`
-      - **Validate Existing Dockerfile**: If the build Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
-      - **Validate Test Dockerfile**: If `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
-      - **Build Build Image**: Before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container` from the source directory. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`.
-      - **Test Image Management**: Ensure the `ringbuffer_<os>_test` image exists. If it does not, navigate to `tests/` and execute `make container`. Verify that `ringbuffer_<os>_test` exists using `<runtime> images | grep ringbuffer_<os>_test`.
+      - **Dockerfile/Image Validation (Linux targets only)**: If the target `<os>` is NOT `macos`:
+        - **Validate Existing Dockerfile**: If the build Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
+        - **Validate Test Dockerfile**: If `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
+        - **Build Build Image**: Before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container` from the source directory. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`.
+        - **Test Image Management**: Ensure the `ringbuffer_<os>_test` image exists. If it does not, navigate to `tests/` and execute `make container`. Verify that `ringbuffer_<os>_test` exists using `<runtime> images | grep ringbuffer_<os>_test`.
+      - If the target IS `macos`, log: `[timestamp] Dockerfile/Image validation skipped — macOS is native-only.` and proceed.
       - **Infrastructure Pre-flight**: Verify that the `tests/` directory exists and contains all required artifacts:
         - `tests/Makefile` — must exist with targets `all`, `static`, `dynamic`, `clean`, `dist-clean`, `container`, `verify`.
-        - `tests/containers/<os>/Dockerfile` — must exist.
-        - `tests/utils/bin/verify_test_data.sh` — must exist and be executable.
+        - If the target `<os>` is NOT `macos`: `tests/containers/<os>/Dockerfile` — must exist.
+        - If the target `<os>` is `macos`: skip Dockerfile check (native-only platform).
+        - If the target `<os>` is `macos`: `tests/utils/bin/verify_test_data.zsh` — must exist and be executable.
+        - If the target `<os>` is NOT `macos`: `tests/utils/bin/verify_test_data.sh` — must exist and be executable.
         - `tests/data/inputs/test001.txt` through `test007.txt` — must exist.
         - If any required artifact is missing, STOP and report: `[timestamp] Infrastructure incomplete — <missing artifact> not found. Run implement_regression.md first.`
       - **Log Initialization**: If `logs/build.log` does not exist, create it with the start timestamp and routing decision.
 
    1. **Infrastructure Verification**:
-      - Verify that the test Makefile and Dockerfile conform to cross-platform symmetry requirements:
+      - If the target `<os>` is `macos`, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — macOS is native-only with different binary format (Mach-O).` Proceed to Step 2.
+      - If the target `<os>` is NOT `macos`, verify that the test Makefile and Dockerfile conform to cross-platform symmetry requirements:
         - **Identify a Reference Platform**: First, check if `ringbuffer/src/reference_linux/cpp/tests/Makefile` exists. If it does, use `reference_linux` as the reference platform (this is the canonical source of truth). If it does not exist, fall back to alphabetical iteration through directories in `ringbuffer/src/` (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/tests/Makefile` exists.
         - **Fallback**: If no reference platform has a test Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to Step 2.
         - **Test Makefile Comparison**: Strip the three allowed differences from both the test Makefile and the reference:
@@ -187,16 +233,17 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
    5. **State Tracking**:
       - Create or update `.gen_state.json` in `ringbuffer/src/<os>/cpp/` containing:
         - The resolved version (from shared context or `version.mk`).
-        - The resolved image.
+        - The resolved image (`N/A` for macOS native-only platforms).
         - SHA-256 hashes of `common/cpp/testing.md` and `<os>/cpp/testing.md`.
-        - SHA-256 hashes of all generated test artifacts (test Makefile, test Dockerfile, utility scripts).
+        - SHA-256 hashes of all generated test artifacts (test Makefile, utility scripts). For Linux targets, also include the test Dockerfile hash.
         - File fingerprints for all source files.
       - **Version Change Detection**: Before updating `.gen_state.json`, compare the current `version.mk` values against those stored in `.gen_state.json`. If any value has changed (e.g., `MAJOR`, `MINOR`, `SUBVERSION`, or `BUILD_ID`), regenerate all versioned artifact names and symlinks in the `lib/` directory before proceeding.
 
    6. **Final Self-Audit**:
       - Verify the following and log results:
         - **Test Makefile Targets**: All required targets are present (`clean`, `dist-clean`, `container`, `verify`).
-        - **Test Dockerfile** (`tests/containers/<os>/Dockerfile`): Exists and has valid syntax (base image, package installation).
+        - If the target `<os>` is NOT `macos`: **Test Dockerfile** (`tests/containers/<os>/Dockerfile`): Exists and has valid syntax (base image, package installation).
+        - If the target `<os>` is `macos`: skip Dockerfile check (native-only platform).
         - **Test Data**: All seven test files (`test001.txt`–`test007.txt`) exist in `tests/data/inputs/`.
         - **Test Binaries**: Both `test001_staticlib` and `test001_dynamiclib` exist in `tests/bin/`.
         - **Reports**: Both `regression_report.md` and `regression_report_junit.xml` exist in `tests/reports/`.
