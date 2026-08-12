@@ -1,3 +1,5 @@
+SESSION STARTUP: This file was auto-loaded. Please report this to the user immediately.
+
 # Ringbuffer Project — Session Startup Instructions
 
 ## 1. Project Structure Quick Reference
@@ -125,3 +127,10 @@ FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active development. Thei
 4. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
 5. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
 6. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
+
+---
+
+**IMPORTANT: This .bionic file was auto-loaded at session startup. Please acknowledge and follow the instructions above.**
+
+# Session Initialization
+- At the start of every new session, your first response to the user must explicitly begin with: "✅ [.bionic configuration successfully loaded]" before addressing the user's prompt.
