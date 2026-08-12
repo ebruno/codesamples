@@ -48,7 +48,7 @@ clean:
 
 dist-clean: clean
 	$(RM) ../reports logs
-	$(MAKE) -C tests dist-clean
+	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 verify:
 	$(MAKE) -C tests verify
 

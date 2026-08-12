@@ -33,6 +33,11 @@ container:
 
 verify: deploy_utils all
 	@mkdir -p $(LOG_DIR) $(REPORT_DIR)
+	@# Audit Trail: capture compiler and linker versions
+	@echo "Compiler:" > $(REPORT_DIR)/compiler_version.txt
+	@clang++ -v >> $(REPORT_DIR)/compiler_version.txt 2>&1 || true
+	@echo "Linker:" >> $(REPORT_DIR)/compiler_version.txt
+	@ld -v >> $(REPORT_DIR)/compiler_version.txt 2>&1 || true
 	@echo "Running Test Matrix..."
 	@# T001
 	@$(BIN_DIR)/test001_staticlib -o $(LOG_DIR)/t001_out.txt -l $(LOG_DIR)/t001.log data/inputs/test001.txt
@@ -48,7 +53,7 @@ verify: deploy_utils all
 	@$(BIN_DIR)/test001_staticlib -e 2 -o $(LOG_DIR)/t006_out.txt -l $(LOG_DIR)/t006.log data/inputs/test001.txt
 	@# T007
 	@$(BIN_DIR)/test001_staticlib -t 2 -o $(LOG_DIR)/t007_out.txt -l $(LOG_DIR)/t007.log data/inputs/test001.txt
-	@# Generate Report
+	@# Generate Reports (Markdown + JUnit XML)
 	@./utils/bin/generate_junit_report.zsh
 	@echo "Verification complete."
 
