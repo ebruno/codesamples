@@ -9,7 +9,7 @@ Please configure the build system for the Ringbuffer on Fedora.
 **Immediate Requirements:**
 - **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/fedora/cpp/logs/build.log`.
 - **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/fedora/cpp`.
-- **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing.md`, and `artifacts.md` files within it.
+- **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing_requirements.md`, and `artifacts.md` files within it.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.
@@ -17,6 +17,9 @@ Please configure the build system for the Ringbuffer on Fedora.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
 - **Makefile Consistency:** The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
+
+**Dockerfile Handling**:
+Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (created by `implement_build.md` Step 0). If it does, **augment** the existing Dockerfile by adding platform-specific package installations — do NOT rewrite or replace it. Read its first line (`FROM ...`) and use that as the base image for any package additions.
 
 **Environment Initialization**:
 After creating the build configuration and ensuring the Dockerfile at `src/fedora/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:

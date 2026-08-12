@@ -109,7 +109,7 @@ Create the build environment for the Ringbuffer library by strictly following th
         2. Working directory path in container run commands
         3. Host distro detection check
       - Compare the remaining content byte-for-byte.
-      - **Dockerfile Comparison**: Strip lines starting with `FROM` and any `RUN` commands that contain package manager invocations (`dnf install`, `apt-get install`, `yum install`). Do NOT strip other Dockerfile instructions (`WORKDIR`, `ENV`, `COPY`, `CMD`, etc.). Compare the remaining content byte-for-byte.
+      - **Dockerfile Comparison**: Strip lines starting with `FROM`. Strip any multi-line RUN command where the first line contains a package manager invocation (`dnf install`, `apt-get install`, `yum install`) — strip the entire RUN block, not just the package manager portion. Do NOT strip other Dockerfile instructions (`WORKDIR`, `ENV`, `COPY`, `CMD`, etc.). Compare the remaining content byte-for-byte.
       - **If differences are found beyond the allowed set**: Log: `[timestamp] Cross-platform verification FAILED — <os> Makefile/Dockerfile differs from reference beyond allowed differences.` STOP and report the deviation for manual review.
       - **If verification passes**: Log: `[timestamp] Cross-platform verification passed — <os> Makefile/Dockerfile matches reference (allowed differences only).`
 
