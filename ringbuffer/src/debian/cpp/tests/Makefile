@@ -87,6 +87,7 @@ validate-data:
 
 # Run verification (artifact check + test matrix)
 verify: static dynamic validate-data deploy-utils
+	@mkdir -p $(LOGS_DIR) $(REPORTS_DIR)
 	@echo "=== Artifact Verification ==="
 	@file -L $(STATIC_LIB) | grep -q "current ar archive" && echo "Static library: OK" || (echo "Static library: FAIL"; exit 1)
 	@file -L $(SHARED_LIB) | grep -q "shared object" && echo "Shared library: OK" || (echo "Shared library: FAIL"; exit 1)
@@ -99,7 +100,6 @@ verify: static dynamic validate-data deploy-utils
 	@echo "Compiler and linker versions captured"
 	@echo ""
 	@echo "=== Test Matrix Execution ==="
-	@mkdir -p $(LOGS_DIR) $(REPORTS_DIR)
 	@start_time=$$(date '+%Y-%m-%d %H:%M:%S %z'); \
 	echo "Start Time: $$start_time"; \
 	for test_id in T001 T002 T003 T004 T005 T006 T007; do \

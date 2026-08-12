@@ -98,6 +98,7 @@ clean:
 	$(RM) $(BUILD_DIR) $(LIB_DIR) *.o "*.o" "*~" "#*#"
 
 dist-clean: clean container-clean
+	@if [ -d tests ]; then make -C tests dist-clean; fi
 	$(RM) ../reports logs
 
 
