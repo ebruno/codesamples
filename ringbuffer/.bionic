@@ -1,0 +1,127 @@
+# Ringbuffer Project — Session Startup Instructions
+
+## 1. Project Structure Quick Reference
+
+```
+ringbuffer/
+├── prompts/                          # All workflow and spec documents (read-only reference)
+│   ├── common/                       # Shared workflows (language-agnostic)
+│   │   ├── implement_functional.md   # Functional code generation workflow
+│   │   ├── implement_build.md        # Build environment creation workflow
+│   │   ├── implement_regression.md   # Test infrastructure setup workflow
+│   │   ├── run_regression.md         # Test execution workflow
+│   │   └── verify_build.md           # Build verification workflow
+│   ├── common/cpp/                   # C++-specific specs (shared)
+│   │   ├── build.md                  # Build specification
+│   │   ├── functional.md             # Functional implementation spec
+│   │   └── testing.md                # Testing specification
+│   ├── common/cpp/utils/bin/         # Shared utility scripts
+│   ├── <os>/cpp/                     # Per-platform documents (fedora, debian, ubuntu, macos)
+│   │   ├── create_functional.md      # PRIMARY document for functional impl.
+│   │   ├── create_build.md           # PRIMARY document for build creation
+│   │   ├── create_regression.md      # PRIMARY document for test infra setup
+│   │   ├── functional.md             # Platform-specific functional requirements
+│   │   ├── build.md                  # Platform-specific build requirements
+│   │   └── testing.md                # Platform-specific test requirements
+│   └── reference_linux/cpp/          # Canonical reference for cross-platform verification
+├── src/                              # Generated source code per platform
+│   └── <os>/cpp/                     # One directory per target OS
+│       ├── *.hpp / *.cpp             # Source files
+│       ├── Makefile                  # Build configuration
+│       ├── version.mk                # Library version (NOT OS version)
+│       ├── containers/               # Dockerfiles (Linux only; macOS has none)
+│       ├── tests/                    # Test infrastructure
+│       ├── logs/                     # Build and execution logs (build.log)
+│       ├── reports/                  # Build and verification reports
+│       ├── lib/                      # Built libraries (.a, .so/.dylib)
+│       └── specs/                    # Copied spec files for reference
+└── README.md                         # Project-level documentation
+```
+
+**Key directories:**
+- `prompts/` — **Read-only reference.** Never modify generated files here.
+- `src/<os>/cpp/` — **Write target.** All generated code, Makefiles, and artifacts go here.
+- `src/<os>/cpp/tests/` — **Managed exclusively by testing workflows.** Build-only prompts must treat this as read-only.
+
+## 2. Workflow File Naming Convention
+
+| Prefix | Purpose | Example |
+|--------|---------|---------|
+| `implement_*` | Creates infrastructure from scratch | `implement_build.md`, `implement_functional.md` |
+| `run_*` | Executes on already-set-up infrastructure | `run_regression.md` |
+| `verify_*` | Validates existing artifacts | `verify_build.md` |
+
+**Primary documents** (per-OS) are named `create_<phase>.md`:
+- `create_functional.md` — PRIMARY for functional implementation
+- `create_build.md` — PRIMARY for build environment creation
+- `create_regression.md` — PRIMARY for test infrastructure setup
+
+## 3. Prompt Execution Pattern
+
+Every workflow follows this pattern:
+1. **Common workflow** provides structure, image/version resolution, and routing decisions
+2. **Platform-specific primary document** (`create_*.md`) is the authoritative execution guide
+3. **Common spec** (`common/cpp/*.md`) provides technical requirements
+4. **Platform spec** (`<os>/cpp/*.md`) provides platform-specific overrides
+
+When a common workflow says "execute `create_*.md` as the PRIMARY document," it means:
+- Read it for directives and immediate requirements
+- Follow its steps as the main execution path
+- Use the common workflow for infrastructure (image resolution, routing) only
+
+## 4. Platform Classification
+
+| Category | Platforms | Container Support |
+|----------|-----------|-------------------|
+| Native-only | macOS, FreeBSD 14/15 | None — no Dockerfiles, no containers |
+| Linux distributions | Fedora, Debian, Ubuntu, reference_linux | Yes — `container` on macOS hosts, `podman` on Linux hosts |
+| Excluded | FreeBSD 14/15, ArchLinux | Zero-length files only; do not modify |
+
+**macOS is native-only.** It never uses containers, Dockerfiles, or `container` targets. All builds and tests run on the host using native toolchains (Clang, `make`, `ar`).
+
+## 5. Operational Discipline
+
+### Read-Before-Write
+Always read a file before modifying it. If a write fails due to concurrent modification, re-read and retry once.
+
+### Path Resolution
+- **Workspace root:** `ringbuffer/` — all relative paths resolve from here
+- **Source directory:** `ringbuffer/src/<os>/cpp/` — this is where generated code lives
+
+### Timestamp Format
+All timestamps MUST include timezone offset: `[YYYY-MM-DD HH:MM:SS +/-HHMM]`
+- Use `date '+%Y-%m-%d %H:%M:%S %z'` on both Linux and macOS (BSD date supports `%z`)
+
+### Logging
+- Every action MUST be logged to `ringbuffer/src/<os>/cpp/logs/build.log` (or platform-specific log)
+- Log format: `[timestamp] <action description>`
+- Initialize logs at the start of each workflow step
+
+### Scope Boundaries
+Each workflow has a defined scope. Do NOT:
+- Execute tests from build workflows
+- Create test infrastructure from functional workflows
+- Modify files outside the declared scope directory
+
+### Cross-Platform Generation Mandate
+All platform source code MUST be generated **independently** from the common specification. Do NOT copy source files, Makefiles, or Dockerfiles between platforms. Each platform generates its own artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
+
+**Allowed Makefile differences:**
+1. `CONTAINER_IMAGE` variable value
+2. Working directory path in container run commands
+3. Host distro detection check
+
+**Allowed Dockerfile differences:**
+1. `FROM` base image line
+2. Package installation RUN blocks (platform-specific package managers)
+
+### Excluded Platforms
+FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active development. Their prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
+
+### Common Pitfalls
+1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
+2. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).
+3. **`make clean` removes artifacts:** The main Makefile's `clean` target removes `build/`, `lib/`, and `logs/`. This is intentional for fresh builds.
+4. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
+5. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
+6. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
