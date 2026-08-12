@@ -13,7 +13,7 @@ Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for
 **Platform Specifics:**
 - **Target Environment**: Fedora 44, Kernel 7.1.5-200.fc44.
 - **Prerequisites**: Install the following packages via `dnf`:
-    - `gcc`, `gcc-c++`, `binutils`, `make`, `cmake`, `cmake-doc`, `cmake-data`, `cmake-rpm`, `doxygen`, `clang`, `clang-tools-extra`, `procps-ng`, `coreutils`, `findutils`, `which`, `python3`, `fedora-packager`.
+    - `gcc`, `gcc-c++`, `binutils`, `make`, `cmake`, `doxygen`, `clang`, `procps-ng`, `coreutils`, `findutils`, `file`, `patchelf`, `vim-minimal`, `strace`, `python3`.
 
 ## Required Tools
 - `g++` or `clang++` (Compiler/Linker)
@@ -22,16 +22,16 @@ Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for
 - `nm` (Symbol Analysis)
 - `readelf` (Binary Analysis)
 - `python3` (Recovery Scripts)
-- `fedora-packager` (Packaging)
 
 **Containerized Build Environment**:
 - **Base Image**: `fedora:44`.
 - **Toolchain Installation**: Use `dnf` to install the following packages:
     - GNU: `gcc`, `gcc-c++`, `binutils`, `make`.
-    - Build & Docs: `cmake`, `cmake-doc`, `cmake-data`, `cmake-rpm`, `doxygen`.
-    - LLVM/Clang: `clang`, `clang-tools-extra (for clang-tidy and clang-format).`
-    - Utilities: `procps-ng`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`, `fedora-packager`.
+    - Build & Docs: `cmake`, `doxygen`.
+    - LLVM/Clang: `clang`.
+    - Utilities: `procps-ng`, `coreutils`, `findutils`, `file`, `patchelf`, `vim-minimal`, `strace`, `python3`.
 - **Container Path**: Use `src/fedora/cpp/containers/Dockerfile`.
+- **vmnet Network Timeout**: Apple Container's vmnet network requires extended dnf timeout. The Dockerfile MUST include `--setopt=timeout=300` in all dnf install commands. Without this, repo metadata downloads time out during the initial fetch phase.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
 **Host-Target Compatibility** and **Container Runtime Pre-flight**: See `ringbuffer/prompts/common/cpp/build.md` for the authoritative host-target and container runtime directives.
