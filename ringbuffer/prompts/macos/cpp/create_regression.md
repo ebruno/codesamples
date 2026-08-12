@@ -1,5 +1,7 @@
 **Default Image:** N/A (macOS is native-only; no container image is used)
 
+**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`ringbuffer/prompts/common/implement_regression.md`) provides image resolution and structure reference only.
+
 Please implement the full regression test suite for the Ringbuffer on macOS.
 
 **Directives:**
@@ -38,5 +40,5 @@ Before finishing, you MUST verify and log the following:
 6. **Test Matrix:** All 7 tests (T001–T007) execute with correct exit codes and produce expected output.
 
 **Tooling and Recovery:**
-- **Invalid Filenames:** If you encounter files or directories with trailing characters after valid extensions (e.g., `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Invalid Filenames:** If you encounter files or directories with trailing characters after valid extensions (e.g., `ErrorOps.cpp`), use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors:** If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.

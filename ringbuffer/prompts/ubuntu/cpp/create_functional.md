@@ -10,6 +10,10 @@ Default version for this platform: Ubuntu 24.04 LTS (overridable via Target Vers
 
 **Version Context:** The version from the common workflow's **Target Version** input should be passed as context. If no version is provided in the user prompt, use default: Ubuntu 24.04 LTS.
 
+**Directives:**
+1. Use `ringbuffer/prompts/ubuntu/cpp/functional.md` for platform-specific requirements.
+2. Use `ringbuffer/prompts/common/cpp/functional.md` as the primary architectural and functional specification.
+
 0. **Environment Setup**:
       - **Use Version**: Use the version resolved by `ringbuffer/prompts/common/implement_functional.md` Step 0. If no version was resolved, use the default: Ubuntu 24.04 LTS.
       - **Log Initialization**: If `functional.log` does not yet exist, create it with the start timestamp, action description, and resolved version. Otherwise, skip initialization (already performed by common workflow Step 0).
@@ -42,10 +46,6 @@ Default version for this platform: Ubuntu 24.04 LTS (overridable via Target Vers
       - Append a final entry to `functional.log` stating that the functional implementation is complete.
       - Calculate and include the total elapsed time since the start timestamp in this final entry.
 
-**Directives:**
-1. Use `ringbuffer/prompts/ubuntu/cpp/functional.md` for platform-specific requirements.
-2. Use `ringbuffer/prompts/common/cpp/functional.md` as the primary architectural and functional specification.
-
 **Immediate Requirements:**
 - **Source Tree:** Implement the full set of files defined in the **File Mapping Table** of the common specification. 
 - **Strict Compliance:** Adhere strictly to the "maximum 3 functions per file" rule and the trailing underscore naming convention for private members.
@@ -53,7 +53,6 @@ Default version for this platform: Ubuntu 24.04 LTS (overridable via Target Vers
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/ubuntu/cpp` containing the SHA-256 hashes of the prompts used and the fingerprints of all generated files to support future incremental updates.
 - **Source Fidelity:** The generated source code MUST be byte-identical to the common specification. Generate all files independently from `ringbuffer/prompts/common/cpp/functional.md` — do not copy source files from any other platform.
 - **Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — Ubuntu matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
-
 - **Documentation:** Create a `README.md` in the source directory describing the library and build instructions.
 
 **Reporting:**
@@ -81,6 +80,6 @@ Once implementation is complete, generate a summary report at `ringbuffer/src/ub
 - **Naming**: Verified trailing underscore convention for private members.
 
 **Tooling and Recovery:**
-- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
+- **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `ErrorOps.cpp`, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
 <EOF>
