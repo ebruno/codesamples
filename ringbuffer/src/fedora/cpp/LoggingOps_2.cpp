@@ -1,6 +1,5 @@
 #include "ringbuffer.hpp"
 #include <iostream>
-#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {

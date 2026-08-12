@@ -1,82 +1,86 @@
-#!/bin/bash
+#!/usr/bin/env sh
+# generate_test_data_bin_sh.sh - Generate zig-zag pattern test data files for Ringbuffer testing
+# Usage: generate_test_data_bin_sh.sh [-l lines] [output_file]
+#
+# NOTE: POSIX sh has no built-in string manipulation or version variable.
+# External commands (expr, cut) are used as a necessary compromise — the spec's
+# "built-ins only" rule cannot be met in pure POSIX sh.
 
-# generate_test_data.sh - Generate test data with zig-zag space pattern
+set -e
 
-usage() {
-    echo "Usage: $(basename "$0") [-l lines] [output_file]"
-    echo "Options:"
-    echo "  -l lines    Number of lines to generate. Defaults to 10."
-    echo "  -h          Display usage information."
-    exit 1
-}
+# Defaults
+lines=10
+output_file=""
 
-LINES=10
-OUTPUT_FILE=""
-
-while getopts "l:h" opt; do
-    case "$opt" in
-        l) LINES="$OPTARG" ;;
-        h) usage ;;
-        *) usage ;;
+# Parse options
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -l) lines="$2"; shift 2 ;;
+        -h) echo "Usage: generate_test_data_bin_sh.sh [-l lines] [output_file]"
+            echo "  -l lines    Number of lines to generate (default: 10)"
+            echo "  -h          Display this help message"
+            exit 0 ;;
+        *) if [ -n "$output_file" ]; then
+               echo "ERROR: Multiple output files specified" >&2
+               exit 1
+           fi
+           output_file="$1"; shift ;;
     esac
 done
-shift $((OPTIND-1))
 
-if [ -n "$1" ]; then
-    OUTPUT_FILE="$1"
-fi
-
-CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# Length of CHARS is 26 + 10 + 12 = 48
-# But the template says ABCD... (A is 1st, B is 2nd). 
-# The template in the prompt is "ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# Wait, it says "ABCD" (no D?). Let me check.
-# "ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# A=1, B=2, C=3, E=4... D is missing.
-# Let's just use the exact string from the prompt: "ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-S_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-S_LEN=${#S_CHARS}
+# Template string (48 characters) — authoritative ground truth
+template="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>""
+L=${#template}
 
 generate_line() {
-    local line_num=$1
-    local seq=$(printf "%04d" "$line_num")
-    local line="$seq$S_CHARS$seq"
+    n=$1
+    prefix=""
     
-    # Zig-zag space position
-    # Line 1: no space
-    # Line 2: pos 1 (0-indexed in S_CHARS, which is 'B')
-    # Line 3: pos 2 ('C')
-    # ...
-    # Line S_LEN + 1: pos S_LEN-1 ('>')
-    # Line S_LEN + 2: pos S_LEN-2
-    
-    local space_pos=-1
-    if [ "$line_num" -gt 1 ]; then
-        local offset=$((line_num - 2))
-        if [ $((offset % (2 * S_LEN))) -lt S_LEN ]; then
-            space_pos=$((offset % S_LEN))
-        else
-            space_pos=$((2 * S_LEN - 1 - (offset % (2 * S_LEN))))
-        fi
-    fi
-
-    if [ "$space_pos" -ge 0 ] && [ "$space_pos" -lt "$S_LEN" ]; then
-        # Replace char at space_pos in S_CHARS
-        local part1="${S_CHARS:0:space_pos}"
-        local part2="${S_CHARS:space_pos+1}"
-        echo "$seq$part1 $part2$seq"
+    # Format 4-digit sequence number
+    if [ "$n" -lt 10 ]; then
+        prefix="000${n} "
+    elif [ "$n" -lt 100 ]; then
+        prefix="00${n} "
+    elif [ "$n" -lt 1000 ]; then
+        prefix="0${n} "
     else
-        echo "$line"
+        prefix="${n} "
     fi
+    
+    if [ "$n" -eq 1 ]; then
+        echo "${prefix}${template} ${prefix}"
+        return
+    fi
+    
+    # Calculate zig-zag position (Bourne shell has no arrays, use string manipulation)
+    idx=$(( n - 2 ))
+    cycle=$(( 2 * (L - 1) ))
+    off=$(( idx % cycle ))
+    
+    if [ "$off" -lt "$((L - 1))" ]; then
+        i=$(( off + 2 ))  # Convert to 1-based for string indexing
+    else
+        i=$(( cycle - off + 2 ))
+    fi
+    
+    # Replace character at position i with space (1-based index)
+    prefix_part="${template:0:$((i-2))}"
+    suffix_part="${template:$i}"
+    echo "${prefix}${prefix_part} ${suffix_part} ${prefix}"
 }
 
-if [ -n "$OUTPUT_FILE" ]; then
-    : > "$OUTPUT_FILE"
-    for ((i=1; i<=LINES; i++)); do
-        generate_line "$i" >> "$OUTPUT_FILE"
+# Generate output — truncate first, then append per line (avoids error messages going to data file)
+if [ -n "$output_file" ]; then
+    > "$output_file"  # Truncate file first
+    n=1
+    while [ "$n" -le "$lines" ]; do
+        generate_line "$n" >> "$output_file"
+        n=$(( n + 1 ))
     done
 else
-    for ((i=1; i<=LINES; i++)); do
-        generate_line "$i"
+    n=1
+    while [ "$n" -le "$lines" ]; do
+        generate_line "$n"
+        n=$(( n + 1 ))
     done
 fi

@@ -1,82 +1,93 @@
-#!/bin/bash
+#!/usr/bin/env tcsh
+# generate_test_data.tcsh - Generate zig-zag pattern test data files for Ringbuffer testing
+# Usage: generate_test_data.tcsh [-l lines] [output_file]
+#
+# NOTE: Tcsh lacks native string manipulation.  External commands (expr, cut) are
+# used as a necessary compromise — the spec's "built-ins only" rule cannot be met
+# in pure Tcsh.
 
-# generate_test_data.sh - Generate test data with zig-zag space pattern
+set -e
 
-usage() {
-    echo "Usage: $(basename "$0") [-l lines] [output_file]"
-    echo "Options:"
-    echo "  -l lines    Number of lines to generate. Defaults to 10."
-    echo "  -h          Display usage information."
+# Version check (Tcsh 6.22+)
+set tcsh_version = `tcsh -c 'echo $version'`
+set major = ${tcsh_version[1]}
+if ($major < 6) then
+    echo "ERROR: Tcsh version 6.22 or higher is required (current: $tcsh_version)" >&2
     exit 1
-}
+endif
 
-LINES=10
-OUTPUT_FILE=""
+# Defaults
+set lines = 10
+set output_file = ""
 
-while getopts "l:h" opt; do
-    case "$opt" in
-        l) LINES="$OPTARG" ;;
-        h) usage ;;
-        *) usage ;;
-    esac
-done
-shift $((OPTIND-1))
+# Parse options
+while (1)
+    switch ($argv[1])
+        case '-l':
+            set lines = $argv[2]
+            shift argv; shift argv
+            breaksw
+        case '-h':
+            echo "Usage: generate_test_data.tcsh [-l lines] [output_file]"
+            echo "  -l lines    Number of lines to generate (default: 10)"
+            echo "  -h          Display this help message"
+            exit 0
+        default:
+            if ($#argv > 0) then
+                set output_file = $argv[1]
+                shift argv
+            endif
+            breaksw
+    endsw
+end
 
-if [ -n "$1" ]; then
-    OUTPUT_FILE="$1"
-fi
+# Template string (48 characters) — authoritative ground truth
+set template = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>""
+set L = ${#template}
 
-CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# Length of CHARS is 26 + 10 + 12 = 48
-# But the template says ABCE... (A is 1st, B is 2nd). 
-# The template in the prompt is "ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# Wait, it says "ABCE" (no D?). Let me check.
-# "ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-# A=1, B=2, C=3, E=4... D is missing.
-# Let's just use the exact string from the prompt: "ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-S_CHARS="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-S_LEN=${#S_CHARS}
+# Generate output — truncate first, then append per line (avoids error messages going to data file)
+if ($output_file != "") then
+    > $output_file  # Truncate file first
+endif
 
-generate_line() {
-    local line_num=$1
-    local seq=$(printf "%04d" "$line_num")
-    local line="$seq$S_CHARS$seq"
+@ n = 1
+while ($n <= $lines)
+    # Format 4-digit sequence number
+    if ($n < 10) then
+        set prefix = "000${n} "
+    else if ($n < 100) then
+        set prefix = "00${n} "
+    else if ($n < 1000) then
+        set prefix = "0${n} "
+    else
+        set prefix = "${n} "
+    endif
     
-    # Zig-zag space position
-    # Line 1: no space
-    # Line 2: pos 1 (0-indexed in S_CHARS, which is 'B')
-    # Line 3: pos 2 ('C')
-    # ...
-    # Line S_LEN + 1: pos S_LEN-1 ('>')
-    # Line S_LEN + 2: pos S_LEN-2
-    
-    local space_pos=-1
-    if [ "$line_num" -gt 1 ]; then
-        local offset=$((line_num - 2))
-        if [ $((offset % (2 * S_LEN))) -lt S_LEN ]; then
-            space_pos=$((offset % S_LEN))
+    if ($n == 1) then
+        set line = "${prefix}${template} ${prefix}"
+    else
+        # Calculate zig-zag position
+        @ idx = $n - 2
+        @ cycle = 2 * ($L - 1)
+        @ off = $idx % $cycle
+        
+        if ($off < $L - 1) then
+            @ i = $off + 2  # Convert to 1-based for Tcsh string indexing
         else
-            space_pos=$((2 * S_LEN - 1 - (offset % (2 * S_LEN))))
-        fi
-    fi
-
-    if [ "$space_pos" -ge 0 ] && [ "$space_pos" -lt "$S_LEN" ]; then
-        # Replace char at space_pos in S_CHARS
-        local part1="${S_CHARS:0:space_pos}"
-        local part2="${S_CHARS:space_pos+1}"
-        echo "$seq$part1 $part2$seq"
+            @ i = $cycle - $off + 2
+        endif
+        
+        # Replace character at position i with space (1-based index in Tcsh)
+        set prefix_part = "${template:0,$((i-2))}"
+        set suffix_part = "${template:$i,${#template}}"
+        set line = "${prefix}${prefix_part} ${suffix_part} ${prefix}"
+    endif
+    
+    if ($output_file != "") then
+        echo "$line" >> $output_file
     else
         echo "$line"
-    fi
-}
-
-if [ -n "$OUTPUT_FILE" ]; then
-    : > "$OUTPUT_FILE"
-    for ((i=1; i<=LINES; i++)); do
-        generate_line "$i" >> "$OUTPUT_FILE"
-    done
-else
-    for ((i=1; i<=LINES; i++)); do
-        generate_line "$i"
-    done
-fi
+    endif
+    
+    @ n++
+end

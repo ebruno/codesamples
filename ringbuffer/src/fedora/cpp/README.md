@@ -1,35 +1,76 @@
-# Swtr Ringbuffer (Debian C++ Implementation)
+# Ringbuffer Library — Fedora 44
 
-## Description
-A high-performance, fixed-size circular buffer implementation for C++20. This library provides a three-stage pipeline (Read -> Transform -> Write) with strong thread safety and cache-line alignment to prevent false sharing.
+A high-performance, thread-safe ring buffer (circular buffer) library implementing a three-stage pipeline architecture: **Read → Transform → Write**. Built for binary symmetry across Linux distributions.
 
-## Features
-- **C++20 Compliant**: Uses `std::jthread`, `std::stop_token`, and `std::format`.
-- **Thread Safe**: Atomic state management and synchronization primitives.
-- **Optimized**: `alignas(64)` on critical structures to avoid cache line contention.
-- **Flexible**: Custom transform functions and error handlers.
+## Overview
 
-## Architecture
-The implementation follows a strict separation of concerns:
-- `RingBuffer`: Abstract interface defining the API.
-- `SwtrRingBuffer`: Concrete implementation.
-- `BufferSlot`: The unit of data storage, containing state and checksum information.
+The Ringbuffer connects its memory end-to-end in a loop, using independent read, transform, and write threads with atomic index counters. It supports configurable slot counts, buffer sizes, custom transformation functions, and error handling callbacks.
 
-## Building the Library
-This library is designed to be built with GCC or Clang.
+## Build Requirements
 
-### Compilation Example
+- **Compiler**: `g++` or `clang++` (C++20 compliant)
+- **Build System**: GNU Make
+- **Target OS**: Fedora 44
+
+### Prerequisites (Fedora)
+
 ```bash
-g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
-    -ffunction-sections -fdata-sections \
-    -Wall -Wextra -Werror \
-    Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
-    WriteOps.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
-    LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
-    Accessors_Status.cpp Accessors_ChecksumAlg.cpp Accessors_ChecksumVal.cpp \
-    Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp \
-    -o libswtr_ringbuffer.so -shared -Wl,--gc-sections
+sudo dnf install -y gcc-c++ make binutils cmake doxygen clang clang-tools-extra
 ```
 
+## Building
+
+### Using Make
+
+```bash
+cd ringbuffer/src/fedora/cpp
+make                    # Build both static and shared libraries
+make static             # Build static library only
+make shared             # Build shared library only
+make clean              # Remove build artifacts
+```
+
+### Using g++
+
+```bash
+g++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto \
+    -I. -c Lifecycle.cpp ReadOps.cpp TransformOps.cpp WriteOps.cpp \
+       Threading.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
+       LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
+       Accessors_Status.cpp Accessors_ChecksumAlg.cpp Accessors_ChecksumVal.cpp \
+       Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp
+
+ar rcs lib/libswtr_ringbuffer-1.0.0-1.a *.o
+g++ -shared -Wl,-soname,libswtr_ringbuffer.so -o lib/libswtr_ringbuffer-1.0.0-1.so *.o
+```
+
+### Using clang++
+
+```bash
+clang++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto \
+    -I. -c Lifecycle.cpp ReadOps.cpp TransformOps.cpp WriteOps.cpp \
+       Threading.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
+       LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
+       Accessors_Status.cpp Accessors_ChecksumAlg.cpp Accessors_ChecksumVal.cpp \
+       Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp
+
+ar rcs lib/libswtr_ringbuffer-1.0.0-1.a *.o
+clang++ -shared -Wl,-soname,libswtr_ringbuffer.so -o lib/libswtr_ringbuffer-1.0.0-1.so *.o
+```
+
+## Containerized Build
+
+```bash
+make container          # Build the Fedora 44 build image
+make container-clean    # Remove the build image
+```
+
+## Architecture
+
+- **RingBuffer**: Abstract base class defining the public interface
+- **SwtrRingBuffer**: Concrete implementation with three pipeline threads (read, transform, write)
+- **BufferSlot**: Cache-line aligned slot structure with atomic state management
+
 ## License
-This project is licensed under the BSD 3-Clause License.
+
+BSD 3-Clause License — see [LICENSE](LICENSE) for details.

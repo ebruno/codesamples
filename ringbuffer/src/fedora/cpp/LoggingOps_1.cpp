@@ -1,17 +1,14 @@
 #include "ringbuffer.hpp"
 #include <iostream>
-#include <mutex>
 #include <string>
-#include "status.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
 void SwtrRingBuffer::do_log(LogLevel level, const std::string& message) {
-    static std::mutex log_mutex;
-    std::lock_guard<std::mutex> lock(log_mutex);
-    
-    std::string level_str;
+    std::lock_guard<std::mutex> lock(log_mutex_);
+
+    const char* level_str = "[UNKNOWN]";
     switch (level) {
         case LogLevel::Trace:    level_str = "[TRACE]"; break;
         case LogLevel::Debug:    level_str = "[DEBUG]"; break;

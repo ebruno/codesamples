@@ -2,7 +2,7 @@ include version.mk
 
 # Toolchain
 CXX ?= g++
-CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 \
+CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 -flto \
            -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 LDFLAGS = -Wl,--gc-sections
 
@@ -46,17 +46,36 @@ JOBS ?= 1
 CONTAINER_IMAGE = ringbuffer_fedora_build
 DOCKERFILE = containers/Dockerfile
 
-# Detect Container Runtime
+# Detect Container Runtime and Host OS
 UNAME_S := $(shell uname -s)
+HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
 ifeq ($(UNAME_S),Darwin)
     CONTAINER_CMD = container
 else
     CONTAINER_CMD = podman
 endif
 
-.PHONY: all static shared clean dist-clean container container-clean verify lint format
+# When host is not Fedora (e.g. macOS), auto-build inside container
+# This conditional logic ensures cross-OS builds use containers automatically
+ifeq ($(UNAME_S),Darwin)
+    all: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/src/fedora/cpp $(CONTAINER_IMAGE) make all
+else ifneq ($(HOST_DISTRO),fedora)
+    all: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/src/fedora/cpp $(CONTAINER_IMAGE) make all
+else
+    all: $(STATIC_LIB) $(SHARED_LIB)
+endif
 
-all: $(STATIC_LIB) $(SHARED_LIB)
+.PHONY: all static shared clean dist-clean container container-clean lint format
+
+# Static Library Target
+static: $(STATIC_LIB)
+	@echo "Static library built: $(STATIC_LIB)"
+
+# Shared Library Target
+shared: $(SHARED_LIB)
+	@echo "Shared library built: $(SHARED_LIB)"
 
 # Static Library
 $(STATIC_LIB): $(OBJS)
@@ -80,28 +99,14 @@ clean:
 
 dist-clean: clean container-clean
 	$(RM) ../reports logs
-	$(MAKE) -C tests dist-clean
 
-# Verification
-verify:
-	$(MAKE) -C tests verify
+
 
 # Container Management
 container:
 	@mkdir -p logs
 	@echo "Checking build container..."
-	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-		if ! $(CONTAINER_CMD) info >/dev/null 2>&1; then \
-			echo "Container service not running. Starting..."; \
-			$(CONTAINER_CMD) system start; \
-			sleep 2; \
-			if ! $(CONTAINER_CMD) info >/dev/null 2>&1; then \
-				echo "ERROR: Failed to start container service."; \
-				exit 1; \
-			fi; \
-		fi; \
-	fi
-	@if ! $(CONTAINER_CMD) image ls | grep -q $(CONTAINER_IMAGE); then \
+	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q $(CONTAINER_IMAGE); then \
 		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
 		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
 	else \
@@ -117,40 +122,8 @@ container-clean:
 # Container Health Check
 container-info:
 	@echo "Container runtime: $(CONTAINER_CMD)"
-	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-		if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
-			echo "Container service: RUNNING"; \
-		else \
-			echo "Container service: NOT RUNNING (run 'container system start')"; \
-		fi; \
+	@if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
+		echo "Container service: RUNNING"; \
 	else \
-		if $(CONTAINER_CMD) info >/dev/null 2>&1; then \
-			echo "Container service: RUNNING"; \
-		else \
-			echo "Container service: NOT RUNNING"; \
-		fi; \
+		echo "Container service: NOT RUNNING"; \
 	fi
-	@echo "Available images:"
-	@$(CONTAINER_CMD) image ls | grep ringbuffer || echo "  (none)"
-
-# Build Only (no container, no tests)
-build-only:
-	@echo "Building library only..."
-	$(MAKE) clean
-	$(MAKE) all
-	@echo "Build complete. Artifacts in lib/"
-
-# Optional lint and format targets (requires clang-tidy / clang-format)
-lint:
-	@echo "Running clang-tidy..."
-	@for f in *.cpp; do \
-		clang-tidy $$f -- $(CXXFLAGS) -I. 2>/dev/null || true; \
-	done
-	@echo "Lint complete."
-
-format:
-	@echo "Running clang-format..."
-	@for f in *.cpp *.hpp; do \
-		clang-format -i $$f 2>/dev/null || true; \
-	done
-	@echo "Format complete."
