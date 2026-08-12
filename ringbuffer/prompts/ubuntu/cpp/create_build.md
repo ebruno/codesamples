@@ -16,19 +16,7 @@ Please configure the build system for the Ringbuffer on Ubuntu 24.04 LTS (Linux 
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
-- **Debian Source Availability Check:** Before generating the Makefile, check whether the Debian source directory exists:
-  1. Verify that `ringbuffer/src/debian/cpp/` exists as a directory.
-  2. If it does NOT exist, log: `[timestamp] Debian source directory missing — ringbuffer/src/debian/cpp/ not found. Ubuntu will generate independently.` and skip all comparison/copy steps.
-  3. If it DOES exist, proceed to the Debian Readiness Check below.
-- **Debian Build Readiness Check:** (Only if `ringbuffer/src/debian/cpp/` exists)
-  1. Verify that `ringbuffer/src/debian/cpp/.gen_state.json` exists.
-  2. Read the `spec_hashes` entries for `build.md` from that file.
-  3. Compute the current SHA-256 hash of `ringbuffer/prompts/common/cpp/build.md` and compare it against the stored Debian hash.
-  4. If the hashes match, log: `[timestamp] Debian build readiness check passed — Debian is built to current build specs. Ubuntu may copy from Debian.`
-  5. If the hashes do NOT match or `.gen_state.json` is missing, log: `[timestamp] Debian build readiness check failed — Debian is NOT built to current build specs. Ubuntu will generate independently.`
-- **Makefile Generation Path:** Based on the checks above:
-  - **If Debian source exists AND is ready:** Copy `ringbuffer/src/debian/cpp/Makefile` to the Ubuntu source directory. Adjust only platform-specific values (`CONTAINER_IMAGE`, working directory path, host distro check). Log each adjustment.
-  - **If Debian source is missing OR not ready:** Generate the Makefile independently from `ringbuffer/prompts/common/cpp/build.md` and `ringbuffer/prompts/ubuntu/cpp/build.md`. Do NOT copy the Makefile from another platform. Log: `[timestamp] Independent Makefile generation — no Makefile copied from other platforms.`
+- **Makefile Generation:** Generate the Makefile independently from `ringbuffer/prompts/common/cpp/build.md` and `ringbuffer/prompts/ubuntu/cpp/build.md`. Do NOT copy the Makefile from another platform. Log: `[timestamp] Independent Makefile generation — no Makefile copied from other platforms.`
 
 **Environment Initialization**:
 After creating the build configuration and ensuring the Dockerfile at `src/ubuntu/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:

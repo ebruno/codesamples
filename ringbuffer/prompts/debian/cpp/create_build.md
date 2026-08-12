@@ -9,14 +9,31 @@ Please configure the build system for the Ringbuffer on Debian.
 **Immediate Requirements:**
 - **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/debian/cpp/logs/build.log`.
 - **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/debian/cpp`.
-- **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing.md`, and `artifacts.md` files within it.
+- **Documentation**: Create the `specs/` subdirectory with:
+  - `build.md`: Copy of `ringbuffer/prompts/debian/cpp/build.md`
+  - `testing_requirements.md`: Copy of `ringbuffer/prompts/debian/cpp/testing.md` (NOT named `testing.md`)
+  - `artifacts.md`: Create with the standard library artifacts table:
+    ```markdown
+    # Build Artifacts — Debian
+
+    ## Library Artifacts
+    | Artifact | Path | Description |
+    |----------|------|-------------|
+    | Static Library | `lib/libswtr_ringbuffer-<MAJOR>.<MINOR>.<SUBVERSION>-<BUILD_ID>.a` | Static archive built with `ar` |
+    | Shared Library | `lib/libswtr_ringbuffer-<MAJOR>.<MINOR>.<SUBVERSION>-<BUILD_ID>.so` | Shared object built with `-shared` |
+    | Static Link | `lib/libswtr_ringbuffer.a` → versioned static library | Relative symlink for linking |
+    | Shared Link | `lib/libswtr_ringbuffer.so` → versioned shared library | Relative symlink for linking |
+    ```
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
-- **Makefile Consistency:** The generated `Makefile` MUST match the Ubuntu Makefile exactly, except for platform-specific values (`CONTAINER_IMAGE`, working directory path, host distro check). After generating the Makefile, diff it against `src/ubuntu/cpp/Makefile` and resolve any non-platform-specific differences.
+- **Makefile Consistency:** The generated `Makefile` MUST be created independently from `ringbuffer/prompts/common/cpp/build.md` and the platform-specific build spec. Do NOT copy Makefiles from other platforms.
+
+**Dockerfile Handling**:
+Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (created by `implement_build.md` Step 0). If it does, **augment** the existing Dockerfile by adding platform-specific package installations — do NOT rewrite or replace it. Read its first line (`FROM ...`) and use that as the base image for any package additions.
 
 **Environment Initialization**:
 After creating the build configuration and ensuring the Dockerfile at `src/debian/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:

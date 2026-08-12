@@ -81,7 +81,7 @@ Create the build environment for the Ringbuffer library by strictly following th
         - The `containers/Dockerfile` (if not already created in Step 0). If a minimal Dockerfile was created in Step 0, `create_build.md` MUST **augment** it by adding the platform-specific package installations and container settings from `build.md` — do NOT replace or rewrite it. Before creating the Dockerfile, check if `containers/Dockerfile` already exists:
           - If it exists: read its first line (`FROM ...`) and use that as the base image for any package additions. Do NOT rewrite the entire file.
           - If it does not exist: create a new Dockerfile from scratch using the resolved image as the base.
-        - The `specs/` subdirectory with `build.md`, `testing.md`, and `artifacts.md`.
+        - The `specs/` subdirectory with `build.md`, `testing_requirements.md`, and `artifacts.md`.
       - The Makefile MUST be generated independently from `ringbuffer/prompts/common/cpp/build.md` and the platform-specific build spec. Do NOT copy Makefiles from other platforms.
       - The Dockerfile MUST be generated independently from the build spec's container requirements. Do NOT copy Dockerfiles from other platforms.
       - **specs/build.md**: Copy of `ringbuffer/prompts/<os>/cpp/build.md` (platform-specific build requirements).
@@ -102,7 +102,7 @@ Create the build environment for the Ringbuffer library by strictly following th
       - Log each file creation in `build.log` immediately after the file is written.
 
    1.5 **Cross-Platform Verification**: After creating the Makefile and Dockerfile, verify they conform to the binary symmetry requirements:
-      - **Identify a Reference Platform**: Find an OS directory in `ringbuffer/src/` that already has a Makefile. Iterate through directories alphabetically (e.g., `debian`, `fedora`, `macos`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/Makefile` exists.
+      - **Identify a Reference Platform**: Find an OS directory in `ringbuffer/src/` that already has a Makefile. Iterate through directories alphabetically (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/Makefile` exists.
       - **Fallback**: If no reference platform has a Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to Step 2.
       - **Makefile Comparison**: Strip the three allowed differences from both the generated Makefile and the reference:
         1. `CONTAINER_IMAGE` variable value
@@ -215,7 +215,7 @@ Create the build environment for the Ringbuffer library by strictly following th
 **Immediate Requirements:**
 - **Logging**: Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/<os>/cpp/logs/build.log`.
 - **Configuration**: Create the build configuration (Makefile) in `ringbuffer/src/<os>/cpp`.
-- **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing.md`, and `artifacts.md` files within it.
+- **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing_requirements.md`, and `artifacts.md` files within it.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts**: 
     - Deploy libraries to the `lib/` subdirectory.
