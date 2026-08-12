@@ -44,17 +44,17 @@ generate_line() {
     
     # Format 4-digit sequence number
     if (( n < 10 )); then
-        prefix="000${n} "
+        prefix="000${n}"
     elif (( n < 100 )); then
-        prefix="00${n} "
+        prefix="00${n}"
     elif (( n < 1000 )); then
-        prefix="0${n} "
+        prefix="0${n}"
     else
-        prefix="${n} "
+        prefix="${n}"
     fi
     
     if (( n == 1 )); then
-        echo "${prefix}${template} ${prefix}"
+        echo "${prefix} ${template} ${prefix}"
         return
     fi
     
@@ -82,7 +82,7 @@ generate_line() {
         modified+="${chars[$c]}"
     done
     
-    echo "${prefix}${modified} ${prefix}"
+    echo "${prefix} ${modified} ${prefix}"
 }
 
 # Generate output — truncate first, then append per line (avoids error messages going to data file)

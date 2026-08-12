@@ -5,6 +5,10 @@
     "common/cpp/functional.md": "a7ffd574b0ef04c94bb36820b4b144b3d2db53799edb8281a34885450e3e3aec",
     "ubuntu/cpp/functional.md": "9f97f5033f9b73495afa732f4c1fd8d165b31f72445dcde8be2c22b8f12a74fd"
   },
+  "spec_hashes": {
+    "common/cpp/build.md": "702e7a0acba31d6b539f0fff461e0d45fca9d4c921a371644f222ac0f800a4b0",
+    "ubuntu/cpp/build.md": "7275c62e366e59e6e681680ffc42339b130b95f329e39f64ec296fa66ac9efcc"
+  },
   "generated_files": {
     ".gen_state.json": "71336c129855ececb46ee4e97fbcfc1733584f960445ceaed87d4c833a064bf6",
     "Accessors_ChecksumAlg.cpp": "e9cfbaf35e5a730252ef2925376a64379359968c5915af7214168bb8b53be52a",
