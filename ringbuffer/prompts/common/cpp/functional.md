@@ -10,7 +10,7 @@
 
 All source code files (`*.cpp`, `*.hpp`) MUST be generated from the same canonical template. Generate each platform's source independently from this spec — do not copy files between platforms.
 
-**Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — <target> matches <reference>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
+**Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — <target> matches <reference>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
 **Cross-Platform Build/Test Synchronization Mandate:** The build and test infrastructure MUST be identical across all platforms, with only the following allowed differences:
 - Container image names (`ringbuffer_<os>_build`, `ringbuffer_<os>_test`)
@@ -348,12 +348,12 @@ To ensure build system compatibility and prevent file system corruption:
 - **Tool Call Verification**: Before executing a `replace_file` or `shell_command` to create a file, verify that the target path is a clean string containing only the intended filename and directory.
 
 ## Temporary Workspace
-- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `ringbuffer/tmp`.
+- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `tmp`.
 - **Isolation**: Do NOT create temporary files (e.g., `.py`, `.txt`, `.sh` scripts used for auditing or listing) in the project root, source directories, or any other permanent project location.
 
 ## Generation Process Logging
 To ensure traceability during the code generation process, the following logging requirements MUST be implemented:
-- **Log Directory**: Create a directory at `ringbuffer/src/<os>/<lang>/logs/`.
+- **Log Directory**: Create a directory at `src/<os>/<lang>/logs/`.
 - **Log Files**: Maintain three separate log files to track progress across the different prompt specifications:
     - `functional.log`: Logs actions performed as part of `functional.md`.
     - `build.log`: Logs actions performed as part of `build.md`.
@@ -531,6 +531,6 @@ Before providing the final code, you MUST perform a self-audit:
 
 **Excluded Platforms:**
 - **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
-- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.

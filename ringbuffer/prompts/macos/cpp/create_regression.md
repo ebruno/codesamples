@@ -1,16 +1,16 @@
 **Default Image:** N/A (macOS is native-only; no container image is used)
 
-**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`ringbuffer/prompts/common/implement_regression.md`) provides image resolution and structure reference only.
+**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`prompts/common/implement_regression.md`) provides image resolution and structure reference only.
 
 Please implement the full regression test suite for the Ringbuffer on macOS.
 
 **Directives:**
-1. Use `ringbuffer/prompts/macos/cpp/testing.md` for platform-specific prerequisites.
-2. Use `ringbuffer/prompts/common/cpp/testing.md` as the primary testing specification.
+1. Use `prompts/macos/cpp/testing.md` for platform-specific prerequisites.
+2. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Immediate Requirements:**
-- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/macos/cpp/logs/build.log`.
-- **Configuration:** Create the test configuration (Makefile) in `ringbuffer/src/macos/cpp/tests/`.
+- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `src/macos/cpp/logs/build.log`.
+- **Configuration:** Create the test configuration (Makefile) in `src/macos/cpp/tests/`.
 - **Documentation:** Create the `tests/` directory structure with all required subdirectories and `.required_directory` markers.
 - **Versioning:** The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:**

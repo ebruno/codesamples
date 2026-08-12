@@ -1,16 +1,16 @@
-**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/build.md` for the authoritative temporary workspace directives.
+**Temporary Workspace**: See `prompts/common/cpp/build.md` for the authoritative temporary workspace directives.
 
-**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`ringbuffer/prompts/common/implement_build.md`) provides image resolution and structure reference only.
+**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`prompts/common/implement_build.md`) provides image resolution and structure reference only.
 
 Please configure the build system for the Ringbuffer on Ubuntu 24.04 LTS (Linux kernel 6.N).
 
 **Directives:**
-1. Use `ringbuffer/prompts/ubuntu/cpp/build.md` for platform-specific prerequisites.
-2. Use `ringbuffer/prompts/common/cpp/build.md` as the primary build specification.
+1. Use `prompts/ubuntu/cpp/build.md` for platform-specific prerequisites.
+2. Use `prompts/common/cpp/build.md` as the primary build specification.
 
 **Immediate Requirements:**
-- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/ubuntu/cpp/logs/build.log`.
-- **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/ubuntu/cpp`.
+- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `src/ubuntu/cpp/logs/build.log`.
+- **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `src/ubuntu/cpp`.
 - **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing_requirements.md`, and `artifacts.md` files within it.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
@@ -18,8 +18,8 @@ Please configure the build system for the Ringbuffer on Ubuntu 24.04 LTS (Linux 
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
-- **Makefile Generation:** Generate the Makefile independently from `ringbuffer/prompts/common/cpp/build.md` and `ringbuffer/prompts/ubuntu/cpp/build.md`. Do NOT copy the Makefile from another platform. Log: `[timestamp] Independent Makefile generation — no Makefile copied from other platforms.`
-- **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/ubuntu/cpp/` containing the resolved version, resolved image, SHA-256 hashes of `common/cpp/build.md` and `ubuntu/cpp/build.md`, SHA-256 hashes of all generated build artifacts (Makefile, Dockerfile, specs files), and file fingerprints for all source files.
+- **Makefile Generation:** Generate the Makefile independently from `prompts/common/cpp/build.md` and `prompts/ubuntu/cpp/build.md`. Do NOT copy the Makefile from another platform. Log: `[timestamp] Independent Makefile generation — no Makefile copied from other platforms.`
+- **State Tracking:** Upon completion, create a `.gen_state.json` file in `src/ubuntu/cpp/` containing the resolved version, resolved image, SHA-256 hashes of `common/cpp/build.md` and `ubuntu/cpp/build.md`, SHA-256 hashes of all generated build artifacts (Makefile, Dockerfile, specs files), and file fingerprints for all source files.
 
 **Dockerfile Handling**:
 Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (created by `implement_build.md` Step 0). If it does, **augment** the existing Dockerfile by adding platform-specific package installations — do NOT rewrite or replace it. Read its first line (`FROM ...`) and use that as the base image for any package additions.
@@ -44,7 +44,7 @@ Before finishing, you MUST verify and log the following:
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
 
 **Reporting:**
-Once implementation is complete, generate a summary report at `ringbuffer/src/ubuntu/cpp/reports/build_creation_report.md`:
+Once implementation is complete, generate a summary report at `src/ubuntu/cpp/reports/build_creation_report.md`:
 
 # Build Creation Report - Ubuntu
 **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
@@ -61,8 +61,8 @@ Once implementation is complete, generate a summary report at `ringbuffer/src/ub
 **Self-Audit Passed:** [Yes/No]
 
 ## Artifacts Created
-- **Makefile**: `ringbuffer/src/ubuntu/cpp/Makefile`
-- **Dockerfile**: `ringbuffer/src/ubuntu/cpp/containers/Dockerfile`
+- **Makefile**: `src/ubuntu/cpp/Makefile`
+- **Dockerfile**: `src/ubuntu/cpp/containers/Dockerfile`
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
 - **Library Artifacts**: [List of `.a` and `.so` files in `lib/`]
 - **Logs**: `build.log` created and updated.

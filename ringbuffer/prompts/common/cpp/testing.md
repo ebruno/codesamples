@@ -62,7 +62,7 @@ This rule exists because macOS `clang++` produces Mach-O binaries and macOS `g++
 
 **Excluded Platforms:**
 - **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
-- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.
 
@@ -131,7 +131,7 @@ tests/
 ```
 
 ## Temporary Workspace
-- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `ringbuffer/tmp`.
+- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `tmp`.
 - **Isolation**: Do NOT create temporary files (e.g., `.py`, `.txt`, `.sh` scripts used for auditing or listing) in the project root, source directories, or any other permanent project location.
 
 ## General Requirements
@@ -165,7 +165,7 @@ Before running functional tests, the build artifacts must be verified to ensure 
 After the test utility scripts are created, the following 7 test files MUST be generated in `tests/data/inputs/` (named `test001.txt` through `test007.txt`) using the pattern defined in the common testing patterns directory.
 
 **Pattern Specification:**
-The authoritative pattern specification is located at `ringbuffer/prompts/common/testing/patterns/zigzag.md`. This file contains:
+The authoritative pattern specification is located at `prompts/common/testing/patterns/zigzag.md`. This file contains:
 - The template string (48 characters)
 - Line format constraints (prefix, payload, suffix, total length)
 - The zig-zag space position algorithm
@@ -175,12 +175,12 @@ The authoritative pattern specification is located at `ringbuffer/prompts/common
 - JUnit test matrix with expected exit codes
 
 **Generation Tool Selection:**
-The authoritative scripts are located in `ringbuffer/prompts/common/cpp/utils/bin/`. They MUST be deployed to `tests/utils/bin/` during environment setup.
+The authoritative scripts are located in `prompts/common/cpp/utils/bin/`. They MUST be deployed to `tests/utils/bin/` during environment setup.
 - **Linux (Fedora, Debian, etc.)**: Use the `tests/utils/bin/generate_test_data.sh` script.
 - **Darwin/macOS**: Use the `tests/utils/bin/generate_test_data.zsh` script.
 
 **Cross-Platform Consistency:**
-The Python reference implementation in the pattern file is the ground truth. All shell script variants (Bash, Zsh, Tcsh, Bourne) MUST produce byte-identical output. The `create_scripts.md` prompt in `ringbuffer/prompts/common/testing/` governs the creation and updating of these scripts.
+The Python reference implementation in the pattern file is the ground truth. All shell script variants (Bash, Zsh, Tcsh, Bourne) MUST produce byte-identical output. The `create_scripts.md` prompt in `prompts/common/testing/` governs the creation and updating of these scripts.
 
 **Data Validation**:
 After generation, the agent MUST verify the integrity of the data using a programmatic validator.
@@ -212,7 +212,7 @@ The agent MUST verify:
   - **Utility Usage**: Avoid platform-specific flags for standard utilities. For example, when using `sed -i`, be aware that macOS (BSD) and Linux (GNU) have different syntax. Prefer using temporary files or standard redirection for modifications to ensure cross-platform compatibility.
 
 ## Test Utility Scripts
-The following scripts must be provided to automate the generation of test data and report processing. These scripts are centrally managed in `ringbuffer/prompts/common/cpp/utils/bin/` and MUST be copied/symlinked to `tests/utils/bin/` during setup:
+The following scripts must be provided to automate the generation of test data and report processing. These scripts are centrally managed in `prompts/common/cpp/utils/bin/` and MUST be copied/symlinked to `tests/utils/bin/` during setup:
 - Zsh script: `tests/utils/bin/generate_test_data.zsh`
 - Bash script: `tests/utils/bin/generate_test_data.sh`
 - Tcsh script: `tests/utils/bin/generate_test_data.tcsh`
@@ -285,7 +285,7 @@ The `tests/Makefile` is the authoritative orchestrator for the test suite:
   - Use `container image ls --quiet` to list images without headers.
   - The `--format` flag with Go template syntax (e.g., `{{.Created}}`) is NOT supported; parse JSON output instead.
   - Image inspection returns JSON with `creationDate` field in ISO format (e.g., `"2026-08-05T23:23:38Z"`).
-- **Utility Deployment**: The `Makefile` MUST ensure that authoritative scripts from `ringbuffer/prompts/common/cpp/utils/bin/` are copied or symlinked into `tests/utils/bin/` before any generation or verification steps are performed.
+- **Utility Deployment**: The `Makefile` MUST ensure that authoritative scripts from `prompts/common/cpp/utils/bin/` are copied or symlinked into `tests/utils/bin/` before any generation or verification steps are performed.
   - **Host-side deployment:** Script deployment MUST be performed on the host before container execution begins (e.g., as a pre-step in `create_testing.md` or the first action of `verify`).
   - **Container fallback:** If deployment is attempted from within a container and the source path does not exist, the Makefile MUST check whether scripts already exist in `tests/utils/bin/` and skip deployment with a non-fatal warning. If no scripts exist, it MUST report an error and STOP.
 

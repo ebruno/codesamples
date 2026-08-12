@@ -1,18 +1,18 @@
-**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
+**Temporary Workspace**: See `prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
 
 **Default Image**: `reference_linux:latest` (template only — not a real container)
 
 This is the **canonical reference** for Linux test infrastructure. It defines the authoritative test Makefile and Dockerfile that all real platforms (debian, fedora, ubuntu) must match against.
 
 **Directives:**
-1. Use `ringbuffer/prompts/common/cpp/testing.md` as the primary testing specification.
+1. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Purpose:**
-- Generate the canonical test Makefile at `ringbuffer/src/reference_linux/cpp/tests/Makefile`
-- Generate the canonical Dockerfile template at `ringbuffer/src/reference_linux/cpp/tests/containers/reference_linux/Dockerfile`
-- Deploy utility scripts to `ringbuffer/src/reference_linux/cpp/tests/utils/bin/` from `prompts/common/cpp/utils/bin/`
-- Generate test data files (`test001.txt`–`test007.txt`) in `ringbuffer/src/reference_linux/cpp/tests/data/inputs/`
-- Generate expected output files (golden files) in `ringbuffer/src/reference_linux/cpp/tests/data/expected/`
+- Generate the canonical test Makefile at `src/reference_linux/cpp/tests/Makefile`
+- Generate the canonical Dockerfile template at `src/reference_linux/cpp/tests/containers/reference_linux/Dockerfile`
+- Deploy utility scripts to `src/reference_linux/cpp/tests/utils/bin/` from `prompts/common/cpp/utils/bin/`
+- Generate test data files (`test001.txt`–`test007.txt`) in `src/reference_linux/cpp/tests/data/inputs/`
+- Generate expected output files (golden files) in `src/reference_linux/cpp/tests/data/expected/`
 
 **Important:** This pseudo-OS does NOT build containers or execute tests. It exists solely as a file-based reference for cross-platform verification.
 

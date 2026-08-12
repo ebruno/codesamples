@@ -4,9 +4,9 @@
 This build specification MUST follow the common build specification exactly to ensure binary symmetry across platforms. Platform-specific deviations are permitted only for toolchain specifics and binary format requirements.
 
 Refer to the following document for all shared requirements, flags, and process:
-[ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md)
+[prompts/common/cpp/build.md](../../common/cpp/build.md)
 
-Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platform and Container Runtime Reference before planning any build operation.
+Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platform and Container Runtime Reference before planning any build operation.
 
 **Platform Specifics:**
 - **Target Environment**: macOS (Apple Silicon and Intel).

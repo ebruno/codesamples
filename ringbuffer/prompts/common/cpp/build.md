@@ -128,7 +128,7 @@ If using GNU Make, the following targets MUST be implemented:
 - `dist-clean`: Perform a full reset by calling `clean`, removing the `../reports` directory (the platform-level reports folder), the `cpp/logs` directory, any platform-specific environment cleanup (e.g., `container-clean`), and MUST execute `make -C tests dist-clean`.
 
 ## Temporary Workspace
-- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `ringbuffer/tmp`.
+- **Centralized Storage**: All temporary files, utility scripts, or intermediate data generated during the execution of this prompt MUST be placed in a directory named `tmp`.
 - **Isolation**: Do NOT create temporary files (e.g., `.py`, `.txt`, `.sh` scripts used for auditing or listing) in the project root, source directories, or any other permanent project location.
 
 ## Build Process
@@ -173,7 +173,7 @@ You MUST NOT:
 
 **Excluded Platforms:**
 - **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
-- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.
 

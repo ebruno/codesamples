@@ -3,7 +3,7 @@
 **Implementation Directive:**
 This implementation MUST follow the common functional specification exactly to ensure cross-platform symmetry. 
 Refer to the common specification for all architectural, interface, and implementation details:
-[ringbuffer/prompts/common/cpp/functional.md](../../common/cpp/functional.md)
+[prompts/common/cpp/functional.md](../../common/cpp/functional.md)
 
 **Platform Specifics:**
 - **Target OS**: macOS

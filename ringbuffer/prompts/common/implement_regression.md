@@ -3,33 +3,33 @@
 **Objective:** 
 Create the test environment for regression testing on a target platform. This covers infrastructure setup only — host detection, container runtime pre-flight, image bootstrap, resource allocation, and test environment creation (directories, Dockerfile, Makefile, scripts, data).
 
-**Execution:** Use `ringbuffer/prompts/common/run_regression.md` to execute the test matrix on an already-set-up platform.
+**Execution:** Use `prompts/common/run_regression.md` to execute the test matrix on an already-set-up platform.
 
 **Inputs:**
-1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `ringbuffer/src/` are processed.
+1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `src/` are processed.
 2. **Target Image**: An optional container image override (e.g., `fedora:43`, `debian:12`). If provided, this overrides the default image specified in each OS's `create_regression.md`. If not provided, use the default image from the target OS's prompt.
 
 **Process:**
 1. **Target Selection**:
-   - **Specified Platforms**: If the user request specifies target platforms (e.g., "implement regression for fedora, debian"), verify their existence in `ringbuffer/src/`. If a requested platform is missing from `ringbuffer/src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `ringbuffer/src/`). Process only the requested platforms that are implemented.
-   - **General Request**: Otherwise, iterate through **all** OS directories found in `ringbuffer/src/` (e.g., debian, fedora, ubuntu).
-   - **Entry Point**: When targeting a specific OS, first check if `ringbuffer/prompts/<os>/cpp/create_regression.md` exists.
+   - **Specified Platforms**: If the user request specifies target platforms (e.g., "implement regression for fedora, debian"), verify their existence in `src/`. If a requested platform is missing from `src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `src/`). Process only the requested platforms that are implemented.
+   - **General Request**: Otherwise, iterate through **all** OS directories found in `src/` (e.g., debian, fedora, ubuntu).
+   - **Entry Point**: When targeting a specific OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
      - **If it exists**: Consult it for immediate requirements and platform-specific directives. Execute it as the PRIMARY document.
-     - **If it does not exist**: Proceed with only `ringbuffer/prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
+     - **If it does not exist**: Proceed with only `prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
    - **Language**: This workflow specifically targets the C++ test environment.
 
 2. **Execution Steps**:
    For the selected OS directory, perform the following.
 
-   **Workflow Precedence:** Execute this common workflow's Step 0 first for image resolution and execution path decision. Then execute `ringbuffer/prompts/<os>/cpp/create_regression.md` as the **PRIMARY** document and skip this common workflow's Steps 1-2. This common workflow serves as a reference for structure and provides the image resolution mechanism.
+   **Workflow Precedence:** Execute this common workflow's Step 0 first for image resolution and execution path decision. Then execute `prompts/<os>/cpp/create_regression.md` as the **PRIMARY** document and skip this common workflow's Steps 1-2. This common workflow serves as a reference for structure and provides the image resolution mechanism.
 
    **Note:** `create_regression.md` is read as a data source for image resolution in Step 0, then executed as the PRIMARY document afterward.
 
    0. **Environment Setup**:
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
         - `CONTAINER_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make container`
-      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `ringbuffer/prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). For macOS native-only platforms (where Default Image is N/A), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
-      - **Shared Version Context**: Read the version from `ringbuffer/src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `ringbuffer/src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
+      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). For macOS native-only platforms (where Default Image is N/A), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
+      - **Shared Version Context**: Read the version from `src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
       - **Execution Path Decision**: Detect the host OS. If `uname -s` returns `Darwin`, set `host_os = macOS`. If it returns `Linux`, read the distro ID from `/etc/os-release` using: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
         - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
           ```
@@ -105,30 +105,30 @@ Create the test environment for regression testing on a target platform. This co
 
           After resolving the issue, re-run the build or test workflow.
           ```
-      - **Navigate**: `cd ringbuffer/src/<os>/cpp`
-      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the build Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
+      - **Navigate**: `cd src/<os>/cpp`
+      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the build Dockerfile exists at `src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
       - **Validate Test Dockerfile** (Linux targets only): If `target != macos` and `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
       - **Build Build Image** (Linux targets only): If `target != macos`, before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container` from the source directory. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`. macOS targets skip this step (native-only platform).
-      - **Step 0 Dockerfile Marker**: If a minimal test Dockerfile was created in this sub-step, create a marker file at `ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_regression.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists.
+      - **Step 0 Dockerfile Marker**: If a minimal test Dockerfile was created in this sub-step, create a marker file at `src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_regression.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists.
       - **Log Initialization**: Create the log directory `logs/` if it does not exist. Initialize `build.log` with the start timestamp, action description, and resolved image/version as per the "Generation Process Logging" requirement.
 
    1. **Test Infrastructure Setup**:
-      - Execute the directives in `ringbuffer/prompts/<os>/cpp/create_regression.md` to create:
+      - Execute the directives in `prompts/<os>/cpp/create_regression.md` to create:
         - The test directory structure (`tests/`) with all required subdirectories and `.required_directory` markers.
         - The test Dockerfile (`tests/containers/<os>/Dockerfile`) — create from scratch or augment based on the `.dockerfile_created_by_step0` marker.
         - The test container image (`ringbuffer_<os>_test`) built from `tests/containers/<os>/Dockerfile` (via `make container` in the tests directory, as directed by `create_regression.md`).
-        - Utility scripts deployed to `tests/utils/bin/` from `ringbuffer/prompts/common/cpp/utils/bin/`.
+        - Utility scripts deployed to `tests/utils/bin/` from `prompts/common/cpp/utils/bin/`.
         - Test data files (`test001.txt` through `test007.txt`) in `tests/data/inputs/`.
         - Expected output files (golden files) in `tests/data/expected/` — pre-computed correct outputs for each test scenario, generated by running the test program with known inputs and capturing output.
-        - Test binary source code (`tests/src/test001.cpp`) implementing the full CLI interface described in `ringbuffer/prompts/common/cpp/testing.md` (including socket mode `-r`/`-w`, error modes, transform types, and all option flags). The Makefile must build two variants: `test001_staticlib` (linked against static library) and `test001_dynamiclib` (linked against shared library with rpath).
+        - Test binary source code (`tests/src/test001.cpp`) implementing the full CLI interface described in `prompts/common/cpp/testing.md` (including socket mode `-r`/`-w`, error modes, transform types, and all option flags). The Makefile must build two variants: `test001_staticlib` (linked against static library) and `test001_dynamiclib` (linked against shared library with rpath).
         - Test Makefile (`tests/Makefile`).
         - A `tests/README.md` describing the test suite, build process, and how to run scenarios T001–T007.
-      - **Test Data Validation**: Before running `verify_test_data.sh`, ensure it has been deployed to `tests/utils/bin/` from `ringbuffer/prompts/common/cpp/utils/bin/`. After generating test data, run the validator script. All seven files must pass validation (line count and format checks). Log success or failure for each file.
+      - **Test Data Validation**: Before running `verify_test_data.sh`, ensure it has been deployed to `tests/utils/bin/` from `prompts/common/cpp/utils/bin/`. After generating test data, run the validator script. All seven files must pass validation (line count and format checks). Log success or failure for each file.
       - **Test Binary Build**: Compile `test001_staticlib` (linked against static library) and `test001_dynamiclib` (linked against shared library with rpath). Verify both binaries exist in `tests/bin/`.
       - Log each file creation and build step in `build.log` immediately after the action completes.
 
    1.5 **Cross-Platform Verification**: After creating the test Makefile and Dockerfile, verify they conform to the binary symmetry requirements:
-      - **Identify a Reference Platform**: First, check if `ringbuffer/src/reference_linux/cpp/tests/Makefile` exists. If it does, use `reference_linux` as the reference platform (this is the canonical source of truth). If it does not exist, fall back to alphabetical iteration through directories in `ringbuffer/src/` (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/tests/Makefile` exists.
+      - **Identify a Reference Platform**: First, check if `src/reference_linux/cpp/tests/Makefile` exists. If it does, use `reference_linux` as the reference platform (this is the canonical source of truth). If it does not exist, fall back to alphabetical iteration through directories in `src/` (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `src/<ref_os>/cpp/tests/Makefile` exists.
       - **Fallback**: If no reference platform has a test Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to `run_regression.md`.
       - **Test Makefile Comparison**: Strip the three allowed differences from both the generated test Makefile and the reference:
         1. `CONTAINER_IMAGE` variable value
@@ -140,8 +140,8 @@ Create the test environment for regression testing on a target platform. This co
       - **If verification passes**: Log: `[timestamp] Cross-platform verification passed — <os> test Makefile/Dockerfile matches reference (allowed differences only).`
 
 **Directives:**
-1. Use `ringbuffer/prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).
-2. Use `ringbuffer/prompts/common/cpp/testing.md` as the primary testing specification.
+1. Use `prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).
+2. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
@@ -155,7 +155,7 @@ You MUST NOT:
 - Execute `make verify` or run the test matrix (T001–T007).
 - Generate regression reports (`regression_report.md` or `regression_report_junit.xml`).
 - Update `.gen_state.json` with test execution results.
-- Proceed to build verification or report generation — use `ringbuffer/prompts/common/run_regression.md` for that.
+- Proceed to build verification or report generation — use `prompts/common/run_regression.md` for that.
 
 **Directory Scope Restriction:**
 - **NEVER create, modify, or delete any files outside the `tests/` directory and the OS cpp root** (except for `build.log`, `.gen_state.json`, and report files).
@@ -163,8 +163,8 @@ You MUST NOT:
 
 **Excluded Platforms:**
 - **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
-- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.
 
-If the user wants to execute tests on an already-set-up platform, they should use `ringbuffer/prompts/common/run_regression.md` instead.
+If the user wants to execute tests on an already-set-up platform, they should use `prompts/common/run_regression.md` instead.

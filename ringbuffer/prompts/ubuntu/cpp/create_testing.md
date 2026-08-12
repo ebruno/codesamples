@@ -1,14 +1,14 @@
-**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
+**Temporary Workspace**: See `prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
 
 Please implement the full testing suite for the Ringbuffer on Ubuntu 24.04 LTS (Linux kernel 6.N).
 
 **Directives:**
-- Use `ringbuffer/prompts/ubuntu/cpp/testing.md` as the primary platform-specific directive.
-- Follow all requirements in `ringbuffer/prompts/common/cpp/testing.md` for common C++ testing specifications.
+- Use `prompts/ubuntu/cpp/testing.md` as the primary platform-specific directive.
+- Follow all requirements in `prompts/common/cpp/testing.md` for common C++ testing specifications.
 
 **Scope of Work:**
 1. **Environment Setup**: Create the container configuration (`Dockerfile`) as specified for Ubuntu 24.04 LTS, using `FROM ubuntu:24.04` as the base image with all required build tools installed via `apt-get`.
-2. **Directory Structure**: Establish the `tests/` directory structure within `ringbuffer/src/ubuntu/cpp/tests`, ensuring all directories contain the `.required_directory` marker.
+2. **Directory Structure**: Establish the `tests/` directory structure within `src/ubuntu/cpp/tests`, ensuring all directories contain the `.required_directory` marker.
 3. **Data Generation & Validation**: 
     - Implement the required shell scripts using `/usr/bin/env` shebangs.
     - **Scripting Mandate**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
@@ -25,7 +25,7 @@ Please implement the full testing suite for the Ringbuffer on Ubuntu 24.04 LTS (
 7. **Documentation**: Create a comprehensive `README.md` in the tests directory.
 
 **Deployment Path:**
-All artifacts must be placed in: `ringbuffer/src/ubuntu/cpp/tests`
+All artifacts must be placed in: `src/ubuntu/cpp/tests`
 
 **Definition of Done:**
 The task is complete when all binaries are compiled, all test data is generated, all Test Matrix scenarios are verified, and the documentation is complete and accurate.
@@ -43,8 +43,8 @@ Before declaring the task complete, you MUST run every item on this checklist an
 7. **Container Runtime Check**: Detect the host OS and verify the appropriate runtime is available:
    - If `uname -s` returns Darwin (macOS): verify `container` is available via `command -v container`. If not found, STOP and report the error with installation instructions.
    - If `uname -s` returns Linux: verify `podman` is available via `command -v podman`. If not found, STOP and report the error with installation instructions.
-- **Independent Generation:** Generate all test artifacts independently from `ringbuffer/prompts/common/cpp/testing.md` and `ringbuffer/prompts/ubuntu/cpp/testing.md`. Do NOT copy test files from another platform. Log: `[timestamp] Independent testing generation — no test artifacts copied from other platforms.`
-- **Cross-Platform Verification:** After generating all test artifacts, compare against any other platform's source in `ringbuffer/src/` if available. If a reference platform exists, verify byte-identical output (except for allowed differences) and log: `[timestamp] Cross-platform comparison passed — Ubuntu matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
+- **Independent Generation:** Generate all test artifacts independently from `prompts/common/cpp/testing.md` and `prompts/ubuntu/cpp/testing.md`. Do NOT copy test files from another platform. Log: `[timestamp] Independent testing generation — no test artifacts copied from other platforms.`
+- **Cross-Platform Verification:** After generating all test artifacts, compare against any other platform's source in `src/` if available. If a reference platform exists, verify byte-identical output (except for allowed differences) and log: `[timestamp] Cross-platform comparison passed — Ubuntu matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
 **Tooling and Recovery:
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.

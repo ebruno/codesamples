@@ -3,19 +3,19 @@
 **Objective:** 
 Execute the regression test matrix (T001–T007) on an already-set-up platform. This covers build, test execution, artifact verification, report generation, state tracking, and log finalization.
 
-**Prerequisite:** Infrastructure setup from `ringbuffer/prompts/common/implement_regression.md` must be completed before proceeding. The `tests/` directory, test Makefile, Dockerfile, utility scripts, and test data must already exist.
+**Prerequisite:** Infrastructure setup from `prompts/common/implement_regression.md` must be completed before proceeding. The `tests/` directory, test Makefile, Dockerfile, utility scripts, and test data must already exist.
 
 **Inputs:**
-1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `ringbuffer/src/` are processed.
+1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `src/` are processed.
 2. **Target Image**: An optional container image override (e.g., `fedora:43`, `debian:12`). If provided, this overrides the default image specified in each OS's `create_regression.md`.
 
 **Process:**
 1. **Target Selection**:
-   - **Specified Platforms**: If the user request specifies target platforms (e.g., "run regression for fedora, debian"), verify their existence in `ringbuffer/src/`. If a requested platform is missing from `ringbuffer/src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `ringbuffer/src/`). Process only the requested platforms that are implemented.
-   - **General Request**: Otherwise, iterate through **all** OS directories found in `ringbuffer/src/` (e.g., debian, fedora, ubuntu).
-   - **Entry Point**: When targeting a specific OS, first check if `ringbuffer/prompts/<os>/cpp/create_regression.md` exists.
+   - **Specified Platforms**: If the user request specifies target platforms (e.g., "run regression for fedora, debian"), verify their existence in `src/`. If a requested platform is missing from `src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `src/`). Process only the requested platforms that are implemented.
+   - **General Request**: Otherwise, iterate through **all** OS directories found in `src/` (e.g., debian, fedora, ubuntu).
+   - **Entry Point**: When targeting a specific OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
      - **If it exists**: Consult it for image resolution and platform-specific directives.
-     - **If it does not exist**: Proceed with only `ringbuffer/prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
+     - **If it does not exist**: Proceed with only `prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
 
 2. **Execution Steps**:
    For the selected OS directory, perform the following.
@@ -24,8 +24,8 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
         - `CONTAINER_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make container`
         - `TEST_EXECUTION_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for the full test matrix
-      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `ringbuffer/prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). If the resolved image is `N/A` (macOS native-only), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
-      - **Shared Version Context**: Read the version from `ringbuffer/src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `ringbuffer/src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
+      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `prompts/<os>/cpp/create_regression.md` (look for an `IMAGE=` or `Default Image:` directive). If no image is specified in the per-OS file, derive it from `prompts/<os>/cpp/testing.md` (e.g., `fedora:44`, `debian:13`, `ubuntu:24.04`). If the resolved image is `N/A` (macOS native-only), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
+      - **Shared Version Context**: Read the version from `src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
       - **Execution Path Decision**: Detect the host OS. If `uname -s` returns `Darwin`, set `host_os = macOS`. If it returns `Linux`, read the distro ID from `/etc/os-release` using: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
         - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
           ```
@@ -101,9 +101,9 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
           After resolving the issue, re-run the build or test workflow.
           ```
-      - **Navigate**: `cd ringbuffer/src/<os>/cpp`
+      - **Navigate**: `cd src/<os>/cpp`
       - **Dockerfile/Image Validation (Linux targets only)**: If the target `<os>` is NOT `macos`:
-        - **Validate Existing Dockerfile**: If the build Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
+        - **Validate Existing Dockerfile**: If the build Dockerfile exists at `src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
         - **Validate Test Dockerfile**: If `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
         - **Build Build Image**: Before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container` from the source directory. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`.
         - **Test Image Management**: Ensure the `ringbuffer_<os>_test` image exists. If it does not, navigate to `tests/` and execute `make container`. Verify that `ringbuffer_<os>_test` exists using `<runtime> images | grep ringbuffer_<os>_test`.
@@ -121,7 +121,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
    1. **Infrastructure Verification**:
       - If the target `<os>` is `macos`, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — macOS is native-only with different binary format (Mach-O).` Proceed to Step 2.
       - If the target `<os>` is NOT `macos`, verify that the test Makefile and Dockerfile conform to cross-platform symmetry requirements:
-        - **Identify a Reference Platform**: First, check if `ringbuffer/src/reference_linux/cpp/tests/Makefile` exists. If it does, use `reference_linux` as the reference platform (this is the canonical source of truth). If it does not exist, fall back to alphabetical iteration through directories in `ringbuffer/src/` (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/tests/Makefile` exists.
+        - **Identify a Reference Platform**: First, check if `src/reference_linux/cpp/tests/Makefile` exists. If it does, use `reference_linux` as the reference platform (this is the canonical source of truth). If it does not exist, fall back to alphabetical iteration through directories in `src/` (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `src/<ref_os>/cpp/tests/Makefile` exists.
         - **Fallback**: If no reference platform has a test Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to Step 2.
         - **Test Makefile Comparison**: Strip the three allowed differences from both the test Makefile and the reference:
           1. `CONTAINER_IMAGE` variable value
@@ -231,7 +231,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       - Log report generation to `build.log`.
 
    5. **State Tracking**:
-      - Create or update `.gen_state.json` in `ringbuffer/src/<os>/cpp/` containing:
+      - Create or update `.gen_state.json` in `src/<os>/cpp/` containing:
         - The resolved version (from shared context or `version.mk`).
         - The resolved image (`N/A` for macOS native-only platforms).
         - SHA-256 hashes of `common/cpp/testing.md` and `<os>/cpp/testing.md`.
@@ -255,8 +255,8 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       - Calculate and include the total elapsed time since the start timestamp in this final entry.
 
 **Directives:**
-1. Use `ringbuffer/prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).
-2. Use `ringbuffer/prompts/common/cpp/testing.md` as the primary testing specification.
+1. Use `prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).
+2. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Reporting:**
 The report generated in Step 4 serves as the final summary.
@@ -267,11 +267,11 @@ The report generated in Step 4 serves as the final summary.
 
 ## Scope Boundary — Execution Only
 
-The purpose of this prompt is to **execute** the regression test matrix on an already-set-up platform. It assumes all infrastructure (directories, Dockerfile, Makefile, scripts, test data) was created by `ringbuffer/prompts/common/implement_regression.md`.
+The purpose of this prompt is to **execute** the regression test matrix on an already-set-up platform. It assumes all infrastructure (directories, Dockerfile, Makefile, scripts, test data) was created by `prompts/common/implement_regression.md`.
 
 You MUST NOT:
 - Create the `tests/` directory structure from scratch (use `implement_regression.md` for that).
-- Modify source code files in `ringbuffer/src/<os>/cpp/*.cpp` or `ringbuffer/src/<os>/cpp/*.hpp`.
+- Modify source code files in `src/<os>/cpp/*.cpp` or `src/<os>/cpp/*.hpp`.
 - Generate new test scenarios beyond T001–T007.
 - Proceed to performance benchmarking or additional validation beyond the defined test matrix.
 
@@ -281,8 +281,8 @@ You MUST NOT:
 
 **Excluded Platforms:**
 - **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
-- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.
 
-If the user wants to set up test infrastructure from scratch, they should use `ringbuffer/prompts/common/implement_regression.md` instead.
+If the user wants to set up test infrastructure from scratch, they should use `prompts/common/implement_regression.md` instead.

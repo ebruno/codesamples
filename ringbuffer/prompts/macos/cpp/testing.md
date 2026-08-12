@@ -4,9 +4,9 @@
 This testing specification MUST follow the common testing specification exactly to ensure identical validation across platforms.
 
 Refer to the following document for all shared requirements, data generation, and test matrices:
-[ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md)
+[prompts/common/cpp/testing.md](../../common/cpp/testing.md)
 
-Refer to [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md) for the Platform and Container Runtime Reference before planning any test operation.
+Refer to [prompts/common/cpp/testing.md](../../common/cpp/testing.md) for the Platform and Container Runtime Reference before planning any test operation.
 
 **Platform Specifics:**
 - **Host Verification**: Build and test prompts may only be executed if the generating host is macOS and the target OS is macOS. Verify the host OS using the `sw_vers --productName` command (must return "macOS").
@@ -19,7 +19,7 @@ Refer to [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md)
 - **Artifact Verification**:
     - **Architecture**: Use `lipo -info <artifact>` to verify that both `arm64` and `x86_64` slices are present.
     - **Install Name**: Use `otool -L <dylib>` to verify that the install name is set to `@rpath/libswtr_ringbuffer.dylib`.
-- **Header Search Path**: Use `ringbuffer/src/macos/cpp`.
+- **Header Search Path**: Use `src/macos/cpp`.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.

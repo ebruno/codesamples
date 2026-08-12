@@ -4,9 +4,9 @@
 This testing specification MUST follow the common testing specification exactly to ensure identical validation across platforms.
 
 Refer to the following document for all shared requirements, data generation, and test matrices:
-[ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md)
+[prompts/common/cpp/testing.md](../../common/cpp/testing.md)
 
-Refer to [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md) for the Platform and Container Runtime Reference before planning any test operation.
+Refer to [prompts/common/cpp/testing.md](../../common/cpp/testing.md) for the Platform and Container Runtime Reference before planning any test operation.
 
 **Platform Specifics:**
 - **Containerized Build Environment**:
@@ -20,8 +20,8 @@ Refer to [ringbuffer/prompts/common/cpp/testing.md](../../common/cpp/testing.md)
     - **Toolchain Verification**: Upon first container initialization, verify the toolchain by executing `g++ --version` and `make --version` to ensure all required build tools are present and operational.
     - **Audit Trail**: The `verify` target MUST log the exact versions of the compiler and linker (e.g., `g++ -v` and `ld -v`) into `tests/reports/regression_report.md` to provide a baseline for binary size analysis.
 - **Container Path**: Use `tests/containers/debian/Dockerfile`.
-- **Header Search Path**: Use `ringbuffer/src/debian/cpp`.
+- **Header Search Path**: Use `src/debian/cpp`.
 
-**Host-Target Compatibility** and **Container Runtime Pre-flight**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative host-target and container runtime directives.
+**Host-Target Compatibility** and **Container Runtime Pre-flight**: See `prompts/common/cpp/testing.md` for the authoritative host-target and container runtime directives.
 
-**Tooling and Recovery:** See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative tooling and recovery directives.
+**Tooling and Recovery:** See `prompts/common/cpp/testing.md` for the authoritative tooling and recovery directives.

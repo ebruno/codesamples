@@ -1,29 +1,29 @@
 # Functional Implementation Workflow
 
 **Objective:** 
-Implement the C++ Ringbuffer library by strictly following the specifications defined in `ringbuffer/prompts/common/cpp/functional.md` and the platform-specific specifications in `ringbuffer/prompts/<os>/cpp/functional.md`.
+Implement the C++ Ringbuffer library by strictly following the specifications defined in `prompts/common/cpp/functional.md` and the platform-specific specifications in `prompts/<os>/cpp/functional.md`.
 
 **Inputs:**
-1. **Target OS**: The operating system to target (e.g., `fedora`, `debian`, `ubuntu`). If not specified, all OSes in `ringbuffer/src/` are processed.
+1. **Target OS**: The operating system to target (e.g., `fedora`, `debian`, `ubuntu`). If not specified, all OSes in `src/` are processed.
 2. **Target Version**: An optional version override (e.g., `43`, `12`). If provided, this overrides the default version specified in each OS's `create_functional.md`. If not provided, use the default version from the target OS's prompt.
 
 **Process:**
 1. **Target Selection**:
    - **Targeting**: 
-     - **Specified Platform**: If the user request specifies a target platform (e.g., "implement functional for debian"), verify its existence in `ringbuffer/src/`. If the requested platform is missing from `ringbuffer/src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `ringbuffer/src/`). Process only the requested platforms that are implemented.
-     - **General Request**: Otherwise, iterate through **all** OS directories found in `ringbuffer/src/` (e.g., debian, fedora, macos).
-   - **Entry Point**: When targeting a specific OS, first consult `ringbuffer/prompts/<os>/cpp/create_functional.md` (if it exists) for immediate requirements and platform-specific directives.
+     - **Specified Platform**: If the user request specifies a target platform (e.g., "implement functional for debian"), verify its existence in `src/`. If the requested platform is missing from `src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `src/`). Process only the requested platforms that are implemented.
+     - **General Request**: Otherwise, iterate through **all** OS directories found in `src/` (e.g., debian, fedora, macos).
+   - **Entry Point**: When targeting a specific OS, first consult `prompts/<os>/cpp/create_functional.md` (if it exists) for immediate requirements and platform-specific directives.
    - **Language**: This workflow specifically targets the C++ implementation.
 
 2. **Execution Steps**:
    For the selected OS directory, perform the following.
 
-   **Workflow Precedence:** Execute this common workflow's Step 0 first for version resolution. Then execute `ringbuffer/prompts/<os>/cpp/create_functional.md` as the **PRIMARY** document and skip this common workflow's Steps 1-6. This common workflow serves as a reference for structure and provides the version resolution mechanism.
+   **Workflow Precedence:** Execute this common workflow's Step 0 first for version resolution. Then execute `prompts/<os>/cpp/create_functional.md` as the **PRIMARY** document and skip this common workflow's Steps 1-6. This common workflow serves as a reference for structure and provides the version resolution mechanism.
 
    **Note:** `create_functional.md` is read as a data source for version resolution in Step 0, then executed as the PRIMARY document afterward.
 
    0. **Environment Setup**:
-      - **Resolve Version**: Determine the Target Version from Inputs (see above). If not provided by the user, read the default version from `ringbuffer/prompts/<os>/cpp/create_functional.md`.
+      - **Resolve Version**: Determine the Target Version from Inputs (see above). If not provided by the user, read the default version from `prompts/<os>/cpp/create_functional.md`.
         - **macOS target**: If the user did not provide a version override, detect the host OS.
           - If `uname -s` returns `Darwin`, run `sw_vers --productVersion` to get the macOS version (e.g., "15.0.1"). Extract the major version number (e.g., `15`). Validate that it is **15 or higher** — valid macOS versions are 15 (Sequoia) and above. Log: `VERSION=<major_version>` (e.g., `VERSION=15`).
           - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
@@ -65,20 +65,20 @@ Implement the C++ Ringbuffer library by strictly following the specifications de
         - If the Dockerfile exists, verify that the resolved Target Version matches its base image tag. If it does not match, log an error and stop processing — the requested version conflicts with the existing container configuration.
       - If the target IS `macos`, log: `[timestamp] Dockerfile validation skipped — macOS is native-only.` and proceed.
       - **Create & Validate Container (Linux targets only)**: If the target `<os>` is NOT `macos`:
-        - If the Dockerfile does not exist (functional phase), create a minimal Dockerfile in `ringbuffer/src/<os>/cpp/containers/Dockerfile` using the resolved version as the base image tag (e.g., `FROM fedora:<version>`). Attempt to pull or build the container image using the platform-appropriate runtime:
+        - If the Dockerfile does not exist (functional phase), create a minimal Dockerfile in `src/<os>/cpp/containers/Dockerfile` using the resolved version as the base image tag (e.g., `FROM fedora:<version>`). Attempt to pull or build the container image using the platform-appropriate runtime:
           - **macOS host**: use `container` to pull/build the image.
           - **Linux host**: use `podman` to pull/build the image.
 
           If the runtime is not available, log: `WARNING: Container runtime unavailable — version <version> could not be validated. Proceeding without container validation.` If the pull/build fails, log: `ERROR: Version <version> is not a supported base image for <OS>. Stopping processing.` and terminate.
       - If the target IS `macos`, log: `[timestamp] Container creation skipped — macOS is native-only.` and proceed.
-      - **Navigate**: `cd ringbuffer/src/<os>/cpp`
+      - **Navigate**: `cd src/<os>/cpp`
       - **Log Initialization**: Create the log directory `logs/` if it does not exist. Initialize `functional.log` with the start timestamp, action description, and resolved version as per the "Generation Process Logging" requirement.
 
 **Reporting:**
 
-Once implementation is complete, generate a summary report at `ringbuffer/src/<os>/reports/implementation_report.md`.
+Once implementation is complete, generate a summary report at `src/<os>/reports/implementation_report.md`.
 
-**Template Precedence:** Use the reporting template defined in `ringbuffer/prompts/<os>/cpp/create_functional.md`. If none is defined, use the generic template below.
+**Template Precedence:** Use the reporting template defined in `prompts/<os>/cpp/create_functional.md`. If none is defined, use the generic template below.
 
 # Implementation Report - [OS Name] <use the version resolved in Step 0, e.g., "15">
 **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]

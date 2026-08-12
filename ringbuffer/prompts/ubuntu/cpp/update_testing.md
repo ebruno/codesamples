@@ -3,18 +3,18 @@
 **Objective:** Update the test suite to cover new functionality or modified interfaces.
 
 **Temporary Workspace Lifecycle:**
-1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
-2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
-3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+1. **Initialization**: Create the `tmp` directory as the very first action before starting any other task.
+2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `tmp`.
+3. **Cleanup**: Recursively delete the `tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
 
 **Inputs:**
 1. The current `ringbuffer.hpp` (The Interface).
 2. The current test files in `src/ubuntu/cpp/tests/`.
-3. `ringbuffer/prompts/ubuntu/cpp/testing.md`.
+3. `prompts/ubuntu/cpp/testing.md`.
 
 **Directives:**
-- Use `ringbuffer/prompts/ubuntu/cpp/testing.md` as the primary platform-specific directive.
-- Follow all requirements in `ringbuffer/prompts/common/cpp/testing.md` for common C++ testing specifications.
+- Use `prompts/ubuntu/cpp/testing.md` as the primary platform-specific directive.
+- Follow all requirements in `prompts/common/cpp/testing.md` for common C++ testing specifications.
 
 **Instructions:**
 - **Interface Gap Analysis:** Identify any new virtual functions or changed signatures in `ringbuffer.hpp` that are not covered by existing tests.
@@ -45,7 +45,7 @@ If this update involves container operations, and the host OS is macOS, the `con
 - **Spec Hash Update:** Update the hash of the platform-specific `testing.md` in `.gen_state.json` upon completion.
 
 **Documentation Synchronization:**
-- **README Update:** If the build or testing changes affect the high-level project status (e.g., a platform is now "WIP" instead of "TBS"), use `ringbuffer/prompts/common/generate_toplevel_readme.md` to update the top-level `README.md`.
+- **README Update:** If the build or testing changes affect the high-level project status (e.g., a platform is now "WIP" instead of "TBS"), use `prompts/common/generate_toplevel_readme.md` to update the top-level `README.md`.
 
 **Output:**
 - Updated or new test source files.

@@ -124,9 +124,9 @@ Line 3: idx=1, off=1, 1 < 47 → i = 2. Position 2 is 'C':
 ## File Location
 
 This pattern file is the single source of truth for test data generation. It is referenced by:
-- `ringbuffer/prompts/common/testing/create_scripts.md` — generates the utility scripts from this pattern.
-- `ringbuffer/prompts/common/cpp/testing.md` — references the same pattern for test data generation requirements.
-- `ringbuffer/prompts/<os>/cpp/testing.md` — platform-specific testing specs reference this common pattern.
+- `prompts/common/testing/create_scripts.md` — generates the utility scripts from this pattern.
+- `prompts/common/cpp/testing.md` — references the same pattern for test data generation requirements.
+- `prompts/<os>/cpp/testing.md` — platform-specific testing specs reference this common pattern.
 
 ## License
 

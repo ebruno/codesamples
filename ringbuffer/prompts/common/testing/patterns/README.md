@@ -2,16 +2,16 @@
 
 This directory contains the authoritative pattern specifications for test data generation. Each `.md` file defines a complete pattern that is used by:
 
-- `ringbuffer/prompts/common/testing/create_scripts.md` — generates utility scripts from the pattern
-- `ringbuffer/prompts/common/cpp/testing.md` — references the pattern for test data requirements
-- Each platform's `ringbuffer/prompts/<os>/cpp/testing.md` — inherits the common pattern
+- `prompts/common/testing/create_scripts.md` — generates utility scripts from the pattern
+- `prompts/common/cpp/testing.md` — references the pattern for test data requirements
+- Each platform's `prompts/<os>/cpp/testing.md` — inherits the common pattern
 
 ## Adding a New Pattern
 
-1. Copy the template below (starting from `---`) into a new file: `ringbuffer/prompts/common/testing/patterns/<name>.md`
+1. Copy the template below (starting from `---`) into a new file: `prompts/common/testing/patterns/<name>.md`
 2. Replace all placeholder values with your pattern's actual data.
 3. Ensure the Python reference implementation is correct — it is the ground truth for all shell variants.
-4. Run `ringbuffer/prompts/common/testing/create_scripts.md` to generate the utility scripts.
+4. Run `prompts/common/testing/create_scripts.md` to generate the utility scripts.
 
 ## Existing Patterns
 
@@ -130,9 +130,9 @@ def generate_<name>_line(n: int) -> str:
 ## File Location
 
 This pattern file is the single source of truth for test data generation. It is referenced by:
-- `ringbuffer/prompts/common/testing/create_scripts.md` — generates the utility scripts from this pattern.
-- `ringbuffer/prompts/common/cpp/testing.md` — references the same pattern for test data generation requirements.
-- `ringbuffer/prompts/<os>/cpp/testing.md` — platform-specific testing specs reference this common pattern.
+- `prompts/common/testing/create_scripts.md` — generates the utility scripts from this pattern.
+- `prompts/common/cpp/testing.md` — references the same pattern for test data generation requirements.
+- `prompts/<os>/cpp/testing.md` — platform-specific testing specs reference this common pattern.
 
 ## License
 

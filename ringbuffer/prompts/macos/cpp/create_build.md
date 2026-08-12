@@ -1,17 +1,17 @@
-**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/build.md` for the authoritative temporary workspace directives.
+**Temporary Workspace**: See `prompts/common/cpp/build.md` for the authoritative temporary workspace directives.
 
-**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`ringbuffer/prompts/common/implement_build.md`) provides image resolution and structure reference only.
+**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`prompts/common/implement_build.md`) provides image resolution and structure reference only.
 
 Please configure the build system for the Ringbuffer on macOS.
 
 **Directives:**
-1. Use `ringbuffer/prompts/macos/cpp/build.md` for platform-specific requirements and Universal Binary specifications.
-2. Use `ringbuffer/prompts/common/cpp/build.md` as the primary build specification.
+1. Use `prompts/macos/cpp/build.md` for platform-specific requirements and Universal Binary specifications.
+2. Use `prompts/common/cpp/build.md` as the primary build specification.
 
 **Immediate Requirements:**
 - **Host Verification**: Before proceeding, verify that the host operating system is macOS by executing `sw_vers --productName`.
-- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/macos/cpp/logs/build.log`.
-- **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `ringbuffer/src/macos/cpp`.
+- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `src/macos/cpp/logs/build.log`.
+- **Configuration**: Create the build configuration (e.g., Makefile or CMakeLists.txt) in `src/macos/cpp`.
 - **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing_requirements.md`, and `artifacts.md` files within it.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
@@ -20,7 +20,7 @@ Please configure the build system for the Ringbuffer on macOS.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-dead_strip` are applied to achieve the "small binary" goal.
 - **Toolchain**: Use Clang by default.
 - **Makefile Consistency:** The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
-- **State Tracking:** Upon completion, create a `.gen_state.json` file in `ringbuffer/src/macos/cpp/` containing the resolved version, resolved image (N/A for native-only), SHA-256 hashes of `common/cpp/build.md` and `macos/cpp/build.md`, SHA-256 hashes of all generated build artifacts (Makefile, specs files), and file fingerprints for all source files.
+- **State Tracking:** Upon completion, create a `.gen_state.json` file in `src/macos/cpp/` containing the resolved version, resolved image (N/A for native-only), SHA-256 hashes of `common/cpp/build.md` and `macos/cpp/build.md`, SHA-256 hashes of all generated build artifacts (Makefile, specs files), and file fingerprints for all source files.
 
 **Dockerfile Handling**: macOS builds are native-only and do not use Dockerfiles. If a minimal Dockerfile was created by `implement_build.md` Step 0 (marker file `.dockerfile_created_by_step0` exists), it MUST NOT be modified or augmented — macOS has no container support. Log: `[timestamp] Dockerfile handling skipped — macOS is a native-only platform.`
 
@@ -37,7 +37,7 @@ Before finishing, you MUST verify and log the following:
 - **Toolchain Errors**: If you experience consistent problems creating or updating files using the provided tools, stop immediately and report the detailed error to the build log and the user.
 
 **Reporting:**
-Once implementation is complete, generate a summary report at `ringbuffer/src/macos/cpp/reports/build_creation_report.md`:
+Once implementation is complete, generate a summary report at `src/macos/cpp/reports/build_creation_report.md`:
 
 # Build Creation Report - macOS
 **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
@@ -54,7 +54,7 @@ Once implementation is complete, generate a summary report at `ringbuffer/src/ma
 **Self-Audit Passed:** [Yes/No]
 
 ## Artifacts Created
-- **Makefile**: `ringbuffer/src/macos/cpp/Makefile`
+- **Makefile**: `src/macos/cpp/Makefile`
 - **Dockerfile**: N/A (macOS is native-only)
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
 - **Library Artifacts**: [List of `.a` and `.dylib` files in `lib/`]

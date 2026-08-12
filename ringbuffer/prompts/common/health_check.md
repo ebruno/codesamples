@@ -20,21 +20,21 @@ Report any missing files.
 
 ### 2. Section Presence Check
 For each `build.md`, `testing.md`, and update prompt, verify the presence of these required sections:
-- **Temporary Workspace** — Centralized storage directive for `ringbuffer/tmp`
+- **Temporary Workspace** — Centralized storage directive for `tmp`
 - **Spec Precedence Rule** (common specs only) — Clarifies platform-specific override behavior
 - **Container Runtime Pre-flight** (Linux targets only) — Validates `container` command availability on macOS hosts
 - **Architecture Changes** (update prompts only) — Guidance for handling source tree changes
 - **Tooling and Recovery** — Error recovery instructions
 
 ### 3. Spec Hash Verification
-For each OS directory in `ringbuffer/src/<os>/cpp/`, check the `.gen_state.json` file:
+For each OS directory in `src/<os>/cpp/`, check the `.gen_state.json` file:
 - Verify that `spec_hashes` contains entries for `functional.md`, `build.md`, and `testing.md`.
 - Verify that each hash is a non-empty SHA-256 hex string (64 characters).
 - Report any empty or missing hashes.
 
 ### 4. Cross-Reference Validation
 For each OS-specific `build.md` and `testing.md`:
-- Verify that the file contains a reference to its corresponding common spec (e.g., `[ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md)`).
+- Verify that the file contains a reference to its corresponding common spec (e.g., `[prompts/common/cpp/build.md](../../common/cpp/build.md)`).
 - Verify that the file contains a "Platform Specifics" or equivalent section.
 
 ### 5. Container Runtime Consistency
@@ -43,14 +43,14 @@ For each Linux OS (fedora, debian, ubuntu):
 - Verify that the error message includes the correct URL: `https://github.com/apple/container`.
 
 ### 6. Makefile Consistency
-For each OS in `ringbuffer/src/<os>/cpp/`:
+For each OS in `src/<os>/cpp/`:
 - Verify that the Makefile contains a `.PHONY` declaration listing all declared targets.
 - Verify that `CXX ?=` is used (allowing command-line override).
 - Report any missing or inconsistent targets.
 
 ## Output Format
 
-Generate a report at `ringbuffer/tmp/health_check_report.md` with the following structure:
+Generate a report at `tmp/health_check_report.md` with the following structure:
 
 ```markdown
 # Prompt Health Check Report
@@ -90,4 +90,4 @@ Generate a report at `ringbuffer/tmp/health_check_report.md` with the following 
 ```
 
 ## Cleanup
-After generating the report, delete the `ringbuffer/tmp` directory and all its contents.
+After generating the report, delete the `tmp` directory and all its contents.

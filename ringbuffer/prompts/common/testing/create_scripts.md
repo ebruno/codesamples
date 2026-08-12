@@ -1,17 +1,17 @@
 # Utility Script Generation Workflow — Ringbuffer
 
-**Objective:** Create or update the authoritative utility scripts in `ringbuffer/prompts/common/cpp/utils/bin/` that are deployed to each platform's `tests/utils/bin/` during test environment setup.
+**Objective:** Create or update the authoritative utility scripts in `prompts/common/cpp/utils/bin/` that are deployed to each platform's `tests/utils/bin/` during test environment setup.
 
 **Inputs:**
 1. The pattern specification file (see "Pattern Specification" below).
-2. Existing scripts in `ringbuffer/prompts/common/cpp/utils/bin/` (if any).
-3. The common testing specification: `ringbuffer/prompts/common/cpp/testing.md`.
+2. Existing scripts in `prompts/common/cpp/utils/bin/` (if any).
+3. The common testing specification: `prompts/common/cpp/testing.md`.
 
 ## Pattern Specification
 
-The pattern rule is defined in a standalone file under `ringbuffer/prompts/common/testing/patterns/`. This file is the single source of truth for test data generation — it contains the template string, line format, Python reference implementation, validation regex, and JUnit test matrix.
+The pattern rule is defined in a standalone file under `prompts/common/testing/patterns/`. This file is the single source of truth for test data generation — it contains the template string, line format, Python reference implementation, validation regex, and JUnit test matrix.
 
-**Default pattern:** `ringbuffer/prompts/common/testing/patterns/zigzag.md`  
+**Default pattern:** `prompts/common/testing/patterns/zigzag.md`  
 **Custom pattern:** The user may specify a different pattern file path.
 
 When creating or updating scripts, the agent MUST read the pattern specification from this file and use it as the authoritative reference for all generated scripts.
@@ -96,7 +96,7 @@ chmod 755 <script_path>
 
 Verify permissions after creation:
 ```bash
-ls -la ringbuffer/prompts/common/cpp/utils/bin/
+ls -la prompts/common/cpp/utils/bin/
 # All scripts should show: -rwxr-xr-x 1 ... <script_name>
 ```
 
@@ -111,7 +111,7 @@ If any script lacks execute permission, the generation/update is considered inco
 
 ## Generation Process
 
-1. **Read Pattern Specification:** Read the pattern file from `ringbuffer/prompts/common/testing/patterns/<name>.md`. Extract:
+1. **Read Pattern Specification:** Read the pattern file from `prompts/common/testing/patterns/<name>.md`. Extract:
    - Template string
    - Validation regex
    - Python reference implementation
@@ -128,7 +128,7 @@ If any script lacks execute permission, the generation/update is considered inco
    - `verify_test_data.sh` and `.zsh` — validation scripts
    - `generate_junit_report.sh` — JUnit XML generator
 
-4. **Set Permissions:** Run `chmod 755` on every script file in `ringbuffer/prompts/common/cpp/utils/bin/`.
+4. **Set Permissions:** Run `chmod 755` on every script file in `prompts/common/cpp/utils/bin/`.
 
 5. **Self-Audit:** Verify all scripts:
    - Run each generate script with `-l 5` and compare output against the Python reference implementation (run via `python3 -c "..."`).
@@ -136,15 +136,15 @@ If any script lacks execute permission, the generation/update is considered inco
    - Verify file permissions with `ls -la` — all scripts must show `-rwxr-xr-x`.
    - Confirm all scripts have valid shebangs (`#!/usr/bin/env ...`) and version checks.
 
-6. **Log Completion:** Record the generation in `ringbuffer/src/<os>/cpp/logs/testing.log` with a timestamped entry:
+6. **Log Completion:** Record the generation in `src/<os>/cpp/logs/testing.log` with a timestamped entry:
    ```
-   [YYYY-MM-DD HH:MM:SS ±HHMM] Created/updated utility scripts in ringbuffer/prompts/common/cpp/utils/bin/
+   [YYYY-MM-DD HH:MM:SS ±HHMM] Created/updated utility scripts in prompts/common/cpp/utils/bin/
    ```
 
 ## Update Process
 
 When updating existing scripts:
-1. **Read Current Scripts:** Read all existing scripts in `ringbuffer/prompts/common/cpp/utils/bin/`.
+1. **Read Current Scripts:** Read all existing scripts in `prompts/common/cpp/utils/bin/`.
 2. **Read Pattern Specification:** Read the pattern file to get the current authoritative reference.
 3. **Compare Against New Spec:** Identify what has changed (pattern rule, validation regex, test matrix).
 4. **Apply Targeted Changes:** Update only the affected scripts and sections. Preserve compliant code that is not affected by the change.
@@ -153,7 +153,7 @@ When updating existing scripts:
 
 ## Temporary Workspace
 
-- All temporary files, comparison outputs, and intermediate data MUST be placed in `ringbuffer/tmp`.
+- All temporary files, comparison outputs, and intermediate data MUST be placed in `tmp`.
 - Do NOT create temporary files in the project root or source directories.
 
 ## Tooling and Recovery

@@ -4,9 +4,9 @@
 This build specification MUST follow the common build specification exactly to ensure binary symmetry. 
 
 Refer to the following document for all shared requirements, flags, and process:
-[ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md)
+[prompts/common/cpp/build.md](../../common/cpp/build.md)
 
-Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platform and Container Runtime Reference before planning any build operation.
+Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platform and Container Runtime Reference before planning any build operation.
 
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
@@ -33,7 +33,7 @@ Refer to [ringbuffer/prompts/common/cpp/build.md](../../common/cpp/build.md) for
 - **Container Path**: Use `src/debian/cpp/containers/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
-**Host-Target Compatibility** and **Container Runtime Pre-flight**: See `ringbuffer/prompts/common/cpp/build.md` for the authoritative host-target and container runtime directives.
+**Host-Target Compatibility** and **Container Runtime Pre-flight**: See `prompts/common/cpp/build.md` for the authoritative host-target and container runtime directives.
 
 ## Container Lifecycle Automation
 To simplify environment setup, the `Makefile` MUST implement a `container` target.
@@ -83,4 +83,4 @@ If the `make container` target fails during image creation or update:
 
 - All code is covered under a BSD 3-Clause License.
 
-**Tooling and Recovery:** See `ringbuffer/prompts/common/cpp/build.md` for the authoritative tooling and recovery directives.
+**Tooling and Recovery:** See `prompts/common/cpp/build.md` for the authoritative tooling and recovery directives.

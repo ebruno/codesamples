@@ -1,18 +1,18 @@
-**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
+**Temporary Workspace**: See `prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
 
 **Default Image**: `debian:13`
 
-**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`ringbuffer/prompts/common/implement_regression.md`) provides image resolution and structure reference only.
+**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`prompts/common/implement_regression.md`) provides image resolution and structure reference only.
 
 Please implement the full regression test suite for the Ringbuffer on Debian.
 
 **Directives:**
-1. Use `ringbuffer/prompts/debian/cpp/testing.md` for platform-specific prerequisites.
-2. Use `ringbuffer/prompts/common/cpp/testing.md` as the primary testing specification.
+1. Use `prompts/debian/cpp/testing.md` for platform-specific prerequisites.
+2. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Immediate Requirements:**
-- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/debian/cpp/logs/build.log`.
-- **Configuration**: Create the test configuration (Makefile) in `ringbuffer/src/debian/cpp/tests/`.
+- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `src/debian/cpp/logs/build.log`.
+- **Configuration**: Create the test configuration (Makefile) in `src/debian/cpp/tests/`.
 - **Documentation**: Create the `tests/` directory structure with all required subdirectories and `.required_directory` markers.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 

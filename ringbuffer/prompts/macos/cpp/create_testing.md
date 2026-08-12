@@ -1,14 +1,14 @@
 Please implement the full testing suite for the Ringbuffer on macOS.
 
 **Directives:**
-- Use `ringbuffer/prompts/macos/cpp/testing.md` as the primary platform-specific directive.
-- Follow all requirements in `ringbuffer/prompts/common/cpp/testing.md` for common C++ testing specifications.
+- Use `prompts/macos/cpp/testing.md` as the primary platform-specific directive.
+- Follow all requirements in `prompts/common/cpp/testing.md` for common C++ testing specifications.
 
 **Scope of Work:**
 1. **Host Verification**: Verify that the host OS is macOS using `sw_vers --productName` before starting.
-2. **Directory Structure**: Establish the `tests/` directory structure within `ringbuffer/src/macos/cpp/tests`, ensuring all directories contain the `.required_directory` marker.
+2. **Directory Structure**: Establish the `tests/` directory structure within `src/macos/cpp/tests`, ensuring all directories contain the `.required_directory` marker.
 3. **Data Generation & Validation**: 
-    - Deploy utility scripts from `ringbuffer/prompts/common/cpp/utils/bin/` to `tests/utils/bin/`.
+    - Deploy utility scripts from `prompts/common/cpp/utils/bin/` to `tests/utils/bin/`.
     - **Scripting Mandate**: All utility scripts MUST be written in **Pure Zsh** (version 5.8+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
     - Implement the `verify_test_data.zsh` validator script to enforce the **Strict Line Format Specification** (Length: 58, Prefix space: 5, Suffix space: 4).
     - Generate the zig-zag space pattern test files (`test001.txt` to `test007.txt`).
@@ -25,7 +25,7 @@ Please implement the full testing suite for the Ringbuffer on macOS.
 7. **Documentation**: Create a comprehensive `README.md` in the tests directory.
 
 **Deployment Path:**
-All artifacts must be placed in: `ringbuffer/src/macos/cpp/tests`
+All artifacts must be placed in: `src/macos/cpp/tests`
 
 **Definition of Done:**
 The task is complete when all binaries are compiled, all test data is generated, all Test Matrix scenarios are verified, and the documentation is complete and accurate.

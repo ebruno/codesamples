@@ -1,18 +1,18 @@
-**Temporary Workspace**: See `ringbuffer/prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
+**Temporary Workspace**: See `prompts/common/cpp/testing.md` for the authoritative temporary workspace directives.
 
 **Default Image**: `ubuntu:24.04`
 
-**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`ringbuffer/prompts/common/implement_regression.md`) provides image resolution and structure reference only.
+**Workflow Precedence:** This file is the **PRIMARY** execution document. The common workflow (`prompts/common/implement_regression.md`) provides image resolution and structure reference only.
 
 Please implement the full regression test suite for the Ringbuffer on Ubuntu 24.04 LTS (Linux kernel 6.N).
 
 **Directives:**
-1. Use `ringbuffer/prompts/ubuntu/cpp/testing.md` for platform-specific prerequisites.
-2. Use `ringbuffer/prompts/common/cpp/testing.md` as the primary testing specification.
+1. Use `prompts/ubuntu/cpp/testing.md` for platform-specific prerequisites.
+2. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Immediate Requirements:**
-- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/ubuntu/cpp/logs/build.log`.
-- **Configuration**: Create the test configuration (Makefile) in `ringbuffer/src/ubuntu/cpp/tests/`.
+- **Logging:** Every build step, configuration change, and verification result MUST be recorded in `src/ubuntu/cpp/logs/build.log`.
+- **Configuration**: Create the test configuration (Makefile) in `src/ubuntu/cpp/tests/`.
 - **Documentation**: Create the `tests/` directory structure with all required subdirectories and `.required_directory` markers.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts:** 
@@ -21,7 +21,7 @@ Please implement the full regression test suite for the Ringbuffer on Ubuntu 24.
     - Generate expected output files in `tests/data/expected/`.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting:** All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
-- **Makefile Generation:** Generate the test Makefile independently from `ringbuffer/prompts/common/cpp/testing.md` and `ringbuffer/prompts/ubuntu/cpp/testing.md`. Do NOT copy the test Makefile from another platform. Log: `[timestamp] Independent test Makefile generation — no test Makefile copied from other platforms.`
+- **Makefile Generation:** Generate the test Makefile independently from `prompts/common/cpp/testing.md` and `prompts/ubuntu/cpp/testing.md`. Do NOT copy the test Makefile from another platform. Log: `[timestamp] Independent test Makefile generation — no test Makefile copied from other platforms.`
 
 **Dockerfile Handling**:
 Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (created by `implement_regression.md` Step 0). If it does, **augment** the existing Dockerfile by adding platform-specific package installations — do NOT rewrite or replace it. Read its first line (`FROM ...`) and use that as the base image for any package additions.

@@ -3,18 +3,18 @@
 **Objective:** Update the build configuration to reflect changes in the source tree or build specifications.
 
 **Temporary Workspace Lifecycle:**
-1. **Initialization**: Create the `ringbuffer/tmp` directory as the very first action before starting any other task.
-2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `ringbuffer/tmp`.
-3. **Cleanup**: Recursively delete the `ringbuffer/tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
+1. **Initialization**: Create the `tmp` directory as the very first action before starting any other task.
+2. **Usage**: Ensure all temporary files and scripts generated during the process are stored exclusively within `tmp`.
+3. **Cleanup**: Recursively delete the `tmp` directory and all its contents immediately upon completion of all tasks associated with this prompt.
 
 **Inputs:**
 1. The current build file (e.g., `Makefile` or `CMakeLists.txt`).
 2. The current list of files in `src/debian/cpp`.
-3. `ringbuffer/prompts/debian/cpp/build.md`.
+3. `prompts/debian/cpp/build.md`.
 
 **Directives:**
-1. Use `ringbuffer/prompts/debian/cpp/build.md` for platform-specific prerequisites.
-2. Use `ringbuffer/prompts/common/cpp/build.md` as the primary build specification.
+1. Use `prompts/debian/cpp/build.md` for platform-specific prerequisites.
+2. Use `prompts/common/cpp/build.md` as the primary build specification.
 
 **Instructions:**
 - **Source Sync:** If new `.cpp` or `.hpp` files have been added to the source tree, add them to the build targets.
@@ -45,7 +45,7 @@ If this update involves container operations (e.g., rebuilding the build image),
 - **Spec Hash Update:** Update the hash of the platform-specific `build.md` in `.gen_state.json` upon completion.
 
 **Documentation Synchronization:**
-- **README Update:** If the build or testing changes affect the high-level project status (e.g., a platform is now "WIP" instead of "TBS"), use `ringbuffer/prompts/common/generate_toplevel_readme.md` to update the top-level `README.md`.
+- **README Update:** If the build or testing changes affect the high-level project status (e.g., a platform is now "WIP" instead of "TBS"), use `prompts/common/generate_toplevel_readme.md` to update the top-level `README.md`.
 
 **Output:**
 - The updated build file.

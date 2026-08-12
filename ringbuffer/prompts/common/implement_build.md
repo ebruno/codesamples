@@ -1,26 +1,26 @@
 # Build Implementation Workflow
 
 **Objective:** 
-Create the build environment for the Ringbuffer library by strictly following the specifications defined in `ringbuffer/prompts/common/cpp/build.md` and the platform-specific specifications in `ringbuffer/prompts/<os>/cpp/build.md`.
+Create the build environment for the Ringbuffer library by strictly following the specifications defined in `prompts/common/cpp/build.md` and the platform-specific specifications in `prompts/<os>/cpp/build.md`.
 
 **Inputs:**
-1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `ringbuffer/src/` are processed.
+1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `src/` are processed.
 2. **Target Image**: An optional container image override (e.g., `fedora:43`, `debian:12`). If provided, this overrides the default image specified in each OS's `create_build.md`. If not provided, use the default image from the target OS's prompt.
 
 **Process:**
 1. **Target Selection**:
    - **Targeting**: 
-     - **Specified Platforms**: If the user request specifies target platforms (e.g., "implement build for fedora, debian"), verify their existence in `ringbuffer/src/`. If a requested platform is missing from `ringbuffer/src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `ringbuffer/src/`). Process only the requested platforms that are implemented.
-     - **General Request**: Otherwise, iterate through **all** OS directories found in `ringbuffer/src/` (e.g., debian, fedora, macos).
-   - **Entry Point**: When targeting a specific OS, first check if `ringbuffer/prompts/<os>/cpp/create_build.md` exists.
+     - **Specified Platforms**: If the user request specifies target platforms (e.g., "implement build for fedora, debian"), verify their existence in `src/`. If a requested platform is missing from `src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `src/`). Process only the requested platforms that are implemented.
+     - **General Request**: Otherwise, iterate through **all** OS directories found in `src/` (e.g., debian, fedora, macos).
+   - **Entry Point**: When targeting a specific OS, first check if `prompts/<os>/cpp/create_build.md` exists.
      - **If it exists**: Consult it for immediate requirements and platform-specific directives. Execute it as the PRIMARY document.
-     - **If it does not exist**: Proceed with only `ringbuffer/prompts/common/cpp/build.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_build.md not found for <os> — proceeding with common spec only.`
+     - **If it does not exist**: Proceed with only `prompts/common/cpp/build.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_build.md not found for <os> — proceeding with common spec only.`
    - **Language**: This workflow specifically targets the C++ build environment.
 
 2. **Execution Steps**:
    For the selected OS directory, perform the following.
 
-   **Workflow Precedence:** Execute this common workflow's Step 0 first for image resolution and execution path decision. Then execute `ringbuffer/prompts/<os>/cpp/create_build.md` as the **PRIMARY** document and skip this common workflow's Steps 1-6. This common workflow serves as a reference for structure and provides the image resolution mechanism.
+   **Workflow Precedence:** Execute this common workflow's Step 0 first for image resolution and execution path decision. Then execute `prompts/<os>/cpp/create_build.md` as the **PRIMARY** document and skip this common workflow's Steps 1-6. This common workflow serves as a reference for structure and provides the image resolution mechanism.
 
    **Note:** `create_build.md` is read as a data source for image resolution in Step 0, then executed as the PRIMARY document afterward.
 
@@ -28,9 +28,9 @@ Create the build environment for the Ringbuffer library by strictly following th
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
         - `CONTAINER_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make container`
         - `LIBRARY_BUILD_TIMEOUT_MS`: 600,000 ms (10 minutes) — maximum time for `make clean && make`
-      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `ringbuffer/prompts/<os>/cpp/create_build.md`. If no default image is defined (e.g., macOS native-only platform), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
-      - **Shared Version Context**: Read the version from `ringbuffer/src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `ringbuffer/src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
-      - **Marker Cleanup**: If `target != macos`, remove any existing `.dockerfile_created_by_step0` marker file to ensure a clean state for this run: `rm -f ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0`. macOS targets skip this step (native-only platform).
+      - **Resolve Image**: Determine the Target Image from Inputs (see above). If not provided by the user, read the default image from `prompts/<os>/cpp/create_build.md`. If no default image is defined (e.g., macOS native-only platform), log: `IMAGE=N/A (native-only platform)`. Otherwise, log: `IMAGE=<resolved_image>`.
+      - **Shared Version Context**: Read the version from `src/<os>/cpp/.gen_state.json` (if it exists). This version was set by `implement_functional.md` and represents the Ringbuffer library version (`MAJOR.MINOR.SUBVERSION`). If `.gen_state.json` does not exist, read `src/<os>/cpp/version.mk` as a fallback. Log: `VERSION=<resolved_version>`.
+      - **Marker Cleanup**: If `target != macos`, remove any existing `.dockerfile_created_by_step0` marker file to ensure a clean state for this run: `rm -f src/<os>/cpp/.dockerfile_created_by_step0`. macOS targets skip this step (native-only platform).
       - **Execution Path Decision**: Detect the host OS. If `uname -s` returns `Darwin`, set `host_os = macOS`. If it returns `Linux`, read the distro ID from `/etc/os-release` using: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
         - **macOS Host Detection**: When `uname -s` returns `Darwin`, the host OS is macOS. Use `sw_vers --productVersion` to get the actual macOS version (e.g., "26.5.2"). Example:
           ```
@@ -58,7 +58,7 @@ Create the build environment for the Ringbuffer library by strictly following th
           - Start service: `container system start` — starts the container daemon and required services
         - **Native Execution**: If `host_os == <os>` OR if the target `<os>` is `macos`, all build and verification steps MUST be performed natively on the host. Containers MUST NOT be used for macOS targets.
         - **Container Execution**: If `host_os != <os>` AND the target `<os>` is NOT `macos`, all build and verification steps MUST be performed inside the `ringbuffer_<os>_build` container.
-        - **Log Your Decision**: Print a one-line summary to stdout AND append it to `ringbuffer/src/<os>/cpp/logs/build.log`:
+        - **Log Your Decision**: Print a one-line summary to stdout AND append it to `src/<os>/cpp/logs/build.log`:
           ```
           HOST=<host_os> TARGET=<os> ROUTING=container|native REASON=<brief explanation>
           ```
@@ -106,27 +106,27 @@ Create the build environment for the Ringbuffer library by strictly following th
 
           After resolving the issue, re-run the build or test workflow.
           ```
-      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the Dockerfile exists at `ringbuffer/src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
-      - **Create & Validate Container** (Linux targets only): If `target != macos` and the Dockerfile does not exist (build phase), create a minimal Dockerfile in `ringbuffer/src/<os>/cpp/containers/Dockerfile` using the resolved image as the base image tag (e.g., `FROM fedora:44`). Attempt to pull or build the container image using the platform-appropriate runtime:
+      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the Dockerfile exists at `src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
+      - **Create & Validate Container** (Linux targets only): If `target != macos` and the Dockerfile does not exist (build phase), create a minimal Dockerfile in `src/<os>/cpp/containers/Dockerfile` using the resolved image as the base image tag (e.g., `FROM fedora:44`). Attempt to pull or build the container image using the platform-appropriate runtime:
         - **macOS host**: use `container` to pull/build the image.
         - **Linux host**: use `podman` to pull/build the image.
 
         If the runtime is not available, log: `WARNING: Container runtime unavailable — image <image> could not be validated. Proceeding without container validation.` If the pull/build fails, log: `ERROR: Image <image> is not a supported base image for <OS>. Stopping processing.` and terminate.
-      - **Step 0 Dockerfile Marker** (Linux targets only): If `target != macos` and a minimal Dockerfile was created in this sub-step, create a marker file at `ringbuffer/src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_build.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists. macOS targets skip this step (native-only platform).
-      - **Navigate**: `cd ringbuffer/src/<os>/cpp`
+      - **Step 0 Dockerfile Marker** (Linux targets only): If `target != macos` and a minimal Dockerfile was created in this sub-step, create a marker file at `src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_build.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists. macOS targets skip this step (native-only platform).
+      - **Navigate**: `cd src/<os>/cpp`
       - **Log Initialization**: Create the log directory `logs/` if it does not exist. Initialize `build.log` with the start timestamp, action description, and resolved image/version as per the "Generation Process Logging" requirement.
 
    1. **Build System Creation**:
-      - Execute the directives in `ringbuffer/prompts/<os>/cpp/create_build.md` to create:
+      - Execute the directives in `prompts/<os>/cpp/create_build.md` to create:
         - The `Makefile` in the source directory.
         - The `containers/Dockerfile` (Linux targets only; macOS is native-only and does not use Dockerfiles). If a minimal Dockerfile was created in Step 0 (Linux targets only), `create_build.md` MUST **augment** it by adding the platform-specific package installations and container settings from `build.md` — do NOT replace or rewrite it. Before creating the Dockerfile, check if `containers/Dockerfile` already exists:
           - If it exists: read its first line (`FROM ...`) and use that as the base image for any package additions. Do NOT rewrite the entire file.
           - If it does not exist: create a new Dockerfile from scratch using the resolved image as the base.
         - The `specs/` subdirectory with `build.md`, `testing_requirements.md`, and `artifacts.md`.
-      - The Makefile MUST be generated independently from `ringbuffer/prompts/common/cpp/build.md` and the platform-specific build spec. Do NOT copy Makefiles from other platforms.
+      - The Makefile MUST be generated independently from `prompts/common/cpp/build.md` and the platform-specific build spec. Do NOT copy Makefiles from other platforms.
       - The Dockerfile MUST be generated independently from the build spec's container requirements (Linux targets only; macOS is native-only). Do NOT copy Dockerfiles from other platforms.
-      - **specs/build.md**: Copy of `ringbuffer/prompts/<os>/cpp/build.md` (platform-specific build requirements).
-      - **specs/testing_requirements.md**: Copy of `ringbuffer/prompts/<os>/cpp/testing.md` (reference copy for testing requirements — not an instruction to create tests during the build phase). Do NOT name this file `testing.md` — use `testing_requirements.md` to distinguish it from the testing prompt.
+      - **specs/build.md**: Copy of `prompts/<os>/cpp/build.md` (platform-specific build requirements).
+      - **specs/testing_requirements.md**: Copy of `prompts/<os>/cpp/testing.md` (reference copy for testing requirements — not an instruction to create tests during the build phase). Do NOT name this file `testing.md` — use `testing_requirements.md` to distinguish it from the testing prompt.
       - **Specs Directory Handling**: If the `specs/` directory already exists (e.g., from a previous run), overwrite its contents with the current versions of the prompt files. Do NOT preserve stale copies.
       - **specs/artifacts.md Content**: Create `specs/artifacts.md` with the following structure:
         ```markdown
@@ -145,7 +145,7 @@ Create the build environment for the Ringbuffer library by strictly following th
    1.5 **Cross-Platform Verification**:
       - **macOS skip**: If `target == macos`, log `[timestamp] Cross-platform verification skipped — macOS produces Mach-O binaries (not ELF); byte-identical comparison against Linux reference platforms is not applicable.` and proceed to Step 2.
       - **Linux targets**: After creating the Makefile and Dockerfile, verify they conform to the binary symmetry requirements:
-        - **Identify a Reference Platform**: Find an OS directory in `ringbuffer/src/` that already has a Makefile. Iterate through directories alphabetically (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `ringbuffer/src/<ref_os>/cpp/Makefile` exists.
+        - **Identify a Reference Platform**: Find an OS directory in `src/` that already has a Makefile. Iterate through directories alphabetically (e.g., `debian`, `fedora`, `ubuntu`) and select the first one where `src/<ref_os>/cpp/Makefile` exists.
         - **Fallback**: If no reference platform has a Makefile, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — no reference platform available.` Proceed to Step 2.
         - **Makefile Comparison**: Strip the three allowed differences from both the generated Makefile and the reference:
           1. `CONTAINER_IMAGE` variable value
@@ -229,7 +229,7 @@ Create the build environment for the Ringbuffer library by strictly following th
       - If any `.cpp` file is missing from the build, update the `Makefile` to include it and retry the library build at most 1 time.
 
    6. **State Tracking**:
-      - Create or update `.gen_state.json` in `ringbuffer/src/<os>/cpp/` containing:
+      - Create or update `.gen_state.json` in `src/<os>/cpp/` containing:
         - The resolved version (from shared context or `version.mk`).
         - The resolved image.
         - SHA-256 hashes of `common/cpp/build.md` and `<os>/cpp/build.md`.
@@ -251,12 +251,12 @@ Create the build environment for the Ringbuffer library by strictly following th
       - Calculate and include the total elapsed time since the start timestamp in this final entry.
 
 **Directives:**
-1. Use `ringbuffer/prompts/<os>/cpp/build.md` for platform-specific prerequisites (package lists, container settings).
-2. Use `ringbuffer/prompts/common/cpp/build.md` as the primary build specification.
+1. Use `prompts/<os>/cpp/build.md` for platform-specific prerequisites (package lists, container settings).
+2. Use `prompts/common/cpp/build.md` as the primary build specification.
 
 **Immediate Requirements:**
-- **Logging**: Every build step, configuration change, and verification result MUST be recorded in `ringbuffer/src/<os>/cpp/logs/build.log`.
-- **Configuration**: Create the build configuration (Makefile) in `ringbuffer/src/<os>/cpp`.
+- **Logging**: Every build step, configuration change, and verification result MUST be recorded in `src/<os>/cpp/logs/build.log`.
+- **Configuration**: Create the build configuration (Makefile) in `src/<os>/cpp`.
 - **Documentation**: Create the `specs/` subdirectory and place `build.md`, `testing_requirements.md`, and `artifacts.md` files within it.
 - **Versioning**: The build system MUST source `version.mk` to generate the versioned artifact names.
 - **Artifacts**: 
@@ -267,7 +267,7 @@ Create the build environment for the Ringbuffer library by strictly following th
 - **`dist-clean` Target**: The Makefile's `dist-clean` target MUST check whether a `tests/` directory exists. If it does, it MUST execute `make -C tests dist-clean` to recursively clean the test subdirectory. If `tests/` does not exist, it MUST skip silently (no error). This ensures that running `make dist-clean` at the project root fully cleans all build artifacts across both library and test directories.
 
 **Reporting:**
-Once implementation is complete, generate a summary report at `ringbuffer/src/<os>/reports/build_creation_report.md`:
+Once implementation is complete, generate a summary report at `src/<os>/reports/build_creation_report.md`:
 
 # Build Creation Report - [OS Name]
 **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
@@ -284,8 +284,8 @@ Once implementation is complete, generate a summary report at `ringbuffer/src/<o
 **Self-Audit Passed:** [Yes/No]
 
 ## Artifacts Created
-- **Makefile**: `ringbuffer/src/<os>/cpp/Makefile`
-- **Dockerfile** (Linux targets only): `ringbuffer/src/<os>/cpp/containers/Dockerfile`
+- **Makefile**: `src/<os>/cpp/Makefile`
+- **Dockerfile** (Linux targets only): `src/<os>/cpp/containers/Dockerfile`
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
 - **Library Artifacts**: [List of `.a` and `.so` or `.dylib` files in `lib/`]
 - **Logs**: `build.log` created and updated.
@@ -327,7 +327,7 @@ You MUST NOT:
 
 **Excluded Platforms:**
 - **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
-- Do not modify, add content to, or create new files in `ringbuffer/prompts/freebsd14/`, `ringbuffer/prompts/freebsd15/`, or `ringbuffer/prompts/archlinux/`.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.
 

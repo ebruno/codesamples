@@ -7,7 +7,7 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
 1. **Information Gathering**:
    - **Environment**: Detect the current host OS, kernel version, architecture, and hardware specifications. For macOS, use `sw_vers` to retrieve the `ProductName`, `ProductVersion`, and `BuildVersion`.
    - **AI Tooling**: Identify the current LLM and agent harness being used (e.g., LM Studio Bionic). If `lms` is in the system path, execute `lms ps` to determine the active model. Extract the value from the **MODEL** column and use it as the **Model Name**.
-   - **Platform Matrix**: Scan `ringbuffer/src/` and `ringbuffer/prompts/` to determine which OS and Language combinations are implemented. For C++, check for the existence of `ringbuffer/src/<os>/cpp/version.mk`.
+   - **Platform Matrix**: Scan `src/` and `prompts/` to determine which OS and Language combinations are implemented. For C++, check for the existence of `src/<os>/cpp/version.mk`.
     - If `version.mk` exists: Read `MAJOR`, `MINOR`, and `SUBVERSION`.
         - If `MAJOR > 0`: Use `vMAJOR.MINOR.SUBVERSION`.
         - If `MAJOR == 0`: Use `WIP vMAJOR.MINOR.SUBVERSION`.
@@ -54,25 +54,25 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    Provide the following common prompts with their **exact paths** and **example command syntax**:
 
    - **Full Generation (Initial Setup):**
-     - *Prompt:* `ringbuffer/prompts/<os>/cpp/create_functional.md`
-     - *Syntax Example:* `"Use ringbuffer/prompts/debian/cpp/create_functional.md to perform a full generation of the ringbuffer for debian"`
+     - *Prompt:* `prompts/<os>/cpp/create_functional.md`
+     - *Syntax Example:* `"Use prompts/debian/cpp/create_functional.md to perform a full generation of the ringbuffer for debian"`
    
    - **Incremental Update (Partial Regeneration):**
-     - *Functional Update:* `ringbuffer/prompts/<os>/cpp/update_functional.md`
-     - *Build Update:* `ringbuffer/prompts/<os>/cpp/update_build.md`
-     - *Testing Update:* `ringbuffer/prompts/<os>/cpp/update_testing.md`
-     - *Syntax Example:* `"Use ringbuffer/prompts/debian/cpp/update_functional.md to synchronize the debian implementation with the updated common specifications"`
+     - *Functional Update:* `prompts/<os>/cpp/update_functional.md`
+     - *Build Update:* `prompts/<os>/cpp/update_build.md`
+     - *Testing Update:* `prompts/<os>/cpp/update_testing.md`
+     - *Syntax Example:* `"Use prompts/debian/cpp/update_functional.md to synchronize the debian implementation with the updated common specifications"`
    
    - **Verification & Testing:**
-     - `ringbuffer/prompts/common/verify_build.md`: Use this for a first-pass sanity check on library compilation.
-       - *Syntax Example:* `"Use ringbuffer/prompts/common/verify_build.md to run build_verify for debian and fedora"`
-     - `ringbuffer/prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
-       - *Syntax Example:* `"Use ringbuffer/prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
+     - `prompts/common/verify_build.md`: Use this for a first-pass sanity check on library compilation.
+       - *Syntax Example:* `"Use prompts/common/verify_build.md to run build_verify for debian and fedora"`
+     - `prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
+       - *Syntax Example:* `"Use prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
 
    **3. Test Data Pattern System:**
    The Ringbuffer project uses a **pattern-driven** approach to test data generation. Instead of hardcoding pattern logic into each script, patterns are defined in standalone specification files that serve as the single source of truth. This ensures binary symmetry across all platforms and languages.
 
-   - **Pattern files** live in `ringbuffer/prompts/common/testing/patterns/`. Each file defines:
+   - **Pattern files** live in `prompts/common/testing/patterns/`. Each file defines:
      - The template string (48 characters)
      - Line format (prefix, payload, suffix structure)
      - The transformation algorithm (e.g., zig-zag space position)
@@ -83,7 +83,7 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
 
    **Directory Structure:**
    ```
-   ringbuffer/prompts/common/testing/
+   prompts/common/testing/
    ├── create_scripts.md          ← workflow prompt for generating scripts
    └── patterns/
        ├── README.md              ← instructions + copy-paste template for new patterns
@@ -93,18 +93,18 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    **Usage Examples:**
 
    - **Generate scripts from the default pattern:**
-     - *Prompt:* `ringbuffer/prompts/common/testing/create_scripts.md`
-     - *Syntax Example:* `"Use ringbuffer/prompts/common/testing/create_scripts.md to create utility scripts from the zigzag pattern"`
+     - *Prompt:* `prompts/common/testing/create_scripts.md`
+     - *Syntax Example:* `"Use prompts/common/testing/create_scripts.md to create utility scripts from the zigzag pattern"`
 
    - **Update scripts after modifying a pattern:**
-     - *Prompt:* `ringbuffer/prompts/common/testing/create_scripts.md`
-     - *Syntax Example:* `"Use ringbuffer/prompts/common/testing/create_scripts.md to update the utility scripts. The pattern file is at ringbuffer/prompts/common/testing/patterns/zigzag.md"`
+     - *Prompt:* `prompts/common/testing/create_scripts.md`
+     - *Syntax Example:* `"Use prompts/common/testing/create_scripts.md to update the utility scripts. The pattern file is at prompts/common/testing/patterns/zigzag.md"`
 
    - **Create a new pattern and generate scripts:**
-     - *Syntax Example:* `"Create a new test data pattern at ringbuffer/prompts/common/testing/patterns/sequential.md with template '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()<>', sequential numbering, and validation regex '^[0-9]{4} .{47} [0-9]{4}$'. Then generate the utility scripts."`
+     - *Syntax Example:* `"Create a new test data pattern at prompts/common/testing/patterns/sequential.md with template '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()<>', sequential numbering, and validation regex '^[0-9]{4} .{47} [0-9]{4}$'. Then generate the utility scripts."`
 
    - **Verify generated scripts match the Python reference:**
-     - *Syntax Example:* `"Use ringbuffer/prompts/common/testing/create_scripts.md to regenerate scripts from zigzag.md and verify all shell variants produce byte-identical output against the Python reference implementation"`
+     - *Syntax Example:* `"Use prompts/common/testing/create_scripts.md to regenerate scripts from zigzag.md and verify all shell variants produce byte-identical output against the Python reference implementation"`
 
 4. **Platforms Table Requirements**:
    - **Values**: 
