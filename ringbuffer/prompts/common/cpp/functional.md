@@ -22,6 +22,8 @@ All Makefile targets, test matrix definitions, verification steps, JUnit XML gen
 
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/functional.md`) conflict with common specs (`prompts/common/cpp/functional.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
+> **Quick Reference:** For platform-specific toolchain details (otool, lipo), binary format comparison tables (ELF vs Mach-O), and shared library linking conventions, see `prompts/common/cpp/session_hints.md`.
+
 - Code **MUST** be C++20 compliant.
 - Code **MUST** use `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
 - Code **MUST** be buildable using both clang and gcc tool chains.

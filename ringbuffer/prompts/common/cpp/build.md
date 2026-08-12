@@ -12,6 +12,8 @@ All other Makefile content — compiler flags, source file lists, build targets,
 
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
+> **Quick Reference:** For platform-specific toolchain details (otool, lipo, size -m), binary format comparison tables (ELF vs Mach-O), and shared library linking conventions, see `prompts/common/cpp/session_hints.md`.
+
 ## Platform and Container Runtime Reference
 
 **Native-Only Platforms** (no container support):
