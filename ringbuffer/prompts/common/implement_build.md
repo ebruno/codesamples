@@ -240,11 +240,12 @@ Create the build environment for the Ringbuffer library by strictly following th
    7. **Final Self-Audit**:
       - Verify the following and log results:
         - **Makefile Targets**: All required targets are present (`all`, `static`, `shared`, `clean`, `dist-clean`). If `target != macos`, also verify the `container` target exists. macOS targets do not have a container target (native-only platform).
-        - **`dist-clean` Behavior**: The `dist-clean` target MUST include a conditional check for the `tests/` directory. If `tests/` exists, it MUST execute `make -C tests dist-clean`. Verify this by inspecting the Makefile source.
+        - **`dist-clean` Behavior**: The `dist-clean` target MUST include a conditional check for the `tests/` directory. If `tests/` exists, it MUST execute `make -C tests dist-clean`. It MUST also remove both the local `reports/` directory (inside cpp/) and the parent-level `../reports/` directory, plus the `logs/` directory. Verify this by inspecting the Makefile source.
         - **Dockerfile** (Linux targets only): If `target != macos`, verify it exists and has valid syntax (base image, package installation). macOS targets skip this check (native-only platform).
         - **Specs Directory**: `specs/` contains `build.md`, `testing_requirements.md`, and `artifacts.md`.
         - **Source Consistency**: All `.cpp` files are listed in the Makefile's `SRCS`.
         - **Artifact Verification**: Library artifacts exist with correct symlinks.
+        - **CXX Variable Assignment**: On macOS targets, verify the Makefile uses `CXX := clang++` (simple expansion), NOT `CXX ?= clang++` (conditional). macOS Make ships with built-in defaults (`CXX = c++`) that override `?=` assignments. Command-line overrides like `make CXX=g++` still work with `:=`.
 
    8. **Finalize Logs**:
       - Append a final entry to `build.log` stating that the build implementation is complete.
@@ -264,7 +265,8 @@ Create the build environment for the Ringbuffer library by strictly following th
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
 - **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections` are applied. For Linux targets, also add `-Wl,--gc-sections`. For macOS targets, use `-dead_strip` instead of `--gc-sections`.
 - **Makefile Consistency**: The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
-- **`dist-clean` Target**: The Makefile's `dist-clean` target MUST check whether a `tests/` directory exists. If it does, it MUST execute `make -C tests dist-clean` to recursively clean the test subdirectory. If `tests/` does not exist, it MUST skip silently (no error). This ensures that running `make dist-clean` at the project root fully cleans all build artifacts across both library and test directories.
+- **CXX Default**: On macOS targets, the Makefile MUST use `CXX := clang++` (not `?=`) to override macOS Make's built-in default of `CXX = c++`.
+- **`dist-clean` Target**: The Makefile's `dist-clean` target MUST check whether a `tests/` directory exists. If it does, it MUST execute `make -C tests dist-clean` to recursively clean the test subdirectory. If `tests/` does not exist, it MUST skip silently (no error). It MUST also remove both the local `reports/` directory (inside cpp/) and the parent-level `../reports/` directory, plus the `logs/` directory. This ensures that running `make dist-clean` at the project root fully cleans all build artifacts across both library and test directories.
 
 **Reporting:**
 Once implementation is complete, generate a summary report at `src/<os>/reports/build_creation_report.md`:

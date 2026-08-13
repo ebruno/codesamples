@@ -84,7 +84,23 @@ lipo -info lib/libswtr_ringbuffer.dylib   # Should show both architectures
 
 ---
 
-## 5. Container Runtime Quick-Reference (Linux Builds from macOS Host)
+## 5. macOS Make Built-in Defaults Gotcha
+
+macOS ships with GNU Make that has built-in defaults for `CXX = c++`. These are processed **before** your makefile is read, so:
+
+- `CXX ?= clang++` **will NOT work** — Make sees CXX is already defined (from built-in defaults) and skips the assignment
+- `CXX := clang++` **will work** — simple expansion always wins over built-in defaults
+- Command-line override `make CXX=g++` **still works** — command-line variables have highest precedence of all
+
+**Rule:** Always use `CXX := clang++` (or `g++`) in macOS Makefiles, never `?=`.
+
+**Verification:** Run `make -p -f /dev/null | grep CXX` to see all built-in defaults.
+
+> **Note:** This is specific to macOS Make. Linux Make does not have this built-in default, so `?=` works there. But for cross-platform consistency, always use `:=` on macOS.
+
+---
+
+## 6. Container Runtime Quick-Reference (Linux Builds from macOS Host)
 
 When building Linux targets from macOS:
 - **Runtime:** `container` command (Apple Container) — NOT Docker, NOT podman
@@ -98,7 +114,7 @@ When building Linux targets from Linux:
 
 ---
 
-## 6. Cross-Reference Summary
+## 7. Cross-Reference Summary
 
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`
 > **Build flags, Makefile targets, artifact naming** → `prompts/common/cpp/build.md`
