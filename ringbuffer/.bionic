@@ -138,6 +138,17 @@ FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active development. Thei
 # Error Handling — Shell Commands
 - If you start getting shell errors (e.g., commands failing, unexpected output, toolchain issues), report the issue to the user and **stop processing immediately**. Do not attempt to work around shell errors or continue with subsequent workflow steps.
 
+# Loop Detection and Recovery
+- If you detect that you are repeating the same action, explanation, or approach **3 times or more**, this is a sign of looping.
+- On the 1st repeat: pause, acknowledge the repetition to the user, and attempt a different approach.
+- On the 2nd repeat: try another distinct strategy. If still stuck, escalate to the user.
+- On the 3rd repeat: **stop immediately** and report the problem to the user with:
+  - What you were trying to do
+  - What approaches you tried (list them)
+  - Why each approach failed or didn't help
+  - A clear request for user guidance on how to proceed.
+- Do not continue looping past the 3rd attempt. The user's intervention is required.
+
 # Transitory Markers
 - `.dockerfile_created_by_step0` is a transitory workflow marker — add it to `.gitignore` and remove from git tracking. It has no functional purpose beyond prompt execution coordination.
 - `.required_directory` files are **NOT** transitory — they preserve directory structure in git when directories contain no other tracked files. Do **NOT** add them to `.gitignore`.
