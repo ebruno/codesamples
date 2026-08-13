@@ -264,7 +264,7 @@ Test binaries must be configured to verify different linking scenarios:
 - **Code Quality**: Must handle unused function parameters (e.g., using `(void)param;`) to ensure the code compiles without `-Wunused-parameter` warnings.
 - **Makefile Macros**: MUST define a macro `RM = rm -f` and use it for all file removal operations.
 - **Cleanup Requirements**: The `Makefile` must provide the following targets:
-    - `clean`: MUST remove the **contents** of the `bin/` and `data/expected/` directories using `$(RM) -r` (e.g., `bin/*` and `data/expected/*`), while **preserving the directories themselves**. It MUST also remove all object files (`*.o`), all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
+    - `clean`: MUST remove the **contents** of the `bin/` directory using `$(RM) -r` (e.g., `bin/*`), while **preserving the directory itself**. It MUST NOT remove anything from `data/expected/` — those are golden reference files used for test verification. It MUST also remove all object files (`*.o`), all log files in `logs/` using `$(RM) -r`, and any backup files (`*~` and `#*#`) using `$(RM)`.
     - `dist-clean`: Must perform a full cleanup by calling the `clean` target and explicitly removing both the `logs/` and `reports/` directories using `$(RM) -r`.
 
 ## Test Makefile Requirements
