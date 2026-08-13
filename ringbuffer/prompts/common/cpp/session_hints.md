@@ -104,7 +104,41 @@ macOS ships with GNU Make that has built-in defaults for `CXX = c++`. These are 
 
 ---
 
-## 6. Cross-Reference Summary
+## 6. Mermaid Diagram Compatibility Gotcha
+
+**Problem:** Mermaid diagrams that render correctly on GitHub (Mermaid v10) may fail in Safari on GitLab 19+ (Mermaid v11), while still working in Chrome on both platforms.
+
+**Root cause:** The `direction TB` (or any `direction`) keyword inside subgraphs creates a nested direction conflict when combined with the outer `flowchart LR` layout. Mermaid v10 handles this consistently across browsers. Mermaid v11 changed the SVG output for nested directions, and WebKit (Safari) is stricter about rendering the resulting SVG — it may produce overlapping elements, incorrect transform matrices, or a completely broken/invisible diagram. Blink (Chrome) is more forgiving and silently renders it correctly.
+
+**Symptoms:**
+- Diagram works on GitHub (any browser) ✅
+- Diagram works in Chrome on GitLab ✅
+- Diagram broken or invisible in Safari on GitLab ❌
+
+**Fix:** Remove `direction` declarations from inside subgraphs. The outer `flowchart LR` direction still governs the overall layout:
+
+```mermaid
+# ❌ Broken in Safari + GitLab (Mermaid v11)
+flowchart LR
+    subgraph ReadThread ["Read Thread"]
+        direction TB          ← REMOVE THIS
+        R1 --> R2
+    end
+```
+
+```mermaid
+# ✅ Works everywhere
+flowchart LR
+    subgraph ReadThread ["Read Thread"]
+        R1 --> R2
+    end
+```
+
+**Rule:** Never use `direction` inside subgraphs. Use it only at the top level of a flowchart.
+
+---
+
+## 7. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`
