@@ -147,6 +147,12 @@ flowchart LR
 - Slots transition through states: `readyforread` → `processing_read` → `readyfortransform` → `processing_transform` → `readyforwrite` → `processing_write` → `readyforread`
 - On EOF, the read thread marks the final slot with `LAST_BUFFER_TO_TRANSFORM`, which propagates through transform (`LAST_BUFFER_TO_WRITE`) to write, then all threads break and `wait()` returns
 
+### Pipeline Animation
+
+The following animation demonstrates the three-stage pipeline in action, showing how data flows through the read $→$ transform $→$ write stages:
+
+![Pipeline Animation](animated_graphics/pipeline_animation.gif)
+
 ## Initial Development Environment
 - **Operating System**: macOS 26.5.2 (Darwin 25.5.0)
 - **Hardware**: Apple M4 Pro (arm64)

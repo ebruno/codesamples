@@ -21,6 +21,8 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    - **Primary Goal**: State the objective of ensuring prompt-driven, immediate build-and-run functionality.
    - **Key Specifications**: Highlight Multi-OS support, Multi-Toolchain compatibility (GCC/Clang), and C++20 standards.
    - **Core Features**: Detailed bullets on Pipelined Architecture, Performance (Cache Alignment, Small Binaries), Data Integrity (Checksums), and Diagnostics (NVI Logging).
+   - **Pipeline Architecture Diagram**: Include a Mermaid flowchart showing the three pipeline threads (Read, Transform, Write) and their slot state transitions. Follow with a **Key points** subsection listing the atomic index counters, slot state progression, and EOF propagation mechanism.
+   - **Pipeline Animation**: Include the animated GIF demonstrating the pipeline in action. Use the relative path `animated_graphics/pipeline_animation.gif` so it renders inline on GitHub and GitLab.
    - **Initial Development Environment**: A technical snapshot including OS, Hardware, and a specific **AI Tools** subsection. This subsection MUST detail:
     - **Agent Harness**: Name and version.
     - **Model Name**: Full identifier (e.g., `google/gemma-4-31B-it-qat`).
