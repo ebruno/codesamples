@@ -24,7 +24,7 @@ DEFAULT_OUTPUT = os.path.join(OUTPUT_DIR, "pipeline_animation.gif")
 WIDTH = 1380
 HEIGHT = 703
 NUM_FRAMES = 45
-FRAME_DURATION_MS = 200  # ~9.0s total
+FRAME_DURATION_MS = 667  # ~30.0s total
 
 # ─── Color Palette (extracted from original GIF) ─────────────────────────────
 
