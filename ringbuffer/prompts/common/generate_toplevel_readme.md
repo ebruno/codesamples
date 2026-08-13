@@ -113,5 +113,22 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    - **Footnote**: Immediately following the table, include this exact footnote:
      `*TBS: To Be Supplied | WIP: Work In Progress`
 
+5. **PDF Generation** (Post-Processing):
+   After the README is generated or updated, convert it to PDF. Mermaid diagrams are rendered as SVG images via `mmdc`, then embedded by pandoc.
+
+   - **Prerequisites**: pandoc (v3.x+), mmdc (mermaid-cli via npm), node.js, and lualatex must be installed.
+   - **Step 1 — Extract mermaid diagrams to SVG**:
+     ```bash
+     mmdc -i README.md -o README_diagrams.md -a diagrams --outputFormat svg
+     ```
+     This produces `diagrams/README_diagrams-1.svg` (the rendered diagram) and `README_diagrams.md` (a copy of README with mermaid blocks replaced by image references).
+   - **Step 2 — Generate PDF**:
+     ```bash
+     pandoc README_diagrams.md --pdf-engine=lualatex -o doc/README.pdf
+     ```
+   - **Output**: The PDF is written to `doc/README.pdf`.
+   - **When to regenerate**: Run both steps after any README update that adds or modifies mermaid diagrams, or when the content structure changes significantly.
+   - **Verification**: Open `doc/README.pdf` and confirm all mermaid diagrams render correctly with proper formatting.
+
 **Verification:**
 Ensure all placeholders are replaced with real-time detected data and that the formatting is professional, using clean Markdown tables and lists.
