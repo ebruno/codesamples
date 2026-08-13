@@ -134,3 +134,11 @@ FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active development. Thei
 
 # Session Initialization
 - At the start of every new session, your first response to the user must explicitly begin with: "✅ [.bionic configuration successfully loaded]" before addressing the user's prompt.
+
+# Error Handling — Shell Commands
+- If you start getting shell errors (e.g., commands failing, unexpected output, toolchain issues), report the issue to the user and **stop processing immediately**. Do not attempt to work around shell errors or continue with subsequent workflow steps.
+
+# Transitory Markers
+- `.dockerfile_created_by_step0` is a transitory workflow marker — add it to `.gitignore` and remove from git tracking. It has no functional purpose beyond prompt execution coordination.
+- `.required_directory` files are **NOT** transitory — they preserve directory structure in git when directories contain no other tracked files. Do **NOT** add them to `.gitignore`.
+<EOF>
