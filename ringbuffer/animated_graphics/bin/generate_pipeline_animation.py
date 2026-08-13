@@ -31,7 +31,7 @@ FRAME_DURATION_MS = 1000  # ~45.0s total
 C = {
     "bg":            (250, 251, 252),
     "bg_alt":        (245, 245, 245),
-    "purple":        (130, 85, 170),
+    "purple":        (210, 185, 235),
     "purple_light":  (246, 232, 250),
     "gray_text":     (100, 100, 100),
     "dark_text":     (33,  33,  33),
