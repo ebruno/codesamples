@@ -52,7 +52,7 @@ Default version for this platform: Debian 13 (overridable via Target Version inp
 - **Location:** All generated source code and the `LICENSE` file must be placed in `src/debian/cpp`.
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `src/debian/cpp` containing the SHA-256 hashes of the prompts used and the fingerprints of all generated files to support future incremental updates.
 - **Source Fidelity:** The generated source code MUST be byte-identical to the common specification. Generate all files independently from `prompts/common/cpp/functional.md` — do not copy source files from any other platform.
-- **Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — Debian matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
+- **Cross-Platform Verification (Optional):** After generating all files independently, optionally compare output against any other platform's source in `src/` if available. This is an optional quality check — the build does not depend on other platforms existing. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — Debian matches <platform>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped (optional) — no other platform source available.`
 - **Documentation:** Create a `README.md` in the source directory describing the library and build instructions.
 
 **Reporting:**
