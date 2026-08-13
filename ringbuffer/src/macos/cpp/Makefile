@@ -1,8 +1,18 @@
 include version.mk
 
-CXX ?= clang++
-CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
-LDFLAGS = -dead_strip
+# Toolchain configuration based on CXX variable
+CXX := clang++
+
+ifeq ($(CXX),g++)
+  CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
+  LDFLAGS = -Wl,--gc-sections
+else ifeq ($(CXX),clang++)
+  CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto -fvisibility=hidden -ffunction-sections -fdata-sections -I.
+  LDFLAGS = -dead_strip
+else
+  $(error Unsupported CXX: $(CXX). Only g++ and clang++ are supported.)
+endif
+
 RM = rm -rf
 
 SRCS = $(wildcard *.cpp)
@@ -15,7 +25,7 @@ BUILD_DIR = build
 VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).dylib
 
-.PHONY: all static shared clean dist-clean verify lint format
+.PHONY: all static shared clean dist-clean
 
 all: static shared
 
@@ -44,25 +54,8 @@ $(VERSIONED_SHARED): $(OBJS_ARM64) $(OBJS_X86_64)
 	$(CXX) $(CXXFLAGS) -arch x86_64 -c $< -o $@
 
 clean:
-	$(RM) $(BUILD_DIR) $(LIB_DIR) *.o \"*~\" \"#*#\"
+	$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
 
 dist-clean: clean
-	$(RM) ../reports logs
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
-verify:
-	$(MAKE) -C tests verify
-
-# Optional lint and format targets (requires clang-tidy / clang-format)
-lint:
-	@echo "Running clang-tidy..."
-	@for f in *.cpp; do \
-		clang-tidy $$f -- $(CXXFLAGS) -I. 2>/dev/null || true; \
-	done
-	@echo "Lint complete."
-
-format:
-	@echo "Running clang-format..."
-	@for f in *.cpp *.hpp; do \
-		clang-format -i $$f 2>/dev/null || true; \
-	done
-	@echo "Format complete."
+	$(RM) reports ../reports logs

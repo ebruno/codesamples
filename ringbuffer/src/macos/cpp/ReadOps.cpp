@@ -11,8 +11,9 @@ void SwtrRingBuffer::set_read_fd(int fd) {
 
 void SwtrRingBuffer::read_loop(std::stop_token st) {
     while (!st.stop_requested()) {
-        size_t idx = read_idx_.load();
-        BufferSlot& slot = *slots_[idx % num_slots_];
+        size_t idx = read_index_.load();
+        size_t slot_idx = idx % num_slots_;
+        BufferSlot& slot = *slots_[slot_idx];
 
         if (slot.status.load() == BufferStatus::readyforread) {
             int fd = read_fd_.load();
@@ -22,22 +23,22 @@ void SwtrRingBuffer::read_loop(std::stop_token st) {
                 continue;
             }
 
-            ssize_t bytes_read = read(fd, slot.data.data(), slot.max_data_buffer_size.load());
+            ssize_t bytes_read = read(fd, slot.data.data(), slot.max_data_buffer_size);
             
             if (bytes_read > 0) {
                 slot.data_buffer_size.store(static_cast<size_t>(bytes_read));
                 slot.status.store(BufferStatus::readyfortransform);
-                read_idx_.fetch_add(1);
+                read_index_.fetch_add(1);
                 cv_.notify_all();
             } else if (bytes_read == 0) {
                 slot.status.store(BufferStatus::LAST_BUFFER_TO_TRANSFORM);
-                read_idx_.fetch_add(1);
+                read_index_.fetch_add(1);
                 cv_.notify_all();
                 break;
             } else {
                 slot.status.store(BufferStatus::STATUS_ERROR);
-                if (error_handler_) {
-                    if (error_handler_(idx % num_slots_, BufferStatus::STATUS_ERROR) != 0) {
+                if (err_handler_) {
+                    if (err_handler_(slot_idx, BufferStatus::STATUS_ERROR) != 0) {
                         stop();
                     }
                 }

@@ -1,86 +1,90 @@
 #!/usr/bin/env zsh
+# generate_test_data.zsh - Generate zig-zag pattern test data files for Ringbuffer testing
+# Usage: generate_test_data.zsh [-l lines] [output_file]
 
-# Version Check
+set -euo pipefail
+
+# Version check (Zsh 5.8+)
 major=${ZSH_VERSION%%.*}
 minor=${ZSH_VERSION#*.}
-minor=${minor%%.*}
-
-if (( major < 5 || ( major == 5 && minor < 8 ) )); then
-    echo "Error: Zsh version 5.8 or higher is required." >&2
+if (( major < 5 || (major == 5 && minor < 8) )); then
+    echo "ERROR: Zsh version 5.8 or higher is required (current: $ZSH_VERSION)" >&2
     exit 1
 fi
-
-usage() {
-    echo "Usage: $(basename $0) [-l lines] [output_file]"
-    echo "Options:"
-    echo "  -l lines    Number of lines to generate. Defaults to 10."
-    echo "  -h          Display usage information."
-    exit 0
-}
 
 # Defaults
 lines=10
 output_file=""
 
-# Parse Arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -l)
-            if [[ -n $2 && $2 =~ ^[0-9]+$ ]]; then
-                lines=$2
-                shift 2
-            else
-                echo "Error: -l requires a numeric argument." >&2
-                exit 1
-            fi
-            ;;
-        -h)
-            usage
-            ;;
-        -*)
-            echo "Error: Unknown option $1" >&2
-            usage
-            ;;
-        *)
-            output_file=$1
-            shift
-            ;;
+# Parse options
+while getopts "l:h" opt; do
+    case $opt in
+        l) lines=$OPTARG ;;
+        h) echo "Usage: generate_test_data.zsh [-l lines] [output_file]"
+           echo "  -l lines    Number of lines to generate (default: 10)"
+           echo "  -h          Display this help message"
+           exit 0 ;;
+        *) echo "Usage: generate_test_data.zsh [-l lines] [output_file]" >&2; exit 1 ;;
     esac
 done
+shift $((OPTIND - 1))
 
-# Template and Constraints
-# Prefix: 4 digits + space (5 chars)
-# Internal: 47 chars
-# Suffix: space + 4 digits (5 chars)
-# Total: 57 chars
-template="ABCEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>" # 47 chars
-
-L=${#template}
-cycle=$(( 2 * (L - 1) ))
-
-# Output handling: Use > to overwrite if output_file is specified
-if [[ -n $output_file ]]; then
-    exec > "$output_file"
+if [[ $# -gt 0 ]]; then
+    output_file=$1
 fi
 
-for (( n=1; n<=lines; n++ )); do
-    # Sequence number (4 digits)
-    seq=$(printf "%04d" $n)
+# Template string (48 characters) — authoritative ground truth
+template="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
+L=${#template}
+
+generate_line() {
+    local n=$1
+    local prefix suffix
     
-    # Internal content
-    content=$template
-    if (( n > 1 )); then
-        idx=$(( n - 2 ))
-        off=$(( idx % cycle ))
-        if (( off < L - 1 )); then
-            i=$(( off + 1 ))
-        else
-            i=$(( cycle - off ))
-        fi
-        # Zsh indexing is 1-based. 
-        # i is 0-based index relative to template.
-        content[i+1]=" "
+    # Format 4-digit sequence number (Zsh uses 1-based indexing)
+    if (( n < 10 )); then
+        prefix="000${n} "
+    elif (( n < 100 )); then
+        prefix="00${n} "
+    elif (( n < 1000 )); then
+        prefix="0${n} "
+    else
+        prefix="${n} "
     fi
     
-    echo "${seq} ${content} ${seq}"
-done
+    if (( n == 1 )); then
+        echo "${prefix}${template} ${prefix}"
+        return
+    fi
+    
+    # Calculate zig-zag position (Zsh uses 1-based indexing for strings)
+    local idx=$(( n - 2 ))
+    local cycle=$(( 2 * (L - 1) ))
+    local off=$(( idx % cycle ))
+    local i
+    
+    if (( off < L - 1 )); then
+        i=$(( off + 2 ))  # Convert to 1-based for Zsh string indexing
+    else
+        i=$(( cycle - off + 2 ))
+    fi
+    
+    # Replace character at position i with space (1-based index in Zsh)
+    local chars="${template}"
+    local prefix_part="${chars[1:$((i-1))]}"
+    local suffix_part="${chars[$((i+1)),$L]}"
+    
+    echo "${prefix}${prefix_part} ${suffix_part} ${prefix}"
+}
+
+# Generate output — truncate first, then append per line (avoids error messages going to data file)
+if [[ -n "$output_file" ]]; then
+    > "$output_file"  # Truncate file first
+    for (( n=1; n<=lines; n++ )); do
+        generate_line "$n" >> "$output_file"
+    done
+else
+    for (( n=1; n<=lines; n++ )); do
+        generate_line "$n"
+    done
+fi

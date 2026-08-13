@@ -1,18 +1,21 @@
-#ifndef SWTR_RINGBUFFER_HPP
-#define SWTR_RINGBUFFER_HPP
+#pragma once
 
-#include <iostream>
-#include <vector>
-#include <functional>
-#include <cstdint>
+#include <atomic>
+#include <cstddef>
 #include <format>
-#include <string_view>
+#include <functional>
+#include <iostream>
+#include <string>
 #include "status.hpp"
 
 namespace swtr {
 
 using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);
 using TransformFn = std::function<void(std::vector<uint8_t>&, size_t&)>;
+
+constexpr size_t MIN_NUMBER_SLOTS = 1;
+constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
+constexpr size_t MIN_BUFFER_SIZE = 1;
 
 class RingBuffer {
 public:
@@ -75,5 +78,3 @@ protected:
 };
 
 } // namespace swtr
-
-#endif // SWTR_RINGBUFFER_HPP

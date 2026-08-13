@@ -4,15 +4,18 @@
 namespace swtr {
 
 BufferStatus SwtrRingBuffer::get_status(size_t slot_idx) const {
-    return slots_[slot_idx % num_slots_]->status.load();
+    if (slot_idx >= num_slots_) return BufferStatus::STATUS_ERROR;
+    return slots_[slot_idx]->status.load();
 }
 
 void SwtrRingBuffer::set_status(size_t slot_idx, BufferStatus status) {
-    slots_[slot_idx % num_slots_]->status.store(status);
+    if (slot_idx >= num_slots_) return;
+    slots_[slot_idx]->status.store(status);
 }
 
 bool SwtrRingBuffer::test_status(size_t slot_idx, BufferStatus status) const {
-    return slots_[slot_idx % num_slots_]->status.load() == status;
+    if (slot_idx >= num_slots_) return false;
+    return slots_[slot_idx]->status.load() == status;
 }
 
 } // namespace swtr

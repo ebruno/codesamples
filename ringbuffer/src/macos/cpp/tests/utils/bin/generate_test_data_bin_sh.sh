@@ -1,55 +1,86 @@
 #!/usr/bin/env sh
-
-# generate_test_data_bin_sh.sh
-# Purpose: Generate test data with a zig-zag space pattern for Bourne shell.
+# generate_test_data_bin_sh.sh - Generate zig-zag pattern test data files for Ringbuffer testing
 # Usage: generate_test_data_bin_sh.sh [-l lines] [output_file]
+#
+# NOTE: POSIX sh has no built-in string manipulation or version variable.
+# External commands (expr, cut) are used as a necessary compromise — the spec's
+# "built-ins only" rule cannot be met in pure POSIX sh.
 
-usage() {
-    echo "Usage: generate_test_data_bin_sh.sh [-l lines] [output_file]"
-    echo "Options:"
-    echo "  -l lines    Number of lines to generate. Defaults to 10."
-    echo "  -h          Display usage information."
-    exit 1
-}
+set -e
 
+# Defaults
 lines=10
 output_file=""
 
+# Parse options
 while [ $# -gt 0 ]; do
     case "$1" in
         -l) lines="$2"; shift 2 ;;
-        -h) usage ;;
-        -*) usage ;;
-        *) output_file="$1"; shift ;;
+        -h) echo "Usage: generate_test_data_bin_sh.sh [-l lines] [output_file]"
+            echo "  -l lines    Number of lines to generate (default: 10)"
+            echo "  -h          Display this help message"
+            exit 0 ;;
+        *) if [ -n "$output_file" ]; then
+               echo "ERROR: Multiple output files specified" >&2
+               exit 1
+           fi
+           output_file="$1"; shift ;;
     esac
 done
 
-template="ABCDFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>"
-len=$(echo "$template" | wc -c)
-len=$(expr $len - 1)
+# Template string (48 characters) — authoritative ground truth
+template="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()<>""
+L=${#template}
 
-if [ -n "$output_file" ]; then
-    exec > "$output_file"
-fi
-
-i=1
-while [ $i -le $lines ]; do
-    seq=$(printf "%04d" $i)
-    if [ $i -gt 1 ]; then
-        period=$(expr 2 \* \( $len - 2 \))
-        rel_pos=$(expr \( $i - 2 \) % $period)
-        
-        if [ $rel_pos -le $(expr $len - 2) ]; then
-            pos=$(expr $rel_pos + 1)
-        else
-            pos=$(expr $period - $rel_pos + 1)
-        fi
-        
-        prefix=$(echo "$template" | cut -c 1-$(expr $pos - 1))
-        suffix=$(echo "$template" | cut -c $(expr $pos + 1)-)
-        printf "%s %s %s %s\n" "$seq" "$prefix" "$suffix" "$seq"
+generate_line() {
+    n=$1
+    prefix=""
+    
+    # Format 4-digit sequence number
+    if [ "$n" -lt 10 ]; then
+        prefix="000${n} "
+    elif [ "$n" -lt 100 ]; then
+        prefix="00${n} "
+    elif [ "$n" -lt 1000 ]; then
+        prefix="0${n} "
     else
-        printf "%s %s %s\n" "$seq" "$template" "$seq"
+        prefix="${n} "
     fi
-    i=$(expr $i + 1)
-done
+    
+    if [ "$n" -eq 1 ]; then
+        echo "${prefix}${template} ${prefix}"
+        return
+    fi
+    
+    # Calculate zig-zag position (Bourne shell has no arrays, use string manipulation)
+    idx=$(( n - 2 ))
+    cycle=$(( 2 * (L - 1) ))
+    off=$(( idx % cycle ))
+    
+    if [ "$off" -lt "$((L - 1))" ]; then
+        i=$(( off + 2 ))  # Convert to 1-based for string indexing
+    else
+        i=$(( cycle - off + 2 ))
+    fi
+    
+    # Replace character at position i with space (1-based index)
+    prefix_part="${template:0:$((i-2))}"
+    suffix_part="${template:$i}"
+    echo "${prefix}${prefix_part} ${suffix_part} ${prefix}"
+}
+
+# Generate output — truncate first, then append per line (avoids error messages going to data file)
+if [ -n "$output_file" ]; then
+    > "$output_file"  # Truncate file first
+    n=1
+    while [ "$n" -le "$lines" ]; do
+        generate_line "$n" >> "$output_file"
+        n=$(( n + 1 ))
+    done
+else
+    n=1
+    while [ "$n" -le "$lines" ]; do
+        generate_line "$n"
+        n=$(( n + 1 ))
+    done
+fi

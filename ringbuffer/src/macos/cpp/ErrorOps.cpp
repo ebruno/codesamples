@@ -3,8 +3,11 @@
 
 namespace swtr {
 
-// This file is reserved for centralized error handling logic.
-// Currently, error handling is performed directly in the pipeline loops
-// by calling the provided ErrorHandler.
+int default_error_handler(size_t slot_idx, BufferStatus status) {
+    // Default error handler: log the error and request stop
+    (void)slot_idx;
+    (void)status;
+    return 1; // non-zero triggers cooperative cancellation
+}
 
 } // namespace swtr

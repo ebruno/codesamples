@@ -4,15 +4,18 @@
 namespace swtr {
 
 uint32_t SwtrRingBuffer::get_checksum_val(size_t slot_idx) const {
-    return slots_[slot_idx % num_slots_]->checksum_val.load();
+    if (slot_idx >= num_slots_) return 0;
+    return slots_[slot_idx]->checksum_val.load();
 }
 
 void SwtrRingBuffer::set_checksum_val(size_t slot_idx, uint32_t val) {
-    slots_[slot_idx % num_slots_]->checksum_val.store(val);
+    if (slot_idx >= num_slots_) return;
+    slots_[slot_idx]->checksum_val.store(val);
 }
 
 bool SwtrRingBuffer::test_checksum_val(size_t slot_idx, uint32_t val) const {
-    return slots_[slot_idx % num_slots_]->checksum_val.load() == val;
+    if (slot_idx >= num_slots_) return false;
+    return slots_[slot_idx]->checksum_val.load() == val;
 }
 
 } // namespace swtr

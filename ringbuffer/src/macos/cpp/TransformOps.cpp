@@ -5,8 +5,9 @@ namespace swtr {
 
 void SwtrRingBuffer::transform_loop(std::stop_token st) {
     while (!st.stop_requested()) {
-        size_t idx = transform_idx_.load();
-        BufferSlot& slot = *slots_[idx % num_slots_];
+        size_t idx = transform_index_.load();
+        size_t slot_idx = idx % num_slots_;
+        BufferSlot& slot = *slots_[slot_idx];
 
         if (slot.status.load() == BufferStatus::readyfortransform) {
             size_t data_size = slot.data_buffer_size.load();
@@ -15,17 +16,15 @@ void SwtrRingBuffer::transform_loop(std::stop_token st) {
 
             if (transform_fn_) {
                 transform_fn_(temp_data, transformed_size);
-                // In a real implementation, we'd handle the transformed data. 
-                // For this spec, we just update the size and mark as ready.
             }
 
             slot.transformed_data_buffer_size.store(transformed_size);
             slot.status.store(BufferStatus::readyforwrite);
-            transform_idx_.fetch_add(1);
+            transform_index_.fetch_add(1);
             cv_.notify_all();
         } else if (slot.status.load() == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
             slot.status.store(BufferStatus::LAST_BUFFER_TO_WRITE);
-            transform_idx_.fetch_add(1);
+            transform_index_.fetch_add(1);
             cv_.notify_all();
             break;
         } else {

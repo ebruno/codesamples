@@ -1,6 +1,8 @@
 #include "ringbuffer.hpp"
 #include "swtr_ringbuffer_impl.hpp"
 #include <unistd.h>
+#include <algorithm>
+#include <fcntl.h>
 
 namespace swtr {
 
@@ -10,8 +12,9 @@ void SwtrRingBuffer::set_write_fd(int fd) {
 
 void SwtrRingBuffer::write_loop(std::stop_token st) {
     while (!st.stop_requested()) {
-        size_t idx = write_idx_.load();
-        BufferSlot& slot = *slots_[idx % num_slots_];
+        size_t idx = write_index_.load();
+        size_t slot_idx = idx % num_slots_;
+        BufferSlot& slot = *slots_[slot_idx];
 
         if (slot.status.load() == BufferStatus::readyforwrite) {
             int fd = write_fd_.load();
@@ -25,14 +28,15 @@ void SwtrRingBuffer::write_loop(std::stop_token st) {
             ssize_t bytes_written = write(fd, slot.data.data(), size);
             
             if (bytes_written >= 0) {
+                std::fill(slot.data.begin(), slot.data.end(), 0);
                 slot.data_buffer_size.store(0);
                 slot.status.store(BufferStatus::readyforread);
-                write_idx_.fetch_add(1);
+                write_index_.fetch_add(1);
                 cv_.notify_all();
             } else {
                 slot.status.store(BufferStatus::STATUS_ERROR);
-                if (error_handler_) {
-                    if (error_handler_(idx % num_slots_, BufferStatus::STATUS_ERROR) != 0) {
+                if (err_handler_) {
+                    if (err_handler_(slot_idx, BufferStatus::STATUS_ERROR) != 0) {
                         stop();
                     }
                 }
@@ -41,10 +45,10 @@ void SwtrRingBuffer::write_loop(std::stop_token st) {
         } else if (slot.status.load() == BufferStatus::LAST_BUFFER_TO_WRITE) {
             int fd = write_fd_.load();
             if (fd != -1) {
-                fsync(fd);
+                fcntl(fd, F_FULLFSYNC);
             }
             slot.status.store(BufferStatus::readyforread);
-            write_idx_.fetch_add(1);
+            write_index_.fetch_add(1);
             cv_.notify_all();
             break;
         } else {

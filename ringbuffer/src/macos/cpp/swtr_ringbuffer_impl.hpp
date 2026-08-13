@@ -1,37 +1,36 @@
-#ifndef SWTR_RINGBUFFER_IMPL_HPP
-#define SWTR_RINGBUFFER_IMPL_HPP
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <stop_token>
 #include <string>
 #include <thread>
 #include <vector>
-#include <memory>
 #include "ringbuffer.hpp"
 #include "status.hpp"
 
 namespace swtr {
 
-struct alignas(64) BufferSlot {
-    std::atomic<size_t> buffer_idx;
-    std::atomic<BufferStatus> status;
-    std::atomic<size_t> max_data_buffer_size;
-    std::atomic<size_t> data_buffer_size;
-    std::atomic<size_t> transformed_data_buffer_size;
-    std::atomic<ChecksumAlgorithm> checksum_alg;
-    std::atomic<uint32_t> checksum_val;
-    std::vector<uint8_t> data;
+struct BufferSlot {
+    size_t buffer_idx;                                    // non-atomic: slot index
+    std::atomic<BufferStatus> status;                     // atomic: current buffer state
+    size_t max_data_buffer_size;                          // non-atomic: maximum capacity
+    std::atomic<size_t> data_buffer_size;                 // atomic: current bytes in data buffer
+    std::atomic<size_t> transformed_data_buffer_size;     // atomic: current bytes in transformed buffer
+    std::atomic<ChecksumAlgorithm> checksum_alg;          // atomic: algorithm used for checksum
+    std::atomic<uint32_t> checksum_val;                   // atomic: computed checksum value
+    std::vector<uint8_t> data;                            // non-atomic: internal data buffer (raw bytes)
 };
 
 class __attribute__((visibility("default"))) SwtrRingBuffer : public RingBuffer {
 public:
-    SwtrRingBuffer(size_t num_slots = 1, 
-                   BufferStatus initial_status = BufferStatus::readyforread, 
-                   size_t buffer_size = 4096, 
-                   ErrorHandler err_handler = nullptr, 
+    SwtrRingBuffer(size_t num_slots = MIN_NUMBER_SLOTS,
+                   BufferStatus initial_status = BufferStatus::readyforread,
+                   size_t buffer_size = DEFAULT_BUFFER_SIZE,
+                   ErrorHandler err_handler = nullptr,
                    TransformFn transform_fn = nullptr);
     ~SwtrRingBuffer() override = default;
 
@@ -87,41 +86,49 @@ private:
     void transform_loop(std::stop_token st);
     void write_loop(std::stop_token st);
 
-    alignas(64) std::atomic<size_t> read_idx_{0};
-    alignas(64) std::atomic<size_t> transform_idx_{0};
-    alignas(64) std::atomic<size_t> write_idx_{0};
-
+    // Slot storage
     std::vector<std::unique_ptr<BufferSlot>> slots_;
-    
+    size_t num_slots_;
+
+    // Index tracking — one independent atomic counter per pipeline stage
+    std::atomic<size_t> read_index_{0};
+    std::atomic<size_t> transform_index_{0};
+    std::atomic<size_t> write_index_{0};
+
+    // File descriptors (atomic for cross-thread access)
     std::atomic<int> read_fd_{-1};
     std::atomic<int> write_fd_{-1};
-    
-    std::ostream* output_stream_{&std::cerr};
-    std::mutex log_mutex_;
 
-    std::atomic<bool> logging_enabled_{true};
-    std::atomic<bool> read_logging_enabled_{true};
-    std::atomic<LogLevel> read_verbosity_{LogLevel::Info};
-    
-    std::atomic<bool> transform_logging_enabled_{true};
-    std::atomic<LogLevel> transform_verbosity_{LogLevel::Info};
-    
-    std::atomic<bool> write_logging_enabled_{true};
-    std::atomic<LogLevel> write_verbosity_{LogLevel::Info};
+    // Buffer size per slot
+    size_t buffer_size_;
 
-    std::mutex sync_mutex_;
-    std::condition_variable_any cv_;
-    
+    // Pipeline functions (non-atomic: set once at construction)
+    ErrorHandler err_handler_;
+    TransformFn transform_fn_;
+
+    // Thread management
     std::jthread read_thread_;
     std::jthread transform_thread_;
     std::jthread write_thread_;
 
-    ErrorHandler error_handler_;
-    TransformFn transform_fn_;
-    
-    size_t num_slots_;
+    // Synchronization primitives (aligned to cache line)
+    alignas(64) std::mutex sync_mutex_;
+    std::condition_variable_any cv_;
+
+    // Logging configuration (atomic for runtime reconfiguration)
+    std::atomic<bool> logging_enabled_{false};
+    std::atomic<bool> read_logging_enabled_{false};
+    std::atomic<bool> transform_logging_enabled_{false};
+    std::atomic<bool> write_logging_enabled_{false};
+    std::atomic<LogLevel> read_verbosity_{LogLevel::Info};
+    std::atomic<LogLevel> transform_verbosity_{LogLevel::Info};
+    std::atomic<LogLevel> write_verbosity_{LogLevel::Info};
+
+    // Output stream (pointer, not reference)
+    std::ostream* output_stream_{&std::cerr};
+
+    // Log mutex (separate from sync_mutex_ to avoid nested locking)
+    std::mutex log_mutex_;
 };
 
 } // namespace swtr
-
-#endif // SWTR_RINGBUFFER_IMPL_HPP
