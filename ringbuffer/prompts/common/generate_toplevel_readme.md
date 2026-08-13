@@ -34,6 +34,10 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    - **Developer & Maintainer Guide**: (See "Maintenance & Workflow" below).
    - **Supported Platforms**: A formatted matrix of OS vs Language. Include all platforms — implemented ones with version strings and excluded ones (ArchLinux, FreeBSD 14/15) with `TBS`.
    - **License**: State the BSD 3-Clause License.
+   - **Documentation & Media Assets**: Include a Part D subsection under Developer & Maintainer Guide documenting:
+     - `prompts/common/generate_toplevel_readme.md` — the README generation workflow prompt
+     - `animated_graphics/bin/generate_pipeline_animation.py` — pipeline animation GIF generator (45 frames, 1000ms each)
+     - `utils/bin/gif_to_mp4.sh` — GIF to MP4 conversion utility (720p/1080p)
 
 3. **Maintenance & Workflow (Developer/Maintainer Section)**:
    This section must be split into three parts:

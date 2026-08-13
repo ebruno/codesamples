@@ -312,6 +312,28 @@ The test suite validates functional correctness, error handling, transform opera
 #### State Tracking
 The state file `.gen_state.json` at the project root tracks SHA-256 hashes of all prompt files and source file fingerprints, enabling delta detection for incremental regeneration.
 
+#### Part D: Documentation & Media Assets
+
+**README Generation (`prompts/common/generate_toplevel_readme.md`)**
+The README.md is generated from a structured prompt that enforces a strict section order and content requirements. To regenerate the README after any changes:
+- *Prompt:* `prompts/common/generate_toplevel_readme.md`
+- *Syntax Example:* `"Use prompts/common/generate_toplevel_readme.md to regenerate the top-level README.md"`
+
+The prompt gathers environment data (OS, hardware, AI tooling), scans the platform matrix from `src/`, and assembles all sections including the Pipeline Architecture Diagram, API examples, Developer & Maintainer Guide, and Supported Platforms table.
+
+**Pipeline Animation (`animated_graphics/bin/generate_pipeline_animation.py`)**
+Regenerates the `pipeline_animation.gif` demonstrating the three-stage pipeline with 45 frames at 1000ms each (~45s total cycle). The animation shows the Read → Transform → Write thread progression through shared slots with independent atomic index counters.
+- *Usage:* `python3 animated_graphics/bin/generate_pipeline_animation.py [--output PATH]`
+- *Output:* `animated_graphics/pipeline_animation.gif` (default)
+
+**GIF to MP4 Conversion (`utils/bin/gif_to_mp4.sh`)**
+Converts animated GIFs to MP4 format for embedding in documentation or presentations. Supports 720p and 1080p resolutions with automatic letterboxing/pillarboxing to preserve aspect ratio.
+- *Usage:* `./utils/bin/gif_to_mp4.sh <input.gif> [720p|1080p]`
+  - No resolution arg → generates BOTH 720p and 1080p
+  - Single resolution arg → generates only that resolution
+- *Output:* `images/<basename>_720p.mp4` and/or `images/<basename>_1080p.mp4`
+- *Requirements:* ffmpeg, ffprobe
+
 ## Supported Platforms
 
 | OS | Language | Version |
