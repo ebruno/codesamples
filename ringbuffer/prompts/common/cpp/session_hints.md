@@ -3,6 +3,10 @@
 **When to read:** When working on C++ source code, Makefiles, or build configurations.
 This file provides a quick-reference card with cross-links to detailed specs.
 
+> **Read first:** `prompts/common/session_hints.md` for host OS detection, macOS/Linux versioning,
+> container runtime, and memory calculation. This file covers C++-specific toolchain, binary formats,
+> linking flags, and Makefile gotchas.
+
 ---
 
 ## Quick Reference Index
@@ -100,22 +104,9 @@ macOS ships with GNU Make that has built-in defaults for `CXX = c++`. These are 
 
 ---
 
-## 6. Container Runtime Quick-Reference (Linux Builds from macOS Host)
+## 6. Cross-Reference Summary
 
-When building Linux targets from macOS:
-- **Runtime:** `container` command (Apple Container) — NOT Docker, NOT podman
-- **Service must be running:** `container system status` → if not running, `container system start`
-- **Key subcommands:** `container run`, `container build`, `container images`
-- **Memory limit:** Calculate from `vm_stat` on macOS host, cap at 3 GB
-
-When building Linux targets from Linux:
-- **Runtime:** `podman` — NOT Docker
-- **No service start needed** (podman is stateless)
-
----
-
-## 7. Cross-Reference Summary
-
+> **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`
 > **Build flags, Makefile targets, artifact naming** → `prompts/common/cpp/build.md`
 > **Test matrix T001-T007, scripting mandate** → `prompts/common/cpp/testing.md`
