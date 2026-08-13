@@ -23,7 +23,7 @@ if [[ ! -f "$FILE" ]]; then
     exit 1
 fi
 
-pattern='^[0-9]{4} .{47} [0-9]{4}$'
+pattern='^[0-9]{4} .{48} [0-9]{4}$'
 line_num=0
 
 while IFS= read -r line || [[ -n "$line" ]]; do
@@ -32,8 +32,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     # Skip empty lines (e.g. trailing newline)
     [[ -z "$line" ]] && continue
     
-    if [[ ${#line} -ne 57 ]]; then
-        echo "Line $line_num: Invalid length (${#line}), expected 57"
+    if [[ ${#line} -ne 58 ]]; then
+        echo "Line $line_num: Invalid length (${#line}), expected 58"
         exit 1
     fi
     
