@@ -20,6 +20,21 @@ The Ringbuffer library implements a three-stage pipelined architecture (**Read $
 ## Primary Goal
 The objective is to provide a prompt-driven, immediate build-and-run functionality where the codebase can be regenerated or updated across multiple platforms using a single set of functional specifications.
 
+## Development Methodology
+
+This project was created entirely from scratch using an LLM (Large Language Model) as the primary development tool. Every aspect of the codebase — from architecture decisions to implementation details, build configuration, test infrastructure, and documentation — was generated through interactive prompt-driven development.
+
+**How it works:**
+- **Interactive Prompt Generation**: All workflow prompts were created through iterative dialogue with the LLM, refining specifications until they precisely captured the desired behavior.
+- **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
+- **Binary Symmetry**: The LLM was instructed to produce identical source code across all target platforms, ensuring maintainability and predictable behavior regardless of OS.
+- **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
+
+**Why this approach:**
+- **Reproducibility**: Any platform can be regenerated from the same prompts, ensuring consistency.
+- **Maintainability**: Specifications are explicit and version-controlled in the `prompts/` directory.
+- **Speed**: Development cycles are dramatically shorter than traditional manual coding, with immediate build-and-run feedback.
+
 ## Key Specifications
 - **Multi-OS Support**: Seamless deployment across various Linux distributions and macOS.
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
