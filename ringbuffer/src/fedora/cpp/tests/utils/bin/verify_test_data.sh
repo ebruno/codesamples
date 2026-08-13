@@ -1,81 +1,52 @@
 #!/usr/bin/env bash
-# verify_test_data.sh - Validate test data files for Ringbuffer testing
-# Usage: verify_test_data.sh [file1] [file2] ...
 
-set -euo pipefail
-
-# Version check (Bash 5.0+)
-major=${BASH_VERSION%%.*}
-minor=${BASH_VERSION#*.}
-minor=${minor%%.*}  # Extract only the numeric minor version (handles macOS '3.2.57(1)-release')
-if (( major < 5 || (major == 5 && minor < 0) )); then
-    echo "ERROR: Bash version 5.0 or higher is required (current: $BASH_VERSION)" >&2
+# Version Check
+major=${BASH_VERSINFO[0]}
+if (( major < 5 )); then
+    echo "Error: Bash version 5.0 or higher is required." >&2
     exit 1
 fi
 
-if [[ $# -eq 0 ]]; then
-    echo "Usage: verify_test_data.sh [file1] [file2] ..." >&2
+# verify_test_data.sh
+# Purpose: Programmatically validate the strict line format of test data files.
+# Usage: verify_test_data.sh <input_file>
+
+if [[ -z "$1" ]]; then
+    echo "Usage: $(basename "$0") <input_file>"
     exit 1
 fi
 
-errors=0
+FILE="$1"
 
-for file in "$@"; do
-    if [[ ! -f "$file" ]]; then
-        echo "ERROR: File not found: $file" >&2
-        (( errors++ )) || true
-        continue
+if [[ ! -f "$FILE" ]]; then
+    echo "Error: File $FILE not found."
+    exit 1
+fi
+
+pattern='^[0-9]{4} .{48} [0-9]{4}$'
+line_num=0
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+    ((line_num++))
+    
+    # Skip empty lines (e.g. trailing newline)
+    [[ -z "$line" ]] && continue
+    
+    if [[ ${#line} -ne 58 ]]; then
+        echo "Line $line_num: Invalid length (${#line}), expected 58"
+        exit 1
     fi
     
-    line_num=0
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        (( line_num++ )) || true
-        
-        # Check line length (must be exactly 58 characters: 4-digit prefix + space + 48-char payload + space + 4-digit suffix)
-        len=${#line}
-        if (( len != 58 )); then
-            echo "ERROR: $file line $line_num: length is $len, expected 58" >&2
-            (( errors++ )) || true
-            continue
-        fi
-        
-        # Check prefix: characters 1-4 are digits, character 5 is space
-        prefix="${line:0:4}"
-        if [[ ! "$prefix" =~ ^[0-9]{4}$ ]]; then
-            echo "ERROR: $file line $line_num: prefix '$prefix' is not 4 digits" >&2
-            (( errors++ )) || true
-        fi
-        
-        if [[ "${line:4:1}" != " " ]]; then
-            echo "ERROR: $file line $line_num: character 5 is not a space" >&2
-            (( errors++ )) || true
-        fi
-        
-        # Check suffix: character 54 is space, characters 55-58 are digits
-        if [[ "${line:53:1}" != " " ]]; then
-            echo "ERROR: $file line $line_num: character 54 is not a space" >&2
-            (( errors++ )) || true
-        fi
-        
-        suffix="${line:54:4}"
-        if [[ ! "$suffix" =~ ^[0-9]{4}$ ]]; then
-            echo "ERROR: $file line $line_num: suffix '$suffix' is not 4 digits" >&2
-            (( errors++ )) || true
-        fi
-        
-    done < "$file"
-    
-    if (( line_num == 0 )); then
-        echo "ERROR: $file is empty" >&2
-        (( errors++ )) || true
+    if [[ ! "$line" =~ $pattern ]]; then
+        echo "Line $line_num: Format validation FAILED"
+        exit 1
     fi
-    
-done
+done < "$FILE"
 
-if (( errors == 0 )); then
-    echo "PASS: All files validated successfully"
-    exit 0
-else
-    echo "FAIL: $errors error(s) found" >&2
+if (( line_num == 0 )); then
+    echo "Error: File is empty"
     exit 1
 fi
+
+echo "Validation PASSED for $FILE"
+exit 0

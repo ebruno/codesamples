@@ -107,6 +107,17 @@ dist-clean: clean container-clean
 container:
 	@mkdir -p logs
 	@echo "Checking build container..."
+ifeq ($(UNAME_S),Darwin)
+	@echo "macOS host detected — checking Apple Container service..."
+	@if ! $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
+		echo "Starting Apple Container service..."; \
+		$(CONTAINER_CMD) system start; \
+		sleep 5; \
+		$(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running" || (echo "ERROR: Container service failed to start" && exit 1); \
+	else \
+		echo "Apple Container service is running."; \
+	fi
+endif
 	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q $(CONTAINER_IMAGE); then \
 		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
 		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
