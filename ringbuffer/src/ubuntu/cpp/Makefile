@@ -99,7 +99,7 @@ clean:
 
 dist-clean: clean container-clean
 	@if [ -d tests ]; then make -C tests dist-clean; fi
-	$(RM) ../reports logs
+	$(RM) reports ../reports logs
 
 
 
