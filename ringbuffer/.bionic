@@ -166,8 +166,9 @@ Every implementation must satisfy these requirements regardless of language:
 | C common specs | ✅ `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,088 bytes) created |
 | Python common specs | ✅ `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) created |
 | Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
-| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (18,352 bytes) created — Phase 2 complete |
-| Per-OS language directories | ✅ Zero-length files exist for all languages/OSes |
+| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,050 bytes) created — Phase 2 complete |
+| Per-OS language directories | ✅ Zero-length files exist for all languages/OSes (macos, fedora, debian, ubuntu) |
+| `reference_linux` scaffolding | ⚠️ Only exists for C++ — needs zero-length files for C, Python, Rust |
 
 ### Implementation Phases
 
@@ -187,15 +188,22 @@ Each common spec defines:
 - Version reporting requirements in functional.log and build.log
 
 #### Phase 2: Finalize Dispatcher Prompt ✅ COMPLETE
-Created `prompts/common/add_language.md` (18,352 bytes) — the unified entry point for `add <lang> to <os>`:
+Created `prompts/common/add_language.md` (22,050 bytes) — the unified entry point for `add <lang> to <os>`:
 - Validates language (`c`, `cpp`, `python`, `java`, `go`, `rust`) and OS (`macos`, `fedora`, `debian`, `ubuntu`) inputs
 - Classifies language as platform-sensitive (`c`, `cpp`) or platform-insensitive (`python`, `java`, `go`, `rust`)
 - Routes to appropriate workflow: common spec + per-OS overrides vs. single common spec
 - Detects available compiler/language version with fallback support
+- Creates `version.mk` as the **single source of truth** for all languages (Step 3.1.5)
 - Generates source code to `src/<os>/<lang>/` independently (no copying between platforms)
 - Creates test infrastructure: native-language test binary, input data, expected outputs
 - Generates implementation report with version reporting in `functional.log` and `build.log`
 - Includes comprehensive error handling for missing specs, toolchains, and version requirements
+- **Version propagation**: All languages derive version from `version.mk` — each has a specific mechanism:
+  - C/C++: Makefile `include version.mk` (direct)
+  - Java: `version.sh` reads `version.mk`, injects into `pom.xml` as Maven properties
+  - Go: `version.sh` reads `version.mk`, generates `version.go` with typed constants
+  - Python: `version.sh` reads `version.mk`, generates `version.py` with module constants
+  - Rust: `build.rs` reads `version.mk`, generates `src/version.rs` with constants
 
 #### Phase 3: Implement Languages on Platforms
 For each language, implement on all target OSes:
@@ -216,11 +224,95 @@ Each implementation must:
   - The implementation report header: `**Language Version:** <actual_detected_version> (primary target was <primary_version>)`
 - If the detected version is below the minimum supported version for that language, STOP and report: `ERROR: Detected <lang> version <detected_version> is below minimum supported <minimum_version>. Cannot proceed.`
 
+##### Phase 3 Sub-Steps (Per Language)
+Each language implementation follows these sub-steps:
+
+**3.A — Create `version.mk` (All Languages)**
+Create `src/<os>/<lang>/version.mk` as the single source of truth:
+```makefile
+MAJOR=1
+MINOR=0
+SUBVERSION=0
+BUILD_ID=1
+```
+All 6 languages derive version from this file — no language defines its own version independently.
+
+**3.B — Create Version Propagation Scripts (Non-C/C++ Languages)**
+Generate scripts that read `version.mk` and produce language-specific version files:
+| Language | Script | Output |
+|----------|--------|--------|
+| Java | `version.sh` | Injects `<major>`, `<minor>`, `<subversion>`, `<build_id>` into `pom.xml` |
+| Go | `version.sh` | Generates `version.go` with typed constants (`Major`, `Minor`, `SubVersion`, `BuildId`, `Version string`) |
+| Python | `version.sh` | Generates `version.py` with module-level constants (`MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID`, `VERSION`) |
+| Rust | `build.rs` | Generates `src/version.rs` with typed constants, or sets env vars for compile-time injection |
+
+**3.C — Generate Source Code from Common Spec**
+- Platform-sensitive (C, C++): Read common spec + per-OS overrides → generate platform-specific source
+- Platform-insensitive (Python, Java, Go, Rust): Read single common spec → generate identical source for all platforms
+- **Do NOT copy files between platforms** — each platform generates independently from the shared spec
+
+**3.D — Generate Build Configuration**
+- C/C++: GNU Make (`Makefile`) with `include version.mk`
+- Java: Maven (`pom.xml`) with version properties injected from `version.sh`
+- Go: Go Modules (`go.mod`) + `version.go` generated from `version.sh`
+- Python: No build system; `version.py` generated from `version.sh`; verify shared library loads via `ctypes`
+- Rust: Cargo (`Cargo.toml`) + `build.rs` reads `version.mk`, generates `src/version.rs`
+
+**3.E — Create Test Infrastructure**
+- Generate test binary in native language (not shared C++ harness)
+- Create input data and expected outputs for T001-T007
+- Test binary reads stdin, writes stdout, exits 0 on success / 1 on fatal error
+
+**3.F — Build and Verify Artifacts**
+- Execute language-appropriate build commands
+- Verify expected artifacts exist (libraries, JARs, etc.)
+- Log results to `build.log`
+
+**3.G — Generate Implementation Report**
+- Create `src/<os>/<lang>/reports/implementation_report.md`
+- Include detected version, files generated, build verification results
+
+##### Risk Notes for Phase 3
+- **C per-OS overrides are empty**: All C per-OS `build.md` and `functional.md` files are 0 bytes. Unlike C++ (which has ~6KB per-OS overrides with real platform-specific content), C implementation will be more speculative. The common spec covers all platform differences, but there is no per-OS reference to validate against.
+- **No existing non-C++ source code**: `src/` only has C++ directories. All other languages will be generated from specs alone — higher risk of compilation failures or incorrect API surface.
+- **Reference Linux scaffolding missing**: `reference_linux/` only exists for C++. Needs zero-length files for C, Python, Rust to maintain consistency.
+
 #### Phase 4: Verification and Documentation
 1. Run `verify_binary_symmetry.sh` for C (Linux distros)
 2. Run `lint_prompts.sh` to validate prompt structure
 3. Update project README with multi-language support documentation
 4. Generate PDF documentation with `pandoc`
+5. Create `reference_linux` scaffolding for C, Python, Rust (zero-length files)
+6. Clarify utility scripts scope — determine if `prompts/common/cpp/utils/bin/` scripts are language-agnostic or C++-specific
+
+##### Phase 4 Sub-Steps
+**4.A — Reference Linux Scaffolding**
+Create zero-length `build.md`, `functional.md`, `testing.md` files in:
+- `prompts/reference_linux/c/`
+- `prompts/reference_linux/python/`
+- `prompts/reference_linux/rust/`
+
+These maintain directory structure consistency with C++ and provide a canonical reference point for cross-platform verification.
+
+**4.B — Utility Scripts Scope Review**
+The existing utility scripts in `prompts/common/cpp/utils/bin/` are:
+| Script | Purpose | Language-Agnostic? |
+|--------|---------|--------------------|
+| `generate_test_data.*` | Generate test input/expected output files | **Yes** — test data is language-independent |
+| `generate_junit_report.*` | Generate JUnit XML reports from test results | **No** — C++ specific (JUnit format) |
+| `verify_test_data.*` | Validate test data integrity | **Yes** — language-independent |
+| `verify_binary_symmetry.*` | Compare source files across Linux platforms | **Yes** — language-independent |
+| `lint_prompts.*` | Validate prompt directory structure | **Yes** — language-independent |
+
+Recommendation: Move language-agnostic scripts to `prompts/common/utils/bin/` (no `/cpp/` subdirectory). Keep C++-specific scripts in `prompts/common/cpp/utils/bin/`.
+
+**4.C — README Update**
+Update project README to document:
+- Multi-language support (C, C++, Java, Go, Python, Rust)
+- Language classification (platform-sensitive vs platform-insensitive)
+- Version propagation from `version.mk` to each language
+- Build system per language (Make, Maven, Go Modules, Cargo)
+- Test matrix T001-T007 applies to all languages
 
 ### Key Constraints
 - **Transform bug is fixed**: All implementations must use in-place transform (modify `slot.data` directly)
