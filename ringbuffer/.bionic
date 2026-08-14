@@ -18,6 +18,11 @@ ringbuffer/
 │   │   ├── functional.md             # Functional implementation spec
 │   │   └── testing.md                # Testing specification
 │   ├── common/cpp/utils/bin/         # Shared utility scripts
+│   │   ├── generate_test_data.*      # Test data generation (4 shell variants)
+│   │   ├── generate_junit_report.*   # JUnit XML report generation
+│   │   ├── verify_test_data.*        # Test data validation
+│   │   ├── verify_binary_symmetry.*  # Cross-platform source comparison
+│   │   └── lint_prompts.*            # Prompt directory validation
 │   ├── <os>/cpp/                     # Per-platform documents (fedora, debian, ubuntu, macos)
 │   │   ├── create_functional.md      # PRIMARY document for functional impl.
 │   │   ├── create_build.md           # PRIMARY document for build creation
@@ -138,6 +143,25 @@ FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active development. Thei
 4. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
 5. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
 6. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
+
+### Verification Scripts
+The project includes two automated verification scripts in `prompts/common/cpp/utils/bin/`:
+
+1. **`verify_binary_symmetry.sh`** (also `.zsh`) — Compares source files across Linux platforms to ensure byte-identical output. Run after building all Linux platforms:
+   ```bash
+   ./prompts/common/cpp/utils/bin/verify_binary_symmetry.sh <workspace_root>
+   ```
+   - Exit 0: All files identical (symmetry verified)
+   - Exit 1: Differences found (symmetry violation)
+
+2. **`lint_prompts.sh`** (also `.zsh`) — Validates prompt directory structure, required files, excluded platform cleanliness, and common workflow completeness. Run before or after any generation:
+   ```bash
+   ./prompts/common/cpp/utils/bin/lint_prompts.sh <workspace_root>
+   ```
+   - Exit 0: All checks passed
+   - Exit 1: Errors found (structural issues)
+
+These scripts are referenced by `verify_build.md` and should be run as part of the build verification workflow.
 
 ---
 
