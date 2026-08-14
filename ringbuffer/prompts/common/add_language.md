@@ -121,7 +121,8 @@ src/<os>/<lang>/
 **Java:**
 ```
 src/<os>/java/
-├── pom.xml                        // Maven build configuration
+├── pom.xml                        // Maven build configuration (version injected from version.mk)
+├── version.sh                     // Build script: reads version.mk, injects into pom.xml
 └── swtr/                          // Package directory
     ├── BufferStatus.java
     ├── ChecksumAlgorithm.java
@@ -137,6 +138,7 @@ src/<os>/java/
 ```
 src/<os>/go/
 ├── go.mod                         // Go module definition
+├── version.sh                     // Build script: reads version.mk, generates version.go
 └── swtr.go                        // All source code (package swtr)
 ```
 
@@ -145,17 +147,42 @@ src/<os>/go/
 src/<os>/python/
 ├── swtr_ringbuffer.py             // Complete implementation
 ├── __init__.py                    // Package init
-└── version.py                     // Version constants
+└── version.py                     // Version constants (generated from version.mk)
 ```
 
 **Rust:**
 ```
 src/<os>/rust/
-├── Cargo.toml                     // Rust package manifest
+├── Cargo.toml                     // Rust package manifest (version injected from version.mk)
+├── build.rs                       // Build script: reads version.mk, generates version.rs
 └── src/
     ├── lib.rs                     // Library root (all implementation)
     └── main.rs                    // Test binary entry point
 ```
+
+### Step 3.1.5: Create version.mk (C/C++ Only)
+For C and C++ implementations, create `src/<os>/<lang>/version.mk` with the following content:
+
+```makefile
+MAJOR=1
+MINOR=0
+SUBVERSION=0
+BUILD_ID=1
+```
+
+**Rules:**
+- This file is the **single source of truth** for version numbers across ALL languages
+- The format is `KEY=VALUE` (no spaces around `=`) — this is GNU Make syntax
+- The `VERSION` variable is computed by the Makefile as `$(MAJOR).$(MINOR).$(SUBVERSION)-$(BUILD_ID)`
+- **Do NOT include a `VERSION` line in version.mk** — it is computed by the Makefile
+- All implementations on all platforms use identical `version.mk` content (library version, not OS version)
+- **All languages reference `version.mk` as the source of truth** — each language's build config derives its version from it:
+  - **C/C++**: Makefile sources `version.mk` directly via `include version.mk`
+  - **Java**: Build script reads `version.mk` and injects values into `pom.xml` (`<major>`, `<minor>`, `<subversion>`, `<build_id>` properties)
+  - **Go**: Build script reads `version.mk` and generates a `version.go` file with constants (`Major`, `Minor`, `SubVersion`, `BuildId`, `Version string`)
+  - **Python**: Build script reads `version.mk` and generates a `version.py` module with constants (`MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID`, `VERSION`)
+  - **Rust**: Build script reads `version.mk` and generates a `version.rs` file with constants (`MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID`, `VERSION`), or uses a build script (`build.rs`) to read it at compile time
+- **No language defines its own version independently** — all derive from `version.mk`
 
 ### Step 3.2: Generate Source Code from Common Spec
 Generate source code independently from the common specification. **Do NOT copy files between platforms.**
@@ -173,30 +200,42 @@ Generate source code independently from the common specification. **Do NOT copy 
 3. Per-OS override files are zero-length (no platform-specific content)
 
 ### Step 3.3: Generate Build Configuration
-Generate the build system configuration based on the language:
+Generate the build system configuration based on the language. **All version numbers derive from `version.mk`** (the single source of truth).
 
 **C/C++:** GNU Make (`Makefile`)
 - Compiler flags from common spec + per-OS overrides
 - Shared library naming: `.so` (Linux) or `.dylib` (macOS)
 - Universal binary support on macOS (`lipo`)
+- Makefile sources `version.mk` via `include version.mk`
 
 **Java:** Apache Maven (`pom.xml`)
 - Group ID: `com.swtr`
 - Artifact ID: `ringbuffer`
-- Java version from detected version
+- Version injected from `version.mk` via `version.sh` build script
+  - Script reads `MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID` from `version.mk`
+  - Injects into `pom.xml` as `<major>`, `<minor>`, `<subversion>`, `<build_id>` properties
+  - Computes `VERSION` as `${major}.${minor}.${subversion}-${build_id}`
 
 **Go:** Go Modules (`go.mod`)
 - Module path: `github.com/swtr/ringbuffer`
-- Go version from detected version
+- Version generated from `version.mk` via `version.sh` build script
+  - Script reads `MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID` from `version.mk`
+  - Generates `version.go` with typed constants and a formatted `Version string`
 
 **Python:** None (interpreted)
-- No build configuration needed
+- No build configuration needed for the library itself
+- Version generated from `version.mk` via `version.sh` build script
+  - Script reads `MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID` from `version.mk`
+  - Generates `version.py` with module-level constants
 - Verify shared library loading via `ctypes`
 
 **Rust:** Cargo (`Cargo.toml`)
 - Package name: `ringbuffer`
 - Crate type: `["staticlib", "cdylib"]`
-- Rust version from detected version
+- Version injected from `version.mk` via `build.rs` build script
+  - Script reads `MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID` from `version.mk`
+  - Generates `src/version.rs` with typed constants and a formatted `VERSION` string
+  - Or uses `build.rs` to read `version.mk` at compile time and set environment variables
 
 ---
 
@@ -346,6 +385,7 @@ Generate an implementation report at `src/<os>/<lang>/reports/implementation_rep
 |------|------|------|
 | Source | `src/<os>/<lang>/...` | <bytes> |
 | Build Config | `src/<os>/<lang>/Makefile/pom.xml/go.mod/Cargo.toml` | <bytes> |
+| Version Config | `src/<os>/<lang>/version.mk` (source of truth for all languages) + language-specific version file | <bytes> |
 | Test Binary | `src/<os>/<lang>/tests/...` | <bytes> |
 | Test Data | `src/<os>/<lang>/tests/data/...` | <bytes> |
 
@@ -382,6 +422,7 @@ All actions MUST be logged to `src/<os>/<lang>/logs/build.log` and `functional.l
 [timestamp] Platform sensitivity: <platform-sensitive|platform-insensitive>
 [timestamp] Source code generated for <os>/<lang>
 [timestamp] Build configuration created: <build_system> (<file>)
+[timestamp] Version config created: version.mk (source of truth) + <language-specific version file>
 [timestamp] Test binary generated: <path>
 [timestamp] Build completed successfully (or failed with error)
 ```
@@ -452,14 +493,16 @@ ERROR: Detected <lang> version <detected_version> is below minimum supported <mi
 
 ## 10. Quick Reference: Language Routing Matrix
 
-| Language | Platform-Sensitive? | Common Spec | Per-OS Overrides? | Build System | Test Binary Location |
-|----------|---------------------|-------------|-------------------|--------------|---------------------|
-| `c` | Yes | `prompts/common/c/functional.md` | Yes (`prompts/<os>/c/`) | GNU Make | `src/<os>/c/tests/src/test_ringbuffer.c` |
-| `cpp` | Yes | `prompts/common/cpp/functional.md` | Yes (`prompts/<os>/cpp/`) | GNU Make | `src/<os>/cpp/tests/src/test_ringbuffer.cpp` |
-| `python` | No | `prompts/common/python/functional.md` | No (zero-length) | None (interpreted) | `src/<os>/python/test_ringbuffer.py` |
-| `java` | No | `prompts/common/java/functional.md` | No (zero-length) | Maven | `src/<os>/java/swtr/test/Test001.java`+ |
-| `go` | No | `prompts/common/go/functional.md` | No (zero-length) | Go Modules | `src/<os>/go/swtr_test.go` |
-| `rust` | No | `prompts/common/rust/functional.md` | No (zero-length) | Cargo | `src/<os>/rust/src/main.rs` |
+| Language | Platform-Sensitive? | Common Spec | Per-OS Overrides? | Build System | Version Source | Test Binary Location |
+|----------|---------------------|-------------|-------------------|--------------|----------------|---------------------|
+| `c` | Yes | `prompts/common/c/functional.md` | Yes (`prompts/<os>/c/`) | GNU Make | `version.mk` (direct include) | `src/<os>/c/tests/src/test_ringbuffer.c` |
+| `cpp` | Yes | `prompts/common/cpp/functional.md` | Yes (`prompts/<os>/cpp/`) | GNU Make | `version.mk` (direct include) | `src/<os>/cpp/tests/src/test_ringbuffer.cpp` |
+| `python` | No | `prompts/common/python/functional.md` | No (zero-length) | None (interpreted) | `version.mk` → `version.py` | `src/<os>/python/test_ringbuffer.py` |
+| `java` | No | `prompts/common/java/functional.md` | No (zero-length) | Maven | `version.mk` → `pom.xml` properties | `src/<os>/java/swtr/test/Test001.java`+ |
+| `go` | No | `prompts/common/go/functional.md` | No (zero-length) | Go Modules | `version.mk` → `version.go` | `src/<os>/go/swtr_test.go` |
+| `rust` | No | `prompts/common/rust/functional.md` | No (zero-length) | Cargo | `version.mk` → `build.rs`/`version.rs` | `src/<os>/rust/src/main.rs` |
+
+**All languages derive version from `version.mk` — it is the single source of truth.**
 
 ---
 
