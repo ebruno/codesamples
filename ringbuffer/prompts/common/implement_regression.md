@@ -10,13 +10,15 @@ Create the test environment for regression testing on a target platform. This co
 2. **Target Image**: An optional container image override (e.g., `fedora:43`, `debian:12`). If provided, this overrides the default image specified in each OS's `create_regression.md`. If not provided, use the default image from the target OS's prompt.
 
 **Process:**
-1. **Target Selection**:
+1. **Target Selection & Language Dispatch**:
    - **Specified Platforms**: If the user request specifies target platforms (e.g., "implement regression for fedora, debian"), verify their existence in `src/`. If a requested platform is missing from `src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `src/`). Process only the requested platforms that are implemented.
    - **General Request**: Otherwise, iterate through **all** OS directories found in `src/` (e.g., debian, fedora, ubuntu).
-   - **Entry Point**: When targeting a specific OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
-     - **If it exists**: Consult it for immediate requirements and platform-specific directives. Execute it as the PRIMARY document.
-     - **If it does not exist**: Proceed with only `prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
-   - **Language**: This workflow specifically targets the C++ test environment.
+   - **Language Dispatch**: Detect which languages are implemented by checking for source directories:
+     - `src/<os>/cpp/` → C++ test environment (per-OS, uses `prompts/<os>/cpp/create_regression.md` as primary document)
+     - `src/common/java/` → Java test environment (common, platform-insensitive, uses `prompts/common/java/build.md` for test structure)
+     - `src/common/python/` → Python test environment (common, platform-insensitive, uses `prompts/common/python/build.md` for test structure)
+   - Process each detected language independently. A failure in one language does not stop setup of others.
+   - Log which languages are being set up: `[timestamp] Languages detected for test setup: <comma-separated list>`
 
 2. **Execution Steps**:
    For the selected OS directory, perform the following.
@@ -138,6 +140,50 @@ Create the test environment for regression testing on a target platform. This co
       - **Dockerfile Comparison**: Strip lines starting with `FROM` and `ARG BASE_IMAGE`. Strip any multi-line RUN command where ANY line (including continuation lines) contains a package manager invocation (`dnf install`, `apt-get update`, `apt-get install`, `yum install`) — strip the entire RUN block, not just the package manager portion. Do NOT strip other Dockerfile instructions (`WORKDIR`, `ENV`, `COPY`, `CMD`, etc.). Normalize consecutive empty lines to a single empty line. Compare the remaining content byte-for-byte.
       - **If differences are found beyond the allowed set**: Log: `[timestamp] Cross-platform verification FAILED — <os> test Makefile/Dockerfile differs from reference beyond allowed differences.` STOP and report the deviation for manual review.
       - **If verification passes**: Log: `[timestamp] Cross-platform verification passed — <os> test Makefile/Dockerfile matches reference (allowed differences only).`
+
+   ---
+
+   **Java Test Infrastructure** (from `src/common/java/`):
+   - Navigate to `src/common/java/`.
+   - **Test Directory Structure**: Ensure `tests/` directory exists with:
+     - `tests/data/inputs/` — test input files (T001–T007)
+     - `tests/data/expected/` — expected output files (T001–T007)
+     - `tests/src/` — test source files (e.g., `TestRingbuffer.java`)
+   - **Dockerfile Package Validation** (Linux targets only):
+     - For each target OS, check the per-OS Dockerfile at `src/common/java/containers/<os>/Dockerfile` and verify it contains:
+       - `java-25-openjdk` (Fedora) or `openjdk-25-jdk` (Debian/Ubuntu) — the latest JDK 25 package
+       - `maven` (latest available in repos)
+     - If missing, add to the Dockerfile RUN command:
+       ```dockerfile
+       # Fedora (latest JDK 25 + Maven):
+       dnf install -y java-25-openjdk maven
+       # Debian/Ubuntu (latest JDK 25 + Maven):
+       apt-get update && apt-get install -y openjdk-25-jdk maven
+       ```
+   - **Test Makefile**: Create or verify `tests/Makefile` with targets: `all`, `static`, `dynamic`, `clean`, `dist-clean`, `container`, `verify`.
+   - **Log**: Append results to `src/common/java/logs/build.log`.
+
+   ---
+
+   **Python Test Infrastructure** (from `src/common/python/`):
+   - Navigate to `src/common/python/`.
+   - **Test Directory Structure**: Ensure `tests/` directory exists with:
+     - `tests/data/inputs/` — test input files (T001–T007)
+     - `tests/data/expected/` — expected output files (T001–T007)
+     - `tests/src/` — test source files (e.g., `test_ringbuffer.py`)
+   - **Dockerfile Package Validation** (Linux targets only):
+     - For each target OS, check the per-OS Dockerfile at `src/common/python/containers/<os>/Dockerfile` and verify it contains:
+       - `python3` — latest available Python 3.x in each distro's repos (Fedora: latest stable; Debian/Ubuntu: default python3 which is the distro's latest)
+       - `python3-pip` — Python package manager
+     - If missing, add to the Dockerfile RUN command:
+       ```dockerfile
+       # Fedora (latest Python 3.x + pip):
+       dnf install -y python3 python3-pip
+       # Debian/Ubuntu (latest Python 3.x + pip):
+       apt-get update && apt-get install -y python3 python3-pip
+       ```
+   - **Test Script**: Ensure `test_ringbuffer.py` exists and is executable.
+   - **Log**: Append results to `src/common/python/logs/build.log`.
 
 **Directives:**
 1. Use `prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).

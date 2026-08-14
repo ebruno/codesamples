@@ -10,15 +10,54 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 2. **Target Image**: An optional container image override (e.g., `fedora:43`, `debian:12`). If provided, this overrides the default image specified in each OS's `create_regression.md`.
 
 **Process:**
-1. **Target Selection**:
-   - **Specified Platforms**: If the user request specifies target platforms (e.g., "run regression for fedora, debian"), verify their existence in `src/`. If a requested platform is missing from `src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `src/`). Process only the requested platforms that are implemented.
-   - **General Request**: Otherwise, iterate through **all** OS directories found in `src/` (e.g., debian, fedora, ubuntu).
-   - **Entry Point**: When targeting a specific OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
+1. **Target Selection & Host-OS Routing**:
+   - **Host-OS Auto-Detection**: At the start of every run, detect the host OS:
+     - If `uname -s` returns `Darwin`, set `host_os = macOS`.
+     - If it returns `Linux`, read the distro ID from `/etc/os-release`: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
+     - Supported Linux distros: `ubuntu`, `debian`, `fedora`.
+   - **Targeting**:
+     - **Specified Platform + Language**: If the user specifies a language and platform (e.g., "run regression for java on fedora"), run tests only for that language on that OS. Run natively if host matches target; use container if host doesn't match.
+     - **Specified Platform Only**: If the user specifies a platform but no language (e.g., "run regression for debian"), run tests for all implemented languages on that OS. Run natively if host matches target; use container if host doesn't match.
+     - **Specified Language Only**: If the user specifies a language but no platform (e.g., "run regression for java"), run tests for that language on all supported OSes using the routing table below.
+     - **General Request (no platform, no language)**: Run tests for all implemented languages on all supported OSes using the routing table below.
+   - **Routing Table** (applies when no specific OS is given, or when host ≠ target):
+     | Host OS | Target OS | Action |
+     |---------|-----------|--------|
+     | macOS | macos | Run natively |
+     | macOS | debian/fedora/ubuntu | Use `container` command to run in target OS container |
+     | Fedora | fedora | Run natively |
+     | Fedora | debian/ubuntu | Use `podman` to run in target OS container |
+     | Fedora | macos | **Skip** — macOS cannot be containerized |
+     | Debian | debian | Run natively |
+     | Debian | fedora/ubuntu | Use `podman` to run in target OS container |
+     | Debian | macos | **Skip** — macOS cannot be containerized |
+     | Ubuntu | ubuntu | Run natively |
+     | Ubuntu | debian/fedora | Use `podman` to run in target OS container |
+     | Ubuntu | macos | **Skip** — macOS cannot be containerized |
+   - **Mode Override**: If the request includes `use container`, force container execution for all non-macOS targets, overriding native routing.
+   - **Container Runtime Selection**:
+     - macOS host → use `container` command (Apple Container)
+     - Linux host → use `podman`
+   - **macOS is native-only**: macOS builds and tests NEVER use containers, regardless of host OS.
+   - **Entry Point** (C/C++ only): When targeting a specific C/C++ OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
      - **If it exists**: Consult it for image resolution and platform-specific directives.
      - **If it does not exist**: Proceed with only `prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
 
-2. **Execution Steps**:
-   For the selected OS directory, perform the following.
+2. **Language Dispatch**:
+   After target selection, determine which language(s) to process and dispatch accordingly:
+
+   **Common Languages (Java, Python)** — source lives in `src/common/<lang>/`, identical across all OSes:
+   - **Skip Steps 0–7** (these are C/C++-specific). Go directly to the language-specific section below.
+   - For each target OS, apply routing (native if host matches; container otherwise).
+   - Each common language manages its own `.gen_state.json` in `src/common/<lang>/`.
+
+   **C/C++** — source lives in `src/<os>/cpp/`, per-OS implementation:
+   - Proceed to Steps 0–7 below.
+
+---
+
+### C/C++ Execution Steps (Steps 0–7)
+*These steps apply ONLY to C/C++. Common languages skip directly to their own sections below.*
 
    0. **Environment Setup**:
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
@@ -36,8 +75,8 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
           ```
           $ sw_vers
           ProductName:		macOS
-          ProductVersion:		26.5.2
-          BuildVersion:		25F84
+          ProductVersion:	26.5.2
+          BuildVersion:	25F84
           ```
           Help: `sw_vers -h` → Usage: sw_vers [--help|--productName|--productVersion|--productVersionExtra|--buildVersion]
         - **Apple Container Runtime**: macOS uses the `container` command (Apple Container), NOT Docker or podman. This is unique to macOS Apple Silicon machines. Key subcommands:
@@ -254,12 +293,234 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       - Append a final entry to `build.log` stating that the regression test execution is complete.
       - Calculate and include the total elapsed time since the start timestamp in this final entry.
 
+   ---
+
+**Java Test Execution** (from `src/common/java/`):
+- Java is a **common language** — source lives in `src/common/java/` but tests must run on each supported OS.
+- **Determine target OSes to test**:
+  - If a specific OS was requested → only that OS.
+  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu) using the routing table.
+- For each target OS:
+  1. **Routing Decision**: Apply the routing table from Step 1.
+     - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
+     - If target matches host → run natively.
+     - Otherwise → use container with the appropriate runtime (`container` on macOS host, `podman` on Linux host).
+  2. **Container Pre-flight Check** (Linux targets only):
+     - macOS host: `command -v container` — if not found, STOP.
+     - Linux host: `command -v podman` — if not found, STOP.
+  3. **Execute Tests**:
+     - **Native**: Navigate to `src/common/java/`, then run tests directly.
+     - **Container**: Run in a container matching the target OS:
+       - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/java/containers/<os>/Dockerfile | sed 's/^FROM //')`
+       - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+       ```bash
+       # macOS host targeting Linux distro:
+       container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test"
+       # Linux host targeting another Linux distro:
+       podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test"
+       ```
+  4. **Verification Steps**:
+     - Navigate to `src/common/java/`.
+     - Run `mvn test` with timeout `${TEST_EXECUTION_TIMEOUT_MS}` ms. Verify exit code 0.
+     - Verify test reports exist in `target/surefire-reports/`.
+     - Verify no test failures in the output.
+  5. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
+
+  **Java State Tracking** (after all target OSes complete):
+  - Read existing `.gen_state.json` from `src/common/java/` if it exists (created by `verify_build.md`). Preserve all existing fields.
+  - Update/merge the following fields:
+    - `os_results`: Add or update entries for each target OS with test results (route, image, status, timestamp).
+    - `artifacts.test_reports`: Set to `target/surefire-reports/`.
+    - Recompute SHA-256 hashes of `pom.xml` and `version.mk`.
+  - If no existing `.gen_state.json`, create a new one with the full structure:
+    ```json
+    {
+      "language": "java",
+      "version": "<MAJOR.MINOR.SUBVERSION-BUILD_ID from version.mk>",
+      "java_version": "<detected JDK version, e.g., 25.0.3>",
+      "maven_version": "<detected Maven version, e.g., 3.9.16>",
+      "os_results": {
+        "<os>": {
+          "route": "native|container",
+          "image": "<resolved container image or N/A>",
+          "status": "PASS|FAIL",
+          "timestamp": "<ISO timestamp>"
+        }
+      },
+      "artifacts": {
+        "jar": "target/ringbuffer-<version>.jar",
+        "test_reports": "target/surefire-reports/"
+      },
+      "sha256": {
+        "pom_xml": "<hash>",
+        "version_mk": "<hash>"
+      }
+    }
+    ```
+  - Compute SHA-256 hashes of `pom.xml` and `version.mk`.
+
+  **Java Report Generation** (after all target OSes complete):
+  - Generate the Markdown regression report at `src/common/java/reports/regression_report.md` using the following format:
+
+    ```markdown
+    # Regression Verification Report — Java
+    **Date:** [YYYY-MM-DD HH:MM:SS ±HHMM]
+    **Start Time:** [YYYY-MM-DD HH:MM:SS ±HHMM]
+    **End Time:** [YYYY-MM-DD HH:MM:SS ±HHMM]
+    **Elapsed Time:** [Duration]
+    **Host OS:** [Host OS Name/Version]
+
+    ## Status
+    **Final Result:** [PASS / FAIL]
+
+    ## Audit Trail
+    - **JDK**: [Version output from `java --version`]
+    - **Maven**: [Version output from `mvn --version`]
+
+    ## Per-OS Results
+    | Target OS | Route | Image/Version | Status | Notes |
+    |-----------|-------|---------------|--------|-------|
+    | macos | native | JDK <ver> | [PASS/FAIL] | [Brief note] |
+    | debian | container (debian:13) | JDK <ver> | [PASS/FAIL] | [Brief note] |
+    | fedora | container (fedora:44) | JDK <ver> | [PASS/FAIL] | [Brief note] |
+    | ubuntu | container (ubuntu:24.04) | JDK <ver> | [PASS/FAIL] | [Brief note] |
+
+    ## Fixes and Modifications
+    *If files were modified to achieve successful tests, list them here:*
+    - `path/to/file`: [Brief explanation of the fix]
+
+    ## Verification Details
+    - **Maven Compile**: [Success/Failure]
+    - **Maven Package**: [Success/Failure]
+    - **JAR Artifact**: [Present/Absent] — `target/ringbuffer-<version>.jar`
+    - **Test Reports**: [Present/Absent] — `target/surefire-reports/`
+    - **Test Failures**: [Count] failures detected in surefire output
+    ```
+
+  **Java Self-Audit** (after report generation):
+  - Verify the following and log results:
+    - **JAR Artifact**: `target/ringbuffer-*.jar` exists and is non-empty.
+    - **Test Reports**: `target/surefire-reports/` directory exists and contains test result files.
+    - **No Test Failures**: surefire output shows 0 failures (check `target/surefire-reports/*.txt` for "Failures:" or "Errors:").
+    - **Reports Generated**: `src/common/java/reports/regression_report.md` exists.
+    - **State File**: `src/common/java/.gen_state.json` was created/updated.
+
+  ---
+
+**Python Test Execution** (from `src/common/python/`):
+- Python is a **common language** — source lives in `src/common/python/` but tests must run on each supported OS.
+- **Determine target OSes to test**:
+  - If a specific OS was requested → only that OS.
+  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu) using the routing table.
+- For each target OS:
+  1. **Routing Decision**: Apply the routing table from Step 1.
+     - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
+     - If target matches host → run natively.
+     - Otherwise → use container with the appropriate runtime (`container` on macOS host, `podman` on Linux host).
+  2. **Container Pre-flight Check** (Linux targets only):
+     - macOS host: `command -v container` — if not found, STOP.
+     - Linux host: `command -v podman` — if not found, STOP.
+  3. **Execute Tests**:
+     - **Native**: Navigate to `src/common/python/`, then run tests directly.
+     - **Container**: Run in a container matching the target OS:
+       - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/python/containers/<os>/Dockerfile | sed 's/^FROM //')`
+       - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+       ```bash
+       # macOS host targeting Linux distro:
+       container run --rm -v $(pwd)/src/common/python:/app $IMAGE sh -c "cd /app && python3 test_ringbuffer.py"
+       # Linux host targeting another Linux distro:
+       podman run --rm -v $(pwd)/src/common/python:/app $IMAGE sh -c "cd /app && python3 test_ringbuffer.py"
+       ```
+  4. **Verification Steps**:
+     - Navigate to `src/common/python/`.
+     - Verify Python version meets minimum requirements (3.10+): `python3 --version`.
+     - Run the test script: `python3 test_ringbuffer.py`. Verify exit code 0.
+     - Verify all expected outputs are produced correctly.
+  5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
+
+  **Python State Tracking** (after all target OSes complete):
+  - Read existing `.gen_state.json` from `src/common/python/` if it exists (created by `verify_build.md`). Preserve all existing fields.
+  - Update/merge the following fields:
+    - `os_results`: Add or update entries for each target OS with test results (route, image, python_version, status, timestamp).
+    - Recompute SHA-256 hashes of `version.mk`, `swtr_ringbuffer.py`, and `test_ringbuffer.py`.
+  - If no existing `.gen_state.json`, create a new one with the full structure:
+    ```json
+    {
+      "language": "python",
+      "version": "<MAJOR.MINOR.SUBVERSION-BUILD_ID from version.mk>",
+      "python_version": "<detected Python version, e.g., 3.14.6>",
+      "os_results": {
+        "<os>": {
+          "route": "native|container",
+          "image": "<resolved container image or N/A>",
+          "python_version": "<detected Python version in that context>",
+          "status": "PASS|FAIL",
+          "timestamp": "<ISO timestamp>"
+        }
+      },
+      "artifacts": {
+        "module": "swtr_ringbuffer.py",
+        "test_script": "test_ringbuffer.py"
+      },
+      "sha256": {
+        "version_mk": "<hash>",
+        "swtr_ringbuffer_py": "<hash>",
+        "test_ringbuffer_py": "<hash>"
+      }
+    }
+    ```
+  - Compute SHA-256 hashes of `version.mk`, `swtr_ringbuffer.py`, and `test_ringbuffer.py`.
+
+  **Python Report Generation** (after all target OSes complete):
+  - Generate the Markdown regression report at `src/common/python/reports/regression_report.md` using the following format:
+
+    ```markdown
+    # Regression Verification Report — Python
+    **Date:** [YYYY-MM-DD HH:MM:SS ±HHMM]
+    **Start Time:** [YYYY-MM-DD HH:MM:SS ±HHMM]
+    **End Time:** [YYYY-MM-DD HH:MM:SS ±HHMM]
+    **Elapsed Time:** [Duration]
+    **Host OS:** [Host OS Name/Version]
+
+    ## Status
+    **Final Result:** [PASS / FAIL]
+
+    ## Audit Trail
+    - **Python**: [Version output from `python3 --version`]
+
+    ## Per-OS Results
+    | Target OS | Route | Python Version | Status | Notes |
+    |-----------|-------|---------------|--------|-------|
+    | macos | native | 3.14.x | [PASS/FAIL] | [Brief note] |
+    | debian | container (debian:13) | 3.13.x | [PASS/FAIL] | [Brief note] |
+    | fedora | container (fedora:44) | 3.14.x | [PASS/FAIL] | [Brief note] |
+    | ubuntu | container (ubuntu:24.04) | 3.12.x | [PASS/FAIL] | [Brief note] |
+
+    ## Fixes and Modifications
+    *If files were modified to achieve successful tests, list them here:*
+    - `path/to/file`: [Brief explanation of the fix]
+
+    ## Verification Details
+    - **Syntax Check**: [Success/Failure] — All .py files compile cleanly
+    - **Module Import**: [Success/Failure] — swtr_ringbuffer imports with __version__
+    - **Test Script**: [Success/Failure] — test_ringbuffer.py exits 0 with correct output
+    - **Test Failures**: [Count] failures detected in test output
+    ```
+
+  **Python Self-Audit** (after report generation):
+  - Verify the following and log results:
+    - **Module File**: `swtr_ringbuffer.py` exists and is non-empty.
+    - **Test Script**: `test_ringbuffer.py` exists, is executable (or readable by python3), and exits 0.
+    - **No Test Failures**: test script output shows 0 failures.
+    - **Reports Generated**: `src/common/python/reports/regression_report.md` exists.
+    - **State File**: `src/common/python/.gen_state.json` was created/updated.
+
 **Directives:**
 1. Use `prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).
 2. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Reporting:**
-The report generated in Step 4 serves as the final summary.
+The report generated in Step 4 (C/C++) or the language-specific section (Java/Python) serves as the final summary.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
@@ -277,6 +538,7 @@ You MUST NOT:
 
 **Directory Scope Restriction:**
 - **NEVER create, modify, or delete any files outside the `tests/` directory and the OS cpp root** (except for `build.log`, `.gen_state.json`, and report files).
+- For **common languages** (Java, Python): `.gen_state.json` and reports are managed in `src/common/<lang>/`.
 - The `tests/` directory is managed exclusively by this regression test workflow.
 
 **Excluded Platforms:**

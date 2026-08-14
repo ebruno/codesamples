@@ -1,21 +1,23 @@
 # Build Implementation Workflow
 
 **Objective:** 
-Create the build environment for the Ringbuffer library by strictly following the specifications defined in `prompts/common/cpp/build.md` and the platform-specific specifications in `prompts/<os>/cpp/build.md`.
+Create the build environment for the Ringbuffer library by strictly following the specifications defined in `prompts/common/cpp/build.md` and the platform-specific specifications in `prompts/<os>/cpp/build.md`. For platform-insensitive languages (Java, Python), follow `prompts/common/<lang>/build.md`.
 
 **Inputs:**
 1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `src/` are processed.
 2. **Target Image**: An optional container image override (e.g., `fedora:43`, `debian:12`). If provided, this overrides the default image specified in each OS's `create_build.md`. If not provided, use the default image from the target OS's prompt.
 
 **Process:**
-1. **Target Selection**:
+1. **Target Selection & Language Dispatch**:
    - **Targeting**: 
      - **Specified Platforms**: If the user request specifies target platforms (e.g., "implement build for fedora, debian"), verify their existence in `src/`. If a requested platform is missing from `src/`, inform the user that the OS is not currently implemented and list all operating systems that are currently supported (those present as directories in `src/`). Process only the requested platforms that are implemented.
      - **General Request**: Otherwise, iterate through **all** OS directories found in `src/` (e.g., debian, fedora, macos).
-   - **Entry Point**: When targeting a specific OS, first check if `prompts/<os>/cpp/create_build.md` exists.
-     - **If it exists**: Consult it for immediate requirements and platform-specific directives. Execute it as the PRIMARY document.
-     - **If it does not exist**: Proceed with only `prompts/common/cpp/build.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_build.md not found for <os> — proceeding with common spec only.`
-   - **Language**: This workflow specifically targets the C++ build environment.
+   - **Language Dispatch**: Detect which languages are implemented by checking for source directories:
+     - `src/<os>/cpp/` → C++ build (per-OS, uses `prompts/<os>/cpp/create_build.md` as primary document)
+     - `src/common/java/` → Java build (common, platform-insensitive, uses `prompts/common/java/build.md`)
+     - `src/common/python/` → Python build (common, platform-insensitive, uses `prompts/common/python/build.md`)
+   - Process each detected language independently. A failure in one language does not stop verification of others.
+   - Log which languages are being built: `[timestamp] Languages detected for build: <comma-separated list>`
 
 2. **Execution Steps**:
    For the selected OS directory, perform the following.
@@ -250,6 +252,51 @@ Create the build environment for the Ringbuffer library by strictly following th
    8. **Finalize Logs**:
       - Append a final entry to `build.log` stating that the build implementation is complete.
       - Calculate and include the total elapsed time since the start timestamp in this final entry.
+
+   ---
+
+   **Java Build** (from `src/common/java/`):
+   - Navigate to `src/common/java/`.
+   - **Toolchain Check**: Verify `mvn` is available: `command -v mvn`. If not found, STOP and report that Maven must be installed.
+   - **pom.xml Creation**: If `pom.xml` does not exist, create it following `prompts/common/java/build.md` specifications (group ID: `com.swtr`, artifact ID: `ringbuffer`, packaging: `jar`).
+   - **Dockerfile Package Validation** (Linux targets only):
+     - For each target OS, check the per-OS Dockerfile at `src/common/java/containers/<os>/Dockerfile` and verify it contains:
+       - `java-25-openjdk` (Fedora) or `openjdk-25-jdk` (Debian/Ubuntu) — the latest JDK 25 package
+       - `maven` installation step (latest available in repos)
+     - If the JDK package is missing, add it to the Dockerfile RUN command:
+       ```dockerfile
+       # Fedora (latest JDK 25 + Maven):
+       dnf install -y java-25-openjdk maven
+       # Debian/Ubuntu (latest JDK 25 + Maven):
+       apt-get update && apt-get install -y openjdk-25-jdk maven
+       ```
+     - If Maven is missing, add it to the Dockerfile RUN command.
+   - **Compile**: Run `mvn compile` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
+   - **Package**: Run `mvn package` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
+   - **Artifact Check**: Verify JAR exists in `target/`: `ls target/ringbuffer-*.jar`. If no JAR found, STOP and report build failure.
+   - **Log**: Append results to `src/common/java/logs/build.log`.
+
+   ---
+
+   **Python Build** (from `src/common/python/`):
+   - Navigate to `src/common/python/`.
+   - **Version Check**: Verify Python version meets minimum requirements (3.10+): `python3 --version`. If below 3.10, STOP and report: `ERROR: Detected Python version <detected_version> is below minimum supported 3.10. Cannot proceed.`
+   - **Dockerfile Package Validation** (Linux targets only):
+     - For each target OS, check the per-OS Dockerfile at `src/common/python/containers/<os>/Dockerfile` and verify it contains:
+       - `python3` — latest available Python 3.x in each distro's repos (Fedora: latest stable; Debian/Ubuntu: default python3 which is the distro's latest)
+       - `python3-pip` — Python package manager
+     - If Python is missing, add it to the Dockerfile RUN command:
+       ```dockerfile
+       # Fedora (latest Python 3.x + pip):
+       dnf install -y python3 python3-pip
+       # Debian/Ubuntu (latest Python 3.x + pip):
+       apt-get update && apt-get install -y python3 python3-pip
+       ```
+   - **Syntax Check**: Run `python3 -m py_compile` on all `.py` files in the source directory to verify syntax correctness.
+   - **Import Check**: Run `python3 -c "import swtr_ringbuffer; print(swtr_ringbuffer.__version__)"` to verify the module imports cleanly.
+   - **Instantiation Check**: Run `python3 -c "from swtr_ringbuffer import SwtrRingBuffer; rb = SwtrRingBuffer(4, 256); print(type(rb))"` to verify core classes are instantiable.
+   - **Completion**: The build is complete once all Python files pass syntax checking, the module imports cleanly, and core classes are instantiable.
+   - **Log**: Append results to `src/common/python/logs/build.log`.
 
 **Directives:**
 1. Use `prompts/<os>/cpp/build.md` for platform-specific prerequisites (package lists, container settings).
