@@ -463,7 +463,7 @@ The following virtual functions MUST be implemented exactly as specified. Do not
 
 ## Implementation Logic
 - **Read Function**: Use POSIX file descriptors. Mark slot `readyfortransform` after fill. Set `data_buffer_size` to bytes read. Reset to 0 on EOF/error.
-- **Transform Function**: Apply `std::function`. Mark slot `readyforwrite`. Load atomic size to temporary, pass to function, store result back. If no function, set `transformed_data_buffer_size` = `data_buffer_size` and mark `readyforwrite`.
+- **Transform Function**: Pass `slot.data` directly to the transform function (in-place modification). Store result size in `transformed_data_buffer_size`. If no function, set `transformed_data_buffer_size` = `data_buffer_size` and mark `readyforwrite`. The transform function receives a reference to the slot's data buffer and modifies it in place — failing to modify `slot.data` causes transforms to be no-ops.
 - **Write Function**: Use POSIX file descriptors. Write data, clear buffer, mark `readyforread`. Set `data_buffer_size` to 0. Flush (`fsync`) on `LAST_BUFFER_TO_WRITE`.
 - **EOF Detection Semantics**: When `read(fd, buf, count)` returns `0`, this indicates EOF. The implementation MUST treat a return value of `0` as EOF and proceed with the EOF sequence. A return value of `-1` indicates an error; set `errno` and handle via the error handler.
 - **Buffer Clearing Method**: After writing data to the output file descriptor, clear the `data` buffer using:
