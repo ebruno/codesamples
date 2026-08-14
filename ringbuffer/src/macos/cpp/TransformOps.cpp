@@ -11,11 +11,10 @@ void SwtrRingBuffer::transform_loop(std::stop_token st) {
 
         if (slot.status.load() == BufferStatus::readyfortransform) {
             size_t data_size = slot.data_buffer_size.load();
-            std::vector<uint8_t> temp_data(slot.data.begin(), slot.data.begin() + data_size);
             size_t transformed_size = data_size;
 
             if (transform_fn_) {
-                transform_fn_(temp_data, transformed_size);
+                transform_fn_(slot.data, transformed_size);
             }
 
             slot.transformed_data_buffer_size.store(transformed_size);
