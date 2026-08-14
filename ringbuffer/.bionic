@@ -166,7 +166,7 @@ Every implementation must satisfy these requirements regardless of language:
 | C common specs | ✅ `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,088 bytes) created |
 | Python common specs | ✅ `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) created |
 | Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
-| `add <lang> to <os>` dispatcher prompt | ⚠️ Not yet created — Phase 2 |
+| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (18,352 bytes) created — Phase 2 complete |
 | Per-OS language directories | ✅ Zero-length files exist for all languages/OSes |
 
 ### Implementation Phases
@@ -186,14 +186,16 @@ Each common spec defines:
 - Build system configuration (Makefile, pom.xml, go.mod, Cargo.toml)
 - Version reporting requirements in functional.log and build.log
 
-#### Phase 2: Finalize Dispatcher Prompt
-Create `prompts/common/add_language.md` — the unified entry point for `add <lang> to <os>`:
-- Validates language and OS inputs
-- Classifies language as platform-sensitive or platform-insensitive
-- Routes to appropriate workflow (common spec + per-OS overrides vs. single common spec)
-- Generates source code to `src/<os>/<lang>/`
-- Creates test infrastructure (test source, input data, expected outputs)
-- Generates implementation report
+#### Phase 2: Finalize Dispatcher Prompt ✅ COMPLETE
+Created `prompts/common/add_language.md` (18,352 bytes) — the unified entry point for `add <lang> to <os>`:
+- Validates language (`c`, `cpp`, `python`, `java`, `go`, `rust`) and OS (`macos`, `fedora`, `debian`, `ubuntu`) inputs
+- Classifies language as platform-sensitive (`c`, `cpp`) or platform-insensitive (`python`, `java`, `go`, `rust`)
+- Routes to appropriate workflow: common spec + per-OS overrides vs. single common spec
+- Detects available compiler/language version with fallback support
+- Generates source code to `src/<os>/<lang>/` independently (no copying between platforms)
+- Creates test infrastructure: native-language test binary, input data, expected outputs
+- Generates implementation report with version reporting in `functional.log` and `build.log`
+- Includes comprehensive error handling for missing specs, toolchains, and version requirements
 
 #### Phase 3: Implement Languages on Platforms
 For each language, implement on all target OSes:
