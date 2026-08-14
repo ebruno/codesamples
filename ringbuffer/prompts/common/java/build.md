@@ -58,7 +58,7 @@ The built JAR MUST follow Maven conventions: `<artifactId>-<version>.jar`. The v
 
 ### Source Directory Structure
 ```
-src/<os>/java/
+src/common/java/
 ├── pom.xml                          # Maven build configuration
 └── swtr/                            # Package directory (package swtr;)
     ├── BufferStatus.java
@@ -73,13 +73,12 @@ src/<os>/java/
 
 ### Test Directory Structure
 ```
-src/<os>/java/
+src/common/java/
 ├── pom.xml
 └── swtr/
     ├── (main sources as above)
-    └── test/                        # Test sources under src/test/java/swtr/
-        ├── Test001.java             # T001: Identity transform, normal operation
-        └── ...                      # Additional test files for T002-T007
+    └── test/                        # Test sources under swtr/test/
+        └── TestRingbuffer.java      # Single test file, CLI dispatches to T001-T007
 ```
 
 ### Build Process
@@ -98,7 +97,7 @@ src/<os>/java/
 - Do NOT create temporary files in the project root or source directories.
 
 ### Build Process Logging
-- Create a directory at `src/<os>/java/logs/`.
+- Create a directory at `src/common/java/logs/`.
 - Log build actions to `build.log` in the format: `[YYYY-MM-DD HH:MM:SS +/-HHMM] <Action Description>`.
 - Append to existing log files; do NOT overwrite.
 

@@ -447,7 +447,7 @@ slot_idx = self.write_index % self.num_slots
 All Python source files MUST be placed under the following directory structure:
 
 ```
-src/<os>/python/
+src/common/python/
 ├── swtr_ringbuffer.py       # Complete implementation (BufferSlot, SwtrRingBuffer)
 ├── __init__.py              # Package init (exports public API)
 └── version.py               # Library version constants
@@ -483,7 +483,7 @@ def load_ringbuffer_library():
 
 ### Test Binary
 Each implementation MUST include a test binary written in Python. The test binary exercises the 7-test matrix (T001-T007) and serves as an implementation example. The test binary MUST:
-- Be a standalone Python script at `src/<os>/python/test_ringbuffer.py`
+- Be a standalone Python script at `src/common/python/test_ringbuffer.py`
 - Read input from stdin, write output to stdout
 - Support configuration via command-line arguments (number of slots, buffer size, transform type)
 - Exit with code 0 on success, 1 on fatal error

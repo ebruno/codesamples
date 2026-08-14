@@ -346,7 +346,7 @@ slotIdx = writeIndex.get() % numSlots;
 - Constants: `UPPER_SNAKE_CASE` (e.g., `MIN_NUMBER_SLOTS`)
 
 ### File Organization
-All Java source files MUST be placed under a package directory structure: `src/<os>/java/swtr/`. The package declaration MUST be `package swtr;` in every file.
+All Java source files MUST be placed under a package directory structure: `src/common/java/swtr/`. The package declaration MUST be `package swtr;` in every file.
 
 File mapping:
 | File | Purpose |
@@ -368,7 +368,7 @@ File mapping:
 - Do NOT create temporary files in the project root or source directories.
 
 ### Generation Process Logging
-- Create a directory at `src/<os>/java/logs/`.
+- Create a directory at `src/common/java/logs/`.
 - Maintain three log files: `functional.log`, `build.log`, `testing.log`.
 - Log format: `[YYYY-MM-DD HH:MM:SS +/-HHMM] <Action Description>`.
 - Append to existing log files; do NOT overwrite.

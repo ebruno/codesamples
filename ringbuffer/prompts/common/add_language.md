@@ -33,10 +33,10 @@ Verify `<os>` is one of the supported platforms:
 
 | Platform | Container Support? | Notes |
 |----------|-------------------|-------|
-| `macos` | No (native-only) | All builds run natively on the host |
-| `fedora` | Yes (podman) | Linux distribution |
-| `debian` | Yes (podman) | Linux distribution |
-| `ubuntu` | Yes (podman) | Linux distribution |
+| `macos` | Native only | All builds run natively on the host |
+| `fedora` | Yes (podman / docker) | Linux distribution; native containers |
+| `debian` | Yes (docker / podman) | Linux distribution; native containers |
+| `ubuntu` | Yes (docker / podman) | Linux distribution; native containers |
 
 If the OS is not in this list, STOP and report:
 ```
@@ -61,14 +61,18 @@ Based on the language, determine the routing strategy:
 - Read common spec (`prompts/common/<lang>/functional.md`, `build.md`)
 - Read per-OS override files (`prompts/<os>/<lang>/functional.md`, `build.md`)
 - Generate platform-specific source code to `src/<os>/<lang>/`
-- For Linux distros: perform cross-platform symmetry verification between Fedora, Debian, Ubuntu
+- For Linux distros: use containers (podman/docker) to verify the build and tests
+- For macOS: run natively on the host
+- Cross-platform symmetry verification between Fedora, Debian, Ubuntu
 
 **Platform-Insensitive Languages** (`python`, `java`, `go`, `rust`):
 - Source code is identical across all platforms
 - Read single common spec (`prompts/common/<lang>/functional.md`, `build.md`)
 - Per-OS override files are zero-length (no platform-specific content)
-- Generate identical source code for all platforms
+- Generate source code to `src/common/<lang>/` (single shared directory, not per-OS)
+- **Run natively on the host OS** — no containers needed (runtime is platform-insensitive)
 - No cross-platform symmetry verification needed
+- **Testing**: Verify the runtime is available on the host and run tests natively. No container testing required.
 
 ### Step 2.2: Detect Available Version
 Detect the actual compiler/language version available on the target platform:
@@ -120,18 +124,20 @@ src/<os>/<lang>/
 
 **Java:**
 ```
-src/<os>/java/
+src/common/java/
 ├── pom.xml                        // Maven build configuration (version injected from version.mk)
 ├── version.sh                     // Build script: reads version.mk, injects into pom.xml
-└── swtr/                          // Package directory
-    ├── BufferStatus.java
-    ├── ChecksumAlgorithm.java
-    ├── LogLevel.java
-    ├── RingBuffer.java
-    ├── TransformFunction.java
-    ├── ErrorHandler.java
-    ├── BufferSlot.java
-    └── SwtrRingBuffer.java
+├── swtr/                          // Package directory
+│   ├── BufferStatus.java
+│   ├── ChecksumAlgorithm.java
+│   ├── LogLevel.java
+│   ├── RingBuffer.java
+│   ├── TransformFunction.java
+│   ├── ErrorHandler.java
+│   ├── BufferSlot.java
+│   └── SwtrRingBuffer.java
+└── swtr/test/                     // Test binary (single file)
+    └── TestRingbuffer.java
 ```
 
 **Go:**
@@ -144,10 +150,11 @@ src/<os>/go/
 
 **Python:**
 ```
-src/<os>/python/
-├── swtr_ringbuffer.py             // Complete implementation
-├── __init__.py                    // Package init
-└── version.py                     // Version constants (generated from version.mk)
+src/common/python/
+├── swtr_ringbuffer.py             // Complete implementation (BufferSlot, SwtrRingBuffer)
+├── __init__.py                    // Package init (exports public API)
+├── version.py                     // Version constants (generated from version.mk)
+└── test_ringbuffer.py             // Test binary (7-test matrix)
 ```
 
 **Rust:**
@@ -255,10 +262,10 @@ Each language MUST get its own test binary in native language, serving as an imp
 | Language | Location |
 |----------|----------|
 | C/C++ | `src/<os>/<lang>/tests/src/test_ringbuffer.c/.cpp` |
-| Java | `src/<os>/java/swtr/test/Test001.java` through `Test007.java` |
-| Go | `src/<os>/go/swtr_test.go` |
-| Python | `src/<os>/python/test_ringbuffer.py` |
-| Rust | `src/<os>/rust/src/main.rs` (compiled via `cargo run --bin ringbuffer_test`) |
+| Java | `src/common/java/swtr/test/TestRingbuffer.java` (single file, CLI dispatches to T001-T007) |
+| Go | `src/common/go/swtr_test.go` |
+| Python | `src/common/python/test_ringbuffer.py` (single file, CLI dispatches to T001-T007) |
+| Rust | `src/common/rust/src/main.rs` (compiled via `cargo run --bin ringbuffer_test`) |
 
 ### Step 4.2: Create Test Data
 Generate test input data and expected output files:
@@ -317,7 +324,7 @@ make all          # Build both static and shared libraries
 
 **Java:**
 ```bash
-cd src/<os>/java/
+cd src/common/java/
 mvn compile       # Compile Java sources
 mvn package       # Build JAR
 ```
@@ -330,7 +337,7 @@ go build ./...    # Build all packages
 
 **Python:**
 ```bash
-cd src/<os>/python/
+cd src/common/python/
 python3 -m py_compile swtr_ringbuffer.py  # Syntax check
 # Verify shared library loading via ctypes
 ```
@@ -497,8 +504,8 @@ ERROR: Detected <lang> version <detected_version> is below minimum supported <mi
 |----------|---------------------|-------------|-------------------|--------------|----------------|---------------------|
 | `c` | Yes | `prompts/common/c/functional.md` | Yes (`prompts/<os>/c/`) | GNU Make | `version.mk` (direct include) | `src/<os>/c/tests/src/test_ringbuffer.c` |
 | `cpp` | Yes | `prompts/common/cpp/functional.md` | Yes (`prompts/<os>/cpp/`) | GNU Make | `version.mk` (direct include) | `src/<os>/cpp/tests/src/test_ringbuffer.cpp` |
-| `python` | No | `prompts/common/python/functional.md` | No (zero-length) | None (interpreted) | `version.mk` → `version.py` | `src/<os>/python/test_ringbuffer.py` |
-| `java` | No | `prompts/common/java/functional.md` | No (zero-length) | Maven | `version.mk` → `pom.xml` properties | `src/<os>/java/swtr/test/Test001.java`+ |
+| `python` | No | `prompts/common/python/functional.md` | No (zero-length) | None (interpreted) | `version.mk` → `version.py` | `src/common/python/test_ringbuffer.py` |
+| `java` | No | `prompts/common/java/functional.md` | No (zero-length) | Maven | `version.mk` → `pom.xml` properties | `src/common/java/swtr/test/TestRingbuffer.java` |
 | `go` | No | `prompts/common/go/functional.md` | No (zero-length) | Go Modules | `version.mk` → `version.go` | `src/<os>/go/swtr_test.go` |
 | `rust` | No | `prompts/common/rust/functional.md` | No (zero-length) | Cargo | `version.mk` → `build.rs`/`version.rs` | `src/<os>/rust/src/main.rs` |
 

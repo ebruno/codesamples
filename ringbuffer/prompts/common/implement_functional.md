@@ -78,6 +78,18 @@ Implement the C++ Ringbuffer library by strictly following the specifications de
 
 Once implementation is complete, generate a summary report at `src/<os>/reports/implementation_report.md`.
 
+**State Tracking:**
+- After all source files have been created, create or update `.gen_state.json` in `src/<os>/cpp/` containing:
+  - **platform**: The target OS name (e.g., `macos`, `fedora`, `debian`, `ubuntu`).
+  - **language**: `cpp`.
+  - **version**: Object with `MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID` read from `version.mk`. If `version.mk` does not exist, use `{"MAJOR": 1, "MINOR": 0, "SUBVERSION": 0, "BUILD_ID": 1}` as defaults.
+  - **prompts_used**: SHA-256 hashes of `common/cpp/functional.md` and `<os>/cpp/functional.md` (the prompts used to generate the source).
+  - **generated_files**: SHA-256 hashes of all created `.cpp` and `.hpp` source files (not build artifacts — those are captured by `implement_build.md`).
+  - **regression_image**: `"N/A"` for macOS (native-only, never uses containers). For Linux targets, use the resolved container image tag from Step 0 (e.g., `"fedora:44"`, `"debian:13"`).
+  - **generation_timestamp**: ISO 8601 timestamp of when the state file was created.
+- **Version Change Detection**: If `.gen_state.json` already exists, compare the current `version.mk` values against those stored. If any value has changed (e.g., `MAJOR`, `MINOR`, `SUBVERSION`, or `BUILD_ID`), log a warning and proceed — the build phase will regenerate versioned artifacts.
+- **Purpose**: This state file is the authoritative source of truth for what was implemented. `implement_build.md` reads it to resolve version context. `run_regression.md` reads it for shared version and image information. `verify_build.md` does NOT modify this file — mismatches are errors, not state updates.
+
 **Template Precedence:** Use the reporting template defined in `prompts/<os>/cpp/create_functional.md`. If none is defined, use the generic template below.
 
 # Implementation Report - [OS Name] <use the version resolved in Step 0, e.g., "15">

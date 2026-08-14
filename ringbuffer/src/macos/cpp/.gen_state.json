@@ -1,6 +1,7 @@
 {
   "platform": "macos",
   "language": "cpp",
+  "regression_image": "N/A",
   "prompts_used": {
     "common/cpp/functional.md": "1874c38d51e7400485b0886ad4c00b4959e0912c4fabed6e1f8542b92cb6786a",
     "macos/cpp/functional.md": "1d858e52d6b9354da94b48af531d2e1003658f0c51cf3232dafab34d399ab366"

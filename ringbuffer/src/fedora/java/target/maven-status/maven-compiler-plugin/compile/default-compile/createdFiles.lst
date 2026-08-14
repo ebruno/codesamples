@@ -1,9 +1,0 @@
-swtr/LogLevel.class
-swtr/ErrorHandler.class
-swtr/BufferSlot.class
-swtr/ChecksumAlgorithm.class
-swtr/SwtrRingBuffer.class
-swtr/RingBuffer.class
-swtr/TransformFunction.class
-swtr/test/TestRingbuffer.class
-swtr/BufferStatus.class
