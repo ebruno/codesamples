@@ -3,3 +3,18 @@
 #*#
 .dockerfile_created_by_step0
 __pycache__/
+
+# Java / Maven build artifacts
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
