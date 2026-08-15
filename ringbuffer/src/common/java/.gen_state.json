@@ -1,0 +1,40 @@
+{
+  "language": "java",
+  "version": "1.0.0-1",
+  "java_version": "26.0.2 (macos native), 25.x (containers)",
+  "maven_version": "3.9.16",
+  "os_results": {
+    "macos": {
+      "route": "native",
+      "image": "N/A",
+      "status": "PASS",
+      "timestamp": "2026-08-14T16:51:52-07:00"
+    },
+    "debian": {
+      "route": "container",
+      "image": "debian:13",
+      "status": "PASS",
+      "timestamp": "2026-08-14T23:52:43Z"
+    },
+    "fedora": {
+      "route": "container",
+      "image": "fedora:44",
+      "status": "PASS",
+      "timestamp": "2026-08-14T23:52:58Z"
+    },
+    "ubuntu": {
+      "route": "container",
+      "image": "ubuntu:24.04",
+      "status": "PASS",
+      "timestamp": "2026-08-14T23:53:18Z"
+    }
+  },
+  "artifacts": {
+    "jar": "target/ringbuffer-1.0.0-1.jar",
+    "test_reports": "target/surefire-reports/"
+  },
+  "sha256": {
+    "pom_xml": "a98be8540da3914872a53d690247a41c322c60f4d43f31aec95b5b0846c5bfee",
+    "version_mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a"
+  }
+}

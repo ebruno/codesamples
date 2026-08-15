@@ -1,0 +1,2 @@
+Hello, World! This is a test input for the ringbuffer pipeline.
+Testing three-stage processing: read, transform, write.

@@ -1,0 +1,8 @@
+[2026-08-14 02:47:38 -0700] Language=python Version=3.14.6 (primary was 3.14)
+[2026-08-14 02:47:38 -0700] Test T001 PASSED (identity transform)
+[2026-08-14 02:47:38 -0700] Test T002 PASSED (stress test 1 slot, 1-byte buffer)
+[2026-08-14 02:47:38 -0700] Test T003 PASSED (uppercase transform)
+[2026-08-14 02:47:38 -0700] Test T004 PASSED (small input, fast EOF)
+[2026-08-14 02:47:38 -0700] Test T005 PASSED (fatal error mode)
+[2026-08-14 02:47:38 -0700] Test T006 PASSED (non-fatal error mode)
+[2026-08-14 02:47:38 -0700] Test T007 PASSED (XOR transform 0xAA)
