@@ -112,7 +112,45 @@ The `/etc/os-release` file is a standard configuration file in Linux that stores
 | `debian` | Debian GNU/Linux | `11`, `12`, `13`, ... | — |
 | `ubuntu` | Ubuntu | `20.04`, `22.04`, `24.04` | debian |
 | `rhel` | Red Hat Enterprise Linux | `8`, `9` | fedora |
-| `arch` | Arch Linux | rolling (use `NAME`) | — |
+| `arch` | Arch Linux | rolling (see subsection below) | arch |
+
+### `arch` — Arch Linux (Rolling Release)
+
+Arch Linux is a rolling-release distribution and does **not** use traditional point-release version numbers. This affects both OS identification and container image selection.
+
+#### `/etc/os-release` specifics
+- `ID=arch` (primary identifier)
+- `ID_LIKE=arch` (self-referential — unlike Ubuntu which has `ID_LIKE=debian`)
+- No meaningful `VERSION_ID` — always treat as rolling
+- `NAME="Arch Linux"`
+
+#### Detection strategy for Arch
+1. Identify by `ID=arch` alone — do **not** rely on `VERSION_ID`
+2. Use `NAME` for human-readable identification
+3. For container images, use datestamp tags (see Section 4A)
+
+#### Key differences from point-release distros
+| Aspect | Point-Release (Fedora/Debian/Ubuntu) | Arch Linux |
+|--------|--------------------------------------|------------|
+| Version model | Fixed point releases (e.g., 40, 13, 24.04) | Rolling — continuous updates |
+| `VERSION_ID` | Stable, meaningful number | Not reliable; varies by install date |
+| ISO naming | Version-based (e.g., "Fedora 40") | Datestamp-based (e.g., `2026.08.01`) |
+| Package freshness | Bundled at release; backported security fixes | Always latest from upstream repos |
+| Container pinning | Pin to version number (e.g., `ubuntu:24.04`) | Pin to datestamp (e.g., `archlinux:2026.08.01`) |
+
+#### macOS Limitation (Apple Silicon)
+**Arch Linux container images are amd64-only.** There is no ARM64 Arch Linux container available on Docker Hub. This affects development on Apple Silicon Macs:
+
+- **Source code generation**: Supported on all platforms (including macOS) — does not require containers
+- **Build and test**: Requires a Linux host with `podman` or `docker` that can run amd64 containers
+- **Container scripts**: The `archlinux_container.sh/zsh` scripts detect macOS and skip gracefully with a logged message when `--pull` is requested
+- **Makefile container target**: Must include macOS skip logic that logs the limitation and exits successfully (not as an error)
+
+When running Arch Linux workflows on macOS, the scripts MUST log:
+```
+[timestamp] Arch Linux container build/test SKIPPED on macOS (Apple Silicon) — no ARM64 container available.
+[timestamp] Source code generation is supported; build/test requires a Linux host with podman/docker.
+```
 
 ### Parsing Example
 
@@ -128,6 +166,49 @@ if [[ ! "fedora debian ubuntu rhel arch" =~ $os_id ]]; then
     os_id=$(grep '^ID_LIKE=' /etc/os-release | cut -d= -f2 | awk '{print $1}')
 fi
 ```
+
+---
+
+## 4A. Arch Linux Container Tag Conventions
+
+Arch Linux container images use **datestamp-based tags** instead of semver version numbers. This is fundamentally different from point-release distros and must be handled specially in Dockerfiles.
+
+#### Datestamp Tags (`YYYY.MM.DD`)
+The primary pinning strategy for Arch containers:
+- Format: `docker.io/archlinux:<YYYY.MM.DD>` (e.g., `archlinux:2026.08.01`)
+- Mirrors the ISO/snapshot release cadence — represents the synchronized state of all Arch package mirrors on that date
+- **Always pin to a specific datestamp** for reproducible builds — never use `latest`
+- Example Dockerfile `FROM` line:
+  ```dockerfile
+  FROM docker.io/archlinux:2026.08.01
+  ```
+
+#### `latest` Tag Behavior
+- Points dynamically to the most recent container image build pushed by Arch's release pipeline
+- **Changes daily** — pulling `latest` on different days yields different package sets and kernel/userspace versions
+- **Not suitable for reproducible builds** — avoid in Dockerfiles for this project
+- Useful only for interactive development or testing against the absolute latest packages
+
+#### Base vs. Specialized Containers
+- `archlinux:<datestamp>` — Full base image with common tools
+- `archlinux:base:<datestamp>` — Minimal base (no extra packages)
+- `archlinux:devel:<datestamp>` — Development-focused with compilers and build tools pre-installed
+- For this project, use the full base image and install only required packages via `pacman`
+
+#### Pinning Recommendation for This Project
+| Scenario | Recommended Tag | Reason |
+|----------|----------------|--------|
+| Reproducible builds (Dockerfile) | `archlinux:YYYY.MM.DD` (specific date) | Deterministic package state |
+| CI/CD pipeline | `archlinux:YYYY.MM.DD` (pinned to a known-good date) | Reproducible test results |
+| Interactive development | `archlinux:latest` | Always up-to-date |
+
+#### Comparison with Point-Release Distro Container Tags
+| Distro | Tag Format | Example | Pinning Strategy |
+|--------|-----------|---------|------------------|
+| Ubuntu | `ubuntu:<MAJOR.MINOR>` | `ubuntu:24.04` | Stable semver |
+| Fedora | `fedora:<MAJOR>` | `fedora:40` | Stable semver |
+| Debian | `debian:<STABLE>` | `debian:13` | Stable semver |
+| Arch Linux | `archlinux:<YYYY.MM.DD>` | `archlinux:2026.08.01` | Datestamp |
 
 ---
 
@@ -256,9 +337,45 @@ date '+%Y-%m-%d %H:%M:%S %z'
 
 ---
 
+## 7A. Script Language Selection — When to Use tcsh vs Python
+
+The project generates utility scripts in four shell variants (Bash, Zsh, Tcsh, Bourne) for **test data generation** and similar utilities that must run on all platforms including FreeBSD. However, not every utility needs a tcsh variant.
+
+### Rule of Thumb
+
+| Script Purpose | Needs tcsh? | Reason |
+|----------------|-------------|--------|
+| **Test data generation** (`generate_test_data.*`) | ✅ Yes | Runs on FreeBSD (no containers), needs all 4 shell variants |
+| **Test data validation** (`verify_test_data.*`) | ✅ Yes | Runs on FreeBSD, needs all 4 shell variants |
+| **JUnit report generation** (`generate_junit_report.*`) | ✅ Yes | Runs on FreeBSD, needs all 4 shell variants |
+| **Binary symmetry verification** (`verify_binary_symmetry.*`) | ✅ Yes | Runs on FreeBSD, needs all 4 shell variants |
+| **Prompt linting** (`lint_prompts.*`) | ✅ Yes | Runs on FreeBSD, needs all 4 shell variants |
+| **Container management** (`archlinux_container.*`) | ❌ No | FreeBSD has no container support — only bash, zsh, python needed |
+| **GIF to MP4 conversion** (`gif_to_mp4.sh`) | ❌ No | macOS/Linux only, no FreeBSD usage |
+
+### Why This Matters
+
+- **FreeBSD** is an excluded platform (zero-length spec files, no active development) but the test infrastructure scripts must still be runnable on it for completeness.
+- **Arch Linux** uses containers (Docker/Podman) — container management scripts only need bash, zsh, and python. No tcsh variant is needed because FreeBSD (the only platform that would use tcsh) has no container support.
+- **Python** is always allowed as a helper module (importable, not just CLI) regardless of platform. It's used for JSON parsing in Docker Hub API calls where shell-native JSON support doesn't exist.
+
+### Script File Naming Convention
+
+| Variant | Extension | Shebang |
+|---------|-----------|--------|
+| Bash | `.sh` | `#!/usr/bin/env bash` |
+| Zsh | `.zsh` | `#!/usr/bin/env zsh` |
+| Tcsh | `.tcsh` | `#!/usr/bin/env tcsh` |
+| Bourne | `_bin_sh.sh` | `#!/usr/bin/env sh` |
+
+When a script does **not** need tcsh, omit the `.tcsh` file. The python version is always included as a module helper.
+
+---
+
 ## 8. Cross-Reference Summary
 
-> **Host OS detection, macOS versioning, Linux /etc/os-release** → This file (`prompts/common/session_hints.md`)
+> **Host OS detection, macOS versioning, Linux /etc/os-release (incl. Arch rolling release)** → This file (`prompts/common/session_hints.md`)
+> **Arch Linux container tag conventions (datestamp-based)** → Section 4A of this file
 > **C++ toolchain, binary formats, linking flags** → `prompts/common/cpp/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`
 > **Build flags, Makefile targets, artifact naming** → `prompts/common/cpp/build.md`

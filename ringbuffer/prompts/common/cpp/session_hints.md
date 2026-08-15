@@ -31,6 +31,20 @@ This file provides a quick-reference card with cross-links to detailed specs.
 | `ld` / `lld` | Linker version | `ld -v` |
 | `size` | Binary size analysis | `size lib.a lib.so` |
 
+### Linux Package Managers (Per Distro)
+| Distro | Package Manager | Install Command |
+|--------|----------------|-----------------|
+| Fedora | `dnf` | `sudo dnf install -y gcc-c++ clang make binutils` |
+| Debian/Ubuntu | `apt-get` | `sudo apt-get install -y g++ clang make binutils` |
+| Arch Linux | `pacman` | `sudo pacman -S --needed base-devel gcc clang binutils` |
+
+### Arch Linux Notes (C++ Toolchain)
+- **Package names** are the same as other distros (`gcc`, `clang`), but installed via `pacman`
+- **`base-devel` group** is the Arch equivalent of Fedora's `gcc-c++` / Debian's `build-essential` — includes `make`, `binutils`, `gcc`, and related tools
+- **Rolling release advantage**: Arch typically ships the latest compiler versions, so primary version detection (C++20) usually succeeds without fallback
+- **No `VERSION_ID`**: When detecting Arch in scripts, use `ID=arch` from `/etc/os-release`; do not parse `VERSION_ID`
+- **Container images**: Use datestamp tags (e.g., `archlinux:2026.08.01`) — see Section 4A of `prompts/common/session_hints.md`
+
 ### macOS Tools
 | Tool | Purpose | Example |
 |------|---------|---------|
