@@ -37,6 +37,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 
 ## Key Specifications
 - **Multi-OS Support**: Seamless deployment across various Linux distributions and macOS.
+- **Multi-Language Support**: C++, Java, Python implementations with shared functional specifications.
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
 
@@ -209,6 +210,8 @@ Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory conta
 
 **reference_linux**: A canonical reference platform in `prompts/reference_linux/cpp/` used for cross-platform verification. Source code is not generated here; it serves as the authoritative spec against which other platforms are compared.
 
+**Platform-Insensitive Languages**: Java and Python implementations live in `src/common/` (not per-OS), as they are platform-independent. Each language has its own build system: Maven for Java, pure Python with `py_compile` for verification.
+
 ## Developer & Maintainer Guide
 
 ### Part A: The Golden Rules (Coding Standards)
@@ -224,7 +227,7 @@ This project is managed via a set of prompts that define the desired state of th
 
 #### Prompt-Driven Incremental Regeneration
 The codebase supports incremental synchronization using a state-tracking system (`.gen_state.json`). This allows the AI to update only the files affected by a specification change.
-- **State Tracking**: Uses SHA-256 hashes of prompts and file fingerprints to detect changes.
+- **State Tracking**: Uses SHA-256 hashes of prompts and file fingerprints to detect changes. Each platform has its own `.gen_state.json` at `src/<os>/cpp/.gen_state.json`.
 - **3-Phase Sync**: Execution follows a strict pipeline: **Functional $\rightarrow$ Build $\rightarrow$ Regression**.
 - **Delta Updates**: "Update" prompts are used to apply targeted diffs, preserving manual overrides and reducing churn.
 
@@ -243,7 +246,7 @@ Use these to synchronize the codebase with updated specifications.
 - *Example:* `"Use prompts/ubuntu/cpp/update_functional.md to synchronize the ubuntu implementation with the updated common specifications"`
 
 **Verification & Testing:**
-- *Build Verify:* `prompts/common/verify_build.md` — Use this for a first-pass sanity check on library compilation.
+- *Build Verify:* `prompts/common/verify_build.md` — Use this for a first-pass sanity check on library compilation. Supports C/C++, Java, and Python verification.
   - *Example:* `"Use prompts/common/verify_build.md to run build_verify for debian and fedora"`
 - *Regression Test:* `prompts/common/regression_test.md` — Use this for final validation of the library and test suite.
   - *Example:* `"Use prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
@@ -324,9 +327,6 @@ The test suite validates functional correctness, error handling, transform opera
 
 **Test program CLI**: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] [-r] [-w <ip:port>] <input_file>`
 
-#### State Tracking
-The state file `.gen_state.json` at the project root tracks SHA-256 hashes of all prompt files and source file fingerprints, enabling delta detection for incremental regeneration.
-
 #### Part D: Documentation & Media Assets
 
 **README Generation (`prompts/common/generate_toplevel_readme.md`)**
@@ -357,6 +357,14 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 | Debian | C++ | v1.0.0 |
 | Fedora | C++ | v1.0.0 |
 | Ubuntu | C++ | v1.0.0 |
+| macOS | Java | v1.0.0 |
+| Debian | Java | v1.0.0 |
+| Fedora | Java | v1.0.0 |
+| Ubuntu | Java | v1.0.0 |
+| macOS | Python | v1.0.0 |
+| Debian | Python | v1.0.0 |
+| Fedora | Python | v1.0.0 |
+| Ubuntu | Python | v1.0.0 |
 | ArchLinux | C++ | TBS |
 | FreeBSD 14 | C++ | TBS |
 | FreeBSD 15 | C++ | TBS |
@@ -365,21 +373,26 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 
 ## Where We Are At
 
-### Current Status (as of 2026-08-13)
+### Current Status (as of 2026-08-14)
 
 **Implementation:**
 - **C++ implementation complete** for macOS, Debian, Fedora, and Ubuntu — all at v1.0.0
+- **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
+- **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
 - **Binary symmetry verified** across Linux platforms: 21 source files confirmed byte-identical between debian, fedora, and ubuntu via automated `verify_binary_symmetry.sh`
-- **State tracking** operational on all platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection
+- **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection
 - **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
 
 **Verification & Quality Gates:**
 - **Automated binary symmetry check** — `verify_binary_symmetry.sh` compares all 21 source files across Linux platforms; integrated into `verify_build.md` as a mandatory post-build step (step 0.5)
 - **Automated prompt linting** — `lint_prompts.sh` validates directory structure, required files per platform/language, excluded platform cleanliness, primary document naming, and common workflow completeness; integrated into `verify_build.md` as step 0.6
 - **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (ArchLinux, FreeBSD 14/15) contain only zero-length placeholder files
+- **Multi-language verification** — `verify_build.md` dispatches to language-specific checks: Java (`mvn compile`, `mvn package`, JAR artifact, classload test), Python (syntax check, import verification, class instantiation), C/C++ (binary format, symbol visibility)
+- **Java regression testing** — Full T001–T007 test matrix executed across all 4 OSes (macOS native + 3 Linux containers); 18 assertions, 0 failures; Surefire-compatible test harness with `testAll()` method
+- **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
 
 **Development Methodology:**
-- Prompt-driven development with 253 prompt files across 8 OSes × 6 languages
+- Prompt-driven development with 27 prompt files across 8 OSes × 6 languages (common specs)
 - Session isolation by design — each prompt file is self-contained for LLM-agent reliability
 - Incremental regeneration via `.gen_state.json` delta detection (3-phase sync: Functional → Build → Regression)
 - Two verification scripts integrated into the build workflow as mandatory gates
@@ -390,17 +403,21 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 |------------|--------|---------|
 | C++ library (macOS) | ✅ Complete | Universal binaries (arm64 + x86_64), static + shared libs |
 | C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu |
+| Java library (all OS) | ✅ Complete | Maven build, JAR artifact, classload test verified |
+| Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
 | Build system | ✅ Complete | Makefiles with container overrides, versioned artifacts |
 | Test infrastructure | ✅ Complete | T001–T007 matrix, JUnit XML output, pattern-driven data |
 | Binary symmetry | ✅ Verified | 21/21 source files identical across Linux platforms |
 | Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
-| State tracking | ✅ Operational | `.gen_state.json` on all 4 active platforms |
+| State tracking | ✅ Operational | `.gen_state.json` on all 4 active C++ platforms |
+| Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
+| Java regression | ✅ Passed | 18 assertions, 0 failures across all 4 OSes (macOS native + debian/fedora/ubuntu containers) |
 
 ## Where We're Going
 
 ### Near-Term (Next Iterations)
 
-- **Additional languages** — C, Go, Java, Python, Rust scaffolding is in place. The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (zero-length placeholders, `.required_directory` markers) is already present.
+- **Additional languages** — C, Go, and Rust scaffolding is in place. The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (zero-length placeholders, `.required_directory` markers) is already present.
 - **Additional patterns** — The test data pattern system supports adding new patterns beyond zigzag (e.g., sequential, random). Each new pattern requires a single spec file in `prompts/common/testing/patterns/` and running `create_scripts.md`.
 - **Enhanced CI/CD** — The automated verification scripts (`verify_binary_symmetry.sh`, `lint_prompts.sh`) are ready for CI integration. They can be added as pre-commit hooks or GitHub Actions to enforce quality gates before any code is committed.
 
