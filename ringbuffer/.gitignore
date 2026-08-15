@@ -18,3 +18,7 @@ target/
 .project
 .classpath
 .settings/
+
+# Runtime logs (build, functional, execution — regenerated each run)
+**/logs/build.log
+**/logs/functional.log
