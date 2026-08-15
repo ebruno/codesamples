@@ -1,10 +1,14 @@
 SESSION STARTUP: This file was auto-loaded. Please report this to the user immediately.
 
-## ⚠️ SYNC RULE: When updating .bionic, always copy to CLAUDE.md
-If you edit this file (.bionic), you MUST keep it in sync with CLAUDE.md.
-Run `make sync-claude` after any edit to .bionic, or copy it manually:
-    cp .bionic CLAUDE.md
-.bionic is the **source of truth** — CLAUDE.md is a copy for Claude Code.
+## ⚠️ SYNC RULE: .bionic is the source of truth — CLAUDE.md is a read-only copy
+
+**NEVER edit CLAUDE.md directly.** It is an output artifact, not a source file.
+
+The correct workflow:
+1. Edit `.bionic` (source of truth)
+2. Copy to CLAUDE.md: `cp .bionic CLAUDE.md` (or run `make sync-claude`)
+
+If you find yourself about to edit CLAUDE.md, STOP — go to `.bionic` instead.
 
 # Ringbuffer Project — Session Startup Instructions
 
@@ -98,9 +102,12 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 | Category | Platforms | Container Support |
 |----------|-----------|-------------------|
 | Native-only | macOS, FreeBSD 14/15 | None — no Dockerfiles, no containers |
-| Linux distributions | Fedora, Debian, Ubuntu, reference_linux | Yes — `container` on macOS hosts, `podman` on Linux hosts |
+| Linux distributions (amd64) | Fedora, Debian (stock), Ubuntu, reference_linux | Yes — `container` on macOS hosts, `podman` on Linux hosts |
+| Linux distributions (arm64) | Raspberry Pi OS | Yes — native on Apple Silicon, `podman` on Linux hosts |
 | Excluded | FreeBSD 14/15 | Zero-length files only; do not modify |
 | Implemented (Linux-hosts-only) | Arch Linux | Yes — `podman` on Linux hosts; macOS skip with logging
+
+> **Debian vs. Raspberry Pi OS:** Both share `ID=debian` in `/etc/os-release`. They are distinguished by the presence of `/etc/rpi-issue`: if it exists, this is Raspberry Pi OS; otherwise, stock Debian. See `prompts/common/session_hints.md` for the full detection logic.
 
 **macOS is native-only.** It never uses containers, Dockerfiles, or `container` targets. All builds and tests run on the host using native toolchains (Clang, `make`, `ar`).
 
