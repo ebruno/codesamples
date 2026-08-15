@@ -3,3 +3,4 @@
 [2026-08-14 16:53:30 -0700] Java regression tests complete — macos:native PASS, debian:container PASS, fedora:container PASS, ubuntu:container PASS
 [2026-08-14 16:53:30 -0700] Regression report generated at reports/regression_report.md
 [2026-08-14 16:53:30 -0700] State file updated at .gen_state.json
+[2026-08-15 14:18:17 -0700] Java regression on raspios: ROUTE=container STATUS=PASS — mvn test: BUILD SUCCESS (18/18 tests), mvn package -DskipTests: BUILD SUCCESS, JAR: ringbuffer-1.0.0-1.jar (22685 bytes), surefire reports: present, 0 failures

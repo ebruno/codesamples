@@ -1,0 +1,19 @@
+FROM docker.io/vascoguita/raspios:arm64-bookworm
+
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Create man pages directory (raspios base image is missing it, causing dpkg failures)
+RUN mkdir -p /usr/share/man/man1
+
+# Install Java 17 and Maven (Bookworm default — JDK 25 not available in Bookworm repos)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openjdk-17-jdk-headless \
+        maven && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Default command
+CMD ["/bin/bash"]
