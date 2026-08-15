@@ -109,10 +109,13 @@ The `/etc/os-release` file is a standard configuration file in Linux that stores
 | ID | NAME | Typical VERSION_ID | ID_LIKE |
 |----|------|-------------------|---------|
 | `fedora` | Fedora Linux | `40`, `41`, `42`, ... | — |
-| `debian` | Debian GNU/Linux | `11`, `12`, `13`, ... | — |
+| `debian` (stock) | Debian GNU/Linux | `11`, `12`, `13`, ... | — |
+| `debian` (Raspberry Pi OS) | Debian GNU/Linux | `12` (bookworm), `11` (bullseye) | — |
 | `ubuntu` | Ubuntu | `20.04`, `22.04`, `24.04` | debian |
 | `rhel` | Red Hat Enterprise Linux | `8`, `9` | fedora |
 | `arch` | Arch Linux | rolling (see subsection below) | arch |
+
+> **Note:** Both stock Debian and Raspberry Pi OS share `ID=debian` in `/etc/os-release`. They are distinguished by the presence of `/etc/rpi-issue` (see `debian` and `raspios` subsections below).
 
 ### `arch` — Arch Linux (Rolling Release)
 
@@ -152,6 +155,91 @@ When running Arch Linux workflows on macOS, the scripts MUST log:
 [timestamp] Source code generation is supported; build/test requires a Linux host with podman/docker.
 ```
 
+### `debian` — Stock Debian (Reference Platform)
+
+Stock Debian is the reference Linux platform for this project. It uses standard Debian package repositories and official Docker Hub images.
+
+#### `/etc/os-release` specifics
+- `ID=debian` (primary identifier)
+- `VERSION_ID="13"` for Debian 13 (Bookworm), `"12"` for Bookworm, etc.
+- `VERSION_CODENAME=bookworm` (or trixie, bullseye)
+- `NAME="Debian GNU/Linux"`
+
+#### Key characteristics
+- **Architecture**: amd64 (primary), arm64, and other architectures available
+- **Package repos**: `deb.debian.org` only (no Raspberry Pi Foundation mirrors)
+- **Container image**: Official Docker Hub — `debian:<version>` (e.g., `debian:13`)
+- **Container pinning**: Pin to version number (e.g., `debian:13`)
+- **No `/etc/rpi-issue`**: This file does NOT exist on stock Debian
+
+#### Detection strategy for Stock Debian
+1. Check `ID=debian` in `/etc/os-release`
+2. Verify absence of `/etc/rpi-issue` — if it does NOT exist, this is stock Debian
+3. Read `VERSION_ID=` for the Debian version number (12, 13, etc.)
+4. For container images, use the official `debian:<version>` tag
+
+---
+
+### `raspios` — Raspberry Pi OS (Debian-based)
+
+Raspberry Pi OS is built directly on top of upstream Debian arm64 packages. It shares `ID=debian` in `/etc/os-release`, so a **two-step detection** is required to distinguish it from stock Debian.
+
+#### `/etc/os-release` specifics
+- `ID=debian` (same as stock Debian — NOT sufficient alone)
+- `VERSION_ID="12"` (or whatever Bookworm/Bullseye version)
+- `VERSION_CODENAME=bookworm` (or bullseye, trixie)
+- `NAME="Debian GNU/Linux"`
+
+#### `/etc/rpi-issue` — The Differentiator
+Raspberry Pi OS includes a file at `/etc/rpi-issue` that stock Debian does **not** have:
+```
+Raspberry Pi reference 2024-11-19
+Generated using pi-gen, https://github.com/RPi-Distro/pi-gen, 891df1e21ed2b6099a2e6a13e26c91dea44b34d4, stage4
+```
+
+#### Detection strategy for Raspberry Pi OS
+1. Check `ID=debian` in `/etc/os-release`
+2. Verify presence of `/etc/rpi-issue` — if it exists, this is Raspberry Pi OS
+3. Read `VERSION_CODENAME=` for the Debian codename (bookworm, bullseye, trixie)
+4. For container images, use datestamp-tagged arm64 variants (see Section 4B)
+
+#### Detection script (unified — handles both stock Debian and Raspios)
+```bash
+os_id=$(grep '^ID=' /etc/os-release | cut -d= -f2)
+
+if [ "$os_id" = "debian" ]; then
+    if [ -f /etc/rpi-issue ]; then
+        host_os="raspios"
+    else
+        host_os="debian"
+    fi
+fi
+```
+
+#### Key differences from stock Debian
+| Aspect | Stock Debian | Raspberry Pi OS |
+|--------|-------------|-----------------|
+| `ID` in os-release | `debian` | `debian` (same) |
+| `/etc/rpi-issue` | Does not exist | Exists — confirms Pi OS |
+| Architecture | amd64, arm64, etc. | **arm64 only** (for this project) |
+| Package repos | `deb.debian.org` | `archive.raspberrypi.com/debian` + `deb.debian.org` |
+| Container pinning | Pin to version (e.g., `debian:13`) | Pin to datestamp (e.g., `arm64-bookworm-YYYYMMDD`) |
+| macOS compatibility | N/A (not in project) | **Works natively on Apple Silicon** — no skip needed |
+
+#### macOS Compatibility (Apple Silicon)
+Raspberry Pi OS containers are **arm64-only**, which is the native architecture of Apple Silicon Macs. This means:
+
+- **No skip logic needed** — containers run natively on Apple Silicon
+- No `--platform linux/arm64` flag required when building on arm64 hosts
+- This is the **first Linux distro in this project that runs natively on Apple Silicon**
+- On x86_64 hosts (Intel Macs, x86 Linux), use `--platform linux/arm64` with podman
+
+#### Comparison with other distros on macOS
+| Distro | Apple Silicon Support | Skip Needed? |
+|--------|----------------------|-------------|
+| Arch Linux | amd64-only — no ARM64 image | **Yes** |
+| Raspberry Pi OS | arm64 native — runs directly | **No** |
+
 ### Parsing Example
 
 ```bash
@@ -164,6 +252,11 @@ os_version=$(grep '^VERSION_ID=' /etc/os-release | cut -d= -f2)
 # Fallback to ID_LIKE if ID not recognized
 if [[ ! "fedora debian ubuntu rhel arch" =~ $os_id ]]; then
     os_id=$(grep '^ID_LIKE=' /etc/os-release | cut -d= -f2 | awk '{print $1}')
+fi
+
+# Distinguish stock Debian from Raspberry Pi OS (both have ID=debian)
+if [ "$os_id" = "debian" ] && [ -f /etc/rpi-issue ]; then
+    os_id="raspios"
 fi
 ```
 
@@ -209,6 +302,73 @@ The primary pinning strategy for Arch containers:
 | Fedora | `fedora:<MAJOR>` | `fedora:40` | Stable semver |
 | Debian | `debian:<STABLE>` | `debian:13` | Stable semver |
 | Arch Linux | `archlinux:<YYYY.MM.DD>` | `archlinux:2026.08.01` | Datestamp |
+
+---
+
+## 4B. Raspberry Pi OS Container Tag Conventions
+
+Raspberry Pi OS uses **datestamp-based tags** for reproducible builds, similar to Arch Linux but with a different tag format.
+
+#### Tag Format (`arm64-<codename>-YYYYMMDD`)
+The primary pinning strategy for Raspios containers:
+- Format: `vascoguita/raspios:arm64-<codename>-YYYYMMDD` (e.g., `vascoguita/raspios:arm64-bookworm-20251204`)
+- The `arm64-` prefix ensures the correct architecture is pulled
+- The codename (`bookworm`, `bullseye`, `trixie`) matches the Debian release
+- The datestamp (`YYYYMMDD`) represents a specific Pi OS build date
+- **Always pin to a specific datestamp** for reproducible builds — never use `latest`
+- Example Dockerfile `FROM` line:
+  ```dockerfile
+  FROM docker.io/vascoguita/raspios:arm64-bookworm-20251204
+  ```
+
+#### Fallback Tag (Codename-only)
+If the datestamp tag is not available, fall back to the codename-based arm64 tag:
+- Format: `vascoguita/raspios:arm64-<codename>` (e.g., `vascoguita/raspios:arm64-bookworm`)
+- This tag is maintained but less precise than datestamp tags
+- Example Dockerfile `FROM` line:
+  ```dockerfile
+  FROM docker.io/vascoguita/raspios:arm64-bookworm
+  ```
+
+#### `latest` Tag Behavior
+- Points dynamically to the most recent container image build
+- **Changes periodically** — pulling `latest` on different days may yield different package sets
+- **Not suitable for reproducible builds** — avoid in Dockerfiles for this project
+- Useful only for interactive development or testing against the absolute latest packages
+
+#### Pinning Recommendation for This Project
+| Scenario | Recommended Tag | Reason |
+|----------|----------------|--------|
+| Reproducible builds (Dockerfile) | `arm64-<codename>-YYYYMMDD` (specific date, 3 months prior) | Deterministic package state |
+| CI/CD pipeline | `arm64-<codename>-YYYYMMDD` (pinned to a known-good date) | Reproducible test results |
+| Interactive development | `arm64-<codename>` (codename-only) | Always up-to-date for the codeline |
+
+#### Image Tag Resolution (Makefile / Build Script)
+The `container` target MUST resolve the correct tag at runtime:
+
+```bash
+# Read codename from /etc/os-release
+VERSION_CODENAME=$(grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2)
+
+# Calculate 3 months ago (same as Arch Linux pattern)
+THREE_MONTHS_AGO=$(date -d "3 months ago" +%Y%m%d 2>/dev/null || \
+                   date -v-3m +%Y%m%d)
+
+# Try datestamp first (reproducible), fall back to codename
+CONTAINER_IMAGE="vascoguita/raspios:arm64-${VERSION_CODENAME}-${THREE_MONTHS_AGO}"
+if ! podman pull --quiet "$CONTAINER_IMAGE" 2>/dev/null; then
+    CONTAINER_IMAGE="vascoguita/raspios:arm64-${VERSION_CODENAME}"
+fi
+```
+
+#### Comparison with Point-Release Distro Container Tags
+| Distro | Tag Format | Example | Pinning Strategy |
+|--------|-----------|---------|------------------|
+| Ubuntu | `ubuntu:<MAJOR.MINOR>` | `ubuntu:24.04` | Stable semver |
+| Fedora | `fedora:<MAJOR>` | `fedora:40` | Stable semver |
+| Debian | `debian:<STABLE>` | `debian:13` | Stable semver |
+| Arch Linux | `archlinux:<YYYY.MM.DD>` | `archlinux:2026.08.01` | Datestamp |
+| Raspberry Pi OS | `raspios:arm64-<codename>-YYYYMMDD` | `raspios:arm64-bookworm-20251204` | Datestamp |
 
 ---
 

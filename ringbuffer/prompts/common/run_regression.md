@@ -14,7 +14,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
    - **Host-OS Auto-Detection**: At the start of every run, detect the host OS:
      - If `uname -s` returns `Darwin`, set `host_os = macOS`.
      - If it returns `Linux`, read the distro ID from `/etc/os-release`: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
-     - Supported Linux distros: `ubuntu`, `debian`, `fedora`.
+     - Supported Linux distros: `ubuntu`, `debian`, `fedora`, `raspios`.
    - **Targeting**:
      - **Specified Platform + Language**: If the user specifies a language and platform (e.g., "run regression for java on fedora"), run tests only for that language on that OS. Run natively if host matches target; use container if host doesn't match.
      - **Specified Platform Only**: If the user specifies a platform but no language (e.g., "run regression for debian"), run tests for all implemented languages on that OS. Run natively if host matches target; use container if host doesn't match.
@@ -24,16 +24,19 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      | Host OS | Target OS | Action |
      |---------|-----------|--------|
      | macOS | macos | Run natively |
-     | macOS | debian/fedora/ubuntu | Use `container` command to run in target OS container |
+     | macOS | debian/fedora/ubuntu/raspios | Use `container` command to run in target OS container |
      | Fedora | fedora | Run natively |
-     | Fedora | debian/ubuntu | Use `podman` to run in target OS container |
+     | Fedora | debian/ubuntu/raspios | Use `podman` to run in target OS container |
      | Fedora | macos | **Skip** — macOS cannot be containerized |
      | Debian | debian | Run natively |
-     | Debian | fedora/ubuntu | Use `podman` to run in target OS container |
+     | Debian | fedora/ubuntu/raspios | Use `podman` to run in target OS container |
      | Debian | macos | **Skip** — macOS cannot be containerized |
      | Ubuntu | ubuntu | Run natively |
-     | Ubuntu | debian/fedora | Use `podman` to run in target OS container |
+     | Ubuntu | debian/fedora/raspios | Use `podman` to run in target OS container |
      | Ubuntu | macos | **Skip** — macOS cannot be containerized |
+     | raspios | raspios | Run natively (arm64 native on Apple Silicon) |
+     | raspios | debian/fedora/ubuntu | Use `podman` to run in target OS container |
+     | raspios | macos | **Skip** — macOS cannot be containerized |
    - **Mode Override**: If the request includes `use container`, force container execution for all non-macOS targets, overriding native routing.
    - **Container Runtime Selection**:
      - macOS host → use `container` command (Apple Container)
@@ -299,7 +302,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 - Java is a **common language** — source lives in `src/common/java/` but tests must run on each supported OS.
 - **Determine target OSes to test**:
   - If a specific OS was requested → only that OS.
-  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu) using the routing table.
+  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
 - For each target OS:
   1. **Routing Decision**: Apply the routing table from Step 1.
      - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
@@ -313,17 +316,28 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - **Container**: Run in a container matching the target OS:
        - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/java/containers/<os>/Dockerfile | sed 's/^FROM //')`
        - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+       - **Per-platform pom.xml override**: If a platform-specific `pom.xml` exists at `src/<os>/java/pom.xml`, mount it to override the common pom.xml. This is required when the platform's JDK version differs from the common spec (e.g., raspios has JDK 17, but common pom.xml uses `<release>25</release>`).
        ```bash
        # macOS host targeting Linux distro:
-       container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test"
+       if [ -f src/<os>/java/pom.xml ]; then
+           container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+       else
+           container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+       fi
        # Linux host targeting another Linux distro:
-       podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test"
+       if [ -f src/<os>/java/pom.xml ]; then
+           podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+       else
+           podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+       fi
        ```
   4. **Verification Steps**:
      - Navigate to `src/common/java/`.
-     - Run `mvn test` with timeout `${TEST_EXECUTION_TIMEOUT_MS}` ms. Verify exit code 0.
+     - Run `mvn test package -DskipTests` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
+     - Clean up intermediate build artifacts: `rm -rf target/classes target/test-classes`.
      - Verify test reports exist in `target/surefire-reports/`.
      - Verify no test failures in the output.
+     - Verify JAR artifact exists in `target/`: `ls target/ringbuffer-*.jar`. If no JAR found, STOP and report build failure.
   5. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
   **Java State Tracking** (after all target OSes complete):
@@ -411,7 +425,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 - Python is a **common language** — source lives in `src/common/python/` but tests must run on each supported OS.
 - **Determine target OSes to test**:
   - If a specific OS was requested → only that OS.
-  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu) using the routing table.
+  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
 - For each target OS:
   1. **Routing Decision**: Apply the routing table from Step 1.
      - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
