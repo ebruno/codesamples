@@ -1,0 +1,544 @@
+SESSION STARTUP: This file was auto-loaded. Please report this to the user immediately.
+
+## ⚠️ SYNC RULE: When updating .bionic, always copy to CLAUDE.md
+If you edit this file (.bionic), you MUST keep it in sync with CLAUDE.md.
+Run `make sync-claude` after any edit to .bionic, or copy it manually:
+    cp .bionic CLAUDE.md
+.bionic is the **source of truth** — CLAUDE.md is a copy for Claude Code.
+
+# Ringbuffer Project — Session Startup Instructions
+
+## 1. Project Structure Quick Reference
+
+```
+ringbuffer/
+├── prompts/                          # All workflow and spec documents (read-only reference)
+│   ├── common/                       # Shared workflows (language-agnostic)
+│   │   ├── implement_functional.md   # Functional code generation workflow
+│   │   ├── implement_build.md        # Build environment creation workflow
+│   │   ├── implement_regression.md   # Test infrastructure setup workflow
+│   │   ├── run_regression.md         # Test execution workflow
+│   │   └── verify_build.md           # Build verification workflow
+│   ├── common/cpp/                   # C++-specific specs (shared)
+│   │   ├── build.md                  # Build specification
+│   │   ├── functional.md             # Functional implementation spec
+│   │   └── testing.md                # Testing specification
+│   ├── common/cpp/utils/bin/         # Shared utility scripts
+│   │   ├── generate_test_data.*      # Test data generation (4 shell variants)
+│   │   ├── generate_junit_report.*   # JUnit XML report generation
+│   │   ├── verify_test_data.*        # Test data validation
+│   │   ├── verify_binary_symmetry.*  # Cross-platform source comparison
+│   │   └── lint_prompts.*            # Prompt directory validation
+│   ├── <os>/cpp/                     # Per-platform documents (fedora, debian, ubuntu, macos)
+│   │   ├── create_functional.md      # PRIMARY document for functional impl.
+│   │   ├── create_build.md           # PRIMARY document for build creation
+│   │   ├── create_regression.md      # PRIMARY document for test infra setup
+│   │   ├── functional.md             # Platform-specific functional requirements
+│   │   ├── build.md                  # Platform-specific build requirements
+│   │   └── testing.md                # Platform-specific test requirements
+│   └── reference_linux/cpp/          # Canonical reference for cross-platform verification
+├── src/                              # Generated source code per platform
+│   └── <os>/cpp/                     # One directory per target OS
+│       ├── *.hpp / *.cpp             # Source files
+│       ├── Makefile                  # Build configuration
+│       ├── version.mk                # Library version (NOT OS version)
+│       ├── containers/               # Dockerfiles (Linux only; macOS has none)
+│       ├── tests/                    # Test infrastructure
+│       ├── logs/                     # Build and execution logs (build.log)
+│       ├── reports/                  # Build and verification reports
+│       ├── lib/                      # Built libraries (.a, .so/.dylib)
+│       └── specs/                    # Copied spec files for reference
+├── doc/                            # Documentation and generated assets
+│   └── README.pdf                  # Rendered PDF of README.md
+├── animated_graphics/              # Animated graphics artifacts
+│   ├── bin/                        # Scripts for generating animated graphics
+│   │   └── generate_pipeline_animation.py
+│   └── pipeline_animation.gif
+├── utils/bin/                      # Utility scripts (gif_to_mp4.sh, etc.)
+├── images/                         # Static image assets (gif, mp4, png)
+└── README.md                         # Project-level documentation
+```
+
+**Key directories:**
+- `prompts/` — **Read-only reference.** Never modify generated files here.
+- `src/<os>/cpp/` — **Write target.** All generated code, Makefiles, and artifacts go here.
+- `src/<os>/cpp/tests/` — **Managed exclusively by testing workflows.** Build-only prompts must treat this as read-only.
+- `animated_graphics/` — **Animated graphics.** Artifacts (GIFs) go here; scripts in `animated_graphics/bin/`.
+- `utils/bin/` — **Utility scripts.** Store general-purpose utility scripts here (e.g., gif_to_mp4.sh).
+- `images/` — **Image assets.** Store gif, mp4, png files here.
+
+## 2. Workflow File Naming Convention
+
+| Prefix | Purpose | Example |
+|--------|---------|---------|
+| `implement_*` | Creates infrastructure from scratch | `implement_build.md`, `implement_functional.md` |
+| `run_*` | Executes on already-set-up infrastructure | `run_regression.md` |
+| `verify_*` | Validates existing artifacts | `verify_build.md` |
+
+**Primary documents** (per-OS) are named `create_<phase>.md`:
+- `create_functional.md` — PRIMARY for functional implementation
+- `create_build.md` — PRIMARY for build environment creation
+- `create_regression.md` — PRIMARY for test infrastructure setup
+
+## 3. Prompt Execution Pattern
+
+Every workflow follows this pattern:
+1. **Common workflow** provides structure, image/version resolution, and routing decisions
+2. **Platform-specific primary document** (`create_*.md`) is the authoritative execution guide
+3. **Common spec** (`common/cpp/*.md`) provides technical requirements
+4. **Platform spec** (`<os>/cpp/*.md`) provides platform-specific overrides
+
+When a common workflow says "execute `create_*.md` as the PRIMARY document," it means:
+- Read it for directives and immediate requirements
+- Follow its steps as the main execution path
+- Use the common workflow for infrastructure (image resolution, routing) only
+
+## 4. Platform Classification
+
+| Category | Platforms | Container Support |
+|----------|-----------|-------------------|
+| Native-only | macOS, FreeBSD 14/15 | None — no Dockerfiles, no containers |
+| Linux distributions | Fedora, Debian, Ubuntu, reference_linux | Yes — `container` on macOS hosts, `podman` on Linux hosts |
+| Excluded | FreeBSD 14/15 | Zero-length files only; do not modify |
+| Implemented (Linux-hosts-only) | Arch Linux | Yes — `podman` on Linux hosts; macOS skip with logging
+
+**macOS is native-only.** It never uses containers, Dockerfiles, or `container` targets. All builds and tests run on the host using native toolchains (Clang, `make`, `ar`).
+
+## 5. Language Standards and Classification
+
+### Language Version Requirements
+| Language | Primary Version | Fallback Versions (priority order) | Minimum Supported |
+|----------|-----------------|-----------------------------------|-------------------|
+| **C** | C23 | C17, C11 | ✅ Common spec created |
+| **C++** | C++20 | C++17 | *(already in place)* |
+| **Java** | Java SE 25 (JDK 25) | SE 24, 23, 22, 21, 20, 19, 18, 17 | Java SE 17 (LTS) |
+| **Go** | Go 1.24 | Go 1.23, 1.22 | Go 1.22 |
+| **Python** | Python 3.14 | 3.13, 3.12, 3.11, 3.10 | ✅ Common spec created |
+| **Rust** | 1.84.0 | 1.56.0 (fallback) | ✅ Common spec created |
+
+### Language Classification (Platform Sensitivity)
+| Category | Languages | Prompt Structure | Rationale |
+|----------|-----------|-----------------|-----------|
+| **Platform-sensitive** | `c`, `cpp` | Common spec + per-OS overrides. Source code differs across platforms (threading, I/O, build flags). | Requires platform-specific concurrency primitives (`pthread` on both but different threading library availability), I/O multiplexing (`epoll` vs `kqueue`), and build flags (shared lib naming, linker options, universal binary on macOS). |
+| **Platform-insensitive** | `python`, `java`, `go`, `rust` | Single common spec. Per-OS directories contain zero-length or minimal override files only. Source code is identical everywhere. | Standard library abstracts platform differences; build config (`Cargo.toml`, `pom.xml`, `go.mod`) is identical across platforms. Python implementation is **pure Python** (no C-extension wrapping). Rust uses Unix-family abstractions (`std::sync::atomic`, `std::thread`, `libc`) that work identically on macOS and Linux. |
+
+### Language-Specific Build Systems
+| Language | Build System | Artifact Output |
+|----------|-------------|-----------------|
+| C/C++ | GNU Make (`Makefile`) | `lib/libswtr_ringbuffer-<version>.{a|so|dylib}` |
+| Java | Apache Maven (`pom.xml`) | `target/ringbuffer-<version>.jar` |
+| Go | Go Modules (`go.mod`) | `lib/libringbuffer.{a|so|dylib}` (via `-buildmode=c-{archive,shared}`) |
+| Python | None (interpreted) | Depends on C library shared object (`libswtr_ringbuffer.so`/`.dylib`) |
+| Rust | Cargo (`Cargo.toml`) | `target/release/libswtr_ringbuffer.{a,so|dylib}` (via `crate-type = ["staticlib", "cdylib"]`) |
+
+### Prompt Syntax for Adding Languages
+The basic prompt syntax is: `add <language> to <os>`
+- **Inferred**: Ringbuffer implementation for the specified language on the target OS
+- **Platform-sensitive routing** (`c`, `cpp`): Reads common spec + per-OS overrides, generates platform-specific source, performs cross-platform symmetry verification between Linux distros
+- **Platform-insensitive routing** (`python`, `java`, `go`, `rust`): Reads single common spec, generates identical source for all platforms, no cross-platform symmetry needed
+- **Supported languages**: `c`, `cpp`, `python`, `java`, `go`, `rust`
+- **Excluded platforms**: FreeBSD 14, FreeBSD 15 — do not add languages to these platforms
+- **Arch Linux**: C++ prompts are implemented (`prompts/archlinux/cpp/`); Linux-hosts-only (macOS skip with logging)
+
+### Shared Behavioral Contract (All Languages)
+Every implementation must satisfy these requirements regardless of language:
+- **Three-stage pipeline**: Independent read, transform, and write stages operating on a shared pool of buffer slots
+- **Status-driven coordination**: Slots transition through states (`readyforread` → `readyfortransform` → `readyforwrite` → `readyforread`)
+- **Cooperative cancellation**: Pipeline stages must support graceful shutdown via a stop signal / equivalent mechanism
+- **Error handling**: An error handler callback that returns non-zero to trigger pipeline shutdown
+- **EOF detection**: When read returns EOF (0 bytes), the pipeline must propagate `LAST_BUFFER_TO_TRANSFORM` → `LAST_BUFFER_TO_WRITE` through all stages, then terminate cleanly
+- **Transform in-place**: The transform function receives the slot's data buffer and modifies it directly; `transformed_data_buffer_size` must be updated with the result size
+- **Test compliance**: All implementations must pass the 7-test matrix (see below)
+
+### Test Matrix (Ground Truth — All Languages)
+| Test | Config | Expected Exit | Output Match? |
+|------|--------|---------------|---------------|
+| T001 | Default (identity transform) | 0 | Yes — output == input |
+| T002 | 1 slot, 1-byte buffer (stress) | 0 | Yes — output == input |
+| T003 | Uppercase transform | 0 | Yes — output matches expected |
+| T004 | Small input, fast EOF | 0 | Yes — output == input |
+| T005 | Fatal error mode | **1** | Not checked (partial output) |
+| T006 | Non-fatal error mode | 0 | Yes — output == input |
+| T007 | XOR transform | 0 | Yes — output matches expected binary data |
+
+## 6. Implementation Plan
+
+### Current State (As of Session)
+| Component | Status |
+|-----------|--------|
+| C++ (macOS) | ✅ Fully implemented, tested, bug-fixed (transform in-place) |
+| C++ (Linux distros) | ✅ Byte-identical across Fedora/Debian/Ubuntu |
+| C++ common specs | ✅ `prompts/common/cpp/functional.md`, `build.md` complete |
+| Java common specs | ✅ `prompts/common/java/functional.md`, `build.md` created |
+| Go common specs | ✅ `prompts/common/go/functional.md`, `build.md` created |
+| C common specs | ✅ `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,088 bytes) created |
+| Python common specs | ✅ `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) created |
+| Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
+| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,050 bytes) created — Phase 2 complete |
+| Per-OS language directories | ✅ Zero-length files exist for all languages/OSes (macos, fedora, debian, ubuntu) |
+| `reference_linux` scaffolding | ⚠️ Only exists for C++ — needs zero-length files for C, Python, Rust |
+
+### Implementation Phases
+
+#### Phase 1: Complete Common Specs ✅ COMPLETE
+All common spec files have been created:
+1. **C**: `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,088 bytes) — C23 primary, C17/C11 fallback. Platform-sensitive (follows C++ pattern with per-OS overrides).
+2. **Python**: `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) — Python 3.14 primary, fallback to 3.10/3.12/3.13. Pure Python (no C-extension wrapping), uses `ctypes` to load shared library.
+3. **Rust**: `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) — Rust 1.84.0 primary, 1.56.0 fallback. Platform-insensitive (Unix family covers macOS + Linux).
+
+Each common spec defines:
+- Language-specific API surface (idiomatic to the language)
+- How the 3-stage pipeline maps to that language's concurrency model
+- The error handling contract (ErrorHandler callback)
+- How the 7-test matrix is satisfied
+- File organization and naming conventions
+- Build system configuration (Makefile, pom.xml, go.mod, Cargo.toml)
+- Version reporting requirements in functional.log and build.log
+
+#### Phase 2: Finalize Dispatcher Prompt ✅ COMPLETE
+Created `prompts/common/add_language.md` (22,050 bytes) — the unified entry point for `add <lang> to <os>`:
+- Validates language (`c`, `cpp`, `python`, `java`, `go`, `rust`) and OS (`macos`, `fedora`, `debian`, `ubuntu`) inputs
+- Classifies language as platform-sensitive (`c`, `cpp`) or platform-insensitive (`python`, `java`, `go`, `rust`)
+- Routes to appropriate workflow: common spec + per-OS overrides vs. single common spec
+- Detects available compiler/language version with fallback support
+- Creates `version.mk` as the **single source of truth** for all languages (Step 3.1.5)
+- Generates source code to `src/<os>/<lang>/` independently (no copying between platforms)
+- Creates test infrastructure: native-language test binary, input data, expected outputs
+- Generates implementation report with version reporting in `functional.log` and `build.log`
+- Includes comprehensive error handling for missing specs, toolchains, and version requirements
+- **Version propagation**: All languages derive version from `version.mk` — each has a specific mechanism:
+  - C/C++: Makefile `include version.mk` (direct)
+  - Java: `version.sh` reads `version.mk`, injects into `pom.xml` as Maven properties
+  - Go: `version.sh` reads `version.mk`, generates `version.go` with typed constants
+  - Python: `version.sh` reads `version.mk`, generates `version.py` with module constants
+  - Rust: `build.rs` reads `version.mk`, generates `src/version.rs` with constants
+
+#### Phase 3: Implement Languages on Platforms
+For each language, implement on all target OSes:
+1. **C**: Implement on macOS (native), Fedora, Debian, Ubuntu
+2. **Java**: Implement on macOS (native), Fedora, Debian, Ubuntu
+3. **Go**: Implement on macOS (native), Fedora, Debian, Ubuntu
+4. **Python**: Implement on macOS (native), Fedora, Debian, Ubuntu
+5. **Rust**: Implement on macOS (native), Fedora, Debian, Ubuntu
+
+Each implementation must:
+- Generate source code from the common spec (independently, no copying)
+- Pass all 7 tests in the test matrix
+- For platform-sensitive languages (C): maintain cross-platform symmetry between Linux distros
+- For platform-insensitive languages: source is identical across all platforms
+- **Always report the actual compiler/language version used** — detect and log the exact version of the language toolchain available on the target platform (e.g., `clang++ 18.1.8`, `javac 25.0.1`, `go version go1.24.0 darwin/arm64`, `rustc 1.84.0`). If the primary version is not available, detect the highest fallback version that IS available and report it. This must be recorded in:
+  - `functional.log` at the start of implementation: `[timestamp] Language=<lang> Version=<detected_version> (primary was <primary_version>)`
+  - `build.log` at the start of build: `[timestamp] Compiler=<compiler_name> Version=<detected_version>`
+  - The implementation report header: `**Language Version:** <actual_detected_version> (primary target was <primary_version>)`
+- If the detected version is below the minimum supported version for that language, STOP and report: `ERROR: Detected <lang> version <detected_version> is below minimum supported <minimum_version>. Cannot proceed.`
+
+##### Phase 3 Sub-Steps (Per Language)
+Each language implementation follows these sub-steps:
+
+**3.A — Create `version.mk` (All Languages)**
+Create `src/<os>/<lang>/version.mk` as the single source of truth:
+```makefile
+MAJOR=1
+MINOR=0
+SUBVERSION=0
+BUILD_ID=1
+```
+All 6 languages derive version from this file — no language defines its own version independently.
+
+**3.B — Create Version Propagation Scripts (Non-C/C++ Languages)**
+Generate scripts that read `version.mk` and produce language-specific version files:
+| Language | Script | Output |
+|----------|--------|--------|
+| Java | `version.sh` | Injects `<major>`, `<minor>`, `<subversion>`, `<build_id>` into `pom.xml` |
+| Go | `version.sh` | Generates `version.go` with typed constants (`Major`, `Minor`, `SubVersion`, `BuildId`, `Version string`) |
+| Python | `version.sh` | Generates `version.py` with module-level constants (`MAJOR`, `MINOR`, `SUBVERSION`, `BUILD_ID`, `VERSION`) |
+| Rust | `build.rs` | Generates `src/version.rs` with typed constants, or sets env vars for compile-time injection |
+
+**3.C — Generate Source Code from Common Spec**
+- Platform-sensitive (C, C++): Read common spec + per-OS overrides → generate platform-specific source
+- Platform-insensitive (Python, Java, Go, Rust): Read single common spec → generate identical source for all platforms
+- **Do NOT copy files between platforms** — each platform generates independently from the shared spec
+
+**3.D — Generate Build Configuration**
+- C/C++: GNU Make (`Makefile`) with `include version.mk`
+- Java: Maven (`pom.xml`) with version properties injected from `version.sh`
+- Go: Go Modules (`go.mod`) + `version.go` generated from `version.sh`
+- Python: No build system; `version.py` generated from `version.sh`; verify shared library loads via `ctypes`
+- Rust: Cargo (`Cargo.toml`) + `build.rs` reads `version.mk`, generates `src/version.rs`
+
+**3.E — Create Test Infrastructure**
+- Generate test binary in native language (not shared C++ harness)
+- Create input data and expected outputs for T001-T007
+- Test binary reads stdin, writes stdout, exits 0 on success / 1 on fatal error
+
+**3.F — Build and Verify Artifacts**
+- Execute language-appropriate build commands
+- Verify expected artifacts exist (libraries, JARs, etc.)
+- Log results to `build.log`
+
+**3.G — Generate Implementation Report**
+- Create `src/<os>/<lang>/reports/implementation_report.md`
+- Include detected version, files generated, build verification results
+
+##### Risk Notes for Phase 3
+- **C per-OS overrides are empty**: All C per-OS `build.md` and `functional.md` files are 0 bytes. Unlike C++ (which has ~6KB per-OS overrides with real platform-specific content), C implementation will be more speculative. The common spec covers all platform differences, but there is no per-OS reference to validate against.
+- **No existing non-C++ source code**: `src/` only has C++ directories. All other languages will be generated from specs alone — higher risk of compilation failures or incorrect API surface.
+- **Reference Linux scaffolding missing**: `reference_linux/` only exists for C++. Needs zero-length files for C, Python, Rust to maintain consistency.
+
+#### Phase 4: Verification and Documentation
+1. Run `verify_binary_symmetry.sh` for C (Linux distros)
+2. Run `lint_prompts.sh` to validate prompt structure
+3. Update project README with multi-language support documentation
+4. Generate PDF documentation with `pandoc`
+5. Create `reference_linux` scaffolding for C, Python, Rust (zero-length files)
+6. Clarify utility scripts scope — determine if `prompts/common/cpp/utils/bin/` scripts are language-agnostic or C++-specific
+
+##### Phase 4 Sub-Steps
+**4.A — Reference Linux Scaffolding**
+Create zero-length `build.md`, `functional.md`, `testing.md` files in:
+- `prompts/reference_linux/c/`
+- `prompts/reference_linux/python/`
+- `prompts/reference_linux/rust/`
+
+These maintain directory structure consistency with C++ and provide a canonical reference point for cross-platform verification.
+
+**4.B — Utility Scripts Scope Review**
+The existing utility scripts in `prompts/common/cpp/utils/bin/` are:
+| Script | Purpose | Language-Agnostic? |
+|--------|---------|--------------------|
+| `generate_test_data.*` | Generate test input/expected output files | **Yes** — test data is language-independent |
+| `generate_junit_report.*` | Generate JUnit XML reports from test results | **No** — C++ specific (JUnit format) |
+| `verify_test_data.*` | Validate test data integrity | **Yes** — language-independent |
+| `verify_binary_symmetry.*` | Compare source files across Linux platforms | **Yes** — language-independent |
+| `lint_prompts.*` | Validate prompt directory structure | **Yes** — language-independent |
+
+Recommendation: Move language-agnostic scripts to `prompts/common/utils/bin/` (no `/cpp/` subdirectory). Keep C++-specific scripts in `prompts/common/cpp/utils/bin/`.
+
+**4.C — README Update**
+Update project README to document:
+- Multi-language support (C, C++, Java, Go, Python, Rust)
+- Language classification (platform-sensitive vs platform-insensitive)
+- Version propagation from `version.mk` to each language
+- Build system per language (Make, Maven, Go Modules, Cargo)
+- Test matrix T001-T007 applies to all languages
+
+### Key Constraints
+- **Transform bug is fixed**: All implementations must use in-place transform (modify `slot.data` directly)
+- **Test matrix is ground truth**: All implementations must pass T001-T007
+- **Cross-platform symmetry**: Only applies to platform-sensitive languages between Linux distros
+- **macOS is native-only**: No containers, no Dockerfiles for any language on macOS
+- **Excluded platforms**: FreeBSD 14/15 — zero-length files only
+- **Arch Linux C++**: Prompts implemented; source generation requires a Linux host
+- **Language standards are binding**: Each implementation must target the primary version with fallback support as specified in Section 5
+- **Version reporting is mandatory**: Every implementation MUST detect and report the actual compiler/language version in use. This enables traceability — if a platform only has Java SE 17, the implementation must report that fact rather than silently targeting Java SE 25. The version must appear in `functional.log`, `build.log`, and the implementation report.
+
+## 7. Operational Discipline
+
+### Read-Before-Write
+Always read a file before modifying it. If a write fails due to concurrent modification, re-read and retry once.
+
+### Path Resolution
+- **Workspace root:** `ringbuffer/` — all relative paths resolve from here
+- **Source directory:** `ringbuffer/src/<os>/cpp/` — this is where generated code lives
+
+### Timestamp Format
+All timestamps MUST include timezone offset: `[YYYY-MM-DD HH:MM:SS +/-HHMM]`
+- Use `date '+%Y-%m-%d %H:%M:%S %z'` on both Linux and macOS (BSD date supports `%z`)
+
+### Logging
+- Every action MUST be logged to `ringbuffer/src/<os>/cpp/logs/build.log` (or platform-specific log)
+- Log format: `[timestamp] <action description>`
+- Initialize logs at the start of each workflow step
+
+### Scope Boundaries
+Each workflow has a defined scope. Do NOT:
+- Execute tests from build workflows
+- Create test infrastructure from functional workflows
+- Modify files outside the declared scope directory
+
+### Cross-Platform Generation Mandate
+All platform source code MUST be generated **independently** from the common specification. Do NOT copy source files, Makefiles, or Dockerfiles between platforms. Each platform generates its own artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
+
+**Allowed Makefile differences:**
+1. `CONTAINER_IMAGE` variable value
+2. Working directory path in container run commands
+3. Host distro detection check
+
+**Allowed Dockerfile differences:**
+1. `FROM` base image line
+2. Package installation RUN blocks (platform-specific package managers)
+
+### Excluded Platforms
+FreeBSD 14 and FreeBSD 15 are excluded from active development. Their prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
+
+### Arch Linux (Linux-Hosts-Only)
+Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code generation is supported on all platforms; build and test require a Linux host with `podman` or `docker` because Arch Linux container images are amd64-only. On macOS, scripts skip gracefully with a logged message.
+
+### Common Pitfalls
+1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
+2. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).
+3. **`make clean` removes artifacts:** The main Makefile's `clean` target removes `build/`, `lib/`, and `logs/`. This is intentional for fresh builds.
+4. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
+5. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
+6. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
+
+### Verification Scripts
+The project includes two automated verification scripts in `prompts/common/cpp/utils/bin/`:
+
+1. **`verify_binary_symmetry.sh`** (also `.zsh`) — Compares source files across Linux platforms to ensure byte-identical output. Run after building all Linux platforms:
+   ```bash
+   ./prompts/common/cpp/utils/bin/verify_binary_symmetry.sh <workspace_root>
+   ```
+   - Exit 0: All files identical (symmetry verified)
+   - Exit 1: Differences found (symmetry violation)
+
+2. **`lint_prompts.sh`** (also `.zsh`) — Validates prompt directory structure, required files, excluded platform cleanliness, and common workflow completeness. Run before or after any generation:
+   ```bash
+   ./prompts/common/cpp/utils/bin/lint_prompts.sh <workspace_root>
+   ```
+   - Exit 0: All checks passed
+   - Exit 1: Errors found (structural issues)
+
+These scripts are referenced by `verify_build.md` and should be run as part of the build verification workflow.
+
+---
+
+**IMPORTANT: This .bionic file was auto-loaded at session startup. Please acknowledge and follow the instructions above.**
+
+# Session Initialization
+- At the start of every new session, your first response to the user must explicitly begin with: "✅ [.bionic configuration successfully loaded]" before addressing the user's prompt.
+
+# Tool Availability Check — Run at Session Start
+At the start of every new session, run this shell command to verify all required tools are available:
+
+```bash
+echo "=== clang ===" && which clang 2>/dev/null || echo "NOT FOUND"
+echo "=== clang++ ===" && which clang++ 2>/dev/null || echo "NOT FOUND"
+echo "=== gcc ===" && which gcc 2>/dev/null || echo "NOT FOUND"
+echo "=== g++ ===" && which g++ 2>/dev/null || echo "NOT FOUND"
+echo "=== make ===" && which make 2>/dev/null || echo "NOT FOUND"
+echo "=== cmake ===" && which cmake 2>/dev/null || echo "NOT FOUND"
+echo "=== ffmpeg ===" && which ffmpeg 2>/dev/null || echo "NOT FOUND"
+echo "=== ffprobe ===" && which ffprobe 2>/dev/null || echo "NOT FOUND"
+echo "=== pandoc ===" && which pandoc 2>/dev/null || echo "NOT FOUND"
+echo "=== mmdc ===" && which mmdc 2>/dev/null || echo "NOT FOUND"
+echo "=== glab ===" && which glab 2>/dev/null || echo "NOT FOUND"
+echo "=== gh ===" && which gh 2>/dev/null || echo "NOT FOUND"
+```
+
+Then display a Tool Availability Report in this format:
+
+## Tool Availability Report
+
+| Tool | Status | Used For |
+|------|--------|----------|
+| **clang / clang++** | ✅ Available (`<path>`) or ❌ Missing | C/C++ compiler (macOS native) |
+| **gcc / g++** | ✅ Available (`<path>`) or ❌ Missing | C/C++ compiler (alternative) |
+| **make** | ✅ Available (`<path>`) or ❌ Missing | Build automation (runs Makefiles) |
+| **cmake** | ✅ Available (`<path>`) or ❌ Missing | Cross-platform build system generator |
+| **ffmpeg** | ✅ Available (`<path>`) or ❌ Missing | Convert animated GIF to MP4, inspect media files |
+| **ffprobe** | ✅ Available (`<path>`) or ❌ Missing | Verify MP4 output (duration, frame rate, resolution) |
+| **pandoc** | ✅ Available (`<path>`) or ❌ Missing | Render README.md to PDF with embedded diagrams |
+| **mmdc** (mermaid-cli) | ✅ Available (`<path>`) or ❌ Missing | Render Mermaid diagrams to SVG for PDF embedding |
+| **glab** (GitLab CLI) | ✅ Available (`<path>`) or ❌ Missing | GitLab CLI tool |
+| **gh** (GitHub CLI) | ✅ Available (`<path>`) or ❌ Missing | GitHub CLI tool |
+
+### What Cannot Be Done (Missing Tools)
+- List each missing tool and what functionality is unavailable because of it.
+- If all tools are present, state: "None — all required tools are available."
+
+### Installation Instructions for Missing Tools
+When a tool is missing, report the installation command based on the detected host OS. Detect the host OS using `uname -s` and `/etc/os-release` (Linux only).
+
+**macOS (`Darwin`):**
+```bash
+# Install Homebrew if not present:
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Then install missing tools:
+brew install cmake ffmpeg pandoc mermaid-cli
+echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zshrc  # Apple Silicon
+# or
+echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc     # Intel
+source ~/.zshrc
+```
+
+**Fedora (`ID=fedora`):**
+```bash
+# Install missing tools (requires sudo):
+sudo dnf install -y cmake ffmpeg pandoc mermaid-cli
+# Note: mmdc (mermaid-cli) may require Node.js first:
+sudo dnf install -y nodejs npm
+npm install -g @mermaid-js/mermaid-cli
+```
+
+**Debian (`ID=debian`):**
+```bash
+# Install missing tools (requires sudo):
+sudo apt-get update
+sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
+# Note: mmdc (mermaid-cli) may require Node.js first:
+sudo apt-get install -y nodejs npm
+npm install -g @mermaid-js/mermaid-cli
+```
+
+**Ubuntu (`ID=ubuntu`):**
+```bash
+# Install missing tools (requires sudo):
+sudo apt-get update
+sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
+# Note: mmdc (mermaid-cli) may require Node.js first:
+sudo apt-get install -y nodejs npm
+npm install -g @mermaid-js/mermaid-cli
+```
+
+**Other Linux (fallback):**
+```bash
+# Detect package manager and install:
+if command -v dnf &>/dev/null; then
+    sudo dnf install -y cmake ffmpeg pandoc mermaid-cli
+elif command -v apt-get &>/dev/null; then
+    sudo apt-get update && sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
+elif command -v yum &>/dev/null; then
+    sudo yum install -y cmake ffmpeg pandoc mermaid-cli
+elif command -v pacman &>/dev/null; then
+    sudo pacman -S cmake ffmpeg pandoc mermaid-cli
+fi
+# For mmdc, install Node.js first if needed:
+if ! command -v npm &>/dev/null; then
+    # Install Node.js via nvm or package manager, then:
+    npm install -g @mermaid-js/mermaid-cli
+fi
+```
+
+**Report format for missing tools:**
+```markdown
+### Missing Tools and Installation Instructions
+| Tool | Status | Used For | Install Command |
+|------|--------|----------|-----------------|
+| **cmake** | ❌ Missing | Cross-platform build system generator | `brew install cmake` (macOS) or `sudo dnf install -y cmake` (Fedora) |
+| **ffmpeg** | ❌ Missing | Convert animated GIF to MP4, inspect media files | `brew install ffmpeg` (macOS) or `sudo dnf install -y ffmpeg` (Fedora) |
+| **pandoc** | ❌ Missing | Render README.md to PDF with embedded diagrams | `brew install pandoc` (macOS) or `sudo dnf install -y pandoc` (Fedora) |
+| **mmdc** | ❌ Missing | Render Mermaid diagrams to SVG for PDF embedding | `brew install mermaid-cli` (macOS) or `sudo dnf install -y mermaid-cli` (Fedora) |
+```
+
+If all tools are present, state: "None — all required tools are available."
+
+# Error Handling — Shell Commands
+- If you start getting shell errors (e.g., commands failing, unexpected output, toolchain issues), report the issue to the user and **stop processing immediately**. Do not attempt to work around shell errors or continue with subsequent workflow steps.
+
+# Loop Detection and Recovery
+- If you detect that you are repeating the same action, explanation, or approach **3 times or more**, this is a sign of looping.
+- On the 1st repeat: pause, acknowledge the repetition to the user, and attempt a different approach.
+- On the 2nd repeat: try another distinct strategy. If still stuck, escalate to the user.
+- On the 3rd repeat: **stop immediately** and report the problem to the user with:
+  - What you were trying to do
+  - What approaches you tried (list them)
+  - Why each approach failed or didn't help
+  - A clear request for user guidance on how to proceed.
+- Do not continue looping past the 3rd attempt. The user's intervention is required.
+
+# Transitory Markers
+- `.dockerfile_created_by_step0` is a transitory workflow marker — add it to `.gitignore` and remove from git tracking. It has no functional purpose beyond prompt execution coordination.
+- `.required_directory` files are **NOT** transitory — they preserve directory structure in git when directories contain no other tracked files. Do **NOT** add them to `.gitignore`.
+<EOF>

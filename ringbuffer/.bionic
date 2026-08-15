@@ -1,5 +1,11 @@
 SESSION STARTUP: This file was auto-loaded. Please report this to the user immediately.
 
+## ⚠️ SYNC RULE: When updating .bionic, always copy to CLAUDE.md
+If you edit this file (.bionic), you MUST keep it in sync with CLAUDE.md.
+Run `make sync-claude` after any edit to .bionic, or copy it manually:
+    cp .bionic CLAUDE.md
+.bionic is the **source of truth** — CLAUDE.md is a copy for Claude Code.
+
 # Ringbuffer Project — Session Startup Instructions
 
 ## 1. Project Structure Quick Reference
