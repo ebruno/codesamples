@@ -145,10 +145,7 @@ Create the test environment for regression testing on a target platform. This co
 
    **Java Test Infrastructure** (from `src/common/java/`):
    - Navigate to `src/common/java/`.
-   - **Test Directory Structure**: Ensure `tests/` directory exists with:
-     - `tests/data/inputs/` — test input files (T001–T007)
-     - `tests/data/expected/` — expected output files (T001–T007)
-     - `tests/src/` — test source files (e.g., `TestRingbuffer.java`)
+   - **Test Source**: The test harness is `swtr/test/TestRingbuffer.java` — a self-contained JUnit 5-compatible test class with a `testAll()` method. It runs all 7 test scenarios (T001–T007) plus constructor validation and version constant checks. No separate `tests/` directory is needed for Java.
    - **Dockerfile Package Validation** (Linux targets only):
      - For each target OS, check the per-OS Dockerfile at `src/common/java/containers/<os>/Dockerfile` and verify it contains:
        - `java-25-openjdk` (Fedora) or `openjdk-25-jdk` (Debian/Ubuntu) — the latest JDK 25 package
@@ -160,17 +157,18 @@ Create the test environment for regression testing on a target platform. This co
        # Debian/Ubuntu (latest JDK 25 + Maven):
        apt-get update && apt-get install -y openjdk-25-jdk maven
        ```
-   - **Test Makefile**: Create or verify `tests/Makefile` with targets: `all`, `static`, `dynamic`, `clean`, `dist-clean`, `container`, `verify`.
+   - **pom.xml**: Ensure `pom.xml` exists with:
+     - Source directory: `swtr`
+     - Test source directory: `swtr/test`
+     - Surefire plugin configured with `<includes><include>**/TestRingbuffer.java</include></includes>`
+     - Shade plugin with `mainClass` set to `swtr.test.TestRingbuffer`
    - **Log**: Append results to `src/common/java/logs/build.log`.
 
    ---
 
    **Python Test Infrastructure** (from `src/common/python/`):
    - Navigate to `src/common/python/`.
-   - **Test Directory Structure**: Ensure `tests/` directory exists with:
-     - `tests/data/inputs/` — test input files (T001–T007)
-     - `tests/data/expected/` — expected output files (T001–T007)
-     - `tests/src/` — test source files (e.g., `test_ringbuffer.py`)
+   - **Test Source**: The test script is `test_ringbuffer.py` in the root of `src/common/python/`. It imports `swtr_ringbuffer`, instantiates `SwtrRingBuffer`, and runs all 7 test scenarios (T001–T007) using temp files for I/O. No separate `tests/` directory is needed for Python.
    - **Dockerfile Package Validation** (Linux targets only):
      - For each target OS, check the per-OS Dockerfile at `src/common/python/containers/<os>/Dockerfile` and verify it contains:
        - `python3` — latest available Python 3.x in each distro's repos (Fedora: latest stable; Debian/Ubuntu: default python3 which is the distro's latest)
@@ -182,7 +180,7 @@ Create the test environment for regression testing on a target platform. This co
        # Debian/Ubuntu (latest Python 3.x + pip):
        apt-get update && apt-get install -y python3 python3-pip
        ```
-   - **Test Script**: Ensure `test_ringbuffer.py` exists and is executable.
+   - **Test Script**: Ensure `test_ringbuffer.py` exists and is executable (or readable by python3).
    - **Log**: Append results to `src/common/python/logs/build.log`.
 
 **Directives:**
