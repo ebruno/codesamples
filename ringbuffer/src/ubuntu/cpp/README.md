@@ -1,7 +1,7 @@
 # Swtr Ringbuffer (Ubuntu C++ Implementation)
 
 ## Description
-A high-performance, fixed-size circular buffer implementation for C++20. This library provides a three-stage pipeline (Read -> Transform -> Write) with strong thread safety and cache-line alignment to prevent false sharing.
+A high-performance, fixed-size circular buffer implementation for C++20. This library provides a three-stage pipeline (Read → Transform → Write) with strong thread safety and cache-line alignment to prevent false sharing.
 
 ## Features
 - **C++20 Compliant**: Uses `std::jthread`, `std::stop_token`, and `std::format`.
@@ -9,16 +9,17 @@ A high-performance, fixed-size circular buffer implementation for C++20. This li
 - **Optimized**: `alignas(64)` on critical structures to avoid cache line contention.
 - **Flexible**: Custom transform functions and error handlers.
 
-## Architecture
-The implementation follows a strict separation of concerns:
-- `RingBuffer`: Abstract interface defining the API.
-- `SwtrRingBuffer`: Concrete implementation.
-- `BufferSlot`: The unit of data storage, containing state and checksum information.
+## Build Instructions
 
-## Building the Library
-This library is designed to be built with GCC or Clang on Ubuntu 24.04 LTS.
+### Using Make (Recommended)
+```bash
+make                    # Build both static and shared libraries
+make static             # Build static library only (.a)
+make shared             # Build shared library only (.so)
+make clean              # Remove build artifacts
+```
 
-### Compilation Example
+### Compilation Example (Manual)
 ```bash
 g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
     -ffunction-sections -fdata-sections \
@@ -30,6 +31,19 @@ g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
     Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp \
     -o libswtr_ringbuffer.so -shared -Wl,--gc-sections
 ```
+
+## Library Artifacts
+
+| Artifact | Path | Description |
+|----------|------|-------------|
+| Static library | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
+| Shared library | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
+
+## Architecture
+The implementation follows a strict separation of concerns:
+- `RingBuffer`: Abstract interface defining the API.
+- `SwtrRingBuffer`: Concrete implementation.
+- `BufferSlot`: The unit of data storage, containing state and checksum information.
 
 ## License
 This project is licensed under the BSD 3-Clause License.
