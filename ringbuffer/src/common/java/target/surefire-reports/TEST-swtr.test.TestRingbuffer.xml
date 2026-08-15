@@ -1,60 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="swtr.test.TestRingbuffer" time="0.383" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="swtr.test.TestRingbuffer" time="0.372" tests="1" errors="0" skipped="0" failures="0">
   <properties>
-    <property name="java.specification.version" value="25"/>
+    <property name="java.specification.version" value="17"/>
     <property name="sun.jnu.encoding" value="ANSI_X3.4-1968"/>
     <property name="java.class.path" value="/app/target/test-classes:/app/target/classes:"/>
-    <property name="java.vm.vendor" value="Ubuntu"/>
+    <property name="java.vm.vendor" value="Debian"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="java.vendor.url" value="https://ubuntu.com/"/>
+    <property name="java.vendor.url" value="https://tracker.debian.org/openjdk-17"/>
     <property name="os.name" value="Linux"/>
-    <property name="java.vm.specification.version" value="25"/>
+    <property name="java.vm.specification.version" value="17"/>
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="US"/>
-    <property name="sun.boot.library.path" value="/usr/lib/jvm/java-25-openjdk-arm64/lib"/>
-    <property name="sun.java.command" value="/app/target/surefire/surefirebooter-20260814235318459_3.jar /app/target/surefire 2026-08-14T23-53-18_114-jvmRun1 surefire-20260814235318459_1tmp surefire_0-20260814235318459_2tmp"/>
+    <property name="sun.boot.library.path" value="/usr/lib/jvm/java-17-openjdk-arm64/lib"/>
+    <property name="sun.java.command" value="/app/target/surefire/surefirebooter-20260815221725055_3.jar /app/target/surefire 2026-08-15T22-17-24_747-jvmRun1 surefire-20260815221725055_1tmp surefire_0-20260815221725055_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="/app/target/test-classes:/app/target/classes:"/>
     <property name="sun.cpu.endian" value="little"/>
     <property name="user.home" value="/root"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
-    <property name="java.version.date" value="2026-04-21"/>
-    <property name="java.home" value="/usr/lib/jvm/java-25-openjdk-arm64"/>
+    <property name="java.version.date" value="2026-07-21"/>
+    <property name="java.home" value="/usr/lib/jvm/java-17-openjdk-arm64"/>
     <property name="file.separator" value="/"/>
     <property name="basedir" value="/app"/>
     <property name="java.vm.compressedOopsMode" value="32-bit"/>
     <property name="line.separator" value="&#10;"/>
-    <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
-    <property name="surefire.real.class.path" value="/app/target/surefire/surefirebooter-20260814235318459_3.jar"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="surefire.real.class.path" value="/app/target/surefire/surefirebooter-20260815221725055_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
-    <property name="java.runtime.version" value="25.0.3+9-2-24.04.2-Ubuntu"/>
+    <property name="java.runtime.version" value="17.0.20+8-1-deb12u1-Debian"/>
     <property name="user.name" value="root"/>
-    <property name="stdout.encoding" value="ANSI_X3.4-1968"/>
     <property name="path.separator" value=":"/>
     <property name="os.version" value="6.18.15"/>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
-    <property name="file.encoding" value="UTF-8"/>
+    <property name="file.encoding" value="ANSI_X3.4-1968"/>
     <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
     <property name="localRepository" value="/root/.m2/repository"/>
-    <property name="java.vendor.url.bug" value="https://bugs.launchpad.net/ubuntu/+source/openjdk-25"/>
+    <property name="java.vendor.url.bug" value="https://bugs.debian.org/openjdk-17"/>
     <property name="java.io.tmpdir" value="/tmp"/>
-    <property name="java.version" value="25.0.3"/>
+    <property name="java.version" value="17.0.20"/>
     <property name="user.dir" value="/app"/>
     <property name="os.arch" value="aarch64"/>
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
     <property name="native.encoding" value="ANSI_X3.4-1968"/>
     <property name="java.library.path" value="/usr/java/packages/lib:/usr/lib/aarch64-linux-gnu/jni:/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:/usr/lib/jni:/lib:/usr/lib"/>
     <property name="java.vm.info" value="mixed mode, sharing"/>
-    <property name="stderr.encoding" value="ANSI_X3.4-1968"/>
-    <property name="java.vendor" value="Ubuntu"/>
-    <property name="java.vm.version" value="25.0.3+9-2-24.04.2-Ubuntu"/>
-    <property name="stdin.encoding" value="ANSI_X3.4-1968"/>
+    <property name="java.vendor" value="Debian"/>
+    <property name="java.vm.version" value="17.0.20+8-1-deb12u1-Debian"/>
+    <property name="java.specification.maintenance.version" value="1"/>
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
-    <property name="java.class.version" value="69.0"/>
+    <property name="java.class.version" value="61.0"/>
   </properties>
-  <testcase name="swtr.test.TestRingbuffer.testAll()" classname="swtr.test.TestRingbuffer" time="0.369">
+  <testcase name="swtr.test.TestRingbuffer.testAll()" classname="swtr.test.TestRingbuffer" time="0.365">
     <system-out><![CDATA[=== Ringbuffer Test Suite ===
 
 === Test Results ===
