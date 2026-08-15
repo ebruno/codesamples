@@ -365,9 +365,11 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 | Debian | Python | v1.0.0 |
 | Fedora | Python | v1.0.0 |
 | Ubuntu | Python | v1.0.0 |
-| ArchLinux | C++ | TBS |
+| ArchLinux | C++ | Linux-hosts-only[^1] |
 | FreeBSD 14 | C++ | TBS |
 | FreeBSD 15 | C++ | TBS |
+
+[^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
 
 `*TBS: To Be Supplied | WIP: Work In Progress`
 
@@ -379,6 +381,7 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 - **C++ implementation complete** for macOS, Debian, Fedora, and Ubuntu — all at v1.0.0
 - **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
 - **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
+- **C++ prompts implemented for Arch Linux** — Linux-hosts-only (macOS skip with logging); see `prompts/archlinux/cpp/` for all 9 prompt files
 - **Binary symmetry verified** across Linux platforms: 21 source files confirmed byte-identical between debian, fedora, and ubuntu via automated `verify_binary_symmetry.sh`
 - **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection
 - **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
@@ -386,7 +389,7 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 **Verification & Quality Gates:**
 - **Automated binary symmetry check** — `verify_binary_symmetry.sh` compares all 21 source files across Linux platforms; integrated into `verify_build.md` as a mandatory post-build step (step 0.5)
 - **Automated prompt linting** — `lint_prompts.sh` validates directory structure, required files per platform/language, excluded platform cleanliness, primary document naming, and common workflow completeness; integrated into `verify_build.md` as step 0.6
-- **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (ArchLinux, FreeBSD 14/15) contain only zero-length placeholder files
+- **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (FreeBSD 14/15) contain only zero-length placeholder files
 - **Multi-language verification** — `verify_build.md` dispatches to language-specific checks: Java (`mvn compile`, `mvn package`, JAR artifact, classload test), Python (syntax check, import verification, class instantiation), C/C++ (binary format, symbol visibility)
 - **Java regression testing** — Full T001–T007 test matrix executed across all 4 OSes (macOS native + 3 Linux containers); 18 assertions, 0 failures; Surefire-compatible test harness with `testAll()` method
 - **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
@@ -423,7 +426,8 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 
 ### Medium-Term (Roadmap)
 
-- **FreeBSD and ArchLinux implementation** — Currently excluded with zero-length placeholder files. The scaffolding exists; implementation requires writing the platform/language spec files and generating source code.
+- **FreeBSD implementation** — Currently excluded with zero-length placeholder files. The scaffolding exists; implementation requires writing the platform/language spec files and generating source code.
+- **Arch Linux C++ source generation** — Prompts are implemented (`prompts/archlinux/cpp/`); actual source code generation requires executing `create_functional.md`, `create_build.md`, and `create_regression.md` on a Linux host.
 - **More comprehensive test coverage** — Additional test scenarios for edge cases (concurrent access patterns, memory pressure, signal handling).
 - **Documentation expansion** — API reference generation from headers, performance benchmarking documentation, container deployment guides.
 
