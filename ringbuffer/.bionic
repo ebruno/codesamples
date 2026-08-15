@@ -93,7 +93,8 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 |----------|-----------|-------------------|
 | Native-only | macOS, FreeBSD 14/15 | None — no Dockerfiles, no containers |
 | Linux distributions | Fedora, Debian, Ubuntu, reference_linux | Yes — `container` on macOS hosts, `podman` on Linux hosts |
-| Excluded | FreeBSD 14/15, ArchLinux | Zero-length files only; do not modify |
+| Excluded | FreeBSD 14/15 | Zero-length files only; do not modify |
+| Implemented (Linux-hosts-only) | Arch Linux | Yes — `podman` on Linux hosts; macOS skip with logging
 
 **macOS is native-only.** It never uses containers, Dockerfiles, or `container` targets. All builds and tests run on the host using native toolchains (Clang, `make`, `ar`).
 
@@ -130,7 +131,8 @@ The basic prompt syntax is: `add <language> to <os>`
 - **Platform-sensitive routing** (`c`, `cpp`): Reads common spec + per-OS overrides, generates platform-specific source, performs cross-platform symmetry verification between Linux distros
 - **Platform-insensitive routing** (`python`, `java`, `go`, `rust`): Reads single common spec, generates identical source for all platforms, no cross-platform symmetry needed
 - **Supported languages**: `c`, `cpp`, `python`, `java`, `go`, `rust`
-- **Excluded platforms**: FreeBSD 14, FreeBSD 15, ArchLinux — do not add languages to these platforms
+- **Excluded platforms**: FreeBSD 14, FreeBSD 15 — do not add languages to these platforms
+- **Arch Linux**: C++ prompts are implemented (`prompts/archlinux/cpp/`); Linux-hosts-only (macOS skip with logging)
 
 ### Shared Behavioral Contract (All Languages)
 Every implementation must satisfy these requirements regardless of language:
@@ -319,7 +321,8 @@ Update project README to document:
 - **Test matrix is ground truth**: All implementations must pass T001-T007
 - **Cross-platform symmetry**: Only applies to platform-sensitive languages between Linux distros
 - **macOS is native-only**: No containers, no Dockerfiles for any language on macOS
-- **Excluded platforms**: FreeBSD 14/15, ArchLinux — zero-length files only
+- **Excluded platforms**: FreeBSD 14/15 — zero-length files only
+- **Arch Linux C++**: Prompts implemented; source generation requires a Linux host
 - **Language standards are binding**: Each implementation must target the primary version with fallback support as specified in Section 5
 - **Version reporting is mandatory**: Every implementation MUST detect and report the actual compiler/language version in use. This enables traceability — if a platform only has Java SE 17, the implementation must report that fact rather than silently targeting Java SE 25. The version must appear in `functional.log`, `build.log`, and the implementation report.
 
@@ -360,7 +363,10 @@ All platform source code MUST be generated **independently** from the common spe
 2. Package installation RUN blocks (platform-specific package managers)
 
 ### Excluded Platforms
-FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active development. Their prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
+FreeBSD 14 and FreeBSD 15 are excluded from active development. Their prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
+
+### Arch Linux (Linux-Hosts-Only)
+Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code generation is supported on all platforms; build and test require a Linux host with `podman` or `docker` because Arch Linux container images are amd64-only. On macOS, scripts skip gracefully with a logged message.
 
 ### Common Pitfalls
 1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
@@ -410,6 +416,8 @@ echo "=== ffmpeg ===" && which ffmpeg 2>/dev/null || echo "NOT FOUND"
 echo "=== ffprobe ===" && which ffprobe 2>/dev/null || echo "NOT FOUND"
 echo "=== pandoc ===" && which pandoc 2>/dev/null || echo "NOT FOUND"
 echo "=== mmdc ===" && which mmdc 2>/dev/null || echo "NOT FOUND"
+echo "=== glab ===" && which glab 2>/dev/null || echo "NOT FOUND"
+echo "=== gh ===" && which gh 2>/dev/null || echo "NOT FOUND"
 ```
 
 Then display a Tool Availability Report in this format:
@@ -426,6 +434,8 @@ Then display a Tool Availability Report in this format:
 | **ffprobe** | ✅ Available (`<path>`) or ❌ Missing | Verify MP4 output (duration, frame rate, resolution) |
 | **pandoc** | ✅ Available (`<path>`) or ❌ Missing | Render README.md to PDF with embedded diagrams |
 | **mmdc** (mermaid-cli) | ✅ Available (`<path>`) or ❌ Missing | Render Mermaid diagrams to SVG for PDF embedding |
+| **glab** (GitLab CLI) | ✅ Available (`<path>`) or ❌ Missing | GitLab CLI tool |
+| **gh** (GitHub CLI) | ✅ Available (`<path>`) or ❌ Missing | GitHub CLI tool |
 
 ### What Cannot Be Done (Missing Tools)
 - List each missing tool and what functionality is unavailable because of it.
