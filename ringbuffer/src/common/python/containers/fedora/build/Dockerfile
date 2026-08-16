@@ -1,4 +1,5 @@
 ARG BASE_IMAGE=fedora:44
+
 FROM ${BASE_IMAGE}
 
 # Install Python 3 (latest available) and pip
