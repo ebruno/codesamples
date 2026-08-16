@@ -329,6 +329,13 @@ Update project README to document:
 - Build system per language (Make, Maven, Go Modules, Cargo)
 - Test matrix T001-T007 applies to all languages
 
+### Core Principle — Library-First Flexibility
+Ringbuffer is designed as a library, not an application. Every API design decision should be evaluated against this principle:
+- **Consumer flexibility > API simplicity:** If a choice gives consumers more power at the cost of a larger API surface, choose flexibility.
+- **No hidden abstractions:** Consumers should be able to observe and control state at any granularity without requiring wrapper code or reflection.
+- **Opt-in complexity:** Basic usage should be simple (construct, set transform, start), but advanced usage must not require extending the library.
+- **Stable contract:** The abstract class interface is a public API contract. Breaking changes require major version bumps.
+
 ### Key Constraints
 - **Transform bug is fixed**: All implementations must use in-place transform (modify `slot.data` directly)
 - **Test matrix is ground truth**: All implementations must pass T001-T007

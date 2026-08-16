@@ -148,7 +148,18 @@ enum class LogLevel : int {
 **Global Include Guard Rule**: All `.hpp` files in the project MUST use `#pragma once` — never `#ifndef`/`#define`/`#endif` guards. This applies to every header file without exception.
 
 ## Abstract Base Class
-> **Design Note — Granular Slot Accessors**: The `RingBuffer` abstract base class exposes ~20 getter/setter methods for individual slot state fields (e.g., `get_data_buffer_size()`, `set_transformed_data_buffer_size()`, `get_slot_status()`). These are **intentional library API design choices**, not a leaky abstraction. As a reusable library, Ringbuffer must provide maximum flexibility to consumers for debugging, monitoring, performance profiling, and testing. Library users should be able to inspect and manipulate slot state at any granularity level without requiring wrapper code or reflection.
+> **Design Decision — Granular Slot Accessors (Intentional API Surface)**: The `RingBuffer` abstract base class exposes ~20 getter/setter/test methods for individual slot state fields. This is a **deliberate library-first design choice** that prioritizes consumer flexibility over API simplicity.
+>
+> **Rationale:** As a reusable library consumed by diverse projects, Ringbuffer must support:
+> - **Debugging:** Inspect individual slot state without reconstructing from higher-level APIs
+> - **Monitoring:** Track per-slot metrics (data size, checksum, status) in production systems
+> - **Performance Profiling:** Measure transform throughput at slot granularity
+> - **Testing:** Verify pipeline behavior at the lowest observable level
+> - **Custom Logic:** Implement user-defined coordination patterns between stages
+>
+> **Tradeoff Accepted:** The API surface is larger than a "batteries-included" application would expose. This increases the learning curve slightly but eliminates the need for wrapper code in consumer projects. Library consumers who only need basic functionality can ignore most accessors; those who need advanced capabilities have them available without reflection or extension points.
+>
+> **Contract:** These accessors are part of the stable public API. They will not be removed or renamed without a major version bump.
 
 - The `RingBuffer` abstract class MUST be defined as:
   ```cpp

@@ -15,12 +15,27 @@ The Ringbuffer library implements a **three-stage pipelined architecture** (Read
 Each stage uses its own independent atomic index counter, so threads operate on slots without contention. The `wait()` method blocks until all data has flowed through the entire pipeline and threads have joined cleanly via `std::jthread` cooperative cancellation.
 
 ## Overview
-The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters. The core focus of the project is **binary symmetry** — source code is byte-identical across ALL platforms (macOS, Linux distributions). When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. This ensures maintainability and predictable behavior.
+The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters.
+
+The core focus of the project is **binary symmetry within OS families**, with minimal differences allowed when crossing OS boundaries:
+- **Same OS Family (e.g., all Linux distros):** Source code is naturally identical since toolchain changes are applied uniformly. The build system handles platform-specific flags (linker options, container images), but `.cpp` and `.hpp` files are byte-identical.
+- **Cross OS Family (Linux vs macOS vs FreeBSD):** Differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls (e.g., file sync behavior, threading primitives). The core logic, architecture, and API surface remain identical.
+- **Platform-Insensitive Languages (Java, Python, Go, Rust):** Source code is byte-identical across ALL platforms by design. These languages abstract platform differences through their standard libraries.
+- **Platform-Sensitive Languages (C, C++):** Source code is byte-identical within the same OS family. Cross-family differences are limited to `#ifdef` guards for OS-specific behavior (e.g., macOS `F_FULLFSYNC` vs Linux `F_DATASYNC`).
+
+**Goal:** A single canonical source tree that compiles and runs correctly on every target platform. The build system, not the source code, is responsible for platform-specific adaptation.
 
 ## Primary Goal
 The objective is to provide a prompt-driven, immediate build-and-run functionality where the codebase can be regenerated or updated across multiple platforms using a single set of functional specifications.
 
-The project follows a **develop-then-refactor** strategy: functional implementations are first developed on 2–3 target platforms (macOS, Debian) to validate correctness and performance characteristics. Once validated, the implementations are refactored into a shared common codebase (`src/common/`) for platform-insensitive languages (Java, Python), while platform-sensitive languages (C++, C) maintain per-OS source directories with byte-identical cross-platform symmetry. This approach ensures specifications are battle-tested before generalization, reducing the risk of regressions during refactoring.
+The project follows a **develop-then-refactor** strategy with three phases:
+1. **Phase A — Platform Development:** Implement the language on 2–3 representative platforms (typically macOS for native/Apple Silicon, one Linux distro for containerized builds). This validates correctness against real toolchains and OS behaviors.
+2. **Phase B — Common Refactor:** Once Phase A passes all tests, extract the common logic into `src/common/<lang>/`. Platform-specific overrides (build flags, container images) remain per-OS; all shared logic lives in common.
+3. **Phase C — Platform Rollout:** Generate source for remaining platforms from the common spec + per-OS overrides.
+
+**Current Status:** C++ is in Phase A (developed on macOS, Debian, Fedora, Ubuntu, Raspios — not yet refactored to common). Java and Python are in Phase B (common implementations exist at `src/common/java/` and `src/common/python/`). C, Go, and Rust are pre-Phase A (specs created, implementation pending).
+
+**Note:** Unimplemented languages should not be considered a negative — the spec scaffolding is in place and the dispatcher prompt (`add_language.md`) routes correctly.
 
 ## Development Methodology
 
@@ -44,6 +59,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
 - **Library-First API Design**: The Ringbuffer is designed as a reusable library, not an application. All public APIs — including the ~20 slot-level accessor methods on `RingBuffer` (e.g., `get_data_buffer_size()`, `set_transformed_data_buffer_size()`, `get_slot_status()`) — are intentional design choices providing maximum flexibility to library consumers for debugging, monitoring, and testing. Granular slot state visibility is a feature, not a leaky abstraction.
+- **Core Principle — Library-First Flexibility**: Consumer flexibility > API simplicity. No hidden abstractions — consumers should be able to observe and control state at any granularity without wrapper code. Opt-in complexity: basic usage is simple (construct, set transform, start), but advanced usage must not require extending the library. The abstract class interface is a stable public API contract.
 
 ## Core Features
 - **Pipelined Architecture**: Decoupled read, transform, and write loops for maximum throughput.
