@@ -64,7 +64,7 @@ Once implementation is complete, generate a summary report at `src/raspios/cpp/r
 
 # Build Creation Report - Raspberry Pi OS
 **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
-**Target Image:** <resolved_image> (e.g., `vascoguita/raspios:arm64-bookworm-YYYYMMDD`)
+**Target Image:** <resolved_image> (e.g., `debian:13`)
 **Ringbuffer Version:** <resolved_version from shared context>
 **Start Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **End Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]

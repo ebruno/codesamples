@@ -14,7 +14,7 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
 - **Target Environment**: Raspberry Pi OS (Bookworm), Linux kernel 6.1.x LTS
 - **OS Identification**: `ID=debian` in `/etc/os-release`, confirmed by presence of `/etc/rpi-issue`
 - **Prerequisites**: Install the following packages via `apt-get`:
-    - `build-essential`, `cmake`, `doxygen`, `clang`, `clang-tidy`, `clang-format`, `procps`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`, `openjdk-17-jdk-headless`, `maven`.
+    - `build-essential`, `cmake`, `doxygen`, `clang`, `clang-tidy`, `clang-format`, `procps`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`, `openjdk-21-jdk-headless`, `maven`.
 
 ## Required Tools
 - `g++` or `clang++` (Compiler/Linker)
@@ -25,13 +25,13 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
 - `python3` (Recovery Scripts)
 
 **Containerized Build Environment**:
-- **Base Image**: `vascoguita/raspios:arm64-bookworm` (or datestamp-tagged variant)
+- **Base Image**: `debian:13` (trixie) — Bookworm's GCC 12 lacks C++20 `<format>` support (requires GCC 13+); Debian 13 provides GCC 14.2 with full C++20 support and OpenJDK 21.
 - **Toolchain Installation**: Use `apt-get` to install the following packages:
     - GNU: `gcc`, `g++`, `binutils`, `make`.
     - Build & Docs: `cmake`, `doxygen`.
     - LLVM/Clang: `clang`, `clang-tidy`, `clang-format`.
     - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`.
-    - Java: `openjdk-17-jdk-headless`, `maven`.
+    - Java: `openjdk-21-jdk-headless`, `maven`.
 - **Container Path**: Use `src/raspios/cpp/containers/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
@@ -65,21 +65,11 @@ The `container` target must perform the following logic:
 4. **Documentation**: This automation logic (including host detection, the `make container` trigger, and the cleanup process) MUST be clearly documented in the project's `README.md` files, providing explicit instructions on how the user can set up and tear down their build environment.
 
 ## Image Tag Resolution
-Raspberry Pi OS uses datestamp-based image tags for reproducible builds. The `container` target MUST resolve the correct tag at runtime:
+Raspberry Pi OS uses `debian:13` (trixie) as the base image. The `container` target MUST resolve the correct tag at runtime:
 
 ```bash
-# Read codename from /etc/os-release
-VERSION_CODENAME=$(grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2)
-
-# Calculate 3 months ago (same as Arch Linux pattern)
-THREE_MONTHS_AGO=$(date -d "3 months ago" +%Y%m%d 2>/dev/null || \
-                   date -v-3m +%Y%m%d)
-
-# Try datestamp first (reproducible), fall back to codename
-CONTAINER_IMAGE="vascoguita/raspios:arm64-${VERSION_CODENAME}-${THREE_MONTHS_AGO}"
-if ! podman pull --quiet "$CONTAINER_IMAGE" 2>/dev/null; then
-    CONTAINER_IMAGE="vascoguita/raspios:arm64-${VERSION_CODENAME}"
-fi
+# Use debian:13 as base (trixie provides GCC 14.2 with C++20 <format> support)
+CONTAINER_IMAGE="debian:13"
 ```
 
 ## macOS Compatibility
