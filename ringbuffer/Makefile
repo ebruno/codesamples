@@ -45,6 +45,8 @@ dist-clean: clean
 		echo "Dist-cleaning $(PYTHON_DIR) ..."; \
 		$(MAKE) -C $(PYTHON_DIR) dist-clean; \
 	fi; \
+	echo "Cleaning session files..."; \
+	rm -rf .ringbuffer_sessions/; \
 	END=$$(date +%s); \
 	ELAPSED=$$((END - START)); \
 	HH=$$(printf "%02d" $$((ELAPSED / 3600))); \
