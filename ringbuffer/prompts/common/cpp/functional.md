@@ -147,6 +147,8 @@ enum class LogLevel : int {
 **Global Include Guard Rule**: All `.hpp` files in the project MUST use `#pragma once` — never `#ifndef`/`#define`/`#endif` guards. This applies to every header file without exception.
 
 ## Abstract Base Class
+> **Design Note — Granular Slot Accessors**: The `RingBuffer` abstract base class exposes ~20 getter/setter methods for individual slot state fields (e.g., `get_data_buffer_size()`, `set_transformed_data_buffer_size()`, `get_slot_status()`). These are **intentional library API design choices**, not a leaky abstraction. As a reusable library, Ringbuffer must provide maximum flexibility to consumers for debugging, monitoring, performance profiling, and testing. Library users should be able to inspect and manipulate slot state at any granularity level without requiring wrapper code or reflection.
+
 - The `RingBuffer` abstract class MUST be defined as:
   ```cpp
   namespace swtr {
