@@ -31,7 +31,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
 - **Binary Symmetry**: The LLM was instructed to produce identical source code across all target platforms, ensuring maintainability and predictable behavior regardless of OS.
 - **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
-- **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations.
+- **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations. The **post-commit hook** (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs and suggests changelog entries — the hook is scoped to `ringbuffer/prompts/` when in a multi-project repo (controlled by `PROJECT_PREFIX` variable in the script).
 
 **Why this approach:**
 - **Reproducibility**: Any platform can be regenerated from the same prompts, ensuring consistency.
@@ -40,7 +40,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 
 ## Key Specifications
 - **Multi-OS Support**: Seamless deployment across various Linux distributions and macOS.
-- **Multi-Language Support**: C++, Java, Python implementations with shared functional specifications.
+- **Multi-Language Support**: C++, Java, Python implementations with shared functional specifications; C, Go, Rust in development pipeline.
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
 - **Library-First API Design**: The Ringbuffer is designed as a reusable library, not an application. All public APIs — including the ~20 slot-level accessor methods on `RingBuffer` (e.g., `get_data_buffer_size()`, `set_transformed_data_buffer_size()`, `get_slot_status()`) — are intentional design choices providing maximum flexibility to library consumers for debugging, monitoring, and testing. Granular slot state visibility is a feature, not a leaky abstraction.
@@ -448,7 +448,7 @@ if [[ "$host_os" == "Darwin" ]]; then
 elif [[ "$host_os" == "Linux" ]]; then
     # Read distro ID from /etc/os-release (see 2c below)
     host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)
-    echo "Linux host: $host_os"
+    echo "Linux host: $os_id"
 fi
 ```
 
@@ -865,6 +865,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | Debian | C++ | v1.0.0 |
 | Fedora | C++ | v1.0.0 |
 | Ubuntu | C++ | v1.0.0 |
+| Raspberry Pi OS | C++ | v1.0.0 |
 | macOS | Java | v1.0.0 |
 | Debian | Java | v1.0.0 |
 | Fedora | Java | v1.0.0 |
@@ -883,14 +884,14 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 ## Where We Are At
 
-### Current Status (as of 2026-08-14)
+### Current Status (as of 2026-08-16)
 
 **Implementation:**
-- **C++ implementation complete** for macOS, Debian, Fedora, and Ubuntu — all at v1.0.0
+- **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, and Raspberry Pi OS — all at v1.0.0
 - **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
 - **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
 - **C++ prompts implemented for Arch Linux** — Linux-hosts-only (macOS skip with logging); see `prompts/archlinux/cpp/` for all 9 prompt files
-- **Binary symmetry verified** across Linux platforms: 21 source files confirmed byte-identical between debian, fedora, and ubuntu via automated `verify_binary_symmetry.sh`
+- **Binary symmetry verified** across Linux platforms: 21 source files confirmed byte-identical between debian, fedora, ubuntu, and raspios via automated `verify_binary_symmetry.sh`
 - **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection
 - **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
 
@@ -903,26 +904,28 @@ Loaded template 'Fedora' — all fields populated with defaults.
 - **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
 
 **Development Methodology:**
-- Prompt-driven development with 27 prompt files across 8 OSes × 6 languages (common specs)
+- Prompt-driven development with 217 prompt files across 8 OSes × 6 languages (common specs)
 - Session isolation by design — each prompt file is self-contained for LLM-agent reliability
 - Incremental regeneration via `.gen_state.json` delta detection (3-phase sync: Functional → Build → Regression)
 - Two verification scripts integrated into the build workflow as mandatory gates
+- Post-commit hook (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) for changelog entry suggestions
 
 ### What Works Today
 
 | Capability | Status | Details |
 |------------|--------|---------|
 | C++ library (macOS) | ✅ Complete | Universal binaries (arm64 + x86_64), static + shared libs |
-| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu |
+| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios |
 | Java library (all OS) | ✅ Complete | Maven build, JAR artifact, classload test verified |
 | Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
 | Build system | ✅ Complete | Makefiles with container overrides, versioned artifacts |
 | Test infrastructure | ✅ Complete | T001–T007 matrix, JUnit XML output, pattern-driven data |
-| Binary symmetry | ✅ Verified | 21/21 source files identical across Linux platforms |
+| Binary symmetry | ✅ Verified | All compared source files byte-identical across Linux platforms |
 | Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
-| State tracking | ✅ Operational | `.gen_state.json` on all 4 active C++ platforms |
+| State tracking | ✅ Operational | `.gen_state.json` on all 6 active platforms |
 | Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
 | Java regression | ✅ Passed | 18 assertions, 0 failures across all 4 OSes (macOS native + debian/fedora/ubuntu containers) |
+| Changelog suggestions | ✅ Operational | Post-commit hook analyzes prompt diffs and suggests entries |
 
 ## Where We're Going
 
