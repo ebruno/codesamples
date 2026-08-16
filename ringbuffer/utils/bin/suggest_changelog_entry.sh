@@ -3,19 +3,21 @@
 # 
 # Usage: suggest_changelog_entry.sh [COMMIT_HASH]
 #   If COMMIT_HASH is omitted, uses HEAD.
-#   Analyzes changes to prompts/ and outputs a suggested CHANGELOG entry.
+#   Analyzes changes to prompts/ (scoped by PROJECT_PREFIX) and outputs a suggested CHANGELOG entry.
 #   Prompts the user to apply, edit, or skip.
 
 set -euo pipefail
 
 COMMIT="${1:-HEAD}"
 WORKDIR="$(cd "$(dirname "$0")/../.." && pwd)"
-CHANGELOG="$WORKDIR/prompts/common/CHANGELOG.md"
+# If ringbuffer is moved to its own standalone repo, change this to "":
+PROJECT_PREFIX="ringbuffer/"
+CHANGELOG="$WORKDIR/${PROJECT_PREFIX}prompts/common/CHANGELOG.md"
 
 # ── Helper: check if any prompt files changed in this commit ──────────────
 changed_prompt_files() {
     git diff-tree --no-commit-id --name-only -r "$COMMIT" 2>/dev/null | \
-        grep '^prompts/' || true
+        grep "^${PROJECT_PREFIX}prompts/" || true
 }
 
 # ── Helper: extract changed markdown sections from diff context lines ─────
