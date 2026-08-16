@@ -20,6 +20,8 @@ The Ringbuffer library implements a three-stage pipelined architecture (**Read $
 ## Primary Goal
 The objective is to provide a prompt-driven, immediate build-and-run functionality where the codebase can be regenerated or updated across multiple platforms using a single set of functional specifications.
 
+The project follows a **develop-then-refactor** strategy: functional implementations are first developed on 2–3 target platforms (macOS, Debian) to validate correctness and performance characteristics. Once validated, the implementations are refactored into a shared common codebase (`src/common/`) for platform-insensitive languages (Java, Python), while platform-sensitive languages (C++, C) maintain per-OS source directories with byte-identical cross-platform symmetry. This approach ensures specifications are battle-tested before generalization, reducing the risk of regressions during refactoring.
+
 ## Development Methodology
 
 This project was created entirely from scratch using an LLM (Large Language Model) as the primary development tool. Every aspect of the codebase — from architecture decisions to implementation details, build configuration, test infrastructure, and documentation — was generated through interactive prompt-driven development.
@@ -29,6 +31,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
 - **Binary Symmetry**: The LLM was instructed to produce identical source code across all target platforms, ensuring maintainability and predictable behavior regardless of OS.
 - **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
+- **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations.
 
 **Why this approach:**
 - **Reproducibility**: Any platform can be regenerated from the same prompts, ensuring consistency.
@@ -40,6 +43,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **Multi-Language Support**: C++, Java, Python implementations with shared functional specifications.
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
+- **Library-First API Design**: The Ringbuffer is designed as a reusable library, not an application. All public APIs — including the ~20 slot-level accessor methods on `RingBuffer` (e.g., `get_data_buffer_size()`, `set_transformed_data_buffer_size()`, `get_slot_status()`) — are intentional design choices providing maximum flexibility to library consumers for debugging, monitoring, and testing. Granular slot state visibility is a feature, not a leaky abstraction.
 
 ## Core Features
 - **Pipelined Architecture**: Decoupled read, transform, and write loops for maximum throughput.
@@ -221,6 +225,7 @@ Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory conta
 - **Naming**: All private member variables MUST use the trailing underscore convention (e.g., `member_variable_`).
 - **Hierarchy**: The implementation must strictly follow the `RingBuffer` $\rightarrow$ `SwtrRingBuffer` hierarchy.
 - **Platform Sync**: When updating any platform's source, build, or test artifacts, the same changes MUST be applied to all other Linux platforms. Use the cross-platform update propagation directives in `update_functional.md`, `update_build.md`, and `update_testing.md`.
+- **Prompt Deduplication**: Repeated content (container runtime rules, host-target compatibility checks, spec precedence statements) MUST be extracted into shared reference documents (e.g., `prompts/common/session_hints.md`) and referenced via relative links rather than duplicated verbatim across functional.md, build.md, and testing.md in every platform directory. This reduces maintenance burden and ensures consistency across 215+ prompt files.
 
 ### Part B: The Prompt-Driven Workflow
 This project is managed via a set of prompts that define the desired state of the codebase. The agent requires a valid path to the prompt file to execute the workflow.
