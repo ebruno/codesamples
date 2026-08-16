@@ -40,8 +40,9 @@ dist-clean-containers:
 		$(CONTAINER_CMD) image rm -f "ringbuffer_java_$${os}_test" 2>/dev/null || true; \
 	done
 	@echo "Removing Python containers..."
-	@for os in debian fedora ubuntu; do \
-		echo "  Removing ringbuffer_python_$${os}_test"; \
+	@for os in debian fedora ubuntu raspios; do \
+		echo "  Removing ringbuffer_python_$${os} and ringbuffer_python_$${os}_test"; \
+		$(CONTAINER_CMD) image rm -f "ringbuffer_python_$${os}" 2>/dev/null || true; \
 		$(CONTAINER_CMD) image rm -f "ringbuffer_python_$${os}_test" 2>/dev/null || true; \
 	done
 
