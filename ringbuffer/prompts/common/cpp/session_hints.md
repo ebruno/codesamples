@@ -194,7 +194,13 @@ flowchart LR
 
 ---
 
-## 9. Cross-Reference Summary
+## 9. Cross-Compiler ABI Compatibility (clang++ ↔ g++)
+
+For detailed compatibility analysis, standard library behavior across platforms, and C++ version caveats, see [appendices/cpp-cross-compiler-compatibility.md](../appendices/cpp-cross-compiler-compatibility.md).
+
+**Quick rule:** On macOS, clang++ is the primary supported compiler. g++ support is best-effort — see the appendix for details.
+
+## 10. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`
