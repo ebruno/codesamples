@@ -15,7 +15,7 @@ The Ringbuffer library implements a **three-stage pipelined architecture** (Read
 Each stage uses its own independent atomic index counter, so threads operate on slots without contention. The `wait()` method blocks until all data has flowed through the entire pipeline and threads have joined cleanly via `std::jthread` cooperative cancellation.
 
 ## Overview
-The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters. The core focus of the project is **binary symmetry** — source code is byte-identical within each OS family (all Linux distributions share identical source), with cross-family differences (Linux ↔ macOS/FreeBSD) limited to minimal platform-specific wrappers (`#ifdef` guards, OS-detection macros). This ensures maintainability and predictable behavior.
+The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters. The core focus of the project is **binary symmetry** — source code is byte-identical across ALL platforms (macOS, Linux distributions). When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. This ensures maintainability and predictable behavior.
 
 ## Primary Goal
 The objective is to provide a prompt-driven, immediate build-and-run functionality where the codebase can be regenerated or updated across multiple platforms using a single set of functional specifications.
@@ -29,7 +29,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 **How it works:**
 - **Interactive Prompt Generation**: All workflow prompts were created through iterative dialogue with the LLM, refining specifications until they precisely captured the desired behavior.
 - **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
-- **Binary Symmetry**: Source code is byte-identical within the same OS family (all Linux distributions share identical source). Cross-family differences (Linux ↔ macOS/FreeBSD) are limited to minimal platform-specific wrappers — `#ifdef` guards, OS-detection macros, or thin abstraction layers for system calls (e.g., `epoll` vs `kqueue`, `fsync` flags). The core logic, architecture, and API surface remain identical across all platforms.
+- **Binary Symmetry**: Source code is byte-identical across ALL platforms (macOS, Linux distributions). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
 - **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
 - **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations. The **post-commit hook** (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs and suggests changelog entries — the hook is scoped to `ringbuffer/prompts/` when in a multi-project repo (controlled by `PROJECT_PREFIX` variable in the script).
 
@@ -51,7 +51,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
     - **Cache Alignment**: Buffer slots and counters are aligned to 64-byte boundaries to prevent false sharing.
     - **Small Binaries**: Optimized for dead code elimination (`-ffunction-sections`, `-fdata-sections`).
     - **Universal Binaries (macOS)**: Built with both `arm64` and `x86_64` slices via `lipo -create`, enabling execution on both Apple Silicon and Intel Macs.
-    - **Compiler Flags**: `-fvisibility=hidden` (hide internal symbols), `-flto` (link-time optimization), `-ffunction-sections -fdata-sections` (enable dead code elimination).
+    - **Compiler Flags**: `-fvisibility=hidden` (hide internal symbols), `-flto=thin` (thin link-time optimization), `-ffunction-sections -fdata-sections` (enable dead code elimination).
 - **Data Integrity**: Integrated checksumming (MD5, SHA256, SHA512) for every buffer slot.
 - **Diagnostics**: Non-Virtual Public Interface (NVI) logging system with per-stage (read/transform/write) independently configurable verbosity levels.
 
@@ -219,7 +219,7 @@ Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory conta
 ## Developer & Maintainer Guide
 
 ### Part A: The Golden Rules (Coding Standards)
-- **Binary Symmetry**: Source code MUST be byte-identical across all Linux distributions (debian, fedora, ubuntu, raspios). Cross-family differences between Linux and macOS/FreeBSD are limited to minimal platform-specific wrappers (`#ifdef`, OS-detection macros, thin abstraction layers for system calls). The core logic, architecture, and API surface remain identical across all platforms.
+- **Binary Symmetry**: Source code MUST be byte-identical across ALL platforms (macOS, Linux — debian, fedora, ubuntu, raspios). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
 - **File Distribution**: No `.cpp` file may contain more than 3 function definitions.
 - **Include Discipline**: `ringbuffer.hpp` must be the first non-comment include, followed by alphabetical standard headers, then local headers.
 - **Naming**: All private member variables MUST use the trailing underscore convention (e.g., `member_variable_`).
@@ -859,28 +859,30 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 ## Supported Platforms
 
-| OS | Language | Version |
-| :--- | :--- | :--- |
-| macOS | C++ | v1.0.0 |
-| Debian | C++ | v1.0.0 |
-| Fedora | C++ | v1.0.0 |
-| Ubuntu | C++ | v1.0.0 |
-| Raspberry Pi OS | C++ | v1.0.0 |
-| macOS | Java | v1.0.0 |
-| Debian | Java | v1.0.0 |
-| Fedora | Java | v1.0.0 |
-| Ubuntu | Java | v1.0.0 |
-| macOS | Python | v1.0.0 |
-| Debian | Python | v1.0.0 |
-| Fedora | Python | v1.0.0 |
-| Ubuntu | Python | v1.0.0 |
-| ArchLinux | C++ | Linux-hosts-only[^1] |
-| FreeBSD 14 | C++ | TBS |
-| FreeBSD 15 | C++ | TBS |
+| OS | Language | Version | Verified Compilers |
+| :--- | :--- | :--- | :--- |
+| **macOS** | C++ | v1.0.0 | clang++ 21.0.0, g++ 16.1.0 |
+| | Java | v1.0.0 | javac 26.x (JDK 26) |
+| | Python | v1.0.0 | python 3.14.x |
+| **Debian** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
+| **Fedora** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
+| **Ubuntu** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
+| **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
+| **ArchLinux** | C++ | Linux-hosts-only[^1] | — |
+| **FreeBSD 14** | C++ | TBS | — |
+| **FreeBSD 15** | C++ | TBS | — |
 
 [^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
 
 `*TBS: To Be Supplied | WIP: Work In Progress`
+
+> **Note:** Compiler versions shown are those verified during implementation. Actual available versions may vary by OS release. See [prompts/common/session_hints.md](prompts/common/session_hints.md) for toolchain detection and fallback logic.
 
 ## Where We Are At
 
@@ -891,7 +893,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 - **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
 - **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
 - **C++ prompts implemented for Arch Linux** — Linux-hosts-only (macOS skip with logging); see `prompts/archlinux/cpp/` for all 9 prompt files
-- **Binary symmetry verified** across Linux platforms: 21 source files confirmed byte-identical between debian, fedora, ubuntu, and raspios via automated `verify_binary_symmetry.sh`
+- **Binary symmetry verified** across ALL platforms: 21 source files confirmed byte-identical between macOS, debian, fedora, ubuntu, and raspios via automated `verify_binary_symmetry.sh`
 - **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection
 - **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
 
@@ -920,7 +922,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
 | Build system | ✅ Complete | Makefiles with container overrides, versioned artifacts |
 | Test infrastructure | ✅ Complete | T001–T007 matrix, JUnit XML output, pattern-driven data |
-| Binary symmetry | ✅ Verified | All compared source files byte-identical across Linux platforms |
+| Binary symmetry | ✅ Verified | All compared source files byte-identical across macOS and all Linux platforms
 | Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
 | State tracking | ✅ Operational | `.gen_state.json` on all 6 active platforms |
 | Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
