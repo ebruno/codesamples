@@ -5,6 +5,10 @@ OS_DIRS := $(wildcard src/*/cpp/Makefile)
 # Strip the trailing /Makefile to get src/<os>/cpp paths
 OS_CPP_DIRS := $(patsubst %/Makefile,%,$(OS_DIRS))
 
+# Common language directories (platform-insensitive)
+JAVA_DIR  := src/common/java
+PYTHON_DIR := src/common/python
+
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
 
@@ -16,12 +20,28 @@ clean:
 		echo "Cleaning $$dir ..."; \
 		$(MAKE) -C $$dir clean; \
 	done
+	@if [ -f $(JAVA_DIR)/Makefile ]; then \
+		echo "Cleaning $(JAVA_DIR) ..."; \
+		$(MAKE) -C $(JAVA_DIR) clean; \
+	fi
+	@if [ -f $(PYTHON_DIR)/Makefile ]; then \
+		echo "Cleaning $(PYTHON_DIR) ..."; \
+		$(MAKE) -C $(PYTHON_DIR) clean; \
+	fi
 
 dist-clean: clean
 	@for dir in $(OS_CPP_DIRS); do \
 		echo "Dist-cleaning $$dir ..."; \
 		$(MAKE) -C $$dir dist-clean; \
 	done
+	@if [ -f $(JAVA_DIR)/Makefile ]; then \
+		echo "Dist-cleaning $(JAVA_DIR) ..."; \
+		$(MAKE) -C $(JAVA_DIR) dist-clean; \
+	fi
+	@if [ -f $(PYTHON_DIR)/Makefile ]; then \
+		echo "Dist-cleaning $(PYTHON_DIR) ..."; \
+		$(MAKE) -C $(PYTHON_DIR) dist-clean; \
+	fi
 
 dist-clean-containers:
 	@if [ -z "$(CONTAINER_CMD)" ]; then \

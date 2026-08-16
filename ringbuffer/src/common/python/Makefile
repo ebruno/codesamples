@@ -1,4 +1,4 @@
-.PHONY: container container-clean
+.PHONY: clean dist-clean container container-clean
 
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
@@ -61,3 +61,33 @@ container-clean:
 		echo "Removing $$img"; \
 		$(CONTAINER_CMD) image rm -f $$img 2>/dev/null || true; \
 	done
+
+# Clean build artifacts (Python bytecode, egg-info, build dirs)
+clean:
+	@echo "Cleaning Python build artifacts..."
+	@if [ -d __pycache__ ]; then \
+		rm -rf __pycache__; \
+		echo "  Removed __pycache__/"; \
+	else \
+		echo "  Nothing to clean."; \
+	fi
+	@find . -name "*.pyc" -delete 2>/dev/null || true
+	@if [ -d .egg-info ]; then \
+		rm -rf .egg-info; \
+		echo "  Removed .egg-info/"; \
+	else \
+		echo "  Nothing to clean."; \
+	fi
+	@if [ -d build ]; then \
+		rm -rf build; \
+		echo "  Removed build/"; \
+	else \
+		echo "  Nothing to clean."; \
+	fi
+
+# Full cleanup: build artifacts + container images + test output
+dist-clean: clean container-clean
+	@for dir in logs reports; do \
+		rm -rf $$dir 2>/dev/null || true; \
+	done
+	@echo "Python dist-clean complete."
