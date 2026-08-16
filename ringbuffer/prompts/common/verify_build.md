@@ -172,13 +172,15 @@ Verify that all implemented languages build successfully across supported operat
      3. **Execute Verification**:
         - **Native**: Navigate to `src/common/python/`, then run the verification steps directly.
         - **Container**: Run in a container matching the target OS:
-          - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/python/containers/<os>/Dockerfile | sed 's/^FROM //')`
+          - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
           - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
           ```bash
           # macOS host targeting Linux distro:
-          container run --rm -v $(pwd)/src/common/python:/app $IMAGE sh -c "cd /app && python3 -m py_compile *.py"
+          cd src/common/python && container build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
+          container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && python3 -m py_compile *.py"
           # Linux host targeting another Linux distro:
-          podman run --rm -v $(pwd)/src/common/python:/app $IMAGE sh -c "cd /app && python3 -m py_compile *.py"
+          cd src/common/python && podman build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
+          podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && python3 -m py_compile *.py"
           ```
      4. **Verification Steps** (run in the appropriate execution context):
         - Navigate to `src/common/python/`.

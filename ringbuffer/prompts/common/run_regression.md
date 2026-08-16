@@ -437,18 +437,20 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   3. **Execute Tests**:
      - **Native**: Navigate to `src/common/python/`, then run tests directly.
      - **Container**: Run in a container matching the target OS:
-       - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/python/containers/<os>/Dockerfile | sed 's/^FROM //')`
+       - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
        - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
        ```bash
        # macOS host targeting Linux distro:
-       container run --rm -v $(pwd)/src/common/python:/app $IMAGE sh -c "cd /app && python3 test_ringbuffer.py"
+       cd src/common/python && container build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
+       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py \$t || exit 1; done"
        # Linux host targeting another Linux distro:
-       podman run --rm -v $(pwd)/src/common/python:/app $IMAGE sh -c "cd /app && python3 test_ringbuffer.py"
+       cd src/common/python && podman build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
+       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py \$t || exit 1; done"
        ```
   4. **Verification Steps**:
      - Navigate to `src/common/python/`.
      - Verify Python version meets minimum requirements (3.10+): `python3 --version`.
-     - Run the test script: `python3 test_ringbuffer.py`. Verify exit code 0.
+     - Run all 7 test scenarios: `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py $t || exit 1; done`. Verify exit code 0.
      - Verify all expected outputs are produced correctly.
   5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
