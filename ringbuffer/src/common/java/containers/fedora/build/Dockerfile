@@ -1,9 +1,12 @@
 ARG BASE_IMAGE=fedora:44
+
 FROM ${BASE_IMAGE}
 
-# Install Java 25 and Maven (latest available)
+# Install Java and Maven (version controlled via JDKVER arg)
+ARG JDKVER=25
+
 RUN dnf install -y --setopt=timeout=300 \
-        java-25-openjdk \
+        java-${JDKVER}-openjdk \
         maven && \
     dnf clean all
 

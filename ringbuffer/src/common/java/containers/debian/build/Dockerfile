@@ -2,10 +2,11 @@ FROM debian:13
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
+ARG JDKVER=25
 
-# Install Java 25 and Maven (latest available)
+# Install Java and Maven (version controlled via JDKVER arg)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        openjdk-25-jdk \
+        openjdk-${JDKVER}-jdk \
         maven && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
