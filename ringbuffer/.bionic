@@ -391,6 +391,22 @@ Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32
 7. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
 8. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
 
+### Prompt Changelog Discipline
+When modifying any prompt file that affects generated code, record the change in `prompts/common/CHANGELOG.md` using this format:
+```markdown
+## [YYYY-MM-DD] <short description>
+- **File**: `prompts/<path>/functional.md`
+- **Change**: <one-line description>
+- **Rationale**: <why this change was made>
+```
+This is a documentation discipline — no automation logic uses the changelog at this time. The `utils/bin/suggest_changelog_entry.sh` script can analyze git diffs and suggest entries for manual review.
+
+### Prompt Deduplication Discipline
+Before adding repeated content (container runtime rules, host-target compatibility, spec precedence) to a new or existing prompt file:
+1. Check if the content already exists in `prompts/common/session_hints.md` or another shared reference document.
+2. If it does, add a relative link instead of duplicating the text.
+3. If it doesn't, add it to `prompts/common/session_hints.md` first, then reference it from the platform-specific prompt.
+
 ### Verification Scripts
 The project includes two automated verification scripts in `prompts/common/cpp/utils/bin/`:
 
