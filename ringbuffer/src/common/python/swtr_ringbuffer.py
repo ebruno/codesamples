@@ -395,9 +395,32 @@ class SwtrRingBuffer(RingBuffer):
     # === Logging ===
 
     def _log(self, level: LogLevel, message: str) -> None:
-        """Thread-safe logging method."""
+        """Thread-safe logging method with per-stage verbosity filtering.
+
+        Verbosity is determined from the calling thread's name:
+          ringbuffer-read    → self.read_verbosity
+          ringbuffer-transform → self.transform_verbosity
+          ringbuffer-write   → self.write_verbosity
+        All other threads (e.g. main) use no verbosity filtering.
+        """
         if not self.logging_enabled:
             return
+
+        # Determine effective verbosity based on calling thread
+        thread_name = threading.current_thread().name
+        if thread_name == "ringbuffer-read":
+            effective_verbosity = self.read_verbosity
+        elif thread_name == "ringbuffer-transform":
+            effective_verbosity = self.transform_verbosity
+        elif thread_name == "ringbuffer-write":
+            effective_verbosity = self.write_verbosity
+        else:
+            # Main thread or other — no verbosity filtering
+            effective_verbosity = LogLevel.TRACE
+
+        if level.value < effective_verbosity.value:
+            return
+
         with self.log_lock:
             self.output_stream.write(f"[{level.name}] {message}\n")
             self.output_stream.flush()
