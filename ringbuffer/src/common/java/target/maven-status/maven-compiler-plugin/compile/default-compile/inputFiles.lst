@@ -1,9 +1,0 @@
-/app/swtr/BufferSlot.java
-/app/swtr/BufferStatus.java
-/app/swtr/ChecksumAlgorithm.java
-/app/swtr/ErrorHandler.java
-/app/swtr/LogLevel.java
-/app/swtr/RingBuffer.java
-/app/swtr/SwtrRingBuffer.java
-/app/swtr/TransformFunction.java
-/app/swtr/test/TestRingbuffer.java
