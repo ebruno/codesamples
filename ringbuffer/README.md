@@ -786,9 +786,47 @@ The project includes an interactive workflow for adding new operating systems. T
 - **Multi-language support**: Comma-separated language list (e.g., `cpp, c`)
 - **Implementation state tracking**: `scaffolded → functional_implemented → build_tested → regression_passed → officially_supported`
 - **Template management**: `:save-template` to create new templates, `:update-template` with diff-based change selection
+- **Help**: List all available commands at any time with `:help`
 
 **Session storage:** `.ringbuffer_sessions/` (gitignored, cleaned by `dist-clean`)
 **Template storage:** `prompts/common/templates/` (git-tracked, one file per family)
+
+**Session management commands (available at any step):**
+
+| Command | Action |
+|---------|--------|
+| `:q` | Quit — ask if user wants to save current state |
+| `:wq` | Quit and save — save session with description, then exit (no extra prompt) |
+| `:ls` | List all sessions for the current OS name (filename, step, state, description) |
+| `:rm <index>` | Delete a session by its index from the :ls listing |
+| `:rm *` | Delete all sessions for the current OS name |
+| `:status` | Show current session state (all fields, implementation_state) without advancing |
+| `:state <new_state>` | Manually update the implementation state (e.g., `:state functional_implemented`) |
+| `:templates` | List all available templates (filename, name, description, source) |
+| `:load-template <name>` | Load a template by name (e.g., fedora) — available at any step |
+| `:save-template [name]` | Save current session as a new template |
+| `:update-template` | Update the source template with changed fields (diff-based) — only available if session was loaded from a template |
+| `:help` | Show all available session management commands with descriptions |
+
+**`:help` output:**
+```
+> :help
+
+Session Management Commands:
+  :q                  Quit — ask if user wants to save current state
+  :wq                 Quit and save — save session with description, then exit
+  :ls                 List all sessions for the current OS name
+  :rm <index>         Delete a session by its index from the :ls listing
+  :rm *               Delete all sessions for the current OS name
+  :status             Show current session state without advancing
+  :state <new_state>  Update implementation state (e.g., functional_implemented)
+  :templates          List all available templates
+  :load-template <n>  Load a template by name (e.g., fedora)
+  :save-template [n]  Save current session as a new template
+  :update-template    Update the source template with changed fields (diff-based)
+
+Enter any command at any step to access these features.
+```
 
 **Usage example:**
 ```
