@@ -124,6 +124,7 @@ $(VERSIONED_SHARED): $(OBJS_ARM64) $(OBJS_X86_64)
 
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
+	@find . -name '*.o.tmp' -delete 2>/dev/null || true
 
 dist-clean: clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
