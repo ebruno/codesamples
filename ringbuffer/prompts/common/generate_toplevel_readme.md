@@ -118,7 +118,15 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
      - Shared library linking conventions per platform
      - Common pitfalls and gotchas (e.g., macOS Make built-in defaults)
 
-   **Best practice:** Always review `.bionic` at session start to confirm tool availability and operational rules. Reference `session_hints.md` for host-level context, and `prompts/common/cpp/session_hints.md` when working on C++-specific tasks to avoid platform-specific gotchas.
+   - **`prompts/common/implement_new_os.md`** — Interactive workflow for adding a new operating system. It provides:
+     - Session management with persistence (`:q`, `:wq`, `:ls`, `:rm`, `:status`, `:state`)
+     - Template loading from pre-built distribution templates (`:templates`, `:load-template`)
+     - Dry-run mode for previewing scaffolding without creating files
+     - Multi-language support via comma-separated language list
+     - Implementation state tracking (scaffolded → functional_implemented → build_tested → regression_passed → officially_supported)
+     - Template management (`:save-template`, `:update-template` with diff-based change selection)
+
+   **Best practice:** Always review `.bionic` at session start to confirm tool availability and operational rules. Reference `session_hints.md` for host-level context, `prompts/common/cpp/session_hints.md` when working on C++-specific tasks to avoid platform-specific gotchas, and `implement_new_os.md` when adding a new operating system.
 
    **Test Data Pattern System:**
    The Ringbuffer project uses a **pattern-driven** approach to test data generation. Instead of hardcoding pattern logic into each script, patterns are defined in standalone specification files that serve as the single source of truth. This ensures binary symmetry across all platforms and languages.

@@ -1,0 +1,33 @@
+{
+  "is_template": true,
+  "template_name": "Debian",
+  "template_description": "DEB-based, apt package manager, semver versioning",
+  "source_distro": "debian",
+
+  "classification": "containerized_amd64",
+  "os_family": "debian",
+
+  "detection_method": "Linux — /etc/os-release (ID= field)",
+  "os_id": "debian",
+  "version_model": "semver",
+  "package_manager": "apt-get",
+
+  "architecture": "x86_64",
+  "base_image": "debian:13",
+  "has_arm64_container": false,
+
+  "compiler": "g++",
+  "binary_analysis_tool": "readelf",
+  "default_languages": ["cpp"],
+
+  "prerequisite_packages": [
+    "build-essential", "cmake", "cmake-data", "cmake-doc", "dh-cmake",
+    "debhelper", "devscripts", "doxygen", "clang", "clang-tidy",
+    "clang-format", "procps", "coreutils", "findutils", "which",
+    "python3"
+  ],
+
+  "api_notes": "Standard glibc, full POSIX support",
+
+  "notes": "DEB-based distribution. Container images are amd64-only."
+}

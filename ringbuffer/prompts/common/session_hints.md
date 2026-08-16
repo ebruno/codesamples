@@ -532,6 +532,80 @@ When a script does **not** need tcsh, omit the `.tcsh` file. The python version 
 
 ---
 
+## 7B. Interactive OS Setup — Session Management and Templates
+
+When using `prompts/common/implement_new_os.md` to add a new operating system, the workflow uses an interactive session with persistence, templates, and dry-run mode.
+
+### Session Storage
+- **Location:** `.ringbuffer_sessions/` (workspace root, gitignored)
+- **Filename format:** `new_os_setup_<os_name>_<YYYYMMDD_HHMMSS>.json`
+- **Auto-resume:** On startup, the workflow scans for matching files and offers the newest first
+- **Cleanup:** Removed by `dist-clean` target in top-level Makefile
+
+### Session JSON Fields (Key Fields)
+| Field | Type | Description |
+|-------|------|-------------|
+| `os_name` | string | OS directory name (e.g., "fedora", "debian") |
+| `languages` | array | Languages to support (e.g., ["cpp", "c"]) |
+| `classification` | string | OS classification (native_only, containerized_amd64, etc.) |
+| `source_template` | string | Template name if loaded from one (e.g., "fedora") |
+| `implementation_state` | string | Lifecycle state: scaffolded → functional_implemented → build_tested → regression_passed → officially_supported |
+| `dry_run` | bool | Whether dry-run mode is enabled |
+| `session_description` | string | User-provided description for the session |
+
+### Template Storage
+- **Location:** `prompts/common/templates/` (git-tracked)
+- **Filename format:** `template_<family>.json` (no timestamp, updated in place)
+- **Example files:** `template_fedora.json`, `template_debian.json`
+
+### Template JSON Structure
+```json
+{
+  "is_template": true,
+  "template_name": "Fedora",
+  "template_description": "RPM-based, dnf package manager, semver versioning",
+  "source_distro": "fedora",
+  "classification": "containerized_amd64",
+  "os_family": "redhat",
+  "package_manager": "dnf",
+  "base_image": "fedora:44",
+  "compiler": "g++",
+  "default_languages": ["cpp"],
+  "prerequisite_packages": ["gcc", "make", ...]
+}
+```
+
+### Session Management Commands (available at any step)
+| Command | Action |
+|---------|--------|
+| `:q` | Quit — ask if user wants to save current state |
+| `:wq` | Quit and save — save session with description, then exit |
+| `:ls` | List all sessions for the current OS name |
+| `:rm <index>` | Delete a session by its index from the :ls listing |
+| `:rm *` | Delete all sessions for the current OS name |
+| `:status` | Show current session state without advancing |
+| `:state <new_state>` | Manually update the implementation state |
+| `:templates` | List all available templates |
+| `:load-template <name>` | Load a template by name (e.g., fedora) |
+| `:save-template [name]` | Save current session as a new template |
+| `:update-template` | Update the source template with changed fields (diff-based) |
+| `:help` | Show all available session management commands |
+
+### Workflow Steps (with Session Integration)
+1. **Step 0** — Startup: session recovery check → template loading (if no session) → dry-run question
+2. **Step 0b** — OS name and language selection (comma-separated list)
+3. **Steps 1–8** — Collect OS details, with template defaults shown as context
+4. **Step 9** — Final summary with implementation state and next steps
+
+### After Scaffolding Completes
+The OS scaffolding is fully functional without documentation updates. Once the OS passes all tests:
+1. Update implementation state: `:state regression_passed`
+2. Regenerate README.md: "Use prompts/common/generate_toplevel_readme.md to regenerate the top-level README.md"
+3. Update .bionic platform classification table (manually or via agent)
+4. Update implementation state: `:state officially_supported`
+
+---
+
 ## 8. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release (incl. Arch rolling release)** → This file (`prompts/common/session_hints.md`)
