@@ -707,12 +707,31 @@ public class SwtrRingBuffer implements RingBuffer {
 
     /**
      * Log a message if logging is enabled and verbosity level permits.
+     *
+     * Verbosity is determined from the calling thread's name:
+     *   ringbuffer-read    → readVerbosity
+     *   ringbuffer-transform → transformVerbosity
+     *   ringbuffer-write   → writeVerbosity
+     * All other threads (e.g. main) use no verbosity filtering.
      */
     private void log(LogLevel level, String message) {
         if (!loggingEnabled.get()) return;
 
-        // Check verbosity level (only log if message level >= configured level)
-        if (level.ordinal() < LogLevel.INFO.ordinal()) return;
+        // Determine effective verbosity based on calling thread
+        String name = Thread.currentThread().getName();
+        LogLevel effective;
+        if ("ringbuffer-read".equals(name)) {
+            effective = readVerbosity;
+        } else if ("ringbuffer-transform".equals(name)) {
+            effective = transformVerbosity;
+        } else if ("ringbuffer-write".equals(name)) {
+            effective = writeVerbosity;
+        } else {
+            // Main thread or other — no verbosity filtering
+            effective = LogLevel.TRACE;
+        }
+
+        if (level.getValue() < effective.getValue()) return;
 
         synchronized (logLock) {
             try {
