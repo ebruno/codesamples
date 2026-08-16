@@ -1,0 +1,23 @@
+{
+  "language": "python",
+  "version": "1.0.0-1",
+  "python_version": "3.11.2",
+  "os_results": {
+    "raspios": {
+      "route": "container",
+      "image": "ringbuffer_python_raspios:latest",
+      "python_version": "3.11.2",
+      "status": "PASS",
+      "timestamp": "2026-08-15T14:30:00-07:00"
+    }
+  },
+  "artifacts": {
+    "module": "swtr_ringbuffer.py",
+    "test_script": "test_ringbuffer.py"
+  },
+  "sha256": {
+    "version_mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
+    "swtr_ringbuffer_py": "dbb1aeb4264ad912f0a8e0cfd8639fb224f2097d7c9d3a451fa1d36d0c0c11be",
+    "test_ringbuffer_py": "e6e29a568e178f5ccffaa5d05cf154d17cf0c5d5e22d49f28d8968dfcd1866b1"
+  }
+}
