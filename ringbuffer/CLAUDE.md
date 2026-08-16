@@ -384,10 +384,12 @@ Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32
 ### Common Pitfalls
 1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
 2. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).
-3. **`make clean` removes artifacts:** The main Makefile's `clean` target removes `build/`, `lib/`, and `logs/`. This is intentional for fresh builds.
-4. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
-5. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
-6. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
+3. **`make clean` loops over all languages:** The main Makefile's `clean` target iterates over C++ (`src/*/cpp/`), Java (`src/common/java/`), and Python (`src/common/python/`) directories, calling `make clean` in each. Per-directory Makefiles handle actual artifact removal (e.g., C++ removes `build/`, `lib/`; Java removes `target/`; Python removes `__pycache__/`, `.egg-info/`, `build/`).
+4. **`dist-clean` reports elapsed time:** The top-level `dist-clean` target captures a start timestamp at the beginning of `clean`, then after all dist-work completes, prints `Dist-clean completed in HH:MM:SS`. A `.ringbuffer_start` temp file passes the start time from `clean` to `dist-clean`.
+5. **`.ringbuffer_start` is a temp file:** The `.ringbuffer_start` file stores the epoch seconds captured at `clean` start. It is read and deleted by `dist-clean` after computing elapsed time. Do not commit it to git.
+6. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
+7. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
+8. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
 
 ### Verification Scripts
 The project includes two automated verification scripts in `prompts/common/cpp/utils/bin/`:
@@ -548,4 +550,3 @@ If all tools are present, state: "None — all required tools are available."
 # Transitory Markers
 - `.dockerfile_created_by_step0` is a transitory workflow marker — add it to `.gitignore` and remove from git tracking. It has no functional purpose beyond prompt execution coordination.
 - `.required_directory` files are **NOT** transitory — they preserve directory structure in git when directories contain no other tracked files. Do **NOT** add them to `.gitignore`.
-<EOF>
