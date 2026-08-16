@@ -165,16 +165,15 @@ verify: static dynamic validate-data deploy-utils
 
 # Clean test artifacts
 clean:
-	$(RM) -r $(BIN_DIR)/* 2>/dev/null || true
-	# NOTE: Do NOT remove data/expected/* — those are golden reference files used for test verification
-	$(RM) *.o 2>/dev/null || true
-	$(RM) -r $(LOGS_DIR)/* 2>/dev/null || true
-	$(RM) "*~" "#*#" 2>/dev/null || true
+	@$(RM) -r $(BIN_DIR)/* 2>/dev/null || true
+	@$(RM) *.o 2>/dev/null || true
+	@$(RM) -r $(LOGS_DIR)/* 2>/dev/null || true
+	@$(RM) "*~" "#*#" 2>/dev/null || true
 
 # Full cleanup
 dist-clean: clean
-	$(RM) -r $(LOGS_DIR) 2>/dev/null || true
-	$(RM) -r $(REPORTS_DIR) 2>/dev/null || true
+	@$(RM) -r $(LOGS_DIR) 2>/dev/null || true
+	@$(RM) -r $(REPORTS_DIR) 2>/dev/null || true
 
 # Container management
 container:

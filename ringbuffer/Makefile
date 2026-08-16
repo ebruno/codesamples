@@ -13,6 +13,7 @@ PYTHON_DIR := src/common/python
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
 
 clean:
+	@date +%s > .ringbuffer_start
 	@find . -maxdepth 1 -name "*~" -exec ${RM} {} \;
 	@find . -maxdepth 1 -name "#*#" -exec ${RM} {} \;	
 	@find prompts -type f \( -name "*~" -o -name "#*#" \) -delete
@@ -30,18 +31,26 @@ clean:
 	fi
 
 dist-clean: clean
-	@for dir in $(OS_CPP_DIRS); do \
+	@START=$$(cat .ringbuffer_start 2>/dev/null || date +%s); \
+	rm -f .ringbuffer_start; \
+	for dir in $(OS_CPP_DIRS); do \
 		echo "Dist-cleaning $$dir ..."; \
 		$(MAKE) -C $$dir dist-clean; \
-	done
-	@if [ -f $(JAVA_DIR)/Makefile ]; then \
+	done; \
+	if [ -f $(JAVA_DIR)/Makefile ]; then \
 		echo "Dist-cleaning $(JAVA_DIR) ..."; \
 		$(MAKE) -C $(JAVA_DIR) dist-clean; \
-	fi
-	@if [ -f $(PYTHON_DIR)/Makefile ]; then \
+	fi; \
+	if [ -f $(PYTHON_DIR)/Makefile ]; then \
 		echo "Dist-cleaning $(PYTHON_DIR) ..."; \
 		$(MAKE) -C $(PYTHON_DIR) dist-clean; \
-	fi
+	fi; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	HH=$$(printf "%02d" $$((ELAPSED / 3600))); \
+	MM=$$(printf "%02d" $$((ELAPSED % 3600 / 60))); \
+	SS=$$(printf "%02d" $$((ELAPSED % 60))); \
+	echo "Dist-clean completed in $${HH}:$${MM}:$${SS}"
 
 dist-clean-containers:
 	@if [ -z "$(CONTAINER_CMD)" ]; then \

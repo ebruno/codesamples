@@ -64,8 +64,8 @@ verify: deploy_utils all
 	@echo "Verification complete."
 
 clean:
-	$(RM) -r $(BIN_DIR)/* $(LOG_DIR)/*
-	$(RM) *.o $(BIN_DIR)/*.o *~ #*#
+	@$(RM) -r $(BIN_DIR)/* $(LOG_DIR)/*
+	@$(RM) *.o $(BIN_DIR)/*.o *~ #*#
 
 dist-clean: clean
-	$(RM) -r $(LOG_DIR) $(REPORT_DIR)
+	@$(RM) -r $(LOG_DIR) $(REPORT_DIR)

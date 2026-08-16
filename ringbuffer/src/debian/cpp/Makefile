@@ -95,11 +95,11 @@ $(BUILD_DIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	$(RM) $(BUILD_DIR) $(LIB_DIR) *.o "*.o" "*~" "#*#"
+	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o "*.o" "*~" "#*#"
 
 dist-clean: clean container-clean
-	@if [ -d tests ]; then make -C tests dist-clean; fi
-	$(RM) reports ../reports logs
+	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
+	@$(RM) reports ../reports logs
 
 
 
@@ -128,7 +128,7 @@ endif
 
 container-clean:
 	@echo "Removing build container image..."
-	@$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) || true
+	@$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
 	@echo "Container environment cleaned."
 
 # Container Health Check
