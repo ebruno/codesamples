@@ -950,5 +950,11 @@ Loaded template 'Fedora' — all fields populated with defaults.
 - **Cross-platform verification suite** — Automated comparison of behavior across all language/platform combinations, not just source-level binary symmetry.
 - **Plugin ecosystem** — The transform function abstraction (`std::function<void(std::vector<uint8_t>&, size_t&)>`) is designed to support a plugin model where users can register custom transforms without modifying the library.
 
+## Appendices
+
+| Appendix | Description |
+|----------|-------------|
+| [C++ Cross-Compiler Compatibility](prompts/common/appendices/cpp-cross-compiler-compatibility.md) | Detailed analysis of clang++ ↔ g++ ABI compatibility, standard library behavior across macOS/Linux/Windows, and C++ version caveats |
+
 ## License
 This project is licensed under the **BSD 3-Clause License**.
