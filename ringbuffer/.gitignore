@@ -2,6 +2,7 @@
 *~
 #*#
 .dockerfile_created_by_step0
+.ringbuffer_start
 __pycache__/
 
 # Java / Maven build artifacts
