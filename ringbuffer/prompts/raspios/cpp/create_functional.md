@@ -23,7 +23,7 @@ Once implementation is complete, generate a summary report at `src/raspios/cpp/r
 
 # Functional Implementation Report - Raspberry Pi OS
 **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
-**Target OS**: Raspberry Pi OS (Bookworm), arm64
+**Target OS**: Raspberry Pi OS (Debian 13/trixie), arm64
 **Ringbuffer Version:** <resolved_version from shared context>
 **Start Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
 **End Time:** [YYYY-MM-DD HH:MM:SS +/-HHMM]

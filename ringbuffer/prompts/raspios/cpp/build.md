@@ -11,7 +11,7 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
 **Spec Precedence Rule:** When platform-specific specs (e.g., `prompts/<os>/cpp/build.md`) conflict with common specs (`prompts/common/cpp/build.md`), the platform-specific spec takes precedence for toolchain, binary format, and environment details. All other requirements in the common spec remain authoritative unless explicitly overridden by a platform-specific directive.
 
 **Platform Specifics:**
-- **Target Environment**: Raspberry Pi OS (Bookworm), Linux kernel 6.1.x LTS
+- **Target Environment**: Raspberry Pi OS (Debian 13/trixie), Linux kernel 6.1.x LTS
 - **OS Identification**: `ID=debian` in `/etc/os-release`, confirmed by presence of `/etc/rpi-issue`
 - **Prerequisites**: Install the following packages via `apt-get`:
     - `build-essential`, `cmake`, `doxygen`, `clang`, `clang-tidy`, `clang-format`, `procps`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`, `openjdk-21-jdk-headless`, `maven`.

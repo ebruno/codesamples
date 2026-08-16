@@ -6,7 +6,7 @@ Refer to the common specification for all architectural, interface, and implemen
 [prompts/common/cpp/functional.md](../../common/cpp/functional.md)
 
 **Platform Specifics:**
-- **Target OS**: Raspberry Pi OS (Bookworm), Linux kernel 6.1.x LTS
+- **Target OS**: Raspberry Pi OS (Debian 13/trixie), Linux kernel 6.1.x LTS
 - **OS Identification**: `ID=debian` in `/etc/os-release`, confirmed by presence of `/etc/rpi-issue`
 - **Architecture**: arm64 (aarch64) — runs natively on Apple Silicon Macs
 - **Toolchains**: Clang and GCC

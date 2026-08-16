@@ -7,7 +7,7 @@ Please implement the full testing suite for the Ringbuffer on Raspberry Pi OS.
 - Follow all requirements in `prompts/common/cpp/testing.md` for common C++ testing specifications.
 
 **Scope of Work:**
-1. **Environment Setup**: Create the container configuration (`Dockerfile`) as specified for Raspberry Pi OS (Bookworm, arm64).
+1. **Environment Setup**: Create the container configuration (`Dockerfile`) as specified for Raspberry Pi OS (Debian 13/trixie, arm64).
 2. **Directory Structure**: Establish the `tests/` directory structure within `src/raspios/cpp/tests`, ensuring all directories contain the `.required_directory` marker.
 3. **Data Generation & Validation**: 
     - Implement the required shell scripts using `/usr/bin/env` shebangs.
