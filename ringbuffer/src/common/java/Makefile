@@ -1,4 +1,4 @@
-.PHONY: container container-clean
+.PHONY: clean dist-clean container container-clean
 
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
@@ -71,3 +71,20 @@ container-clean:
 		echo "Removing $$img"; \
 		$(CONTAINER_CMD) image rm -f $$img 2>/dev/null || true; \
 	done
+
+# Clean build artifacts (Maven target directory)
+clean:
+	@echo "Cleaning Java build artifacts..."
+	@if [ -d target ]; then \
+		rm -rf target; \
+		echo "  Removed target/"; \
+	else \
+		echo "  Nothing to clean."; \
+	fi
+
+# Full cleanup: build artifacts + container images + test output
+dist-clean: clean container-clean
+	@for dir in logs reports; do \
+		rm -rf $$dir 2>/dev/null || true; \
+	done
+	@echo "Java dist-clean complete."
