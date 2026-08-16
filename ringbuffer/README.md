@@ -15,7 +15,7 @@ The Ringbuffer library implements a **three-stage pipelined architecture** (Read
 Each stage uses its own independent atomic index counter, so threads operate on slots without contention. The `wait()` method blocks until all data has flowed through the entire pipeline and threads have joined cleanly via `std::jthread` cooperative cancellation.
 
 ## Overview
-The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters. The core focus of the project is **binary symmetry**, meaning the source code remains identical across all supported operating systems to ensure maintainability and predictable behavior.
+The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters. The core focus of the project is **binary symmetry** — source code is byte-identical within each OS family (all Linux distributions share identical source), with cross-family differences (Linux ↔ macOS/FreeBSD) limited to minimal platform-specific wrappers (`#ifdef` guards, OS-detection macros). This ensures maintainability and predictable behavior.
 
 ## Primary Goal
 The objective is to provide a prompt-driven, immediate build-and-run functionality where the codebase can be regenerated or updated across multiple platforms using a single set of functional specifications.
@@ -29,7 +29,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 **How it works:**
 - **Interactive Prompt Generation**: All workflow prompts were created through iterative dialogue with the LLM, refining specifications until they precisely captured the desired behavior.
 - **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
-- **Binary Symmetry**: The LLM was instructed to produce identical source code across all target platforms, ensuring maintainability and predictable behavior regardless of OS.
+- **Binary Symmetry**: Source code is byte-identical within the same OS family (all Linux distributions share identical source). Cross-family differences (Linux ↔ macOS/FreeBSD) are limited to minimal platform-specific wrappers — `#ifdef` guards, OS-detection macros, or thin abstraction layers for system calls (e.g., `epoll` vs `kqueue`, `fsync` flags). The core logic, architecture, and API surface remain identical across all platforms.
 - **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
 - **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations. The **post-commit hook** (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs and suggests changelog entries — the hook is scoped to `ringbuffer/prompts/` when in a multi-project repo (controlled by `PROJECT_PREFIX` variable in the script).
 
@@ -219,7 +219,7 @@ Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory conta
 ## Developer & Maintainer Guide
 
 ### Part A: The Golden Rules (Coding Standards)
-- **Binary Symmetry**: Source code MUST be identical across all platforms.
+- **Binary Symmetry**: Source code MUST be byte-identical across all Linux distributions (debian, fedora, ubuntu, raspios). Cross-family differences between Linux and macOS/FreeBSD are limited to minimal platform-specific wrappers (`#ifdef`, OS-detection macros, thin abstraction layers for system calls). The core logic, architecture, and API surface remain identical across all platforms.
 - **File Distribution**: No `.cpp` file may contain more than 3 function definitions.
 - **Include Discipline**: `ringbuffer.hpp` must be the first non-comment include, followed by alphabetical standard headers, then local headers.
 - **Naming**: All private member variables MUST use the trailing underscore convention (e.g., `member_variable_`).

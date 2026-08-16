@@ -47,7 +47,7 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    This section must be split into three parts:
 
    **Part A: The Golden Rules (Coding Standards)**
-   - **Binary Symmetry**: Source code MUST be identical across all platforms.
+   - **Binary Symmetry**: Source code MUST be byte-identical across all Linux distributions (debian, fedora, ubuntu, raspios). Cross-family differences between Linux and macOS/FreeBSD are limited to minimal platform-specific wrappers (`#ifdef`, OS-detection macros, thin abstraction layers for system calls). The core logic, architecture, and API surface remain identical across all platforms.
    - **File Distribution**: Max 3 functions per `.cpp` file.
    - **Include Discipline**: `ringbuffer.hpp` first $\rightarrow$ Alphabetical Standard Headers $\rightarrow$ Local Headers.
    - **Naming**: Private members MUST use trailing underscores (`member_variable_`).

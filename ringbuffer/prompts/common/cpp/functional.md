@@ -1,6 +1,6 @@
 # Functional Requirements - Ringbuffer (Common C++)
 
-**Cross-Platform Consistency Requirement:** This library is deployed across multiple Linux distributions. To ensure maintainability and binary symmetry, the source code MUST be identical across all platforms. Do not adapt the coding style, naming, or architecture to the specific distribution; follow these specifications strictly.
+**Cross-Platform Consistency Requirement:** This library is deployed across multiple Linux distributions. To ensure maintainability and binary symmetry, the source code MUST be byte-identical across all Linux distributions (debian, fedora, ubuntu, raspios). Cross-family differences between Linux and macOS/FreeBSD are limited to minimal platform-specific wrappers (`#ifdef` guards, OS-detection macros). Do not adapt the coding style, naming, or architecture to the specific distribution; follow these specifications strictly.
 
 **Cross-Platform Generation Mandate:** When generating source code for any platform, the agent MUST produce byte-identical `.cpp` and `.hpp` files across all Linux distributions (Ubuntu, Debian, Fedora). The only platform-specific artifacts are:
 - `containers/Dockerfile` (base image and package list)
@@ -12,7 +12,7 @@ All source code files (`*.cpp`, `*.hpp`) MUST be generated from the same canonic
 
 **Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — <target> matches <reference>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 
-**Cross-Platform Build/Test Synchronization Mandate:** The build and test infrastructure MUST be identical across all platforms, with only the following allowed differences:
+**Cross-Platform Build/Test Synchronization Mandate:** The build and test infrastructure MUST be byte-identical across all Linux distributions, with only the following allowed differences:
 - Container image names (`ringbuffer_<os>_build`, `ringbuffer_<os>_test`)
 - Dockerfile paths (`containers/<os>/Dockerfile` or `tests/containers/<os>/Dockerfile`)
 - Host distro detection strings (`ubuntu`, `debian`, etc.)

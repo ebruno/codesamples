@@ -1,9 +1,9 @@
 # Testing Requirements - Ringbuffer (Common C++)
 
 **Implementation Directive:**
-This testing specification MUST be followed exactly to ensure that the validation process is identical across all target platforms and ensures binary symmetry.
+This testing specification MUST be followed exactly to ensure that the validation process is identical across all Linux distributions and ensures binary symmetry.
 
-**Test Process Consistency Mandate:** The test execution process MUST be identical across all Linux platforms. When generating or updating the test suite for any platform:
+**Test Process Consistency Mandate:** The test execution process MUST be byte-identical across all Linux distributions. When generating or updating the test suite for any platform:
 - The `tests/Makefile` MUST match across platforms, except for container image name, Dockerfile path, and report title
 - The test matrix (T001–T007) MUST be identical in parameters, expected outcomes, and execution order
 - The regression report format (both Markdown and JUnit XML) MUST be byte-identical across platforms

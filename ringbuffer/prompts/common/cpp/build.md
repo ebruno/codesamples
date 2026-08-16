@@ -1,9 +1,9 @@
 # Build Requirements - Ringbuffer (Common C++)
 
 **Implementation Directive:**
-This build specification MUST be followed exactly to ensure binary symmetry across platforms. Platform-specific deviations are permitted only for prerequisite package installation.
+This build specification MUST be followed exactly to ensure binary symmetry across all Linux distributions. Platform-specific deviations are permitted only for prerequisite package installation and OS-detection macros.
 
-**Build Process Consistency Mandate:** The build process MUST be identical across all Linux platforms. The only permitted differences between platform Makefiles are:
+**Build Process Consistency Mandate:** The build process MUST be byte-identical across all Linux distributions. The only permitted differences between platform Makefiles are:
 - `CONTAINER_IMAGE` variable value (`ringbuffer_ubuntu_build`, `ringbuffer_debian_build`, etc.)
 - Working directory path in container run commands (`src/ubuntu/cpp` vs `src/debian/cpp`)
 - Host distro detection check (`ubuntu` vs `debian`)
