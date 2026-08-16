@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
-# verify_binary_symmetry.zsh — Verify binary symmetry across Linux platforms (Zsh variant)
+# verify_binary_symmetry.zsh — Verify binary symmetry across ALL platforms (Zsh variant)
 #
-# Compares .cpp and .hpp source files across all Linux platforms (debian, fedora, ubuntu)
+# Compares .cpp and .hpp source files across all platforms (macOS, debian, fedora, ubuntu, raspios)
 # to ensure byte-identical output as required by the common specification.
 #
 # Usage: ./verify_binary_symmetry.zsh [workspace_root]
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${(%):-%x}")" && pwd)"
 WORKSPACE_ROOT="${1:-$(cd "$SCRIPT_DIR/../../../../../../.." && pwd)}"
 
 # --- Configuration ---
-LINUX_PLATFORMS=(debian fedora ubuntu)
+PLATFORMS=(macos debian fedora ubuntu raspios)
 
 SOURCE_FILES=(
     ringbuffer.hpp status.hpp swtr_ringbuffer_impl.hpp
@@ -36,7 +36,7 @@ TOTAL=0 PASS=0 FAIL=0 SKIPPED=0
 
 echo "=== Binary Symmetry Verification ==="
 echo "Workspace: $WORKSPACE_ROOT"
-echo "Platforms: ${(j/ /)LINUX_PLATFORMS}"
+echo "Platforms: ${(j/ /)PLATFORMS}"
 echo ""
 
 for src_file in "$SOURCE_FILES"; do
@@ -45,7 +45,7 @@ for src_file in "$SOURCE_FILES"; do
     FILE_PATHS=()
     PLATFORM_NAMES=()
 
-    for platform in "$LINUX_PLATFORMS"; do
+    for platform in "$PLATFORMS"; do
         fpath="$WORKSPACE_ROOT/src/$platform/cpp/$src_file"
         if [[ -f "$fpath" ]]; then
             FILE_PATHS+=("$fpath")

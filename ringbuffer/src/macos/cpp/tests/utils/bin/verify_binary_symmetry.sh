@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# verify_binary_symmetry.sh — Verify binary symmetry across Linux platforms
+# verify_binary_symmetry.sh — Verify binary symmetry across ALL platforms
 #
-# Compares .cpp and .hpp source files across all Linux platforms (debian, fedora, ubuntu)
+# Compares .cpp and .hpp source files across all platforms (macOS, debian, fedora, ubuntu, raspios)
 # to ensure byte-identical output as required by the common specification.
 #
 # Usage: ./verify_binary_symmetry.sh [workspace_root]
@@ -38,8 +38,8 @@ if [[ -z "$WORKSPACE_ROOT" ]]; then
 fi
 
 # --- Configuration ---
-# Linux platforms that should produce byte-identical source files
-LINUX_PLATFORMS=("debian" "fedora" "ubuntu")
+# Platforms that should produce byte-identical source files
+PLATFORMS=("macos" "debian" "fedora" "ubuntu" "raspios")
 
 # Files to compare (relative to src/<os>/cpp/)
 SOURCE_FILES=(
@@ -81,7 +81,7 @@ NC='\033[0m' # No Color
 # --- Main verification loop ---
 echo "=== Binary Symmetry Verification ==="
 echo "Workspace: $WORKSPACE_ROOT"
-echo "Platforms: ${LINUX_PLATFORMS[*]}"
+echo "Platforms: ${PLATFORMS[*]}"
 echo ""
 
 for src_file in "${SOURCE_FILES[@]}"; do
@@ -91,7 +91,7 @@ for src_file in "${SOURCE_FILES[@]}"; do
     declare -a FILE_PATHS=()
     declare -a PLATFORM_NAMES=()
 
-    for platform in "${LINUX_PLATFORMS[@]}"; do
+    for platform in "${PLATFORMS[@]}"; do
         fpath="$WORKSPACE_ROOT/src/$platform/cpp/$src_file"
         if [[ -f "$fpath" ]]; then
             FILE_PATHS+=("$fpath")
@@ -153,6 +153,6 @@ if [[ $FAIL -gt 0 ]]; then
 else
     echo ""
     echo "RESULT: SYMMETRY VERIFIED"
-    echo "All compared source files are byte-identical across Linux platforms."
+    echo "All compared source files are byte-identical across all platforms."
     exit 0
 fi
