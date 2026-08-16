@@ -11,6 +11,9 @@ endif
 # LTO flag determined at parse time: g++ on macOS uses -flto, all others use -flto=thin
 UNAME_S := $(shell uname -s)
 LTO_FLAG := $(shell if [ "$(CXX)" = "g++" ] && [ "$(UNAME_S)" = "Darwin" ]; then echo "-flto"; else echo "-flto=thin"; fi)
+# macOS: clang++ uses libc++ by default (headers available). Homebrew g++ defaults to libstdc++,
+# but Apple deprecated libstdc++ headers on macOS 10.14+. g++ may fail to compile on modern macOS
+# if libstdc++ headers are missing — this is acceptable and documented in session_hints.md.
 override CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic $(LTO_FLAG) -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 
 # Linker flags are OS-dependent, not compiler-dependent:
