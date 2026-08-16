@@ -1,14 +1,15 @@
 # Functional Requirements - Ringbuffer (Common C++)
 
-**Cross-Platform Consistency Requirement:** This library is deployed across multiple Linux distributions. To ensure maintainability and binary symmetry, the source code MUST be byte-identical across all Linux distributions (debian, fedora, ubuntu, raspios). Cross-family differences between Linux and macOS/FreeBSD are limited to minimal platform-specific wrappers (`#ifdef` guards, OS-detection macros). Do not adapt the coding style, naming, or architecture to the specific distribution; follow these specifications strictly.
+**Cross-Platform Consistency Requirement:** This library is deployed across multiple operating systems and distributions. The source code MUST be byte-identical across ALL platforms (macOS, Linux — debian, fedora, ubuntu, raspios). When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls (e.g., file sync, threading primitives). The goal is a single canonical source tree that compiles and runs correctly on every target platform without platform-specific forks. Do not adapt the coding style, naming, or architecture to any specific distribution; follow these specifications strictly.
 
-**Cross-Platform Generation Mandate:** When generating source code for any platform, the agent MUST produce byte-identical `.cpp` and `.hpp` files across all Linux distributions (Ubuntu, Debian, Fedora). The only platform-specific artifacts are:
-- `containers/Dockerfile` (base image and package list)
-- `Makefile` (container image name, working directory path, host distro check)
-- `tests/containers/<os>/Dockerfile` (test container base image)
+**Cross-Platform Generation Mandate:** When generating source code for any platform, the agent MUST produce byte-identical `.cpp` and `.hpp` files across ALL platforms (macOS, Linux — Ubuntu, Debian, Fedora). The only platform-specific artifacts are:
+- `containers/Dockerfile` (base image and package list, Linux only)
+- `Makefile` (compiler flags for shared library linking — `-dead_strip` on macOS, `--gc-sections` on Linux; container image name and working directory path)
+- `tests/containers/<os>/Dockerfile` (test container base image, Linux only)
 - `tests/Makefile` (container image name, Dockerfile path, report title)
 
-All source code files (`*.cpp`, `*.hpp`) MUST be generated from the same canonical template. Generate each platform's source independently from this spec — do not copy files between platforms.
+All source code files (`*.cpp`, `.hpp`) MUST be generated from the same canonical template. Generate each platform's source independently from this spec — do not copy files between platforms.
+
 
 **Cross-Platform Verification:** After generating all files independently, compare output against any other platform's source in `src/` if available. If a reference platform exists, verify byte-identical output and log: `[timestamp] Cross-platform comparison passed — <target> matches <reference>.` If no reference platform exists, log: `[timestamp] Cross-platform comparison skipped — no other platform source available.`
 

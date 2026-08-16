@@ -32,7 +32,7 @@ make clean              # Remove build artifacts
 ### Using g++ (Manual)
 
 ```bash
-g++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto \
+g++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto=thin \
     -I. -c Lifecycle.cpp ReadOps.cpp TransformOps.cpp WriteOps.cpp \
        Threading.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
        LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
@@ -46,7 +46,7 @@ g++ -shared -Wl,-soname,libswtr_ringbuffer.so -o lib/libswtr_ringbuffer-1.0.0-1.
 ### Using clang++ (Manual)
 
 ```bash
-clang++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto \
+clang++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto=thin \
     -I. -c Lifecycle.cpp ReadOps.cpp TransformOps.cpp WriteOps.cpp \
        Threading.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
        LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \

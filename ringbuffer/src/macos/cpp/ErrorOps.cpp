@@ -3,11 +3,12 @@
 
 namespace swtr {
 
-int default_error_handler(size_t slot_idx, BufferStatus status) {
-    // Default error handler: log the error and request stop
-    (void)slot_idx;
-    (void)status;
-    return 1; // non-zero triggers cooperative cancellation
+void SwtrRingBuffer::handle_error(size_t slot_idx, BufferStatus status) {
+    if (err_handler_) {
+        if (err_handler_(slot_idx, status) != 0) {
+            stop();
+        }
+    }
 }
 
 } // namespace swtr

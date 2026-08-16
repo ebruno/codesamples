@@ -17,7 +17,7 @@ Please configure the build system for the Ringbuffer on macOS.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
-- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-dead_strip` are applied to achieve the "small binary" goal.
+- **Optimization**: Ensure `-flto=thin`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-dead_strip` are applied to achieve the "small binary" goal.
 - **Toolchain**: Use Clang by default.
 - **Makefile Consistency:** The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `src/macos/cpp/` containing the resolved version, resolved image (N/A for native-only), SHA-256 hashes of `common/cpp/build.md` and `macos/cpp/build.md`, SHA-256 hashes of all generated build artifacts (Makefile, specs files), and file fingerprints for all source files.

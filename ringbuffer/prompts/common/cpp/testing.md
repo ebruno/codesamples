@@ -1,10 +1,10 @@
 # Testing Requirements - Ringbuffer (Common C++)
 
 **Implementation Directive:**
-This testing specification MUST be followed exactly to ensure that the validation process is identical across all Linux distributions and ensures binary symmetry.
+This testing specification MUST be followed exactly to ensure that the validation process is identical across all platforms (macOS, Linux — debian, fedora, ubuntu, raspios) and ensures binary symmetry.
 
-**Test Process Consistency Mandate:** The test execution process MUST be byte-identical across all Linux distributions. When generating or updating the test suite for any platform:
-- The `tests/Makefile` MUST match across platforms, except for container image name, Dockerfile path, and report title
+**Test Process Consistency Mandate:** The test execution process MUST be byte-identical across all platforms. When generating or updating the test suite for any platform:
+- The `tests/Makefile` MUST match across platforms, except for container image name, Dockerfile path, report title (Linux only), and macOS native test execution
 - The test matrix (T001–T007) MUST be identical in parameters, expected outcomes, and execution order
 - The regression report format (both Markdown and JUnit XML) MUST be byte-identical across platforms
 - The container build → test execution → report generation workflow MUST follow the same sequence
@@ -160,6 +160,7 @@ Before running functional tests, the build artifacts must be verified to ensure 
   if [ "$(uname -s)" = "Darwin" ]; then size -m "$artifact"; else size "$artifact"; fi
   ```
 - **Symbol Visibility**: Use `nm -gjU <artifact>` to verify that internal symbols are hidden and that the public API is strictly limited to the intended interface.
+- **Universal Binary Check (macOS only)**: On macOS, verify whether the shared library is a universal binary using `lipo -info <dylib>`. If the compiler was `g++` (Homebrew GCC), expect an arm64-only binary — this is **acceptable** and must be flagged as INFO (not ERROR) in the regression report. See `prompts/common/cpp/build.md` → "Toolchain Limitations — g++ on macOS Apple Silicon" for details.
 
 ## Test Data Generation
 After the test utility scripts are created, the following 7 test files MUST be generated in `tests/data/inputs/` (named `test001.txt` through `test007.txt`) using the pattern defined in the common testing patterns directory.

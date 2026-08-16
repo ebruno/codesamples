@@ -1,12 +1,18 @@
 # Build Requirements - Ringbuffer (Common C++)
 
 **Implementation Directive:**
-This build specification MUST be followed exactly to ensure binary symmetry across all Linux distributions. Platform-specific deviations are permitted only for prerequisite package installation and OS-detection macros.
+This build specification MUST be followed exactly to ensure binary symmetry across all platforms (macOS, Linux — debian, fedora, ubuntu, raspios). The source code is byte-identical across all platforms. Platform-specific deviations are permitted only for:
+- Prerequisite package installation (Linux distro-specific)
+- OS-detection macros in scripts
+- Makefile linker flags (`-dead_strip` on macOS, `--gc-sections` on Linux)
+- Container image names and paths (Linux only)
 
-**Build Process Consistency Mandate:** The build process MUST be byte-identical across all Linux distributions. The only permitted differences between platform Makefiles are:
-- `CONTAINER_IMAGE` variable value (`ringbuffer_ubuntu_build`, `ringbuffer_debian_build`, etc.)
-- Working directory path in container run commands (`src/ubuntu/cpp` vs `src/debian/cpp`)
-- Host distro detection check (`ubuntu` vs `debian`)
+**Build Process Consistency Mandate:** The build process MUST be byte-identical across all platforms. The only permitted differences between platform Makefiles are:
+- `CONTAINER_IMAGE` variable value (`ringbuffer_ubuntu_build`, `ringbuffer_debian_build`, etc., Linux only)
+- Working directory path in container run commands (`src/ubuntu/cpp` vs `src/debian/cpp`, Linux only)
+- Host distro detection check (`ubuntu` vs `debian`, Linux only)
+- Linker flags: `-dead_strip` (macOS) vs `--gc-sections` (Linux)
+- Universal binary creation: `lipo -create` on macOS, not needed on Linux
 
 All other Makefile content — compiler flags, source file lists, build targets, artifact naming, optimization settings — MUST be byte-identical. When updating the Makefile for one platform, apply the same changes to all platforms.
 
@@ -81,7 +87,7 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 - `-fPIC`: Position Independent Code, required for shared library creation.
 - `-Wall -Wextra -Wpedantic`: Enable all common warnings to ensure code quality.
 - `-O3`: Enable high-level optimizations.
-- `-flto`: Enable Link Time Optimization to optimize across the large number of small source modules.
+- `-flto=thin`: Enable Thin Link Time Optimization to optimize across the large number of small source modules while producing native object files compatible with both static and shared library linking across all platforms.
 - `-fvisibility=hidden`: Hide all symbols by default to reduce the dynamic symbol table size and enable more aggressive stripping.
 - `-ffunction-sections`: Place each function in its own section in the object file.
 - `-fdata-sections`: Place each data item in its own section in the object file.
@@ -110,7 +116,7 @@ To provide a consistent interface for consumers, the following symbolic links mu
 - **Requirement**: Symbolic links must be created using a relative path within the `./lib` directory (e.g., by changing the working directory to `lib` before creating the link) to ensure the links remain valid if the library folder is moved.
 
 ## Binary Optimization Goals
-- **Dead Code Elimination**: The primary goal of using `-ffunction-sections`, `-fdata-sections`, and `--gc-sections` (combined with `-fvisibility=hidden` and `-flto`) is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible binary.
+- **Dead Code Elimination**: The primary goal of using `-ffunction-sections`, `-fdata-sections`, and `--gc-sections` (combined with `-fvisibility=hidden` and `-flto=thin`) is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible binary.
 - **Verifiability**: The resulting binary size should be monitored during testing to ensure that the dead code elimination is functioning as expected.
 
 ## Project Documentation
@@ -143,6 +149,22 @@ If using GNU Make, the following targets MUST be implemented:
     - Verify the shared library SONAME using `readelf -d <so>` (must contain `SONAME [libswtr_ringbuffer.so]`).
     - Verify the final binary size using `size <artifact>` on both platforms (Linux and macOS). The output format may differ slightly between implementations; parse the total column. For a consistent breakdown, use: `size <artifact> | tail -1 | awk '{print "Binary size: "$1+$2+$3" bytes (text="$1", data="$2", bss="$3")"}'`.
 8. **Cleanup**: Use the `$(RM)` macro for file cleanup. The `-f` flag must not be explicitly specified as it is already included in the `$(RM)` macro definition. The clean target must remove both the `build/` and `./lib/` directories, as well as any backup files (`*~` and `#*#`) using `$(RM)`.
+
+## Toolchain Limitations — g++ on macOS Apple Silicon
+**IMPORTANT:** When building with `CXX=g++` (Homebrew GCC) on macOS Apple Silicon, the compiler does **not** support the `-arch x86_64` flag. This means:
+- The static library (`.a`) will contain only arm64 object files.
+- The shared library (`.dylib`) will be **arm64-only** — no universal binary.
+- The Makefile detects this and emits a `WARNING:` message during the build, then falls back to arm64-only.
+
+**This is acceptable and expected behavior.** The limitation exists because Homebrew GCC on Apple Silicon does not ship with an x86_64 target. It is **not** a build failure.
+
+**Report Flagging Requirement:** When `CXX=g++` is used on macOS, the build log and regression report MUST include an INFO or WARNING entry documenting:
+- The compiler used (`g++` / Homebrew GCC)
+- That universal binary (arm64 + x86_64) was not produced
+- The reason (Homebrew GCC does not support `-arch x86_64` on Apple Silicon)
+- That this is acceptable behavior and not a build failure
+
+For production builds requiring universal binaries, use `clang++` (the default).
 
 
 

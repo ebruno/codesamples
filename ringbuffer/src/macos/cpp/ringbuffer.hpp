@@ -1,5 +1,4 @@
 #pragma once
-
 #include <atomic>
 #include <cstddef>
 #include <format>
@@ -13,21 +12,33 @@ namespace swtr {
 using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);
 using TransformFn = std::function<void(std::vector<uint8_t>&, size_t&)>;
 
+struct BufferSlot {
+    alignas(64) size_t buffer_idx;                                    // non-atomic: slot index
+    alignas(64) std::atomic<BufferStatus> status;                     // atomic: current buffer state
+    alignas(64) size_t max_data_buffer_size;                          // non-atomic: maximum capacity
+    alignas(64) std::atomic<size_t> data_buffer_size;                 // atomic: current bytes in data buffer
+    alignas(64) std::atomic<size_t> transformed_data_buffer_size;     // atomic: current bytes in transformed buffer
+    alignas(64) std::atomic<ChecksumAlgorithm> checksum_alg;          // atomic: algorithm used for checksum
+    alignas(64) std::atomic<uint32_t> checksum_val;                   // atomic: computed checksum value
+    std::vector<uint8_t> data;                                        // non-atomic: internal data buffer (raw bytes)
+
+    BufferSlot(size_t idx, size_t max_size)
+        : buffer_idx(idx),
+          status(BufferStatus::readyforread),
+          max_data_buffer_size(max_size),
+          data_buffer_size(0),
+          transformed_data_buffer_size(0),
+          checksum_alg(ChecksumAlgorithm::NONE),
+          checksum_val(0),
+          data(max_size) {}
+};
+
 constexpr size_t MIN_NUMBER_SLOTS = 1;
 constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
-constexpr size_t MIN_BUFFER_SIZE = 1;
 
 class RingBuffer {
 public:
     virtual ~RingBuffer() = default;
-
-    // NVI Logging
-    template<typename... Args>
-    void log_message(LogLevel level, std::format_string<Args...> fmt, Args&&... args) {
-        if (get_logging_enabled()) {
-            do_log(level, std::format(fmt, std::forward<Args>(args)...));
-        }
-    }
 
     // Thread Control
     virtual void start() = 0;
@@ -74,6 +85,13 @@ public:
     virtual void set_transformed_size(size_t slot_idx, size_t size) = 0;
 
 protected:
+    template <typename... Args>
+    void log_message(LogLevel level, std::format_string<Args...> fmt, Args&&... args) {
+        if (get_logging_enabled()) {
+            do_log(level, std::format(fmt, std::forward<Args>(args)...));
+        }
+    }
+
     virtual void do_log(LogLevel level, const std::string& message) = 0;
 };
 

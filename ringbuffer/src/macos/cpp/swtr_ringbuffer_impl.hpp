@@ -3,7 +3,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
-#include <memory>
 #include <mutex>
 #include <stop_token>
 #include <string>
@@ -14,24 +13,14 @@
 
 namespace swtr {
 
-struct BufferSlot {
-    size_t buffer_idx;                                    // non-atomic: slot index
-    std::atomic<BufferStatus> status;                     // atomic: current buffer state
-    size_t max_data_buffer_size;                          // non-atomic: maximum capacity
-    std::atomic<size_t> data_buffer_size;                 // atomic: current bytes in data buffer
-    std::atomic<size_t> transformed_data_buffer_size;     // atomic: current bytes in transformed buffer
-    std::atomic<ChecksumAlgorithm> checksum_alg;          // atomic: algorithm used for checksum
-    std::atomic<uint32_t> checksum_val;                   // atomic: computed checksum value
-    std::vector<uint8_t> data;                            // non-atomic: internal data buffer (raw bytes)
-};
-
 class __attribute__((visibility("default"))) SwtrRingBuffer : public RingBuffer {
 public:
     SwtrRingBuffer(size_t num_slots = MIN_NUMBER_SLOTS,
-                   BufferStatus initial_status = BufferStatus::readyforread,
-                   size_t buffer_size = DEFAULT_BUFFER_SIZE,
-                   ErrorHandler err_handler = nullptr,
-                   TransformFn transform_fn = nullptr);
+                  BufferStatus initial_status = BufferStatus::readyforread,
+                  size_t buffer_size = DEFAULT_BUFFER_SIZE,
+                  ErrorHandler err_handler = nullptr,
+                  TransformFn transform_fn = nullptr);
+
     ~SwtrRingBuffer() override = default;
 
     // Thread Control
@@ -82,18 +71,22 @@ protected:
     void do_log(LogLevel level, const std::string& message) override;
 
 private:
+    // Pipelines
     void read_loop(std::stop_token st);
     void transform_loop(std::stop_token st);
     void write_loop(std::stop_token st);
 
-    // Slot storage
+    // Error Handling
+    void handle_error(size_t slot_idx, BufferStatus status);
+
+    // Members
     std::vector<std::unique_ptr<BufferSlot>> slots_;
     size_t num_slots_;
 
-    // Index tracking — one independent atomic counter per pipeline stage
-    std::atomic<size_t> read_index_{0};
-    std::atomic<size_t> transform_index_{0};
-    std::atomic<size_t> write_index_{0};
+    // Index tracking (atomic for cross-thread access) — one per pipeline stage
+    alignas(64) std::atomic<size_t> read_index_{0};
+    alignas(64) std::atomic<size_t> transform_index_{0};
+    alignas(64) std::atomic<size_t> write_index_{0};
 
     // File descriptors (atomic for cross-thread access)
     std::atomic<int> read_fd_{-1};
@@ -103,7 +96,7 @@ private:
     size_t buffer_size_;
 
     // Pipeline functions (non-atomic: set once at construction)
-    ErrorHandler err_handler_;
+    ErrorHandler err_handler_{nullptr};
     TransformFn transform_fn_;
 
     // Thread management

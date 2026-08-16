@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-// BufferStatus enum (14 values, explicit integer types for ABI stability)
+// BufferStatus enum (14 values, explicit int backing type for ABI stability)
 enum class BufferStatus : int {
     readyforread = 0,
     readyfortransform = 1,

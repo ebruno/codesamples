@@ -310,7 +310,7 @@ Create the build environment for the Ringbuffer library by strictly following th
 - **Artifacts**: 
     - Deploy libraries to the `lib/` subdirectory.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
-- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections` are applied. For Linux targets, also add `-Wl,--gc-sections`. For macOS targets, use `-dead_strip` instead of `--gc-sections`.
+- **Optimization**: Ensure `-flto=thin`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections` are applied. For Linux targets, also add `-Wl,--gc-sections`. For macOS targets, use `-dead_strip` instead of `--gc-sections`.
 - **Makefile Consistency**: The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
 - **CXX Default**: On macOS targets, the Makefile MUST use `CXX := clang++` (not `?=`) to override macOS Make's built-in default of `CXX = c++`.
 - **`dist-clean` Target**: The Makefile's `dist-clean` target MUST check whether a `tests/` directory exists. If it does, it MUST execute `make -C tests dist-clean` to recursively clean the test subdirectory. If `tests/` does not exist, it MUST skip silently (no error). It MUST also remove both the local `reports/` directory (inside cpp/) and the parent-level `../reports/` directory, plus the `logs/` directory. This ensures that running `make dist-clean` at the project root fully cleans all build artifacts across both library and test directories.

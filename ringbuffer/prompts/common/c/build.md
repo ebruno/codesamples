@@ -35,7 +35,7 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 - `-fPIC`: Position Independent Code, required for shared library creation.
 - `-Wall -Wextra -Wpedantic`: Enable all common warnings to ensure code quality.
 - `-O3`: Enable high-level optimizations.
-- `-flto`: Enable Link Time Optimization to optimize across modules.
+- `-flto=thin`: Enable Thin Link Time Optimization to optimize across modules while producing native object files compatible with both static and shared library linking.
 - `-fvisibility=hidden`: Hide all symbols by default to reduce the dynamic symbol table size.
 - `-ffunction-sections`: Place each function in its own section in the object file.
 - `-fdata-sections`: Place each data item in its own section in the object file.
@@ -63,7 +63,7 @@ To provide a consistent interface for consumers, the following symbolic links mu
 - **Requirement**: Symbolic links must be created using a relative path within the `./lib` directory.
 
 ### Binary Optimization Goals
-- **Dead Code Elimination**: The primary goal of using `-ffunction-sections`, `-fdata-sections`, and `--gc-sections` (combined with `-fvisibility=hidden` and `-flto`) is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible binary.
+- **Dead Code Elimination**: The primary goal of using `-ffunction-sections`, `-fdata-sections`, and `--gc-sections` (combined with `-fvisibility=hidden` and `-flto=thin`) is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible binary.
 - **Verifiability**: The resulting binary size should be monitored during testing to ensure that the dead code elimination is functioning as expected.
 
 ### Required Makefile Targets

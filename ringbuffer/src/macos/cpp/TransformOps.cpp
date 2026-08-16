@@ -1,15 +1,19 @@
 #include "ringbuffer.hpp"
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <stop_token>
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
 void SwtrRingBuffer::transform_loop(std::stop_token st) {
     while (!st.stop_requested()) {
-        size_t idx = transform_index_.load();
-        size_t slot_idx = idx % num_slots_;
-        BufferSlot& slot = *slots_[slot_idx];
+        size_t current_idx = transform_index_.load() % slots_.size();
+        BufferSlot& slot = *slots_[current_idx];
+        BufferStatus status = slot.status.load();
 
-        if (slot.status.load() == BufferStatus::readyfortransform) {
+        if (status == BufferStatus::readyfortransform) {
             size_t data_size = slot.data_buffer_size.load();
             size_t transformed_size = data_size;
 
@@ -21,7 +25,7 @@ void SwtrRingBuffer::transform_loop(std::stop_token st) {
             slot.status.store(BufferStatus::readyforwrite);
             transform_index_.fetch_add(1);
             cv_.notify_all();
-        } else if (slot.status.load() == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
+        } else if (status == BufferStatus::LAST_BUFFER_TO_TRANSFORM) {
             slot.status.store(BufferStatus::LAST_BUFFER_TO_WRITE);
             transform_index_.fetch_add(1);
             cv_.notify_all();
@@ -29,8 +33,8 @@ void SwtrRingBuffer::transform_loop(std::stop_token st) {
         } else {
             std::unique_lock<std::mutex> lock(sync_mutex_);
             cv_.wait_for(lock, std::chrono::milliseconds(10), [&] {
-                return slot.status.load() == BufferStatus::readyfortransform || 
-                       slot.status.load() == BufferStatus::LAST_BUFFER_TO_TRANSFORM || 
+                return slot.status.load() == BufferStatus::readyfortransform ||
+                       slot.status.load() == BufferStatus::LAST_BUFFER_TO_TRANSFORM ||
                        st.stop_requested();
             });
         }

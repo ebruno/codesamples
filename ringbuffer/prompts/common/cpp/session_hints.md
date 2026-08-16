@@ -114,11 +114,53 @@ macOS ships with GNU Make that has built-in defaults for `CXX = c++`. These are 
 
 **Verification:** Run `make -p -f /dev/null | grep CXX` to see all built-in defaults.
 
-> **Note:** This is specific to macOS Make. Linux Make does not have this built-in default, so `?=` works there. But for cross-platform consistency, always use `:=` on macOS.
+> **Note:** This is specific to macOS Make. Linux Make does not have this built-in default, so `?=` works there. But for cross-platform consistency, always use the pattern below on macOS.
+
+**Recommended Pattern:**
+```makefile
+CXX ?= clang++
+ifeq ($(CXX),c++)
+  CXX := clang++
+endif
+```
+This lets command-line overrides (`make CXX=g++`) work while still defaulting to `clang++` on macOS.
 
 ---
 
-## 6. Mermaid Diagram Compatibility Gotcha
+## 6. Homebrew g++ on macOS — Universal Binary Limitation
+
+**Problem:** Homebrew's `g++` (e.g., GCC 16.1.0) on Apple Silicon does not support the `-arch` flag. When compiling with `CXX=g++`, both arm64 and x86_64 object files end up as arm64, causing `lipo -create` to fail.
+
+**Behavior:** The Makefile detects this and falls back gracefully:
+- **clang++**: Produces universal binaries (arm64 + x86_64) ✅
+- **g++**: Produces arm64-only binaries with a warning ⚠️
+
+**Use case for g++ on macOS:** Validating that source code compiles with GNU toolchain. For production builds requiring universal binaries, use `clang++`.
+
+**Report Flagging:** When g++ is used on macOS, the Makefile emits a `WARNING:` message during build. This warning MUST be captured in the build log and flagged as INFO (not ERROR) in the regression report. The report entry should state:
+```
+[INFO] Universal binary: arm64-only (Homebrew g++ does not support -arch x86_64 on Apple Silicon)
+```
+This is acceptable behavior — not a build failure.
+
+---
+
+## 7. Cross-Platform File Sync (fsync)
+
+**Unified Approach:** The `platform_fsync()` wrapper that previously used `#if defined(__APPLE__)` to call `F_FULLFSYNC` on macOS and `fsync()` on Linux has been eliminated. All platforms now use the direct POSIX `fsync(fd)` call.
+
+**Rationale:**
+- macOS `fsync()` provides adequate durability for the library's use case
+- Eliminates a source of platform-specific code divergence
+- `fcntl(fd, F_FULLFSYNC)` is macOS-only and requires `<fcntl.h>` — adding platform-specific includes to source files
+- The library's goal is byte-identical source across all platforms; minimal `#ifdef` guards are acceptable only for truly unavoidable OS syscalls
+- Both clang++ and g++ handle `fsync()` identically — no compiler-specific behavior differences
+
+**Implementation:** In `WriteOps.cpp`, the write loop calls `fsync(fd)` directly when processing `LAST_BUFFER_TO_WRITE`. No wrapper function, no conditional compilation.
+
+---
+
+## 8. Mermaid Diagram Compatibility Gotcha
 
 **Problem:** Mermaid diagrams that render correctly on GitHub (Mermaid v10) may fail in Safari on GitLab 19+ (Mermaid v11), while still working in Chrome on both platforms.
 
@@ -152,7 +194,7 @@ flowchart LR
 
 ---
 
-## 7. Cross-Reference Summary
+## 9. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`

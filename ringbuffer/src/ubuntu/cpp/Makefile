@@ -2,7 +2,9 @@ include version.mk
 
 # Toolchain
 CXX ?= g++
-CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 -flto \
+# LTO flag determined at parse time: g++ on macOS uses -flto, all others use -flto=thin
+LTO_FLAG := $(shell if [ "$(CXX)" = "g++" ] && [ "$(UNAME_S)" = "Darwin" ]; then echo "-flto"; else echo "-flto=thin"; fi)
+override CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 $(LTO_FLAG) \
            -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 LDFLAGS = -Wl,--gc-sections
 
@@ -49,6 +51,53 @@ DOCKERFILE = containers/Dockerfile
 # Detect Container Runtime and Host OS
 UNAME_S := $(shell uname -s)
 HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
+
+# ============================================================================
+# Parse-time compiler detection and per-compiler target definitions
+# Each available compiler gets its own all-<compiler> target.
+# ============================================================================
+
+CLANG_REAL := $(shell which clang++ 2>/dev/null || echo "")
+GPP_REAL   := $(shell which g++ 2>/dev/null || echo "")
+
+# Per-compiler build targets (each does clean + build)
+ifdef CLANG_REAL
+.PHONY: all-clang++
+all-clang++:
+	@echo "=== Building with clang++ ==="
+	@$(MAKE) clean
+	@CXX=clang++ $(MAKE) all
+endif
+
+ifdef GPP_REAL
+.PHONY: all-g++
+all-g++:
+	@echo "=== Building with g++ ==="
+	@$(MAKE) clean
+	@CXX=g++ $(MAKE) all
+endif
+
+# Combined multi-compiler target: order depends on platform
+ifeq ($(CLANG_REAL)$(GPP_REAL),)
+  all-all:
+	@echo "WARNING: No C++ compilers found"
+else ifeq ($(GPP_REAL),)
+  all-all: all-clang++
+else ifeq ($(CLANG_REAL),)
+  all-all: all-g++
+else ifeq ($(CLANG_REAL),$(GPP_REAL))
+  ifeq ($(UNAME_S),Darwin)
+    all-all: all-clang++
+  else
+    all-all: all-g++
+  endif
+else
+  ifeq ($(UNAME_S),Darwin)
+    all-all: all-clang++ all-g++
+  else
+    all-all: all-g++ all-clang++
+  endif
+endif
 ifeq ($(UNAME_S),Darwin)
     CONTAINER_CMD = container
 else
@@ -67,7 +116,7 @@ else
     all: $(STATIC_LIB) $(SHARED_LIB)
 endif
 
-.PHONY: all static shared clean dist-clean container container-clean lint format
+.PHONY: all static shared clean dist-clean container container-clean lint format all-all test-all
 
 # Static Library Target
 static: $(STATIC_LIB)
