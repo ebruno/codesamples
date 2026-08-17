@@ -204,13 +204,28 @@ When a platform lacks a C++ feature available on other platforms, use `#ifdef` b
 
 ---
 
-## 10. Cross-Compiler ABI Compatibility (clang++ ↔ g++)
+## 10. Ubuntu 24.04 Clang++ Unsupported
+
+**Problem:** On Ubuntu 24.04, `clang++` (LLVM 18) fails to compile C++20 code with errors like `'atomic' file not found`.
+
+**Root cause:** Ubuntu 24.04 ships `gcc-14-base` and `libgcc-14-dev` but only `g++-13` (C++ headers in `/usr/include/c++/13`). Clang 18 was built against GCC 14 and looks for headers in `/usr/include/c++/14`, which does not exist.
+
+**Symptoms:**
+- `clang++ -std=c++20 -c test.cpp` fails with `'atomic' file not found`
+- `g++` compiles successfully (uses `/usr/include/c++/13`)
+- `make all-clang++` fails while `make all-g++` succeeds
+
+**Resolution:** **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. The Dockerfiles include clang packages for reference but only g++ is used in practice.
+
+---
+
+## 12. Cross-Compiler ABI Compatibility (clang++ ↔ g++)
 
 For detailed compatibility analysis, standard library behavior across platforms, and C++ version caveats, see [appendices/cpp-cross-compiler-compatibility.md](../appendices/cpp-cross-compiler-compatibility.md).
 
 **Quick rule:** On macOS, clang++ is the primary supported compiler. g++ support is best-effort — see the appendix for details.
 
-## 11. Cross-Reference Summary
+## 13. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`

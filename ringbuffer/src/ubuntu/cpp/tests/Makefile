@@ -25,7 +25,7 @@ SHARED_LIB = $(LIB_DIR)/libswtr_ringbuffer.so
 
 # Container settings
 CONTAINER_IMAGE = ringbuffer_ubuntu_test
-DOCKERFILE = containers/fedora/Dockerfile
+DOCKERFILE = containers/ubuntu/Dockerfile
 
 # Detect Container Runtime
 UNAME_S := $(shell uname -s)

@@ -12,7 +12,7 @@ Refer to the following document for all shared requirements, data generation, an
     - **Toolchain Installation**: Use `apt-get` to install the following packages:
         - GNU: `gcc`, `g++`, `binutils`, `make`.
         - Build & Docs: `cmake`, `cmake-data`, `cmake-doc`, `dh-cmake`, `debhelper`, `devscripts`, `doxygen`.
-        - LLVM/Clang: `clang`, `clang-tidy`, `clang-format`.
+
         - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `strace`, `emacs-nox`, `patchelf`.
     - **Container Configuration**: The `Dockerfile` MUST set `WORKDIR /app` to align with the host volume mounts and the execution workflow.
     - **Toolchain Verification**: Upon first container initialization, verify the toolchain by executing `g++ --version` and `make --version` to ensure all required build tools are present and operational.

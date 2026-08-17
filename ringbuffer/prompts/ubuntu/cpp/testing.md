@@ -22,6 +22,8 @@ Refer to [prompts/common/cpp/testing.md](../../common/cpp/testing.md) for the Pl
 - **Container Path**: Use `tests/containers/ubuntu/Dockerfile`.
 - **Header Search Path**: Use `src/ubuntu/cpp`.
 
+> **Ubuntu Clang++ Unsupported:** Ubuntu 24.04 ships `gcc-14-base` but only `g++-13` (C++ headers in `/usr/include/c++/13`). Clang 18 looks for headers in `/usr/include/c++/14`, causing `'atomic' file not found` errors. **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. See [prompts/common/cpp/session_hints.md](../../common/cpp/session_hints.md) Section 10 for details.
+
 **Host-Target Compatibility**, **CRITICAL: Never Attempt Native Linux Builds on macOS**, and **Container Runtime Pre-flight**: See `prompts/common/cpp/testing.md` for the authoritative host-target, container runtime, and native build prevention directives.
 
 **Tooling and Recovery:** See `prompts/common/cpp/testing.md` for the authoritative tooling and recovery directives.

@@ -141,6 +141,8 @@ tests/
 - A `README.md` file must be provided in the `tests/` directory describing the test suite, build process, and how to run the tests, including specific examples of how to run test scenarios T001, T002, and T003, with stderr redirected to corresponding log files in the logs directory (e.g., `2> logs/t001.log`). This file must also document the purpose and usage of the `tests/containers` directory.
 - **Directory Initialization**: The `tests/logs` and `tests/reports` directories must be created if they do not exist before running any test scenarios.
 - **The `_test` Image Mandate**: For Linux platforms, the image built from `tests/containers/<platform>/Dockerfile` (named `ringbuffer_<os>_test`) is the **authoritative environment** for the entire verification lifecycle. It MUST be equipped with all dependencies required to compile the main library, compile the test binaries, and execute the full test suite.
+
+> **Ubuntu 24.04 Test Container Note:** clang++ is unsupported on Ubuntu (see `prompts/common/cpp/session_hints.md` Section 10). Use `g++` for all build and test operations. The Ubuntu test Dockerfile (`tests/containers/ubuntu/Dockerfile`) includes clang packages for reference but only g++ is used in practice.
 - **Container Command Usage**: When providing examples for using the containers in the `README.md` or other documentation:
     - On **macOS (including arm64 Apple Silicon)**, use the `container` command instead of `docker`. Docker (`docker`) is NOT allowed on macOS.
     - On **Fedora**, **Debian**, and **Ubuntu**, use the `podman` command instead of `docker`. Docker (`docker`) is NOT allowed on Linux.

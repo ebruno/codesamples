@@ -71,7 +71,7 @@ When the host OS is macOS and the target OS is a Linux distribution, the `contai
   - The `Makefile` MUST configure `CXXFLAGS` and `LDFLAGS` based on the value of the `CXX` variable.
   - The only supported values for `CXX` are `g++` and `clang++`.
 - **Required Tools**:
-  - `g++` or `clang++` (Compiler/Linker)
+  - `g++` or `clang++` (Compiler/Linker — note: clang++ unsupported on Ubuntu due to C++ header mismatch)
   - `make` (Orchestrator)
   - `ar` (Archiver)
   - `nm` (Symbol Analysis)
@@ -79,6 +79,8 @@ When the host OS is macOS and the target OS is a Linux distribution, the `contai
 - **Standard**: C++20 compliant.
 - **Build System**: GNU Make is the current implementation standard. CMake may be used for new projects, but all existing platforms use GNU Make and must continue to do so unless explicitly directed otherwise.
 - **Binary Format**: ELF (Standard Linux Binary).
+
+> **Ubuntu 24.04 Toolchain Note:** Ubuntu 24.04 ships `gcc-14-base` but only `g++-13` (C++ headers in `/usr/include/c++/13`). Clang 18 looks for headers in `/usr/include/c++/14`, causing `'atomic' file not found` errors. **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. See [prompts/common/cpp/session_hints.md](session_hints.md) Section 10 for details.
 
 ## Compilation Flags
 To ensure maximum performance and the smallest possible binary footprint, the following flags must be used:

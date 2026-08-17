@@ -886,7 +886,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | **Fedora** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
-| **Ubuntu** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
+| **Ubuntu** | C++ | v1.0.0 | g++ 13.x (clang++ unsupported — see Known Issues) |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
 | **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
@@ -899,6 +899,12 @@ Loaded template 'Fedora' — all fields populated with defaults.
 `*TBS: To Be Supplied | WIP: Work In Progress`
 
 > **Note:** Compiler versions shown are those verified during implementation. Actual available versions may vary by OS release. See [prompts/common/session_hints.md](prompts/common/session_hints.md) for toolchain detection and fallback logic.
+
+### Known Issues & Toolchain Limitations
+
+| Platform | Issue | Impact | Workaround |
+|----------|-------|--------|------------|
+| **Ubuntu 24.04** | Clang 18 looks for C++ headers in `/usr/include/c++/14`, but Ubuntu ships only `g++-13` (headers in `/usr/include/c++/13`). The GCC 14 base package (`gcc-14-base`) does not include C++ headers. | `clang++` fails with `'atomic' file not found` and similar errors when compiling C++20 code. | **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. The Dockerfiles include clang packages for reference but only g++ is used in practice. |
 
 ## Where We Are At
 

@@ -10,10 +10,10 @@ Refer to the following document for all shared requirements, flags, and process:
 - **Target Environment**: Ubuntu 24.04 LTS, Linux kernel 6.N.
 - **glibc**: Version 2.39+. The library must be compatible with glibc 2.39+.
 - **Prerequisites**: Install the following packages via `apt-get`:
-    - `build-essential`, `cmake`, `cmake-data`, `cmake-doc`, `dh-cmake`, `debhelper`, `devscripts`, `doxygen`, `clang`, `clang-tidy`, `clang-format`, `procps`, `coreutils`, `findutils`, `which`, `python3`.
+    - `build-essential`, `cmake`, `cmake-data`, `cmake-doc`, `dh-cmake`, `debhelper`, `devscripts`, `doxygen`, `procps`, `coreutils`, `findutils`, `which`, `python3`.
 
 ## Required Tools
-- `g++` or `clang++` (Compiler/Linker)
+- `g++` (Compiler/Linker — clang++ unsupported on Ubuntu)
 - `make` (Orchestrator)
 - `ar` (Archiver)
 - `nm` (Symbol Analysis)
@@ -25,7 +25,7 @@ Refer to the following document for all shared requirements, flags, and process:
 - **Toolchain Installation**: Use `apt-get` to install the following packages:
     - GNU: `gcc`, `g++`, `binutils`, `make`.
     - Build & Docs: `cmake`, `cmake-data`, `cmake-doc`, `dh-cmake`, `debhelper`, `devscripts`, `doxygen`.
-    - LLVM/Clang: `clang`, `clang-tidy`, `clang-format`.
+
     - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`.
 - **Container Path**: Use `src/ubuntu/cpp/containers/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).

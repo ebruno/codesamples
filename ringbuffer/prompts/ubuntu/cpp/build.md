@@ -16,8 +16,10 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
 - **Prerequisites**: Install the following packages via `apt-get`:
     - `build-essential`, `cmake`, `cmake-data`, `cmake-doc`, `dh-cmake`, `debhelper`, `devscripts`, `doxygen`, `clang`, `clang-tidy`, `clang-format`, `procps`, `coreutils`, `findutils`, `which`, `python3`.
 
+> **Ubuntu Clang++ Unsupported:** Ubuntu 24.04 ships `gcc-14-base` but only `g++-13` (C++ headers in `/usr/include/c++/13`). Clang 18 looks for headers in `/usr/include/c++/14`, causing `'atomic' file not found` errors. **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. See [prompts/common/cpp/session_hints.md](../../common/cpp/session_hints.md) Section 10 for details.
+
 ## Required Tools
-- `g++` or `clang++` (Compiler/Linker)
+- `g++` (Compiler/Linker — clang++ unsupported on Ubuntu)
 - `make` (Orchestrator)
 - `ar` (Archiver)
 - `nm` (Symbol Analysis)
