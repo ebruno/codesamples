@@ -442,23 +442,30 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
        ```bash
        # macOS host targeting Linux distro:
        cd src/common/python && container build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
+       # Run Concurrent version tests
        container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py \$t || exit 1; done"
+       # Run Pure Python version tests
+       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py \$t || exit 1; done"
        # Linux host targeting another Linux distro:
        cd src/common/python && podman build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
+       # Run Concurrent version tests
        podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py \$t || exit 1; done"
+       # Run Pure Python version tests
+       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py \$t || exit 1; done"
        ```
   4. **Verification Steps**:
      - Navigate to `src/common/python/`.
      - Verify Python version meets minimum requirements (3.10+): `python3 --version`.
-     - Run all 7 test scenarios: `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py $t || exit 1; done`. Verify exit code 0.
-     - Verify all expected outputs are produced correctly.
-  5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
+     - Run Concurrent version tests (7 scenarios): `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py $t || exit 1; done`. Verify exit code 0.
+     - Run Pure Python version tests (7 scenarios): `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py $t || exit 1; done`. Verify exit code 0.
+     - Verify all expected outputs are produced correctly for both versions.
+  5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL> (Concurrent + Pure Python)`.
 
   **Python State Tracking** (after all target OSes complete):
   - Read existing `.gen_state.json` from `src/common/python/` if it exists (created by `verify_build.md`). Preserve all existing fields.
   - Update/merge the following fields:
     - `os_results`: Add or update entries for each target OS with test results (route, image, python_version, status, timestamp).
-    - Recompute SHA-256 hashes of `version.mk`, `swtr_ringbuffer.py`, and `test_ringbuffer.py`.
+    - Recompute SHA-256 hashes of `version.mk`, both test modules, and both test scripts.
   - If no existing `.gen_state.json`, create a new one with the full structure:
     ```json
     {
@@ -475,17 +482,22 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
         }
       },
       "artifacts": {
-        "module": "swtr_ringbuffer.py",
-        "test_script": "test_ringbuffer.py"
+        "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_hp.py",
+        "pure_python_module": "swtr_ringbuffer_pure.py",
+        "test_script_concurrent": "test_ringbuffer.py",
+        "test_script_pure": "test_ringbuffer_pure.py"
       },
       "sha256": {
         "version_mk": "<hash>",
-        "swtr_ringbuffer_py": "<hash>",
-        "test_ringbuffer_py": "<hash>"
+        "base_py": "<hash>",
+        "swtr_ringbuffer_hp_py": "<hash>",
+        "swtr_ringbuffer_pure_py": "<hash>",
+        "test_ringbuffer_py": "<hash>",
+        "test_ringbuffer_pure_py": "<hash>"
       }
     }
     ```
-  - Compute SHA-256 hashes of `version.mk`, `swtr_ringbuffer.py`, and `test_ringbuffer.py`.
+  - Compute SHA-256 hashes of `version.mk`, both test modules, and both test scripts.
 
   **Python Report Generation** (after all target OSes complete):
   - Generate the Markdown regression report at `src/common/python/reports/regression_report.md` using the following format:
@@ -504,30 +516,61 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     ## Audit Trail
     - **Python**: [Version output from `python3 --version`]
 
-    ## Per-OS Results
+    ## Per-OS Results (Current Run)
     | Target OS | Route | Python Version | Status | Notes |
     |-----------|-------|---------------|--------|-------|
-    | macos | native | 3.14.x | [PASS/FAIL] | [Brief note] |
-    | debian | container (debian:13) | 3.13.x | [PASS/FAIL] | [Brief note] |
-    | fedora | container (fedora:44) | 3.14.x | [PASS/FAIL] | [Brief note] |
-    | ubuntu | container (ubuntu:24.04) | 3.12.x | [PASS/FAIL] | [Brief note] |
+    | macos | native | 3.14.x | [PASS/FAIL] | Both Concurrent and Pure Python tested |
 
     ## Fixes and Modifications
     *If files were modified to achieve successful tests, list them here:*
     - `path/to/file`: [Brief explanation of the fix]
 
+    ## Concurrent (ctypes) Test Results
+    **Implementation:** `swtr_ringbuffer/swtr_ringbuffer_hp.py` — ctypes binding to C++ shared library for concurrent I/O
+    **Entry Point:** `from swtr_ringbuffer import SwtrRingBuffer` (auto-selects Concurrent when available)
+
+    | Test | Description | Result | Notes |
+    |------|-------------|--------|-------|
+    | T001 | Default (identity transform) | [PASS/FAIL] | Output matches input exactly |
+    | T002 | Stress test (1 slot, 1-byte buffer) | [PASS/FAIL] | Handles extreme buffering constraints |
+    | T003 | Uppercase transform | [PASS/FAIL] | ASCII letters converted to uppercase |
+    | T004 | Small input, fast EOF | [PASS/FAIL] | Handles input smaller than buffer slot |
+    | T005 | Fatal error mode | [PASS/FAIL] | Pipeline shuts down on fatal error |
+    | T006 | Non-fatal error mode | [PASS/FAIL] | Pipeline continues after non-fatal error |
+    | T007 | XOR transform (bit-inverted) | [PASS/FAIL] | All bits flipped via 0xFF XOR |
+
+    **Overall:** [X]/7 tests passed. Concurrent (ctypes) selected as default via auto-import.
+
+    ## Pure Python Test Results
+    **Implementation:** `swtr_ringbuffer_pure.py` — pure Python, no C++ dependency
+    **Entry Point:** `from swtr_ringbuffer_pure import SwtrRingBufferPure`
+
+    | Test | Description | Result | Notes |
+    |------|-------------|--------|-------|
+    | T001 | Default (identity transform) | [PASS/FAIL] | Output matches input exactly |
+    | T002 | Stress test (1 slot, 1-byte buffer) | [PASS/FAIL] | Handles extreme buffering constraints |
+    | T003 | Uppercase transform | [PASS/FAIL] | ASCII letters converted to uppercase |
+    | T004 | Small input, fast EOF | [PASS/FAIL] | Handles input smaller than buffer slot |
+    | T005 | Fatal error mode | [PASS/FAIL] | Pipeline shuts down on fatal error |
+    | T006 | Non-fatal error mode | [PASS/FAIL] | Pipeline continues after non-fatal error |
+    | T007 | XOR transform (bit-inverted) | [PASS/FAIL] | All bits flipped via 0xFF XOR |
+
+    **Overall:** [X]/7 tests passed. Pure Python provides full feature parity with Concurrent version.
+
     ## Verification Details
-    - **Syntax Check**: [Success/Failure] — All .py files compile cleanly
-    - **Module Import**: [Success/Failure] — swtr_ringbuffer imports with __version__
-    - **Test Script**: [Success/Failure] — test_ringbuffer.py exits 0 with correct output
-    - **Test Failures**: [Count] failures detected in test output
+    - **Python Version Check**: [PASS/FAIL] (>= 3.10 minimum)
+    - **Test Execution**: [PASS/FAIL] (T001-T007 all passed for both implementations)
+    - **Dual-Version Architecture**: Active (Concurrent selected via auto-select, Pure Python available as fallback)
+    - **State File Updated**: .gen_state.json includes test results
     ```
 
   **Python Self-Audit** (after report generation):
   - Verify the following and log results:
-    - **Module File**: `swtr_ringbuffer.py` exists and is non-empty.
-    - **Test Script**: `test_ringbuffer.py` exists, is executable (or readable by python3), and exits 0.
-    - **No Test Failures**: test script output shows 0 failures.
+    - **Concurrent Module**: `swtr_ringbuffer/swtr_ringbuffer_hp.py` exists and is non-empty.
+    - **Pure Python Module**: `swtr_ringbuffer_pure.py` exists and is non-empty.
+    - **Concurrent Test Script**: `test_ringbuffer.py` exists, is executable (or readable by python3), and exits 0.
+    - **Pure Python Test Script**: `test_ringbuffer_pure.py` exists, is executable (or readable by python3), and exits 0.
+    - **No Test Failures**: both test scripts output shows 0 failures (7/7 tests passed for each version).
     - **Reports Generated**: `src/common/python/reports/regression_report.md` exists.
     - **State File**: `src/common/python/.gen_state.json` was created/updated.
 
@@ -558,7 +601,9 @@ You MUST NOT:
 - The `tests/` directory is managed exclusively by this regression test workflow.
 
 **Excluded Platforms:**
-- **FreeBSD 14**, **FreeBSD 15**, and **ArchLinux** are excluded from active development.
+- **C/C++**: FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active C/C++ development (no native build toolchain on FreeBSD).
+- **Python/Java**: FreeBSD 14 Python is verified and active — regression testing IS executed for common languages on FreeBSD 14.
+- **ArchLinux**: Excluded from all active development (no container images for Apple Silicon).
 - Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
 - The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
 - If these directories contain any non-zero files, remove them.

@@ -44,10 +44,31 @@ Every implementation must satisfy these requirements regardless of language:
 | T006 | Non-fatal error mode | 0 | Yes — output == input |
 | T007 | XOR transform | 0 | Yes — output matches expected binary data |
 
-## Implementation Approach: Pure Python with ctypes
-This is a **pure Python** implementation. The ringbuffer pipeline logic (threading, status coordination, EOF handling) is implemented entirely in Python. The implementation uses `ctypes` to load the C library's shared object (`libswtr_ringbuffer.so` or `.dylib`) for any native operations, but the pipeline itself is pure Python.
+## Implementation Approach: Dual-Version Architecture
+The Python implementation provides **two versions** that both satisfy the same RingBufferABC interface:
 
-**Key constraint**: No C-extension wrapping. The entire ringbuffer implementation (BufferSlot, SwtrRingBuffer, pipeline threads) is written in Python. `ctypes` is used only to load and call into the C library if native operations are needed.
+### Version 1: Concurrent (ctypes + C++ shared library)
+- Uses `ctypes` FFI to load the C++ shared object (`libswtr_ringbuffer.so` or `.dylib`)
+- Provides thread-safe concurrent readers/writers via the C++ implementation
+- Best for: small inputs (< 1KB), stress tests, concurrent workloads
+- Implementation file: `swtr_ringbuffer/swtr_ringbuffer_hp.py`
+- Class name: `SwtrRingBufferHP` (inherits from RingBufferABC)
+
+### Version 2: Pure Python
+- No external dependencies — pure Python implementation
+- Full feature parity with Concurrent version (all 38 ABC methods implemented)
+- Best for: large files (> 100KB), environments without C++ library, fallback
+- Implementation file: `swtr_ringbuffer_pure.py`
+- Class name: `SwtrRingBufferPure` (inherits from RingBufferABC)
+
+### Auto-Selection Entry Point
+The package `swtr_ringbuffer/` provides an auto-select entry point:
+```python
+from swtr_ringbuffer import SwtrRingBuffer  # Concurrent if available, Pure Python fallback
+print(SwtrRingBuffer._version)  # "Concurrent" or "Pure Python"
+```
+
+**Key constraint**: Both implementations MUST fully implement all 38 methods of the RingBufferABC. No no-ops, no stubs — real behavior required for both versions.
 
 ## Status Enum Definitions
 The following enums MUST be defined exactly as specified. Each enum value MUST have an explicit ordinal assignment matching the C specification.
@@ -319,8 +340,13 @@ DEFAULT_BUFFER_SIZE = 4096
 MIN_BUFFER_SIZE = 1
 ```
 
-## SwtrRingBuffer Implementation Class
-The concrete implementation class MUST be named `SwtrRingBuffer` and implement the `RingBuffer` abstract base class.
+## SwtrRingBufferHP Implementation Class (Concurrent)
+The Concurrent implementation class MUST be named `SwtrRingBufferHP` and implement the `RingBuffer` abstract base class.
+
+## SwtrRingBufferPure Implementation Class (Pure Python)
+The Pure Python implementation class MUST be named `SwtrRingBufferPure` and implement the `RingBuffer` abstract base class.
+
+Both classes MUST be byte-identical in their method signatures and behavior, differing only in implementation details (ctypes FFI vs. pure Python).
 
 ### Member Variables
 ```python
@@ -448,21 +474,26 @@ All Python source files MUST be placed under the following directory structure:
 
 ```
 src/common/python/
-├── swtr_ringbuffer.py       # Complete implementation (BufferSlot, SwtrRingBuffer)
-├── __init__.py              # Package init (exports public API)
-└── version.py               # Library version constants
+├── base.py                          # RingBufferABC (38 abstract methods)
+├── swtr_ringbuffer/                 # Package with auto-selection
+│   ├── __init__.py                  # Auto-select: Concurrent → Pure Python
+│   └── swtr_ringbuffer_hp.py        # SwtrRingBufferHP (Concurrent, ctypes)
+├── swtr_ringbuffer_pure.py          # SwtrRingBufferPure (Pure Python)
+├── swtr_ringbuffer.py               # Backward-compat shim (re-exports from package)
+└── version.py                       # Library version constants
 ```
 
-**Single-file Python convention**: Unlike C++ and Java, the core ringbuffer implementation is placed in a single `swtr_ringbuffer.py` file for simplicity. The file contains:
-- Enum definitions (`BufferStatus`, `ChecksumAlgorithm`, `LogLevel`)
-- `BufferSlot` class
-- `RingBuffer` abstract base class
-- Type aliases (`TransformFn`, `ErrorHandler`)
-- Constants
-- `SwtrRingBuffer` concrete implementation
+**Package-based Python convention**: The implementation uses a package structure for the Concurrent version and a top-level module for Pure Python:
+- `base.py`: Enum definitions (`BufferStatus`, `ChecksumAlgorithm`, `LogLevel`), type aliases (`TransformFn`, `ErrorHandler`), constants, and the `RingBufferABC` abstract base class (38 methods)
+- `swtr_ringbuffer/swtr_ringbuffer_hp.py`: `SwtrRingBufferHP` concrete implementation (Concurrent, ctypes FFI)
+- `swtr_ringbuffer_pure.py`: `SwtrRingBufferPure` concrete implementation (Pure Python, no dependencies)
+- `swtr_ringbuffer/__init__.py`: Auto-selection logic (tries Concurrent first, falls back to Pure Python)
+- `swtr_ringbuffer.py`: Backward-compat shim that re-exports from the package for legacy imports
 
-### Shared Library Loading (ctypes)
-The Python implementation may use `ctypes` to load the C library's shared object for native operations. The shared library path is platform-specific:
+### Shared Library Loading (Concurrent Version Only)
+The Concurrent version uses `ctypes` to load the C library's shared object for native operations. The Pure Python version has no shared library dependency.
+
+The shared library path is platform-specific:
 
 ```python
 import ctypes
@@ -480,6 +511,8 @@ def load_ringbuffer_library():
 
     return ctypes.CDLL(lib_path)
 ```
+
+**Note**: The Concurrent version should gracefully handle missing shared library by falling back to Pure Python with a warning message.
 
 ### Test Binary
 Each implementation MUST include a test binary written in Python. The test binary exercises the 7-test matrix (T001-T007) and serves as an implementation example. The test binary MUST:

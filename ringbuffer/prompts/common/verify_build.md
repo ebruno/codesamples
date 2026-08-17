@@ -93,7 +93,10 @@ Verify that all implemented languages build successfully across supported operat
    - **Host-Target Rule**: If the host OS matches the target OS (e.g., Fedora build on a Fedora host), native execution is permitted. If the host OS does not match the target OS (e.g., macOS build targeting Ubuntu), a container matching the target OS MUST be used.
    - **macOS is native-only**: macOS builds and tests NEVER use containers, regardless of host OS.
    - **FreeBSD is native-only**: FreeBSD builds and tests NEVER use containers, regardless of host OS.
-   - **Excluded Platforms**: FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active development. Do not execute build verification on these platforms.
+   - **Excluded Platforms**:
+     - **C/C++**: FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active C/C++ development (no native build toolchain on FreeBSD).
+     - **Python/Java**: FreeBSD 14 Python is verified and active — build verification IS executed for common languages on FreeBSD 14.
+     - **ArchLinux**: Excluded from all active development (no container images for Apple Silicon).
 
    **Container Pre-flight Check** (C/C++ Linux targets only):
    - If the target OS is a Linux distribution and the host OS does not match, verify the container runtime is available:
@@ -190,8 +193,10 @@ Verify that all implemented languages build successfully across supported operat
           for f in *.py; do python3 -m py_compile "$f" || { echo "SYNTAX ERROR in $f"; exit 1; }; done
           ```
           If any file fails, STOP and report the error.
-        - **Import Check**: Run `python3 -c "import swtr_ringbuffer; print(swtr_ringbuffer.__version__)"` to verify the module imports cleanly. If import fails, STOP and report the error.
-        - **Instantiation Check**: Run `python3 -c "from swtr_ringbuffer import SwtrRingBuffer; rb = SwtrRingBuffer(4, 256); print(type(rb))"` to verify core classes are instantiable. If instantiation fails, STOP and report the error.
+        - **Import Check (Concurrent)**: Run `python3 -c "import swtr_ringbuffer; print(swtr_ringbuffer._version)"` to verify the Concurrent module imports cleanly. If import fails, STOP and report the error.
+        - **Instantiation Check (Concurrent)**: Run `python3 -c "from swtr_ringbuffer import SwtrRingBuffer; rb = SwtrRingBuffer(4, 256); print(type(rb))"` to verify Concurrent class is instantiable. If instantiation fails, STOP and report the error.
+        - **Import Check (Pure Python)**: Run `python3 -c "import swtr_ringbuffer_pure; print(swtr_ringbuffer_pure.__name__)"` to verify the Pure Python module imports cleanly. If import fails, STOP and report the error.
+        - **Instantiation Check (Pure Python)**: Run `python3 -c "from swtr_ringbuffer_pure import SwtrRingBufferPure; rb = SwtrRingBufferPure(4, 256); print(type(rb))"` to verify Pure Python class is instantiable. If instantiation fails, STOP and report the error.
      5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python verification on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
    ---
@@ -282,9 +287,27 @@ Verify that all implemented languages build successfully across supported operat
      **Python Version:** <detected_version>
 
      ## Build Status
-     - **Syntax Check**: [PASS/FAIL]
-     - **Module Import**: [PASS/FAIL]
-     - **Class Instantiation**: [PASS/FAIL]
+     - **Syntax Check**: [PASS/FAIL] (all .py files)
+     - **Concurrent Import**: [PASS/FAIL]
+     - **Concurrent Instantiation**: [PASS/FAIL]
+     - **Pure Python Import**: [PASS/FAIL]
+     - **Pure Python Instantiation**: [PASS/FAIL]
+
+     ## Concurrent (ctypes) Verification
+     | Check | Result | Details |
+     |-------|--------|---------|
+     | Syntax Check | [PASS/FAIL] | swtr_ringbuffer/swtr_ringbuffer_hp.py, base.py, __init__.py |
+     | Import Check | [PASS/FAIL] | import swtr_ringbuffer, version = "Concurrent" |
+     | Instantiation Check | [PASS/FAIL] | SwtrRingBufferHP(4, 256) |
+     | Shared Library | [PASS/FAIL] | libswtr_ringbuffer.so/.dylib available |
+
+     ## Pure Python Verification
+     | Check | Result | Details |
+     |-------|--------|---------|
+     | Syntax Check | [PASS/FAIL] | swtr_ringbuffer_pure.py |
+     | Import Check | [PASS/FAIL] | import swtr_ringbuffer_pure |
+     | Instantiation Check | [PASS/FAIL] | SwtrRingBufferPure(4, 256) |
+     | Dependencies | [PASS/FAIL] | No external dependencies |
 
      ## Notes
      - Any additional notes about the build process.
@@ -315,8 +338,20 @@ Verify that all implemented languages build successfully across supported operat
        "build_status": {
          "<os>": {"route": "native|container", "status": "PASS|FAIL", "timestamp": "<ISO timestamp>"}
        },
-       "artifacts": {"module": "swtr_ringbuffer.py", "test_script": "test_ringbuffer.py"},
-       "sha256": {"version_mk": "<hash>", "swtr_ringbuffer_py": "<hash>", "test_ringbuffer_py": "<hash>"}
+       "artifacts": {
+         "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_hp.py",
+         "pure_python_module": "swtr_ringbuffer_pure.py",
+         "test_script_concurrent": "test_ringbuffer.py",
+         "test_script_pure": "test_ringbuffer_pure.py"
+       },
+       "sha256": {
+         "version_mk": "<hash>",
+         "base_py": "<hash>",
+         "swtr_ringbuffer_hp_py": "<hash>",
+         "swtr_ringbuffer_pure_py": "<hash>",
+         "test_ringbuffer_py": "<hash>",
+         "test_ringbuffer_pure_py": "<hash>"
+       }
      }
      ```
    - Compute SHA-256 hashes of relevant source files for each language.

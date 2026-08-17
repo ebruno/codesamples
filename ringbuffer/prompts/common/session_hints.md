@@ -532,6 +532,56 @@ When a script does **not** need tcsh, omit the `.tcsh` file. The python version 
 
 ---
 
+## 7C. SSH Automation for FreeBSD — Practical Lessons
+
+When working with FreeBSD systems over SSH (e.g., `ssh ebruno@10.10.41.244`), the following lessons apply:
+
+### Shell Compatibility
+- **FreeBSD uses tcsh as default shell** — bash syntax (like `for` loops, `[[ ]]`) fails
+- **Solution:** Write Python scripts locally, SCP them to the remote system, and execute via `python3 /tmp/script.py`
+- **Never use inline bash** with SSH to FreeBSD — tcsh interprets the commands and fails on bash-specific syntax
+
+### Output Redirection
+- **`2>&1` with pipes causes "Ambiguous output redirect" errors** in tcsh
+- **Solution:** Use separate commands or write to files first, then process locally
+- Example: Instead of `ssh host "cmd 2>&1 | grep error"`, use:
+  ```bash
+  ssh host "cmd > /tmp/output.txt 2> /tmp/error.txt"
+  # Then process locally
+  ```
+
+### Binary Output Handling
+- **XOR transform (T007) produces binary output** that cannot be decoded as UTF-8
+- **Solution:** When using Python subprocess via SSH, use `errors='replace'` in decode calls:
+  ```python
+  r = subprocess.run(cmd, shell=True, capture_output=True, timeout=120)
+  out = r.stdout.decode('utf-8', errors='replace').strip()
+  err = r.stderr.decode('utf-8', errors='replace').strip()
+  ```
+
+### Privilege Escalation
+- **FreeBSD uses `doas` instead of `sudo`** for privilege escalation
+- Example: `doas mount -t procfs proc /proc`
+- Scripts that need root must use `doas`, not `sudo`
+
+### Procfs for OpenJDK
+- **OpenJDK 25 requires `/proc` mounted** on FreeBSD
+- Mount with: `doas mount -t procfs proc /proc`
+- Add to `/etc/fstab` for persistence: `proc /proc procfs rw 0 0`
+
+### Recommended Workflow Pattern
+```python
+# 1. Write script locally
+# 2. SCP to remote
+scp script.py user@freebsd:/tmp/script.py
+# 3. Execute via SSH
+ssh user@freebsd "python3 /tmp/script.py"
+# 4. Copy results back
+scp user@freebsd:/path/to/results ./local/path/
+```
+
+---
+
 ## 7B. Interactive OS Setup — Session Management and Templates
 
 When using `prompts/common/implement_new_os.md` to add a new operating system, the workflow uses an interactive session with persistence, templates, and dry-run mode.
