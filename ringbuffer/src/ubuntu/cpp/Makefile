@@ -60,13 +60,24 @@ HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -
 CLANG_REAL := $(shell which clang++ 2>/dev/null || echo "")
 GPP_REAL   := $(shell which g++ 2>/dev/null || echo "")
 
-# Per-compiler build targets (each does clean + build)
+# Ubuntu 24.04: clang++ is unsupported due to C++ header mismatch (Clang 18
+# looks for /usr/include/c++/14 but Ubuntu ships only g++-13 with headers in
+# /usr/include/c++/13). Skip clang++ on Ubuntu with a log message.
 ifdef CLANG_REAL
+ifeq ($(HOST_DISTRO),ubuntu)
+.PHONY: all-clang++
+all-clang++:
+	@echo "=== SKIPPING clang++ on Ubuntu 24.04 ==="
+	@echo "Reason: Clang 18 looks for C++ headers in /usr/include/c++/14,"
+	@echo "but Ubuntu 24.04 ships only g++-13 (headers in /usr/include/c++/13)."
+	@echo "Use g++ as the compiler for all build and test operations."
+else
 .PHONY: all-clang++
 all-clang++:
 	@echo "=== Building with clang++ ==="
 	@$(MAKE) clean
 	@CXX=clang++ $(MAKE) all
+endif
 endif
 
 ifdef GPP_REAL
