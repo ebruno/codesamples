@@ -1,0 +1,7 @@
+Compiler:
+FreeBSD clang version 19.1.7 (https://github.com/llvm/llvm-project.git llvmorg-19.1.7-0-gcd708029e0b2)
+Target: x86_64-unknown-freebsd14.4
+Thread model: posix
+InstalledDir: /usr/bin
+Linker:
+LLD 19.1.7 (FreeBSD llvmorg-19.1.7-0-gcd708029e0b2-1400007) (https://github.com/llvm/llvm-project.git llvmorg-19.1.7-0-gcd708029e0b2) (compatible with GNU linkers)
