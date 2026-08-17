@@ -15,8 +15,6 @@
 
 using namespace swtr;
 
-static int G_ERROR_MODE = 0;
-
 void transform_identity(std::vector<uint8_t>& data, size_t& size) {
 }
 
@@ -31,7 +29,8 @@ void transform_xor(std::vector<uint8_t>& data, size_t& size) {
 }
 
 int test_error_handler(size_t slot_idx, BufferStatus status) {
-    return (G_ERROR_MODE == 1) ? 1 : 0;
+    (void)slot_idx; (void)status;
+    return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -46,7 +45,7 @@ int main(int argc, char* argv[]) {
     size_t slots = 4;
     size_t buffer_size = 4096;
     int transform_type = 0;
-    G_ERROR_MODE = 0;
+    int error_mode = 0;
     bool use_read_socket = false;
     std::string write_socket_addr = "";
 
@@ -57,7 +56,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "-s" && i + 1 < argc - 1) slots = std::stoul(argv[++i]);
         else if (arg == "-b" && i + 1 < argc - 1) buffer_size = std::stoul(argv[++i]);
         else if (arg == "-t" && i + 1 < argc - 1) transform_type = std::stoi(argv[++i]);
-        else if (arg == "-e" && i + 1 < argc - 1) G_ERROR_MODE = std::stoi(argv[++i]);
+        else if (arg == "-e" && i + 1 < argc - 1) error_mode = std::stoi(argv[++i]);
         else if (arg == "-r") use_read_socket = true;
         else if (arg == "-w" && i + 1 < argc - 1) write_socket_addr = argv[++i];
     }
@@ -96,13 +95,14 @@ int main(int argc, char* argv[]) {
             if (listen(s, 1) == -1) throw std::runtime_error("Listen failed");
             
             socklen_t len = sizeof(addr);
-            getsockname(s, (struct sockaddr*)&addr, &len);
+            if (getsockname(s, (struct sockaddr*)&addr, &len) == -1) throw std::runtime_error("getsockname failed");
+            close(s);
+            
             std::cout << "LISTEN_PORT=" << ntohs(addr.sin_port) << std::endl;
             
             int client = accept(s, nullptr, nullptr);
             if (client == -1) throw std::runtime_error("Accept failed");
             rb->set_read_fd(client);
-            close(s);
         } else {
             int fd = open(input_file.c_str(), O_RDONLY);
             if (fd == -1) throw std::runtime_error("Cannot open input file");
@@ -127,9 +127,9 @@ int main(int argc, char* argv[]) {
         rb->stop();
 
     } catch (const std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        std::cerr << "ERROR: " << e.what() << std::endl;
         return 1;
     }
 
-    return (G_ERROR_MODE == 1) ? 1 : 0;
+    return error_mode == 1 ? 1 : 0;
 }
