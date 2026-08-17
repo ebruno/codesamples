@@ -25,7 +25,7 @@ SHARED_LIB = $(LIB_DIR)/libswtr_ringbuffer.so
 
 # Container settings
 CONTAINER_IMAGE = ringbuffer_raspios_test
-DOCKERFILE = containers/fedora/Dockerfile
+DOCKERFILE = containers/raspios/Dockerfile
 
 # Detect Container Runtime
 UNAME_S := $(shell uname -s)

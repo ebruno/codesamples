@@ -2,13 +2,20 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#ifndef __FreeBSD__
 #include <stop_token>
+#endif
 #include "swtr_ringbuffer_impl.hpp"
 
 namespace swtr {
 
+#ifdef __FreeBSD__
+void SwtrRingBuffer::transform_loop() {
+    while (!stop_flag_.load()) {
+#else
 void SwtrRingBuffer::transform_loop(std::stop_token st) {
     while (!st.stop_requested()) {
+#endif
         size_t current_idx = transform_index_.load() % slots_.size();
         BufferSlot& slot = *slots_[current_idx];
         BufferStatus status = slot.status.load();
@@ -33,9 +40,15 @@ void SwtrRingBuffer::transform_loop(std::stop_token st) {
         } else {
             std::unique_lock<std::mutex> lock(sync_mutex_);
             cv_.wait_for(lock, std::chrono::milliseconds(10), [&] {
+#ifdef __FreeBSD__
+                return slot.status.load() == BufferStatus::readyfortransform ||
+                       slot.status.load() == BufferStatus::LAST_BUFFER_TO_TRANSFORM ||
+                       stop_flag_.load();
+#else
                 return slot.status.load() == BufferStatus::readyfortransform ||
                        slot.status.load() == BufferStatus::LAST_BUFFER_TO_TRANSFORM ||
                        st.stop_requested();
+#endif
             });
         }
     }
