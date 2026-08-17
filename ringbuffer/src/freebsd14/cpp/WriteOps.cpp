@@ -3,7 +3,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <stop_token>
 #include <unistd.h>
 #include "swtr_ringbuffer_impl.hpp"
 
@@ -13,8 +12,8 @@ void SwtrRingBuffer::set_write_fd(int fd) {
     write_fd_.store(fd);
 }
 
-void SwtrRingBuffer::write_loop(std::stop_token st) {
-    while (!st.stop_requested()) {
+void SwtrRingBuffer::write_loop() {
+    while (!stop_flag_.load()) {
         size_t current_idx = write_index_.load() % slots_.size();
         BufferSlot& slot = *slots_[current_idx];
         BufferStatus status = slot.status.load();
@@ -53,7 +52,7 @@ void SwtrRingBuffer::write_loop(std::stop_token st) {
             cv_.wait_for(lock, std::chrono::milliseconds(10), [&] {
                 return slot.status.load() == BufferStatus::readyforwrite ||
                        slot.status.load() == BufferStatus::LAST_BUFFER_TO_WRITE ||
-                       st.stop_requested();
+                       stop_flag_.load();
             });
         }
     }

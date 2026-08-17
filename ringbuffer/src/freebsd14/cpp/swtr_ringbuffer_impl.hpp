@@ -72,9 +72,9 @@ protected:
 
 private:
     // Pipelines
-    void read_loop(std::stop_token st);
-    void transform_loop(std::stop_token st);
-    void write_loop(std::stop_token st);
+    void read_loop();
+    void transform_loop();
+    void write_loop();
 
     // Error Handling
     void handle_error(size_t slot_idx, BufferStatus status);
@@ -99,8 +99,8 @@ private:
     ErrorHandler err_handler_{nullptr};
     TransformFn transform_fn_;
 
-    // Thread management (FreeBSD: std::thread + stop_source, no <jthread>)
-    std::stop_source stop_src_;
+    // Thread management (FreeBSD: std::thread + atomic<bool> stop flag, no <jthread>)
+    std::atomic<bool> stop_flag_{false};
     std::thread read_thread_;
     std::thread transform_thread_;
     std::thread write_thread_;

@@ -341,3 +341,52 @@ All files EXCEPT Threading.cpp and swtr_ringbuffer_impl.hpp:
 | **Modified (from macOS)** | 2 files | Threading.cpp, swtr_ringbuffer_impl.hpp |
 | **FreeBSD-specific** | 3 files | Makefile, tests/Makefile, README.md |
 | **Not created** | 3 spec files + containers/ | Per excluded platform rules
+
+---
+
+## Build & Test Results (Completed)
+
+> **Date:** 2026-08-16
+> **Status:** All 7 tests PASS
+
+### Build Output
+| Artifact | Size | Format |
+|----------|------|--------|
+| `lib/libswtr_ringbuffer-1.0.0-1.a` | 148,806 bytes | ELF static library |
+| `lib/libswtr_ringbuffer-1.0.0-1.so` | 46,768 bytes | ELF shared library |
+| SONAME | `libswtr_ringbuffer.so` | Verified via `readelf -d` |
+
+### Test Results
+| Test | Description | Result |
+|------|-------------|--------|
+| T001 | Identity transform, normal operation | **PASS** (output match) |
+| T002 | Stress test (1 slot, 1 byte buffer) | **PASS** (output match) |
+| T003 | Uppercase transform | **PASS** (output match) |
+| T004 | Small input, fast EOF | **PASS** (output match) |
+| T005 | Fatal error mode (expect exit 1) | **PASS** (exit code 1 as expected) |
+| T006 | Non-fatal error mode (expect exit 0) | **PASS** (output match) |
+| T007 | XOR transform | **PASS** (output match) |
+
+### Key Implementation Details
+- **`std::jthread` replacement:** Used `std::atomic<bool> stop_flag_` as cooperative cancellation flag (FreeBSD clang 19.1.7 has `<stop_token>` header but `std::stop_token`/`std::stop_source` types are NOT implemented)
+- **Makefile T005 fix:** Used `/usr/local/bin/bash -c '...'` with `$$?` to correctly capture non-zero exit code (BSD make default shell is tcsh which doesn't support `{ }` grouping)
+- **RPATH:** Uses `$ORIGIN/../lib` (FreeBSD/ELF convention, not macOS `@executable_path`)
+- **Linker flags:** `-pthread` required for `std::thread`; SONAME via `-Wl,-soname,libswtr_ringbuffer.so`
+- **JUnit report:** Skipped (zsh not installed on FreeBSD)
+
+### Modified Files (copied back from remote)
+| File | Change |
+|------|--------|
+| `Threading.cpp` | `std::jthread` → `std::thread` + `std::atomic<bool> stop_flag_` |
+| `swtr_ringbuffer_impl.hpp` | Member types + constructor/init updated for atomic stop flag |
+| `ReadOps.cpp` | Stop token handling adapted |
+| `WriteOps.cpp` | Stop token handling adapted |
+| `TransformOps.cpp` | Stop token handling adapted |
+| `Makefile` (main) | BSD make syntax, `-pthread`, ELF SONAME |
+| `tests/Makefile` | BSD make syntax, bash for T005 exit capture |
+
+### Known Limitations
+- FreeBSD clang 19.1.7 has **partial** C++20 `<stop_token>` support — header exists but types are undefined
+- `std::jthread` is **not available** in FreeBSD clang 19.1.7
+- `g++` is **not installed** — only clang++ available
+- zsh is **not installed** — JUnit report generation skipped

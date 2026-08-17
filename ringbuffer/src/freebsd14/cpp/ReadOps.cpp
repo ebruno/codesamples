@@ -2,7 +2,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <stop_token>
 #include <unistd.h>
 #include "swtr_ringbuffer_impl.hpp"
 
@@ -12,8 +11,8 @@ void SwtrRingBuffer::set_read_fd(int fd) {
     read_fd_.store(fd);
 }
 
-void SwtrRingBuffer::read_loop(std::stop_token st) {
-    while (!st.stop_requested()) {
+void SwtrRingBuffer::read_loop() {
+    while (!stop_flag_.load()) {
         size_t current_idx = read_index_.load() % slots_.size();
         BufferSlot& slot = *slots_[current_idx];
 
@@ -42,7 +41,7 @@ void SwtrRingBuffer::read_loop(std::stop_token st) {
         } else {
             std::unique_lock<std::mutex> lock(sync_mutex_);
             cv_.wait_for(lock, std::chrono::milliseconds(10), [&] {
-                return slot.status.load() == BufferStatus::readyforread || st.stop_requested();
+                return slot.status.load() == BufferStatus::readyforread || stop_flag_.load();
             });
         }
     }
