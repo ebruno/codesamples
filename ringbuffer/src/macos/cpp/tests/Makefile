@@ -4,7 +4,7 @@ CXX := clang++
 CXXFLAGS = -std=c++20 -O3 -I.. -I../src/macos/cpp
 LDFLAGS = -Wl,-rpath,$(abspath ../lib)
 
-RM = rm -f
+RM = rm -rf
 
 UTILS_PROMPT_DIR = ../../../../prompts/common/cpp/utils/bin
 UTILS_BIN_DIR = utils/bin

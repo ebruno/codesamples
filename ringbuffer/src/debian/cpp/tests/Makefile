@@ -4,7 +4,7 @@ include ../version.mk
 CXX = g++
 CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -I..
 LDFLAGS = 
-RM = rm -f
+RM = rm -rf
 
 # Directories
 SRC_DIR = src
