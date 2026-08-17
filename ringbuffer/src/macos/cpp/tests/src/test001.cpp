@@ -16,6 +16,7 @@
 using namespace swtr;
 
 void transform_identity(std::vector<uint8_t>& data, size_t& size) {
+    (void)data; (void)size;
 }
 
 void transform_uppercase(std::vector<uint8_t>& data, size_t& size) {
