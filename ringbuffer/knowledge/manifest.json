@@ -1,0 +1,46 @@
+{
+  "name": "swtr-ringbuffer-knowledge",
+  "version": "1.0.0-build-1",
+  "ringbuffer_version": {
+    "major": 1,
+    "minor": 0,
+    "subversion": 0,
+    "build_id": 1
+  },
+  "languages": [
+    "cpp",
+    "java",
+    "python"
+  ],
+  "compatible_with": [
+    "qwen3.6-35b-a3b",
+    "qwen2.5-14b-instruct",
+    "qwen2.5-7b-instruct"
+  ],
+  "distribution": {
+    "system_prompt": "Modelfile \u2014 wraps any Qwen model, instant to use",
+    "fine_tuned": "swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf \u2014 QLoRA fine-tuned, zero-context inference"
+  },
+  "generated_at": "2026-08-17T19:06:21Z",
+  "files": {
+    "Modelfile": "ce878d0c1e17df5db41c73a2ebe94c1b17c8424dc496373bcdd086689daf3a8e",
+    "build_model.sh": "f3eb69a99c9d671fc8f708e8092ed06d51ed773068701c70ee379e19e26b4e18",
+    "build_model.zsh": "b5360fdbbcf6800a232d5562f4a0248a811225192cea3b1325820b96ba73e605",
+    "update.sh": "66cc061ae282745d80fcb1c992c446afbc33243fcf332397ebf0d1db253b060a",
+    "update.zsh": "db5e7873a01497441cdf4f3693bf02a5a6db65c7ff069e33d51baaac9df2e0ed",
+    "system-prompt.md": "0f9fb91448fade1c16d912c0456a27c30136f89046ec6fa6a8026ce250e07590",
+    "patterns/checksumming.md": "8686ee4b4eb5357e64b7cb9c1f3da6a6cb88420c47971e64c8b4b8a18fc723f0",
+    "patterns/logging-guide.md": "c4472faa2a5591a2132d0f244cc03c7dd64b1781a26f02ebdca74ab1fb84edbe",
+    "api-reference/python.md": "e5e5494d6f08a1e02939777860ab8de3246ea1e7ce091783ace2a650383935d3",
+    "api-reference/java.md": "66abc92df154d5f622aad8ce4fde904b699a89f2610dc894dbca48a110b9e4e5",
+    "api-reference/cpp.md": "1a31dcf17d64ff8c2e88fff6c5cc20a5fddfcf1183623e414f881021e8bc8f78",
+    "examples/basic.java": "16f46f492e4058346997b74ef23302c6a1356fda9882cd98d63952753b8a6023",
+    "examples/advanced.py": "9aefe3864b1a1dd89451a9f37b2839e5b9dc4ec45f195f295d5010e144dd5bb2",
+    "examples/advanced.cpp": "99550939e0a3d53c0369451b1afdaf7f61c088967634eef6e0affe399b3431e3",
+    "examples/basic.cpp": "f790fd0c7fcd41c12930bccd207736dec2f8ddc2a5ab621a7fd3b1f1a5113da9",
+    "examples/advanced.java": "a042b0824942199efd87041861eacfb6cc2d777810dcfc6274b611901151c09a",
+    "examples/basic.py": "19a55f422d7594926120671ec36d96f944d18f2c2e2a2fe9b732f181af045940",
+    "instruction-dataset/train.jsonl": "8551cb92dbf173581864f3fc14d003d8c482430a98bb7924e0f03653e4bb316c",
+    "instruction-dataset/eval.jsonl": "a9647ab7ea9fe28e74bcce0bf2be56e08ed5dc9b6ed51b76327a00f1deb97d51"
+  }
+}
