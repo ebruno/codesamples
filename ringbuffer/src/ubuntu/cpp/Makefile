@@ -2,8 +2,8 @@ include version.mk
 
 # Toolchain
 CXX ?= g++
-# LTO flag determined at parse time: g++ on macOS uses -flto, all others use -flto=thin
-LTO_FLAG := $(shell if [ "$(CXX)" = "g++" ] && [ "$(UNAME_S)" = "Darwin" ]; then echo "-flto"; else echo "-flto=thin"; fi)
+# LTO flag: g++ on macOS uses -flto, Linux g++ also uses -flto (not -flto=thin)
+LTO_FLAG := $(shell if [ "$(CXX)" = "g++" ] && [ "$(UNAME_S)" = "Darwin" ]; then echo "-flto"; else echo "-flto"; fi)
 override CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 $(LTO_FLAG) \
            -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 LDFLAGS = -Wl,--gc-sections
