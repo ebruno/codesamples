@@ -194,15 +194,26 @@ flowchart LR
 
 ---
 
-## 9. Cross-Compiler ABI Compatibility (clang++ ↔ g++)
+## 9. Conditional Compilation Rule
+
+When a platform lacks a C++ feature available on other platforms, use `#ifdef` blocks to provide an alternative implementation for that OS **only**. Never modify the common code path or "down-rev" features for all other platforms.
+
+- **Full rule**: [prompts/common/conditional_compilation_rule.md](../conditional_compilation_rule.md)
+- **Golden Rule reference**: `prompts/common/generate_toplevel_readme.md` — Part A.1
+- **Key principle**: The non-conditional code path remains byte-identical across all platforms. Conditional blocks are the exception, not the rule.
+
+---
+
+## 10. Cross-Compiler ABI Compatibility (clang++ ↔ g++)
 
 For detailed compatibility analysis, standard library behavior across platforms, and C++ version caveats, see [appendices/cpp-cross-compiler-compatibility.md](../appendices/cpp-cross-compiler-compatibility.md).
 
 **Quick rule:** On macOS, clang++ is the primary supported compiler. g++ support is best-effort — see the appendix for details.
 
-## 10. Cross-Reference Summary
+## 11. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`
 > **Build flags, Makefile targets, artifact naming** → `prompts/common/cpp/build.md`
 > **Test matrix T001-T007, scripting mandate** → `prompts/common/cpp/testing.md`
+> **Conditional compilation rule** → `prompts/common/conditional_compilation_rule.md`

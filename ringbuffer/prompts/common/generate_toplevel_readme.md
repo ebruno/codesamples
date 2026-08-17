@@ -56,6 +56,12 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
    - **Platform Sync**: When updating any platform's source, build, or test artifacts, the same changes MUST be applied to all other Linux platforms. Use the cross-platform update propagation directives in `update_functional.md`, `update_build.md`, and `update_testing.md`.
    - **Prompt Deduplication**: Repeated content (container runtime rules, host-target compatibility checks, spec precedence statements) MUST be extracted into shared reference documents (e.g., `prompts/common/session_hints.md`) and referenced via relative links rather than duplicated verbatim across functional.md, build.md, and testing.md in every platform directory.
 
+   **Part A.1: C++ Golden Rules**
+   - **Conditional Compilation (C++)**: When a platform lacks a C++ feature available on other platforms, use `#ifdef` blocks to provide an alternative implementation for that OS **only**. Never modify the common code path or "down-rev" features for all other platforms. See `prompts/common/conditional_compilation_rule.md`.
+
+   **Part A.2: C Golden Rules**
+   - **Conditional Compilation (C)**: When a platform lacks a C feature available on other platforms, use `#ifdef` blocks to provide an alternative implementation for that OS **only**. Never modify the common code path or "down-rev" features for all other platforms. See `prompts/common/conditional_compilation_rule.md`.
+
    **Part B: The Prompt-Driven Workflow
    Explain that the agent requires a valid path to the prompt file to execute the workflow.
 

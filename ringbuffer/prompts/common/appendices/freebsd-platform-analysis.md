@@ -334,13 +334,27 @@ All files EXCEPT Threading.cpp and swtr_ringbuffer_impl.hpp:
 | `tests/Makefile` | ELF RPATH ($ORIGIN), no lipo checks, single compiler |
 | `README.md` | FreeBSD-specific build instructions (clang 19.1.7, pkg install notes) |
 
-### Summary: Copy vs Modify vs Create
+### Summary: Copy vs Modify vs Create (Original — Pre-Unification)
 | Category | Count | Files |
 |----------|-------|-------|
 | **Byte-identical copy** | ~28 files | All .cpp/.hpp except Threading.cpp + impl.hpp, test data, scripts |
 | **Modified (from macOS)** | 2 files | Threading.cpp, swtr_ringbuffer_impl.hpp |
 | **FreeBSD-specific** | 3 files | Makefile, tests/Makefile, README.md |
 | **Not created** | 3 spec files + containers/ | Per excluded platform rules
+
+### Unified Source Code (Post-Unification)
+All 5 platforms (macOS, debian, fedora, ubuntu, raspios, freebsd14) now share the same 21 source files from `src/macos/cpp/` with conditional compilation:
+
+| File | FreeBSD Path (`__FreeBSD__`) | macOS/Linux Path |
+|------|---------------------------|------------------|
+| `Threading.cpp` | `std::thread` + `atomic<bool> stop_flag_` | `std::jthread` with `stop_token` |
+| `swtr_ringbuffer_impl.hpp` | `std::thread`, no `<stop_token>`, atomic stop flag | `std::jthread`, includes `<stop_token>` |
+| `ReadOps.cpp` | `while (!stop_flag_.load())` | `while (!st.stop_requested())` |
+| `WriteOps.cpp` | `while (!stop_flag_.load())` | `while (!st.stop_requested())` |
+| `TransformOps.cpp` | `while (!stop_flag_.load())` | `while (!st.stop_requested())` |
+| All other files (16) | Identical across all platforms | Identical across all platforms |
+
+The `#ifdef __FreeBSD__` preprocessor directive ensures the correct code path is compiled for each platform. No manual source modifications are needed — the unified source handles both FreeBSD and macOS/Linux automatically.
 
 ---
 
