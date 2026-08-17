@@ -6,9 +6,9 @@ ifeq ($(CXX),c++)
   CXX := clang++
 endif
 
-# LTO flag determined at parse time: g++ on macOS uses -flto, all others use -flto=thin
+# LTO flag: g++ on macOS uses -flto, Linux g++ also uses -flto (not -flto=thin)
 UNAME_S := $(shell uname -s)
-LTO_FLAG := $(shell if [ "$(CXX)" = "g++" ] && [ "$(UNAME_S)" = "Darwin" ]; then echo "-flto"; else echo "-flto=thin"; fi)
+LTO_FLAG := $(shell if [ "$(CXX)" = "g++" ] && [ "$(UNAME_S)" = "Darwin" ]; then echo "-flto"; else echo "-flto"; fi)
 override CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic $(LTO_FLAG) -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 
 # Linker flags are OS-dependent, not compiler-dependent:
@@ -25,8 +25,9 @@ SRCS = $(wildcard *.cpp)
 LIB_DIR = lib
 BUILD_DIR = build
 
-VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
-VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).so
+LIB_NAME = libswtr_ringbuffer
+VERSIONED_STATIC = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).a
+VERSIONED_SHARED = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).so
 
 # ============================================================================
 # Parse-time compiler detection and per-compiler target definitions
@@ -96,7 +97,7 @@ $(VERSIONED_STATIC): $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
 
 $(VERSIONED_SHARED): $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) -shared $(LDFLAGS) -o $(VERSIONED_SHARED) $^
+	$(CXX) -shared $(LDFLAGS) -Wl,-soname,$(LIB_NAME).so -o $(VERSIONED_SHARED) $^
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
