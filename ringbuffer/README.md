@@ -70,6 +70,140 @@ This project was created entirely from scratch using an LLM (Large Language Mode
     - **Compiler Flags**: `-fvisibility=hidden` (hide internal symbols), `-flto=thin` (thin link-time optimization), `-ffunction-sections -fdata-sections` (enable dead code elimination).
 - **Data Integrity**: Integrated checksumming (MD5, SHA256, SHA512) for every buffer slot.
 - **Diagnostics**: Non-Virtual Public Interface (NVI) logging system with per-stage (read/transform/write) independently configurable verbosity levels.
+- **LLM Knowledge Package**: Versioned, shareable context packages that teach LLMs (Qwen family and compatible) how to use the ringbuffer library. Distributed via Ollama Modelfile (system prompt injection) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) below.
+
+## LLM Knowledge Package
+
+The Ringbuffer project ships versioned knowledge packages that teach LLMs how to use the library. Each package covers all implemented languages (C++, Java, Python) and is distributed in two forms for different user needs.
+
+### What It Contains
+
+```
+knowledge/
+├── manifest.json                   # Version, SHA-256 checksums of every file
+├── Modelfile                       # Ollama model definition (wraps Qwen3.6-35B)
+├── system-prompt.md                # Lean core knowledge (~2KB, inline in Modelfile)
+├── api-reference/                  # Full API docs by language (external, referenced by system prompt)
+│   ├── cpp.md                      # C++ headers, types, full signatures
+│   ├── java.md                     # Java API, class hierarchy, usage patterns
+│   └── python.md                   # Python API, ctypes FFI, pure-Python impl
+├── examples/                       # Copy-pasteable code snippets by language
+│   ├── basic.cpp / .java / .py     # Construct, transform, run pipeline
+│   └── advanced.cpp / .java / .py  # Per-stage logging, checksumming, error handlers
+├── patterns/                       # Common usage patterns (all languages)
+│   ├── logging-guide.md            # Per-stage verbosity configuration
+│   └── checksumming.md             # MD5/SHA256/SHA512 per-slot
+├── instruction-dataset/            # QLoRA training data (for 14B fine-tuning)
+│   ├── train.jsonl                 # Instruction/response pairs
+│   └── eval.jsonl                  # Held-out validation set
+├── update.sh / update.zsh          # Regenerates docs + dataset from source headers
+└── build_model.sh / .zsh           # QLoRA fine-tuning script for M4 Mac mini
+```
+
+### Distribution Paths
+
+| Path | What it is | User command | Hardware needed |
+|---|---|---|---|
+| **System Prompt** (Modelfile) | Knowledge injected as text before every conversation | `ollama create swtr-ringbuffer -f Modelfile` | Any Qwen-compatible setup |
+| **Fine-Tuned** (14B GGUF) | Knowledge baked into model weights via QLoRA | `ollama create swtr-ringbuffer --from model.gguf` | ~10GB RAM (M4 Mac mini or equivalent) |
+
+**System Prompt approach:** The Modelfile wraps a base Qwen model with a lean system prompt (~2KB) containing architecture overview, key types, and quick examples. External API reference files are referenced for deep dives. Instant to use — no training required.
+
+**Fine-Tuned approach:** A Qwen2.5-14B-Instruct model is fine-tuned (QLoRA) on an instruction dataset generated from the knowledge source. The resulting `.gguf` file has ringbuffer knowledge baked into its weights — zero context window cost at inference time. Built on the project's M4 Mac mini (64GB unified memory) and exported via llama.cpp.
+
+### Versioning
+
+Knowledge packages follow the same versioning scheme as the library itself, derived from `src/*/cpp/version.mk`:
+
+| Component | Source | Example |
+|---|---|---|
+| MAJOR.MINOR.SUBVERSION | Auto-detected from `version.mk` | `1.0.0` |
+| BUILD_ID | Manual input to `update.sh` (no auto-increment) | `build-1`, `build-2` |
+| Full version string | `knowledge/manifest.json` | `1.0.0-build-1` |
+| GGUF filename | Generated from version string | `swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf` |
+
+The `BUILD_ID` is a manual parameter — if not supplied to `update.sh`, the current value is preserved. This gives full control over release numbering without auto-increment surprises.
+
+### Update Process
+
+When ringbuffer source code changes:
+
+1. Run `./knowledge/update.sh <BUILD_ID>` — regenerates API docs, examples, and instruction dataset from actual `.hpp`/`.py` headers for all three languages (C++, Java, Python)
+2. The script reads `version.mk` for MAJOR/MINOR/SUBVERSION, accepts BUILD_ID as argument (or preserves current value if omitted)
+3. Updates checksums in `manifest.json` using the existing `.gen_state.json` SHA-256 pattern
+4. Run `./knowledge/build_model.sh` on the M4 Mac mini — fine-tunes 14B, exports GGUF (~1-3 hours)
+5. Release both artifacts (`Modelfile` + `.gguf`) via GitHub Releases
+
+### Installation (End Users)
+
+**Path A — System Prompt (any Qwen model, instant):**
+```bash
+curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/Modelfile -o Modelfile
+ollama create swtr-ringbuffer -f Modelfile
+ollama run swtr-ringbuffer "How do I configure per-stage logging?"
+```
+
+**Path B — Fine-Tuned 14B (zero-context inference):**
+```bash
+curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf -o model.gguf
+ollama create swtr-ringbuffer --from model.gguf
+ollama run swtr-ringbuffer "How do I configure per-stage logging?"
+```
+
+### Development (Internal)
+
+All knowledge package development happens in GitLab on private branches. The auto-replication pipeline syncs `main` to a public GitHub mirror, where releases are published. The knowledge source (`knowledge/`) is not visible on the public repo — only the built artifacts (Modelfile, GGUF) and installation instructions (README) are public.
+
+## LinkedIn Post Generator
+
+A lightweight, ad-hoc tool for generating personal LinkedIn posts about projects in this workspace. Posts follow engagement best practices: hook in the first 140 characters, short paragraphs for scannability, first-person tone, a call-to-action question at the end, and 3–5 relevant hashtags.
+
+**Location:** `prompts/common/linkedin/generate_post.py`
+
+### Usage
+
+```bash
+# Generate from a project metadata file:
+python3 prompts/common/linkedin/generate_post.py --project prompts/common/linkedin/projects/ringbuffer.json
+# (Update the `link` field in the JSON to point to your repo, e.g. https://github.com/ebruno/codesamples)
+
+# Generate inline with CLI arguments:
+python3 prompts/common/linkedin/generate_post.py \
+    --name "My Project" \
+    --description "What it does in one sentence" \
+    --features "Feature 1, Feature 2, Feature 3" \
+    --tech "C++20, Python" \
+    --link "https://github.com/youruser/repo"
+
+# Dry-run (show character count and validation warnings only):
+python3 prompts/common/linkedin/generate_post.py --project <file> --dry-run
+
+# Write to a file:
+python3 prompts/common/linkedin/generate_post.py --project <file> -o post.txt
+```
+
+### Project Metadata Files
+
+Store reusable project metadata as JSON in `prompts/common/linkedin/projects/`. Each file defines:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Project name |
+| `description` | One-sentence summary of what it does |
+| `features` | Array of key features |
+| `tech` | Tech stack (e.g., "C++20, Java, Python") |
+| `link` | Repository URL |
+| `lesson` | What building it taught you |
+| `feedback_area` | Specific area to ask for feedback on |
+
+### Post Guidelines Enforced
+
+- **Character count:** 1,000–1,500 optimal (max 3,000)
+- **Hook:** Compelling statement in the first 140 characters (before "See more")
+- **Formatting:** Single-sentence paragraphs, bullet-point features
+- **Tone:** First-person, authentic and relatable
+- **Call to action:** Ends with a question to invite comments
+- **Hashtags:** 3–5 relevant tags auto-generated from the tech stack
 
 ## Quick Start: End-to-End Workflow (macOS Example)
 
@@ -369,6 +503,16 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
   - Single resolution arg → generates only that resolution
 - *Output:* `images/<basename>_720p.mp4` and/or `images/<basename>_1080p.mp4`
 - *Requirements:* ffmpeg, ffprobe
+
+**LLM Knowledge Package (`knowledge/`)**
+Regenerates the LLM knowledge package from actual source headers. Produces API references, examples, and instruction datasets for all implemented languages (C++, Java, Python). Distributed as Ollama Modelfile (system prompt) and fine-tuned GGUF models.
+- *Update docs + dataset:* `./knowledge/update.sh <BUILD_ID>` (bash) or `./knowledge/update.zsh <BUILD_ID>` (zsh)
+  - BUILD_ID is a manual parameter — if omitted, current value is preserved (no auto-increment)
+  - MAJOR/MINOR/SUBVERSION are auto-detected from `src/*/cpp/version.mk`
+- *Build fine-tuned model:* `./knowledge/build_model.sh` (bash) or `./knowledge/build_model.zsh` (zsh)
+  - Runs QLoRA fine-tuning of Qwen2.5-14B-Instruct on M4 Mac mini (~1-3 hours)
+  - Exports to GGUF via llama.cpp
+- *Version tracking:* `knowledge/.gen_state.json` — SHA-256 hashes of source → generated artifacts (same pattern as prompt versioning)
 
 ### Part E: Adding a New Operating System
 
@@ -958,6 +1102,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 - **Additional languages** — C, Go, and Rust scaffolding is in place. The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (zero-length placeholders, `.required_directory` markers) is already present.
 - **Additional patterns** — The test data pattern system supports adding new patterns beyond zigzag (e.g., sequential, random). Each new pattern requires a single spec file in `prompts/common/testing/patterns/` and running `create_scripts.md`.
 - **Enhanced CI/CD** — The automated verification scripts (`verify_binary_symmetry.sh`, `lint_prompts.sh`) are ready for CI integration. They can be added as pre-commit hooks or GitHub Actions to enforce quality gates before any code is committed.
+- **LLM Knowledge Package** — Versioned knowledge packages for C++, Java, and Python are in development. Distributed via Ollama Modelfile (system prompt) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) for details.
 
 ### Medium-Term (Roadmap)
 

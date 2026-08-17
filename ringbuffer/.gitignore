@@ -30,6 +30,12 @@ target/
 **/tests/logs/*_out.txt
 **/tests/reports/
 
+# Common language reports and logs (regenerated each run)
+src/common/python/reports/
+src/common/java/reports/
+src/common/python/logs/
+src/common/java/logs/
+
 # Build artifacts (libraries, object files — regenerated each run)
 **/lib/*.a
 **/lib/*.so
