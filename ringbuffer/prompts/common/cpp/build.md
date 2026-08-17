@@ -87,7 +87,7 @@ To ensure maximum performance and the smallest possible binary footprint, the fo
 - `-fPIC`: Position Independent Code, required for shared library creation.
 - `-Wall -Wextra -Wpedantic`: Enable all common warnings to ensure code quality.
 - `-O3`: Enable high-level optimizations.
-- `-flto=thin`: Enable Thin Link Time Optimization to optimize across the large number of small source modules while producing native object files compatible with both static and shared library linking across all platforms.
+- `-flto`: Enable Link Time Optimization to optimize across the large number of small source modules while producing native object files compatible with both static and shared library linking across all platforms. Note: Linux g++ does not support `-flto=thin`; use `-flto` instead.
 - `-fvisibility=hidden`: Hide all symbols by default to reduce the dynamic symbol table size and enable more aggressive stripping.
 - `-ffunction-sections`: Place each function in its own section in the object file.
 - `-fdata-sections`: Place each data item in its own section in the object file.
@@ -116,7 +116,7 @@ To provide a consistent interface for consumers, the following symbolic links mu
 - **Requirement**: Symbolic links must be created using a relative path within the `./lib` directory (e.g., by changing the working directory to `lib` before creating the link) to ensure the links remain valid if the library folder is moved.
 
 ## Binary Optimization Goals
-- **Dead Code Elimination**: The primary goal of using `-ffunction-sections`, `-fdata-sections`, and `--gc-sections` (combined with `-fvisibility=hidden` and `-flto=thin`) is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible binary.
+- **Dead Code Elimination**: The primary goal of using `-ffunction-sections`, `-fdata-sections`, and `--gc-sections` (combined with `-fvisibility=hidden` and `-flto`) is to allow the linker to identify and remove unreferenced functions, resulting in the smallest possible binary.
 - **Verifiability**: The resulting binary size should be monitored during testing to ensure that the dead code elimination is functioning as expected.
 
 ## Project Documentation

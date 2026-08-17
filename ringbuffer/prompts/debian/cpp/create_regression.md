@@ -19,7 +19,7 @@ Please implement the full regression test suite for the Ringbuffer on Debian.
     - Deploy test binaries (`test001_staticlib`, `test001_dynamiclib`) to the `tests/bin/` subdirectory.
     - Generate test data files (`test001.txt` through `test007.txt`) in `tests/data/inputs/`.
     - Generate expected output files in `tests/data/expected/`.
-- **Optimization**: Ensure `-flto=thin`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
+- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting:** All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
 - **Makefile Consistency:** The generated test Makefile MUST follow the common testing specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, Dockerfile path, report title). Do not compare against or copy from any other platform's test Makefile.
 

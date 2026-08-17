@@ -16,7 +16,7 @@ Please configure the build system for the Ringbuffer on Arch Linux.
 - **Artifacts:** 
     - Deploy libraries to the `lib/` subdirectory.
     - Create relative symbolic links from unversioned names to versioned artifacts within the `lib/` directory.
-- **Optimization**: Ensure `-flto=thin`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
+- **Optimization**: Ensure `-flto`, `-fvisibility=hidden`, `-ffunction-sections`, `-fdata-sections`, and `-Wl,--gc-sections` are applied to achieve the "small binary" goal.
 - **Scripting**: All utility scripts MUST be written in **Pure Bash** (version 5.0+) and MUST include a version check at the start. Avoid external tools in favor of shell built-ins.
 - **Makefile Consistency:** The generated `Makefile` MUST follow the common build specification exactly, with only the allowed platform-specific differences (`CONTAINER_IMAGE`, working directory path, host distro check). Do not compare against or copy from any other platform's Makefile.
 - **State Tracking:** Upon completion, create a `.gen_state.json` file in `src/archlinux/cpp/` containing the resolved version, resolved image, SHA-256 hashes of `common/cpp/build.md` and `archlinux/cpp/build.md`, SHA-256 hashes of all generated build artifacts (Makefile, Dockerfile, specs files), and file fingerprints for all source files.
