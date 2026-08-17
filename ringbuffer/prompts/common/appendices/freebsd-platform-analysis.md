@@ -175,3 +175,169 @@ FreeBSD has full POSIX.1 support:
 - `read()`, `write()`, `fsync()` — all available via `<unistd.h>`
 - `ssize_t` return type for I/O functions — same as Linux/macOS
 - `EAGAIN`, `EINTR` errno values exist but may differ numerically from Linux
+
+---
+
+## Shell Availability (for Test Infrastructure Scripts)
+
+The ringbuffer project generates utility scripts in four shell variants: **tcsh**, **zsh**, **bash**, and **sh** (Bourne). All four must be available on FreeBSD for test data generation, verification, and JUnit report scripts.
+
+| Shell | Available? | Version | Location |
+|-------|-----------|---------|----------|
+| **tcsh** | ✅ Yes | 6.22.04 (Astron) 2021-04-26 | `/bin/tcsh` (listed in `/etc/shells`) |
+| **zsh** | ❌ No | `Command not found` | Not installed |
+| **bash** | ✅ Yes | 5.2.37(0)-release (amd64-portbld-freebsd14.2) | `/usr/local/bin/bash` (listed in `/etc/shells`) |
+| **sh** | ✅ Yes | FreeBSD BSD `sh` (169 KB binary) | `/bin/sh` (listed in `/etc/shells`) |
+
+### `/etc/shells` Contents
+```
+/bin/sh
+/bin/csh
+/bin/tcsh
+/usr/local/bin/bash
+/usr/local/bin/rbash
+/usr/local/libexec/git-core/git-shell
+```
+
+### Implications for Script Generation
+- **tcsh**: Available — generate `*.tcsh` variants ✅
+- **zsh**: NOT available — must install or skip `*.zsh` variants ⚠️
+- **bash**: Available — generate `*.sh` (bash) variants ✅
+- **sh** (BSD sh): Available — generate `bin_sh.sh` variants ✅
+
+> **Note:** The project's test infrastructure scripts include `*.zsh` variants (e.g., `generate_test_data.zsh`, `verify_test_data.zsh`). On this FreeBSD 14 system, zsh is not installed. It can be installed via `pkg install zsh` if needed for test execution, but the scripts themselves are generated regardless — they just won't be runnable until zsh is installed.
+
+### Shebang Lines for Generated Scripts
+| Variant | Shebang |
+|---------|--------|
+| tcsh | `#!/bin/tcsh` |
+| zsh | `#!/usr/local/bin/zsh` (requires pkg install) or `#!/bin/zsh` |
+| bash | `#!/usr/local/bin/bash` |
+| sh (BSD) | `#!/bin/sh` |
+
+---
+
+## C++20 Feature Availability (Critical)
+
+**This is the most important finding for implementation planning.** FreeBSD clang 19.1.7 has **partial** C++20 standard library support.
+
+### Header Availability Test Results
+
+| Header | Available? | Notes |
+|--------|-----------|-------|
+| `<format>` | ✅ Yes | Compiles cleanly with `-std=c++20` |
+| `<stop_token>` | ✅ Yes | Compiles cleanly with `-std=c++20` |
+| **`<jthread>`** | ❌ **NO** | `fatal error: 'jthread' file not found` |
+| `<atomic>` | ✅ Yes | Standard header, always available |
+| `<thread>` | ✅ Yes | Standard header, always available |
+| `<condition_variable>` | ✅ Yes | Standard header, always available |
+
+### Impact on Source Code — **NOT Byte-Identical**
+
+The macOS source uses `std::jthread` in **Threading.cpp**. FreeBSD clang 19.1.7 does NOT provide `<jthread>`. This means:
+
+**Threading.cpp MUST be modified for FreeBSD.** The `std::jthread` (which auto-manages stop tokens and joinability) must be replaced with `std::thread` + manual `std::stop_token` management.
+
+**Required changes in Threading.cpp:**
+```cpp
+// macOS (std::jthread — auto-joins, auto-stops)
+write_thread_ = std::jthread([this](std::stop_token st) { write_loop(st); });
+
+// FreeBSD (manual thread + stop token)
+write_thread_ = std::thread([this](std::stop_token st) { write_loop(st); });
+// stop() must call a separate request_stop() method
+// wait() must call join()
+```
+
+**Required changes in swtr_ringbuffer_impl.hpp:**
+- Replace `std::jthread` member types with `std::thread`
+- Add a `request_stop()` method that creates and signals a `std::stop_source` (or use a separate atomic bool flag)
+- Update `start()` to create `std::thread` instead of `std::jthread`
+- Update `stop()` to signal stop + notify condition variable
+- Update `wait()` to call `.join()` on each thread
+
+### Alternative Approaches Considered
+1. **Install llvm-devel-21** (development version) — would provide `<jthread>` but introduces instability risk
+2. **Use pthreads directly** — more portable but loses C++20 stop_token semantics
+3. **Manual std::thread + atomic bool** — simplest, most portable, no external dependencies
+4. **Manual std::thread + stop_source** — closest to jthread semantics, requires C++20 `<stop_token>` (available)
+
+**Recommended approach:** Use `std::thread` + `std::stop_source`/`std::stop_token` from `<stop_token>` (which IS available). This preserves the cooperative cancellation semantics while avoiding `<jthread>`. The implementation is:
+```cpp
+// In header:
+std::stop_source stop_src_;
+std::thread write_thread_, transform_thread_, read_thread_;
+
+// In start():
+write_thread_ = std::thread([this]() { write_loop(stop_src_.get_token()); });
+
+// In stop():
+stop_src_.request_stop();
+cv_.notify_all();
+
+// In wait():
+if (write_thread_.joinable()) write_thread_.join();
+```
+
+### pkg Repository Status
+- `pkg search` partially works but has a broken repository: `FreeBSD-kmods has a wrong packagesite`
+- Requires `pkg update` to fix
+- llvm20 (20.1.7) is available in packages — would have `<jthread>` but not installed
+- llvm-devel-21.0 is available — development version, would have `<jthread>`
+
+---
+
+## System Resources
+
+| Resource | Value |
+|----------|-------|
+| **Disk** | 45 GB total, 6.5 GB used, 35 GB available (16% capacity) |
+| **RAM** | ~12.0 GB (`hw.physmem: 12844273664`) |
+| **CPUs** | 4 (`hw.ncpu: 4`) |
+| **Max processes per UID** | 15,872 (`kern.maxprocperuid`) |
+| **Max open files** | 391,976 (`kern.maxfiles`) |
+| **Locale** | `C.UTF-8` (all categories) |
+
+---
+
+## Filesystem
+
+| Field | Value |
+|-------|-------|
+| **Root filesystem** | UFS (`/dev/vtbd0p2 on /`) |
+| **Mount options** | local, soft-updates, journaled soft-updates |
+| **Symlink support** | ✅ Confirmed working |
+| **EFI partition** | `/dev/vtbd0p1` mounted at `/boot/efi` (msdosfs) |
+
+---
+
+## Updated Source Code Compatibility Assessment
+
+### Files That ARE Byte-Identical (no changes needed)
+All files EXCEPT Threading.cpp and swtr_ringbuffer_impl.hpp:
+- `status.hpp`, `ringbuffer.hpp` — pure enum/header definitions
+- `Lifecycle.cpp` — constructor only, no threading
+- `ReadOps.cpp`, `WriteOps.cpp`, `TransformOps.cpp` — POSIX I/O + stop_token (available)
+- `ErrorOps.cpp`, all `Accessors_*.cpp`, all `LoggingOps_*.cpp` — no threading
+- Test data files, utility scripts, LICENSE, README.md (tests)
+
+### Files That MUST Be Modified for FreeBSD
+| File | Change Required |
+|------|----------------|
+| **`Threading.cpp`** | Replace `std::jthread` with `std::thread` + manual stop token management |
+| **`swtr_ringbuffer_impl.hpp`** | Replace `std::jthread` member types with `std::thread`, add stop source, update start/stop/wait methods |
+
+### Files That Are FreeBSD-Specific (NOT copies from macOS)
+| File | Notes |
+|------|-------|
+| `Makefile` | ELF/.so, single-arch, ar rcs, no universal binary logic |
+| `tests/Makefile` | ELF RPATH ($ORIGIN), no lipo checks, single compiler |
+| `README.md` | FreeBSD-specific build instructions (clang 19.1.7, pkg install notes) |
+
+### Summary: Copy vs Modify vs Create
+| Category | Count | Files |
+|----------|-------|-------|
+| **Byte-identical copy** | ~28 files | All .cpp/.hpp except Threading.cpp + impl.hpp, test data, scripts |
+| **Modified (from macOS)** | 2 files | Threading.cpp, swtr_ringbuffer_impl.hpp |
+| **FreeBSD-specific** | 3 files | Makefile, tests/Makefile, README.md |
+| **Not created** | 3 spec files + containers/ | Per excluded platform rules
