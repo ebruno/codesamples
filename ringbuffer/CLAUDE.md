@@ -398,6 +398,11 @@ Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32
 7. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
 8. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
 
+### Container Commands (macOS)
+- **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
+- **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_debian_build:latest ...`, NOT `container run localhost/ringbuffer_debian_build:latest ...`.
+- **Debian Makefile LTO_FLAG:** The Debian container's g++ does not support `-flto=thin`. Use `-flto` instead. The Makefile's LTO_FLAG logic must reflect this.
+
 ### Prompt Changelog Discipline
 When modifying any prompt file that affects generated code, record the change in `prompts/common/CHANGELOG.md` using this format:
 ```markdown
