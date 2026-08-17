@@ -4,7 +4,9 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#ifndef __FreeBSD__
 #include <stop_token>
+#endif
 #include <string>
 #include <thread>
 #include <vector>
@@ -72,9 +74,15 @@ protected:
 
 private:
     // Pipelines
+#ifdef __FreeBSD__
+    void read_loop();
+    void transform_loop();
+    void write_loop();
+#else
     void read_loop(std::stop_token st);
     void transform_loop(std::stop_token st);
     void write_loop(std::stop_token st);
+#endif
 
     // Error Handling
     void handle_error(size_t slot_idx, BufferStatus status);
@@ -99,10 +107,25 @@ private:
     ErrorHandler err_handler_{nullptr};
     TransformFn transform_fn_;
 
-    // Thread management
+    // Thread management — macOS/Linux: jthread (auto-stops), FreeBSD: thread + atomic flag
+#ifdef __FreeBSD__
+    std::atomic<bool> stop_flag_{false};
+#endif
+#ifdef __FreeBSD__
+    std::thread read_thread_;
+#else
     std::jthread read_thread_;
+#endif
+#ifdef __FreeBSD__
+    std::thread transform_thread_;
+#else
     std::jthread transform_thread_;
+#endif
+#ifdef __FreeBSD__
+    std::thread write_thread_;
+#else
     std::jthread write_thread_;
+#endif
 
     // Synchronization primitives (aligned to cache line)
     alignas(64) std::mutex sync_mutex_;
