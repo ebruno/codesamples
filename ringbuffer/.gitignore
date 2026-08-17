@@ -24,6 +24,18 @@ target/
 **/logs/build.log
 **/logs/functional.log
 
+# Test output artifacts (exit codes, logs, outputs — regenerated each run)
+**/tests/logs/*.exit
+**/tests/logs/*.log
+**/tests/logs/*_out.txt
+**/tests/reports/
+
+# Build artifacts (libraries, object files — regenerated each run)
+**/lib/*.a
+**/lib/*.so
+**/lib/*.dylib
+**/*.o
+
 # Interactive session state (new_os_setup workflow)
 .ringbuffer_sessions/
 **/.gen_state.json
