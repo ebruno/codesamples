@@ -604,3 +604,45 @@ If all tools are present, state: "None — all required tools are available."
 # Transitory Markers
 - `.dockerfile_created_by_step0` is a transitory workflow marker — add it to `.gitignore` and remove from git tracking. It has no functional purpose beyond prompt execution coordination.
 - `.required_directory` files are **NOT** transitory — they preserve directory structure in git when directories contain no other tracked files. Do **NOT** add them to `.gitignore`.
+
+# File Writing Discipline — Critical (Learned 2026-08-18)
+
+## When `edit_file_tool` or `replace_file` Fails Silently
+If these tools appear to succeed but the file is not actually modified:
+
+1. **The tool may be silently failing** — do NOT retry the same approach
+2. **Use `shell_command` with a heredoc** to overwrite: `cat > path/to/file << 'EOF' ... EOF`
+3. **For large files (>5KB)**, split into chunks:
+
+### Chunked Write Pattern (Proven to Work)
+```
+Step 1: run_python → write chunk A to /outputs/chunkA.txt (sandbox)
+Step 2: run_python → write chunk B to /outputs/chunkB.txt (sandbox)
+Step 3: run_python → write chunk C to /outputs/chunkC.txt (sandbox)
+Step 4: shell_command → cat chunkA chunkB chunkC > target/path/file.md (host)
+```
+
+- Each `run_python` call writes to `/outputs/` (sandbox filesystem, always works)
+- Each chunk should be **under 8KB** to avoid timeouts
+- `deliver_file_to_user` can also copy from scratchpad to workspace if needed
+- **NEVER** try `edit_file_tool` or `replace_file` more than once on the same file without success
+
+### Why This Works
+- `run_python` runs in an isolated sandbox — `/outputs/` is its writable working directory
+- `shell_command` runs on the host with full filesystem access
+- The sandbox cannot write to host paths directly — that's why we use `shell_command` for the final assembly
+
+### When to Use Each Method
+| Situation | Method |
+|-----------|--------|
+| New file, small (<5KB) | `shell_command` + heredoc (`cat > file << 'EOF'`) |
+| New file, large (>5KB) | Chunked `run_python` + `shell_command cat` assembly |
+| Modify existing file (first try) | `edit_file_tool` or `replace_file` |
+| Modify existing file (second try fails) | Switch to chunked approach or `shell_command` heredoc |
+| Write to sandbox only | `run_python` → `/outputs/` |
+
+## Docker vs Container Golden Rule (macOS)
+- **macOS host:** NEVER use `docker` or `podman`. Only use the `container` CLI (Apple Container).
+- **Linux host:** Use `podman` (preferred) or Docker.
+- **Never prepend `localhost/`** to image names with the `container` CLI on macOS.
+- **Never use Docker references in macOS context** — even comparison phrases like "(equivalent to docker run)" can mislead agents into using `docker` instead of `container`.
