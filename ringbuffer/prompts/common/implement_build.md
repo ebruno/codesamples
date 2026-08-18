@@ -50,9 +50,9 @@ Create the build environment for the Ringbuffer library by strictly following th
           ```
           Help: `sw_vers -h` → Usage: sw_vers [--help|--productName|--productVersion|--productVersionExtra|--buildVersion]
         - **Apple Container Runtime**: macOS uses the `container` command (Apple Container), NOT Docker or podman. This is unique to macOS Apple Silicon machines. Key subcommands:
-          - `container run` — Run a container (equivalent to `docker run`)
-          - `container build` / `container image build` — Build an image from Dockerfile (equivalent to `docker build`)
-          - `container images` / `container image list` — List images (equivalent to `docker images`)
+          - `container run` — Run a container
+          - `container build` / `container image build` — Build an image from Dockerfile
+          - `container images` / `container image list` — List images
           - `container system status` — Show container services status
           - `container system version` — Show container runtime version
           Help: `container --help` → Overview of all subcommands (run, build, images, exec, logs, etc.)
