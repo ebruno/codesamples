@@ -225,7 +225,24 @@ For detailed compatibility analysis, standard library behavior across platforms,
 
 **Quick rule:** On macOS, clang++ is the primary supported compiler. g++ support is best-effort — see the appendix for details.
 
-## 13. Cross-Reference Summary
+## 14. FreeBSD 14 RPATH Limitation
+
+**Problem:** FreeBSD 14's `ld-elf.so.1` dynamic linker does **not** support `$ORIGIN` in RUNPATH/RPATH entries.
+
+**Root cause:** When a binary has `$ORIGIN/../lib` in its RUNPATH, FreeBSD's dynamic linker strips `$ORIGIN` to an empty string at runtime. This causes the shared library lookup to fail because the path becomes `/../lib` which is invalid.
+
+**Impact:**
+- **Dynamic library testing is NOT possible on FreeBSD 14.** The test binary cannot find `libswtr_ringbuffer.so` at runtime.
+- **Static library testing works fine.** The `make verify` target (which uses static libraries) passes all 7 tests.
+- **Shared library can still be built** — it just cannot be tested at runtime on this platform.
+
+**Workaround:** Use static library only for regression testing on FreeBSD 14. The `tests/Makefile` has a `verify` target that builds and runs tests against the static library (`libswtr_ringbuffer.a`).
+
+**Verification:** Run `readelf -d <binary>` to check RPATH/RUNPATH entries. On FreeBSD 14, `$ORIGIN` will appear in the binary but will be stripped at runtime.
+
+**Reference:** See [freebsd-platform-analysis.md](../appendices/freebsd-platform-analysis.md) for full analysis and TODO items.
+
+## 15. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`

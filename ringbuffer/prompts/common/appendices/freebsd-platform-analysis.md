@@ -404,3 +404,9 @@ The `#ifdef __FreeBSD__` preprocessor directive ensures the correct code path is
 - `std::jthread` is **not available** in FreeBSD clang 19.1.7
 - `g++` is **not installed** — only clang++ available
 - zsh is **not installed** — JUnit report generation skipped
+- **`$ORIGIN` in RUNPATH is NOT supported by FreeBSD 14's `ld-elf.so.1`** — The dynamic linker strips `$ORIGIN` to empty string at runtime, causing shared library tests to fail. **Dynamic library testing is not possible on FreeBSD 14.** The regression test uses static library only (via `make verify` target). This is a platform-specific limitation of FreeBSD's dynamic linker.
+
+### Current Limitations & TODOs
+- **TODO: Dynamic library testing on FreeBSD 14** — `$ORIGIN` in RUNPATH is not supported by `ld-elf.so.1`. Until FreeBSD updates their dynamic linker, shared library tests must be skipped on this platform. Consider using absolute RPATH for any future dynamic lib testing, or accept static-only testing.
+- **TODO: Install zsh** — `pkg install zsh` would enable JUnit report generation. Currently skipped.
+- **TODO: Consider installing g++** — `pkg install gcc` would provide a secondary compiler for cross-compiler ABI validation, matching the macOS multi-compiler approach.
