@@ -73,21 +73,32 @@ def scan_source_for_symbols(source_dirs: list[Path]) -> dict[str, set[str]]:
                 continue  # Skip binary files (.dylib, .a, etc.)
 
             if lang == "cpp":
-                # Match class/struct definitions: class Foo { or struct Bar {
-                for m in re.finditer(r'(?:class|struct)\s+(\w+)', content):
-                    symbols[lang].add(m.group(1))
+                # Match class/struct definitions, handling attributes/modifiers:
+                #   class Foo {  or  struct Bar {
+                #   class __attribute__((...)) SwtrRingBuffer : public ...
+                #   class Foo final : public Bar {
+                _CPP_MODIFIERS = {"__attribute__", "final", "override", "virtual", "explicit"}
+                for m in re.finditer(r"(?:class|struct)\s+(.+?)\s*[:{]", content):
+                    prefix = m.group(1).strip()
+                    for w in prefix.split():
+                        if w not in _CPP_MODIFIERS and re.match(r"^[A-Z_]\w*$", w):
+                            symbols[lang].add(w)
+                            break
                 # Match enum class definitions: enum class Foo : int {
-                for m in re.finditer(r'enum\s+class\s+(\w+)\s*:', content):
+                for m in re.finditer(r"enum\s+class\s+(\w+)\s*:", content):
                     symbols[lang].add(m.group(1))
 
             elif lang == "java":
-                # Match class/interface/enum definitions
+                # Match class/interface/enum definitions (with or without public modifier)
                 for m in re.finditer(r'(?:public\s+)?(?:class|interface|enum)\s+(\w+)', content):
                     symbols[lang].add(m.group(1))
 
             elif lang == "python":
                 # Match class definitions: class Foo(RingBuffer): or class Foo(ABC):
                 for m in re.finditer(r'class\s+(\w+)', content):
+                    symbols[lang].add(m.group(1))
+                # Also match enum-style classes: class Foo(int, Enum):
+                for m in re.finditer(r'class\s+(\w+)\s*\([^)]*Enum[^)]*\)', content):
                     symbols[lang].add(m.group(1))
 
     return symbols

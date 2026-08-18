@@ -21,7 +21,7 @@
     "system_prompt": "Modelfile \u2014 wraps any Qwen model, instant to use",
     "fine_tuned": "swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf \u2014 QLoRA fine-tuned, zero-context inference"
   },
-  "generated_at": "2026-08-17T19:06:21Z",
+  "generated_at": "2026-08-18T02:28:40Z",
   "files": {
     "Modelfile": "ce878d0c1e17df5db41c73a2ebe94c1b17c8424dc496373bcdd086689daf3a8e",
     "build_model.sh": "f3eb69a99c9d671fc8f708e8092ed06d51ed773068701c70ee379e19e26b4e18",
@@ -34,6 +34,7 @@
     "api-reference/python.md": "e5e5494d6f08a1e02939777860ab8de3246ea1e7ce091783ace2a650383935d3",
     "api-reference/java.md": "66abc92df154d5f622aad8ce4fde904b699a89f2610dc894dbca48a110b9e4e5",
     "api-reference/cpp.md": "1a31dcf17d64ff8c2e88fff6c5cc20a5fddfcf1183623e414f881021e8bc8f78",
+    "tests/test_knowledge_package.py": "40afaced0c78c68f151b71bcc037e5c993af41e49ab2e369a9b82f72ee19b4b2",
     "examples/basic.java": "16f46f492e4058346997b74ef23302c6a1356fda9882cd98d63952753b8a6023",
     "examples/advanced.py": "9aefe3864b1a1dd89451a9f37b2839e5b9dc4ec45f195f295d5010e144dd5bb2",
     "examples/advanced.cpp": "99550939e0a3d53c0369451b1afdaf7f61c088967634eef6e0affe399b3431e3",
