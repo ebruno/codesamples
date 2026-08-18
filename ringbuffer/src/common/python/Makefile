@@ -62,6 +62,43 @@ container-clean:
 		$(CONTAINER_CMD) image rm -f $$img 2>/dev/null || true; \
 	done
 
+.PHONY: test syntax-check
+
+# Syntax check — catches broken Python files before they're committed
+syntax-check:
+	@echo "Syntax checking Python files..."
+	python3 -m py_compile swtr_ringbuffer_pure.py || { echo "FAIL: swtr_ringbuffer_pure.py has syntax errors"; exit 1; }
+	python3 -m py_compile test_ringbuffer.py || { echo "FAIL: test_ringbuffer.py has syntax errors"; exit 1; }
+	python3 -m py_compile test_ringbuffer_pure.py || { echo "FAIL: test_ringbuffer_pure.py has syntax errors"; exit 1; }
+	@echo "Syntax check passed."
+
+# Run all tests for both harnesses — validates CLI, execution, and output correctness
+test: syntax-check
+	@echo ""
+	@echo "=== Running Concurrent harness (test_ringbuffer.py) ==="
+	@PASS=0; FAIL=0; \
+	for t in 1 2 3 4 5 6 7; do \
+		RESULT=$$(echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py $$t 2>&1); \
+		EXIT=$$?; \
+		echo "  T00$$t: $$RESULT"; \
+		if [ $$EXIT -ne 0 ]; then FAIL=$$((FAIL+1)); else PASS=$$((PASS+1)); fi; \
+	done; \
+	echo "Concurrent: $$PASS passed, $$FAIL failed"; \
+	if [ $$FAIL -ne 0 ]; then echo "CONCURRENT HARNES FAILED"; exit 1; fi
+	@echo ""
+	@echo "=== Running Pure Python harness (test_ringbuffer_pure.py) ==="
+	@PASS=0; FAIL=0; \
+	for t in 1 2 3 4 5 6 7; do \
+		RESULT=$$(echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py $$t 2>&1); \
+		EXIT=$$?; \
+		echo "  T00$$t: $$RESULT"; \
+		if [ $$EXIT -ne 0 ]; then FAIL=$$((FAIL+1)); else PASS=$$((PASS+1)); fi; \
+	done; \
+	echo "Pure Python: $$PASS passed, $$FAIL failed"; \
+	if [ $$FAIL -ne 0 ]; then echo "PURE PYTHON HARNES FAILED"; exit 1; fi
+	@echo ""
+	@echo "=== All tests passed ==="
+
 # Clean build artifacts (Python bytecode, egg-info, build dirs)
 clean:
 	@echo "Cleaning Python build artifacts..."
