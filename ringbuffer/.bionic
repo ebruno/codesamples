@@ -145,7 +145,7 @@ The basic prompt syntax is: `add <language> to <os>`
 - **Platform-insensitive routing** (`python`, `java`, `go`, `rust`): Reads single common spec, generates identical source for all platforms, no cross-platform symmetry needed
 - **Supported languages**: `c`, `cpp`, `python`, `java`, `go`, `rust`
 - **Excluded platforms**: FreeBSD 15 only — do not add languages to this platform
-- **Arch Linux**: C++ prompts are implemented (`prompts/archlinux/cpp/`); Linux-hosts-only (macOS skip with logging)
+- **Arch Linux**: C++ fully implemented, tested on both g++ and clang++ (`prompts/archlinux/cpp/`); Linux-hosts-only (macOS skip with logging)
 
 ### Shared Behavioral Contract (All Languages)
 Every implementation must satisfy these requirements regardless of language:
@@ -175,6 +175,7 @@ Every implementation must satisfy these requirements regardless of language:
 |-----------|--------|
 | C++ (macOS) | ✅ Fully implemented, tested, bug-fixed (transform in-place) |
 | C++ (Linux distros) | ✅ Byte-identical across Fedora/Debian/Ubuntu |
+| C++ (Arch Linux) | ✅ Fully implemented, tested on both g++ and clang++ (multi-compiler Makefile with auto-detection) |
 | C++ common specs | ✅ `prompts/common/cpp/functional.md`, `build.md` complete |
 | Java common specs | ✅ `prompts/common/java/functional.md`, `build.md` created |
 | Go common specs | ✅ `prompts/common/go/functional.md`, `build.md` created |
@@ -342,7 +343,7 @@ Ringbuffer is designed as a library, not an application. Every API design decisi
 - **Cross-platform symmetry**: Only applies to platform-sensitive languages between Linux distros
 - **macOS is native-only**: No containers, no Dockerfiles for any language on macOS
 - **Excluded platforms**: FreeBSD 15 only — zero-length files only
-- **Arch Linux C++**: Prompts implemented; source generation requires a Linux host
+- **Arch Linux C++**: Fully implemented, tested on both g++ and clang++; source generation requires a Linux host
 - **Language standards are binding**: Each implementation must target the primary version with fallback support as specified in Section 5
 - **Version reporting is mandatory**: Every implementation MUST detect and report the actual compiler/language version in use. This enables traceability — if a platform only has Java SE 17, the implementation must report that fact rather than silently targeting Java SE 25. The version must appear in `functional.log`, `build.log`, and the implementation report.
 
@@ -388,7 +389,7 @@ FreeBSD 15 is excluded from active development. Its prompt directories contain o
 FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain full spec files and source code. Do not modify FreeBSD 14 prompt directories.
 
 ### Arch Linux (Linux-Hosts-Only)
-Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code generation is supported on all platforms; build and test require a Linux host with `podman` or `docker` because Arch Linux container images are amd64-only. On macOS, scripts skip gracefully with a logged message.
+Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
 
 ### Common Pitfalls
 1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.

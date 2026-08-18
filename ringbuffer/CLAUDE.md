@@ -104,7 +104,7 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 | Native-only | macOS, FreeBSD 14/15 | None — no Dockerfiles, no containers |
 | Linux distributions (amd64) | Fedora, Debian (stock), Ubuntu, reference_linux | Yes — `container` on macOS hosts, `podman` on Linux hosts |
 | Linux distributions (arm64) | Raspberry Pi OS | Yes — native on Apple Silicon, `podman` on Linux hosts |
-| Excluded | FreeBSD 14/15 | Zero-length files only; do not modify |
+| Excluded | FreeBSD 15 only | Zero-length files only; do not modify |
 | Implemented (Linux-hosts-only) | Arch Linux | Yes — `podman` on Linux hosts; macOS skip with logging
 
 > **Debian vs. Raspberry Pi OS:** Both share `ID=debian` in `/etc/os-release`. They are distinguished by the presence of `/etc/rpi-issue`: if it exists, this is Raspberry Pi OS; otherwise, stock Debian. See `prompts/common/session_hints.md` for the full detection logic.
@@ -144,8 +144,8 @@ The basic prompt syntax is: `add <language> to <os>`
 - **Platform-sensitive routing** (`c`, `cpp`): Reads common spec + per-OS overrides, generates platform-specific source, performs cross-platform symmetry verification between Linux distros
 - **Platform-insensitive routing** (`python`, `java`, `go`, `rust`): Reads single common spec, generates identical source for all platforms, no cross-platform symmetry needed
 - **Supported languages**: `c`, `cpp`, `python`, `java`, `go`, `rust`
-- **Excluded platforms**: FreeBSD 14, FreeBSD 15 — do not add languages to these platforms
-- **Arch Linux**: C++ prompts are implemented (`prompts/archlinux/cpp/`); Linux-hosts-only (macOS skip with logging)
+- **Excluded platforms**: FreeBSD 15 only — do not add languages to this platform
+- **Arch Linux**: C++ fully implemented, tested on both g++ and clang++ (`prompts/archlinux/cpp/`); Linux-hosts-only (macOS skip with logging)
 
 ### Shared Behavioral Contract (All Languages)
 Every implementation must satisfy these requirements regardless of language:
@@ -175,6 +175,7 @@ Every implementation must satisfy these requirements regardless of language:
 |-----------|--------|
 | C++ (macOS) | ✅ Fully implemented, tested, bug-fixed (transform in-place) |
 | C++ (Linux distros) | ✅ Byte-identical across Fedora/Debian/Ubuntu |
+| C++ (Arch Linux) | ✅ Fully implemented, tested on both g++ and clang++ (multi-compiler Makefile with auto-detection) |
 | C++ common specs | ✅ `prompts/common/cpp/functional.md`, `build.md` complete |
 | Java common specs | ✅ `prompts/common/java/functional.md`, `build.md` created |
 | Go common specs | ✅ `prompts/common/go/functional.md`, `build.md` created |
@@ -341,8 +342,8 @@ Ringbuffer is designed as a library, not an application. Every API design decisi
 - **Test matrix is ground truth**: All implementations must pass T001-T007
 - **Cross-platform symmetry**: Only applies to platform-sensitive languages between Linux distros
 - **macOS is native-only**: No containers, no Dockerfiles for any language on macOS
-- **Excluded platforms**: FreeBSD 14/15 — zero-length files only
-- **Arch Linux C++**: Prompts implemented; source generation requires a Linux host
+- **Excluded platforms**: FreeBSD 15 only — zero-length files only
+- **Arch Linux C++**: Fully implemented, tested on both g++ and clang++; source generation requires a Linux host
 - **Language standards are binding**: Each implementation must target the primary version with fallback support as specified in Section 5
 - **Version reporting is mandatory**: Every implementation MUST detect and report the actual compiler/language version in use. This enables traceability — if a platform only has Java SE 17, the implementation must report that fact rather than silently targeting Java SE 25. The version must appear in `functional.log`, `build.log`, and the implementation report.
 
@@ -383,10 +384,12 @@ All platform source code MUST be generated **independently** from the common spe
 2. Package installation RUN blocks (platform-specific package managers)
 
 ### Excluded Platforms
-FreeBSD 14 and FreeBSD 15 are excluded from active development. Their prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
+FreeBSD 15 is excluded from active development. Its prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
+
+FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain full spec files and source code. Do not modify FreeBSD 14 prompt directories.
 
 ### Arch Linux (Linux-Hosts-Only)
-Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code generation is supported on all platforms; build and test require a Linux host with `podman` or `docker` because Arch Linux container images are amd64-only. On macOS, scripts skip gracefully with a logged message.
+Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
 
 ### Common Pitfalls
 1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
@@ -397,6 +400,7 @@ Arch Linux C++ prompts are implemented in `prompts/archlinux/cpp/` (9 files, ~32
 6. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
 7. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
 8. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
+9. **FreeBSD 14 RPATH limitation:** FreeBSD 14's `ld-elf.so.1` does NOT support `$ORIGIN` in RUNPATH — the dynamic linker strips it to empty at runtime. **Dynamic library testing is not possible on FreeBSD 14.** Use static library only (via `make verify` target). See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for details.
 
 ### Container Commands (macOS)
 - **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).

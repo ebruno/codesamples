@@ -204,7 +204,17 @@ When a platform lacks a C++ feature available on other platforms, use `#ifdef` b
 
 ---
 
-## 10. Ubuntu 24.04 Clang++ Unsupported
+## 10. Arch Linux — clang++ Fully Supported
+
+**Status:** `clang++` works correctly on Arch Linux. Both `g++` and `clang++` are fully supported compilers.
+
+Arch Linux is a rolling-release distribution, so it ships the latest versions of both GCC and Clang. Unlike Ubuntu 24.04 (see below), there is no ABI mismatch between the compiler and C++ standard library headers. Both compilers compile C++20 code without issues.
+
+**Recommended:** Use whichever compiler you prefer. The Arch Linux Makefile auto-detects both and applies the correct LTO flag (`-flto` for g++, `-flto=thin` for clang++).
+
+---
+
+## 11. Ubuntu 24.04 Clang++ Unsupported
 
 **Problem:** On Ubuntu 24.04, `clang++` (LLVM 18) fails to compile C++20 code with errors like `'atomic' file not found`.
 
@@ -225,7 +235,7 @@ For detailed compatibility analysis, standard library behavior across platforms,
 
 **Quick rule:** On macOS, clang++ is the primary supported compiler. g++ support is best-effort — see the appendix for details.
 
-## 14. FreeBSD 14 RPATH Limitation
+## 13. FreeBSD 14 RPATH Limitation
 
 **Problem:** FreeBSD 14's `ld-elf.so.1` dynamic linker does **not** support `$ORIGIN` in RUNPATH/RPATH entries.
 
@@ -242,7 +252,7 @@ For detailed compatibility analysis, standard library behavior across platforms,
 
 **Reference:** See [freebsd-platform-analysis.md](../appendices/freebsd-platform-analysis.md) for full analysis and TODO items.
 
-## 15. Cross-Reference Summary
+## 14. Cross-Reference Summary
 
 > **Host OS detection, macOS versioning, Linux /etc/os-release, container runtime** → `prompts/common/session_hints.md`
 > **Source organization, naming conventions, include discipline** → `prompts/common/cpp/functional.md`

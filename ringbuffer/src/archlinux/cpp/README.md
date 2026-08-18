@@ -1,15 +1,9 @@
 # Swtr Ringbuffer (Arch Linux C++ Implementation)
 
 ## Description
-A high-performance, fixed-size circular buffer implementation for C++20. This library provides a three-stage pipeline (Read → Transform → Write) with strong thread safety and cache-line alignment to prevent false sharing.
+A high-performance, thread-safe C++20 ring buffer implementation designed for pipeline processing (Read → Transform → Write).
 
-**Note:** Arch Linux is a rolling-release distribution — there are no point-release version numbers. The container image used for builds is pinned to a specific datestamp (e.g., `archlinux:base-devel-20260514.0.538921`) to ensure reproducible builds.
-
-## Features
-- **C++20 Compliant**: Uses `std::jthread`, `std::stop_token`, and `std::format`.
-- **Thread Safe**: Atomic state management and synchronization primitives.
-- **Optimized**: `alignas(64)` on critical structures to avoid cache line contention.
-- **Flexible**: Custom transform functions and error handlers.
+**Note:** Arch Linux is a rolling-release distribution — there are no point-release version numbers. The container image used for builds (on Linux hosts) is pinned to a specific datestamp (e.g., `archlinux:2026.08.01`) to ensure reproducible builds.
 
 ## Build Instructions
 
@@ -21,22 +15,25 @@ make shared             # Build shared library only (.so)
 make clean              # Remove build artifacts
 ```
 
-### Compilation Example (Manual)
+### Using g++ (Manual)
 ```bash
-g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
-    -ffunction-sections -fdata-sections \
-    -Wall -Wextra -Werror \
-    Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
-    WriteOps.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
-    LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
-    Accessors_Status.cpp Accessors_ChecksumAlg.cpp Accessors_ChecksumVal.cpp \
-    Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp \
+g++ -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto \
+    Lifecycle.cpp LoggingOps_*.cpp ReadOps.cpp TransformOps.cpp \
+    WriteOps.cpp Threading.cpp ErrorOps.cpp Accessors_*.cpp \
     -o libswtr_ringbuffer.so -shared -Wl,--gc-sections
+```
+
+### Using clang++ (Manual)
+```bash
+clang++ -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto=thin \
+    Lifecycle.cpp LoggingOps_*.cpp ReadOps.cpp TransformOps.cpp \
+    WriteOps.cpp Threading.cpp ErrorOps.cpp Accessors_*.cpp \
+    -o libswtr_ringbuffer.so -shared
 ```
 
 ### Prerequisites (Arch Linux)
 ```bash
-sudo pacman -S --needed base-devel gcc make binutils
+sudo pacman -S --needed base-devel gcc clang make binutils
 ```
 
 ## Library Artifacts
@@ -45,29 +42,19 @@ sudo pacman -S --needed base-devel gcc make binutils
 |----------|------|-------------|
 | Static library | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
 | Shared library | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
+| Unversioned symlink | `lib/libswtr_ringbuffer.so` | Convenience symlink to shared library |
 
-## Containerized Build
+## Container Support
+Arch Linux builds run natively on Linux hosts. On Apple Silicon Macs, containers are not available (Arch Linux container images are amd64-only):
 
 ```bash
-make container          # Build the Arch Linux build image using datestamp-pinned tag
-make container-clean    # Remove the build image
+make container  # Outputs: "Container not used for Arch Linux native build"
 ```
 
-The Dockerfile uses `archlinux:base-devel-YYYYMMDD` datestamp tags for reproducible builds. See [prompts/common/session_hints.md](../../common/session_hints.md) Section 4A for Arch Linux container tag conventions.
+On macOS, the `container` target detects Apple Silicon and skips gracefully with a logged message. Build and test must be performed on a Linux host via SSH.
 
-## macOS Limitation (Apple Silicon)
-Arch Linux container images are amd64-only — no ARM64 variant exists on Docker Hub. On Apple Silicon Macs:
-
-- **Source code generation**: Supported (does not require containers)
-- **Build and test**: Requires a Linux host with `podman` or `docker`
-
-Container scripts detect macOS and skip gracefully with a logged message. See [prompts/common/session_hints.md](../../common/session_hints.md) Section 3 for details.
-
-## Architecture
-The implementation follows a strict separation of concerns:
-- `RingBuffer`: Abstract interface defining the API.
-- `SwtrRingBuffer`: Concrete implementation.
-- `BufferSlot`: The unit of data storage, containing state and checksum information.
+## API Overview
+The library provides a `RingBuffer` abstract interface and a `SwtrRingBuffer` concrete implementation.
 
 ## License
 This project is licensed under the BSD 3-Clause License.

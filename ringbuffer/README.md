@@ -1034,11 +1034,12 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
 | **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
-| **ArchLinux** | C++ | Linux-hosts-only[^1] | — |
+| **ArchLinux** | C++ | v1.0.0[^2] | g++ 16.2.1, clang++ 22.1.8 |
 | **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
 | **FreeBSD 15** | C++ | TBS | — |
 
 [^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
+[^2]: Arch Linux is a rolling-release distribution. Both g++ and clang++ are fully supported (unlike Ubuntu 24.04 where clang++ is unsupported). See [prompts/common/cpp/session_hints.md](prompts/common/cpp/session_hints.md) Section 10.
 
 `*TBS: To Be Supplied | WIP: Work In Progress`
 
@@ -1056,12 +1057,12 @@ Loaded template 'Fedora' — all fields populated with defaults.
 ### Current Status (as of 2026-08-16)
 
 **Implementation:**
-- **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, and Raspberry Pi OS — all at v1.0.0
+- **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, Raspberry Pi OS, and Arch Linux — all at v1.0.0
 - **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
 - **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
-- **C++ prompts implemented for Arch Linux** — Linux-hosts-only (macOS skip with logging); see `prompts/archlinux/cpp/` for all 9 prompt files
-- **Binary symmetry verified** across ALL platforms: 21 source files confirmed byte-identical between macOS, debian, fedora, ubuntu, and raspios via automated `verify_binary_symmetry.sh`
-- **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection
+- **C++ implementation complete for Arch Linux** — v1.0.0, all 7 regression tests pass on both g++ and clang++; native build via SSH to remote Linux host (no container support on Apple Silicon)
+- **Binary symmetry verified** across ALL platforms: 21 source files confirmed byte-identical between macOS, debian, fedora, ubuntu, raspios, and archlinux via automated `verify_binary_symmetry.sh`
+- **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection (7 platforms: macOS, debian, fedora, ubuntu, raspios, archlinux)
 - **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
 
 **Verification & Quality Gates:**
@@ -1084,7 +1085,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | Capability | Status | Details |
 |------------|--------|---------|
 | C++ library (macOS) | ✅ Complete | Universal binaries (arm64 + x86_64), static + shared libs |
-| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios |
+| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios/archlinux |
 | Java library (all OS) | ✅ Complete | Maven build, JAR artifact, classload test verified |
 | Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
 | Build system | ✅ Complete | Makefiles with container overrides, versioned artifacts |
