@@ -105,7 +105,7 @@ build:
 		touch .cpp_build_failed; \
 		exit 0; \
 	fi
-	@cd $(CPP_SRC_DIR) && make all-all 2>&1 | tee /dev/stderr; \
+	@cd $(CPP_SRC_DIR) && make all 2>&1 | tee /dev/stderr; \
 	BUILD_EXIT=$$?; \
 	if [ $$BUILD_EXIT -ne 0 ]; then \
 		echo ""; \

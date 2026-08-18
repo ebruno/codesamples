@@ -19,16 +19,10 @@
     },
     "archlinux": {
       "route": "native",
-      "image": "N/A",
       "python_version": "3.14.7",
-      "cpp_compiler": "GCC 16.2.1",
-      "shared_lib": "libswtr_ringbuffer.so (ELF, 61,688 bytes)",
       "status": "PASS",
-      "timestamp": "2026-08-17T22:38:00-0700",
-      "test_results": {
-        "concurrent": {"total": 7, "passed": 7, "failed": 0},
-        "pure_python": {"total": 7, "passed": 7, "failed": 0}
-      }
+      "timestamp": "2026-08-18T08:56:42-0700",
+      "notes": "C++ shared library built successfully. Concurrent (7/7) + Pure Python (7/7) all passed."
     }
   },
   "artifacts": {
@@ -38,7 +32,11 @@
   "sha256": {
     "version_mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
     "swtr_ringbuffer_py": "275ee8df7f8fcdd05e40a2598d03b07410934b5eb700542004ccf14e4da5ec31",
-    "test_ringbuffer_py": "e6e29a568e178f5ccffaa5d05cf154d17cf0c5d5e22d49f28d8968dfcd1866b1"
+    "test_ringbuffer_py": "e6e29a568e178f5ccffaa5d05cf154d17cf0c5d5e22d49f28d8968dfcd1866b1",
+    "version.mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
+    "swtr_ringbuffer_pure.py": "0ffedbd302bcf7f4879d947ff792d989814344f94cf1496b0c27e29e4b9f43e5",
+    "test_ringbuffer.py": "e6e29a568e178f5ccffaa5d05cf154d17cf0c5d5e22d49f28d8968dfcd1866b1",
+    "test_ringbuffer_pure.py": "badbe7f143d44f5b0747bc0f87ba8a51d3024492f2078c79f6f8d54fe54ec265"
   },
   "notes": [
     "Version string changed from 'High Performance' to 'Concurrent' (2026-08-17)",
