@@ -528,7 +528,7 @@ Every new OS must be classified by its **container support model** and **host ar
 | **Containerized (amd64)** | Runs inside a container on Linux hosts. May or may not work on Apple Silicon depending on architecture. | `podman` on Linux hosts; `container` on macOS (if arm64 image available) | Fedora, Debian, Ubuntu |
 | **Containerized (arm64 native on Apple Silicon)** | Container image is arm64-only, which matches Apple Silicon natively. No emulation needed on M-series Macs. | `podman`/`container` with native arm64 — works on Apple Silicon without skip logic | Raspberry Pi OS |
 | **Linux-hosts-only** | Container image is amd64-only with no ARM64 variant available. Source code generation works everywhere; build/test requires a Linux host. | `podman` on Linux hosts only — macOS must skip gracefully with logging | Arch Linux |
-| **Excluded** | Placeholder directories with zero-length spec files. No active development. | None | FreeBSD 14, FreeBSD 15 |
+| **Excluded** | Placeholder directories with zero-length spec files. No active development. | None | FreeBSD 15 only |
 
 **Decision flow for a new OS:**
 
@@ -541,7 +541,7 @@ Is the OS Linux? ───────────────► YES → Does a
                                     │                                 ├─ Yes → Linux-hosts-only (macOS skip)
                                     │                                 └─ No  → Cannot containerize — evaluate native build
                                     │
-Is the OS FreeBSD? ─────────────► YES → Excluded (zero-length files only)
+Is the OS FreeBSD? ─────────────► YES → Is it FreeBSD 14? → Implemented (native-only) / FreeBSD 15 → Excluded (zero-length files only)
 ```
 
 #### 2. OS Identification — How to Detect and Document an Operating System
@@ -1035,7 +1035,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | | Python | v1.0.0 | python 3.14.x |
 | **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
 | **ArchLinux** | C++ | Linux-hosts-only[^1] | — |
-| **FreeBSD 14** | C++ | TBS | — |
+| **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
 | **FreeBSD 15** | C++ | TBS | — |
 
 [^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
@@ -1049,6 +1049,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | Platform | Issue | Impact | Workaround |
 |----------|-------|--------|------------|
 | **Ubuntu 24.04** | Clang 18 looks for C++ headers in `/usr/include/c++/14`, but Ubuntu ships only `g++-13` (headers in `/usr/include/c++/13`). The GCC 14 base package (`gcc-14-base`) does not include C++ headers. | `clang++` fails with `'atomic' file not found` and similar errors when compiling C++20 code. | **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. The Dockerfiles include clang packages for reference but only g++ is used in practice. |
+| **FreeBSD 14** | `ld-elf.so.1` does NOT support `$ORIGIN` in RUNPATH — the dynamic linker strips it to empty at runtime. | **Dynamic library testing is not possible on FreeBSD 14.** The test binary cannot find `libswtr_ringbuffer.so` at runtime. | **Static library only.** Use the `make verify` target which builds and runs tests against the static library (`libswtr_ringbuffer.a`). All 7 regression tests pass via static library. See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for details. |
 
 ## Where We Are At
 
@@ -1066,7 +1067,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 **Verification & Quality Gates:**
 - **Automated binary symmetry check** — `verify_binary_symmetry.sh` compares all 21 source files across Linux platforms; integrated into `verify_build.md` as a mandatory post-build step (step 0.5)
 - **Automated prompt linting** — `lint_prompts.sh` validates directory structure, required files per platform/language, excluded platform cleanliness, primary document naming, and common workflow completeness; integrated into `verify_build.md` as step 0.6
-- **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (FreeBSD 14/15) contain only zero-length placeholder files
+- **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (FreeBSD 15 only) contain only zero-length placeholder files
 - **Multi-language verification** — `verify_build.md` dispatches to language-specific checks: Java (`mvn compile`, `mvn package`, JAR artifact, classload test), Python (syntax check, import verification, class instantiation), C/C++ (binary format, symbol visibility)
 - **Java regression testing** — Full T001–T007 test matrix executed across all 4 OSes (macOS native + 3 Linux containers); 18 assertions, 0 failures; Surefire-compatible test harness with `testAll()` method
 - **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
@@ -1106,7 +1107,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 ### Medium-Term (Roadmap)
 
-- **FreeBSD implementation** — Currently excluded with zero-length placeholder files. The scaffolding exists; implementation requires writing the platform/language spec files and generating source code.
+- **FreeBSD 15 implementation** — Currently excluded with zero-length placeholder files. FreeBSD 14 C++ is implemented and verified (static library only). Implementation requires writing the platform/language spec files and generating source code.
 - **Arch Linux C++ source generation** — Prompts are implemented (`prompts/archlinux/cpp/`); actual source code generation requires executing `create_functional.md`, `create_build.md`, and `create_regression.md` on a Linux host.
 - **More comprehensive test coverage** — Additional test scenarios for edge cases (concurrent access patterns, memory pressure, signal handling).
 - **Documentation expansion** — API reference generation from headers, performance benchmarking documentation, container deployment guides.
