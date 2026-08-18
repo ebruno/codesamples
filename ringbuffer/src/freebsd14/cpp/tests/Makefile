@@ -3,7 +3,7 @@ include ../version.mk
 CXX := clang++
 CXXFLAGS = -std=c++20 -O3 -I.. -I../src/freebsd14/cpp -pthread
 # FreeBSD/ELF: use $ORIGIN for RPATH (not @executable_path which is macOS)
-LDFLAGS = -Wl,-rpath,\$$ORIGIN/../lib -lpthread
+LDFLAGS = -Wl,-rpath,'$$ORIGIN/../lib' -lpthread
 
 RM = rm -rf
 
@@ -23,7 +23,7 @@ test001_staticlib: src/test001.cpp
 
 test001_dynamiclib: src/test001.cpp
 	@mkdir -p ${BIN_DIR}
-	${CXX} ${CXXFLAGS} src/test001.cpp -L${LIB_DIR} -lswtr_ringbuffer -o ${BIN_DIR}/test001_dynamiclib
+	${CXX} ${CXXFLAGS} src/test001.cpp -L${LIB_DIR} ${LDFLAGS} -lswtr_ringbuffer -o ${BIN_DIR}/test001_dynamiclib
 
 deploy_utils:
 	@echo "Utils already present from tar extraction" 
@@ -56,8 +56,8 @@ verify: deploy_utils all
 	@echo "Verification complete."
 
 clean:
-	${RM} -r ${BIN_DIR}/* ${LOG_DIR}/*
-	${RM} *.o ${BIN_DIR}/*.o *~ #*#
+	rm -rf ${BIN_DIR}/* ${LOG_DIR}/*
+	rm -f *.o ${BIN_DIR}/*.o *~ #*#
 
 dist-clean: clean
-	${RM} -r ${LOG_DIR} ${REPORT_DIR}
+	rm -rf ${LOG_DIR} ${REPORT_DIR}
