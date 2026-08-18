@@ -410,3 +410,181 @@ The `#ifdef __FreeBSD__` preprocessor directive ensures the correct code path is
 - **TODO: Dynamic library testing on FreeBSD 14** — `$ORIGIN` in RUNPATH is not supported by `ld-elf.so.1`. Until FreeBSD updates their dynamic linker, shared library tests must be skipped on this platform. Consider using absolute RPATH for any future dynamic lib testing, or accept static-only testing.
 - **TODO: Install zsh** — `pkg install zsh` would enable JUnit report generation. Currently skipped.
 - **TODO: Consider installing g++** — `pkg install gcc` would provide a secondary compiler for cross-compiler ABI validation, matching the macOS multi-compiler approach.
+
+---
+
+## FreeBSD 14 Shell & Makefile Compatibility (Critical for Python Regression)
+
+> **Date:** 2026-08-18
+> **Purpose:** Lessons learned from running Python regression tests on FreeBSD 14 — shell behavior, Makefile syntax requirements, and escaping gotchas.
+
+### Shell Environment
+
+| Aspect | Value |
+|--------|-------|
+| **Default user shell** | `/bin/tcsh` (tcsh 6.22.04) |
+| **Default root/system shell** | `/bin/sh` (Almquist shell / ash) |
+| **Make recipe shell** | `/bin/sh` (ash) — BSD make uses the `SHELL` macro, defaults to `/bin/sh` |
+| **POSIX compliance** | ash is POSIX.1-compliant, lightweight, minimal feature set |
+
+> **Critical:** BSD make does NOT use tcsh for recipe execution. It uses `/bin/sh` (ash). All Makefile recipes must be ash-compatible, not bash or tcsh compatible.
+
+### Ash Shell Limitations (vs Bash)
+
+| Feature | ash (`/bin/sh`) | Bash | Impact on Makefiles |
+|---------|-----------------|------|---------------------|
+| `[ ]` test | ✅ Supported | ✅ Supported | Use single brackets only |
+| `[[ ]]` extended test | ❌ Not supported | ✅ Supported | **Never use** in Makefiles |
+| `$(( ))` arithmetic | ✅ Supported | ✅ Supported | Works fine |
+| `(( ))` arithmetic | ❌ Not supported | ✅ Supported | **Never use** in Makefiles |
+| Arrays | ❌ Not supported | ✅ Supported | No arrays in ash |
+| Brace expansion `{a,b}` | ❌ Not supported | ✅ Supported | No brace expansion |
+| `2>&1` stderr redirect | ✅ Supported | ✅ Supported | Works fine |
+| `$?` exit code | ✅ Supported | ✅ Supported | Works fine |
+| `$$` make variable escape | ✅ Supported | ✅ Supported | Make converts `$$` → `$` |
+| Nested command substitution `` $(cmd) `` | ⚠️ Fragile in if-blocks with `\` continuations | ✅ Supported | **Avoid nesting** |
+| `@` prefix on continued lines | ❌ Breaks (ash sees `@echo` as command) | ✅ Works | **Never use `@` on continued lines** |
+
+### The `$ORIGIN` Escaping Problem (FreeBSD 14 Specific)
+
+**Problem:** In ash, `$ORIGIN` is treated as a variable expansion. Since `ORIGIN` is not set, it expands to an empty string.
+
+```bash
+# BROKEN — $ORIGIN becomes empty in ash
+echo "ld-elf.so.1 strips $ORIGIN from RUNPATH"
+# Output: ld-elf.so.1 strips  from RUNPATH
+```
+
+**Solution:** Use `printf` with `%s` placeholder and single-quoted `$$ORIGIN`:
+
+```makefile
+# CORRECT — printf with %s and single-quoted $$ORIGIN
+printf "%s\n" "ld-elf.so.1 strips $$ORIGIN from RUNPATH"
+# Output: ld-elf.so.1 strips $ORIGIN from RUNPATH
+```
+
+**How it works:**
+1. Make processes `$$ORIGIN` → passes `$ORIGIN` to ash
+2. Ash sees `'$ORIGIN'` in single quotes → treats as literal string `$ORIGIN`
+3. `printf "%s"` prints the literal value without variable expansion
+
+**Alternative (less portable):** Use `\$ORIGIN` — but this produces `\RIGIN` in some ash versions (backslash before `$` is not always handled consistently).
+
+### Nested Command Substitution Issues
+
+**Problem:** BSD make's shell parser breaks when there are nested command substitutions (backticks or `$()`) inside an `if` block with line continuations (`\`).
+
+```makefile
+# BROKEN — nested backticks in if-block with \ continuations
+test:
+	@if [ condition ]; then \
+		echo "`date '+%Y-%m-%d'` value: $$(printf '%s' '$$ORIGIN')" >> log; \
+	fi
+# Error: /bin/sh: Syntax error: EOF in backquote substitution
+```
+
+**Solution:** Use `printf` with separate `%s` arguments to avoid nesting:
+
+```makefile
+# CORRECT — printf with separate arguments, no nesting
+test:
+	@if [ condition ]; then \
+		printf "%s %s\n" "`date '+%Y-%m-%d'`" '$$ORIGIN' >> log; \
+	fi
+```
+
+### Makefile Recipe Structure Rules for BSD make + ash
+
+1. **Line continuations (`\`)** — All commands in a single shell invocation must be joined with `\`
+2. **`@` prefix** — Suppresses echo of the command line. Only works on the FIRST line of a recipe, not on continued lines.
+3. **Variable scope** — Variables set in one shell invocation are NOT available in the next. If you need a variable from a test loop, log it on the same continued line.
+4. **`$$` escaping** — Make converts `$$` to `$`. Single quotes protect from ash expansion: `'$ORIGIN'` → literal `$ORIGIN`.
+
+### FreeBSD 14 Python Makefile Pattern (Working Template)
+
+```makefile
+SHELL = /bin/sh  # Explicitly set (default, but makes intent clear)
+
+.PHONY: test build
+
+test:
+	@echo "=== Running tests ==="
+	PASS=0; FAIL=0; \
+	for t in 1 2 3 4 5 6 7; do \
+		RESULT=$$(echo 'test input' | python3 test.py $$t 2>&1); \
+		EXIT=$$?; \
+		echo "  T00$$t: $$RESULT"; \
+		if [ $$EXIT -ne 0 ]; then FAIL=$$((FAIL+1)); else PASS=$$((PASS+1)); fi; \
+	done; \
+	echo "Results: $$PASS passed, $$FAIL failed"; \
+	# Log on same continued line so $$PASS is available
+	echo "`date '+%Y-%m-%d %H:%M:%S'` Tests: $$PASS/7 passed" >> logs/build.log
+	@if [ ! -f .cpp_build_failed ]; then \
+		echo "=== SKIPPED: Concurrent (RPATH limitation) ==="; \
+		# Use printf with %s to avoid $ORIGIN expansion
+		printf "%s Concurrent SKIPPED: ld-elf.so.1 strips %s from RUNPATH\n" \
+			"`date '+%Y-%m-%d %H:%M:%S'`" '$$ORIGIN' >> logs/build.log; \
+	fi
+```
+
+### Key Takeaways for Agent Workflows
+
+1. **Always use `/bin/sh` (ash) syntax** in FreeBSD 14 Makefiles — no `[[ ]]`, no `(( ))`, no arrays
+2. **Use `printf "%s" '$$ORIGIN'`** for any log messages containing `$ORIGIN`
+3. **Avoid nested command substitutions** in if-blocks — use `printf` with separate arguments
+4. **Never put `@` on continued lines** — it breaks ash parsing
+5. **Keep variable-dependent logging on the same `\` continuation** as where the variable is set
+6. **BSD make does NOT support GNU make features:** no `$(shell ...)`, no `ifeq/else`, no `-v` flag
+7. **FreeBSD 14 uses BSD make** — `gmake` is NOT allowed, must use native `make`
+
+### Comparison: GNU make vs BSD make
+
+| Feature | GNU make (Linux/macOS) | BSD make (FreeBSD 14) |
+|---------|----------------------|----------------------|
+| **Variable syntax** | `$(VAR)` or `${VAR}` | `$(VAR)` only |
+| **`$(shell ...)`** | ✅ Supported | ❌ Not supported |
+| **`ifeq/else/endif`** | ✅ Supported | ❌ Not supported |
+| **Pattern rules `%`** | ✅ Supported | ⚠️ Limited support |
+| **`.PHONY`** | ✅ Supported | ✅ Supported |
+| **Shell for recipes** | `/bin/sh` (usually bash-compatible) | `/bin/sh` (ash, POSIX-only) |
+| **Version query** | `make -v` | `make -V VERSION` |
+| **Parallel jobs** | `-jN` | `-jN` (same) |
+
+### FreeBSD 14 Python Regression Test Flow
+
+```
+make test (BSD make)
+├── syntax-check
+│   └── python3 -m py_compile *.py
+├── build (C++ shared library)
+│   ├── cd ../../freebsd14/cpp && make all
+│   └── ln -s ../../freebsd14/cpp/lib/libswtr_ringbuffer.so lib/
+│       └── SKIPPED at runtime: $ORIGIN in RUNPATH stripped by ld-elf.so.1
+├── Concurrent tests (test_ringbuffer.py)
+│   └── SKIPPED: FreeBSD 14 RPATH limitation
+├── Pure Python tests (test_ringbuffer_pure.py)
+│   └── T001-T007: 7/7 PASS
+└── Performance benchmark (benchmark.py)
+    └── SKIPPED: No Concurrent tests to compare against
+```
+
+### RPATH Limitation Detail (FreeBSD 14)
+
+The FreeBSD 14 dynamic linker (`ld-elf.so.1`) strips `$ORIGIN` from RUNPATH at runtime:
+
+```bash
+# On Linux — $ORIGIN works in RPATH/RUNPATH
+$ readelf -d libswtr_ringbuffer.so | grep RUNPATH
+  RUNPATH            0x... $ORIGIN/../lib
+$ LD_LIBRARY_PATH=. ./test_program  # Works — $ORIGIN resolves correctly
+
+# On FreeBSD 14 — $ORIGIN is stripped to empty string
+$ readelf -d libswtr_ringbuffer.so | grep RUNPATH
+  RUNPATH            0x... $ORIGIN/../lib
+$ ./test_program  # FAILS — ld-elf.so.1 strips $ORIGIN, RUNPATH becomes /../lib
+```
+
+**Workaround:** Use absolute paths or symlinks in the same directory (no `$ORIGIN` needed). The Python regression test uses a symlink from `lib/` to the C++ library directory, which avoids the `$ORIGIN` issue entirely.
+
+**FreeBSD 15:** May have this fixed — not yet tested. FreeBSD 14 is the current constraint.
+<EOF>
