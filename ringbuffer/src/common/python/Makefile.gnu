@@ -119,6 +119,17 @@ build:
 	else \
 		rm -f .cpp_build_failed; \
 		echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] C++ build succeeded" >> logs/build.log; \
+		# Symlink shared library to Python lib directory for ctypes access \
+		mkdir -p lib; \
+		if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.so ]; then \
+			rm -f lib/libswtr_ringbuffer.so; \
+			ln -s $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.so lib/libswtr_ringbuffer.so; \
+			echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Symlinked libswtr_ringbuffer.so to lib/" >> logs/build.log; \
+		elif [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib ]; then \
+			rm -f lib/libswtr_ringbuffer.dylib; \
+			ln -s $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib lib/libswtr_ringbuffer.dylib; \
+			echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Symlinked libswtr_ringbuffer.dylib to lib/" >> logs/build.log; \
+		fi \
 	fi
 
 # Syntax check — catches broken Python files before they're committed
@@ -174,6 +185,22 @@ test: syntax-check build
 		echo "=== All tests passed (Pure Python only — C++ build failed) ==="; \
 		echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] All tests passed (Pure Python only — C++ build failed)" >> logs/build.log; \
 	fi
+	@# Performance comparison: run benchmark.py if C++ library is present
+	@if [ ! -f .cpp_build_failed ] && [ -f benchmark.py ]; then \
+		echo ""; \
+		echo "=== Performance Comparison (Concurrent vs Pure Python) ==="; \
+		echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Running performance benchmark" >> logs/build.log; \
+		python3 benchmark.py 2>&1 | tee -a logs/build.log; \
+		echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Performance benchmark complete" >> logs/build.log; \
+	elif [ -f .cpp_build_failed ]; then \
+		echo ""; \
+		echo "=== SKIPPED: Performance comparison (C++ library not available) ==="; \
+		echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Performance comparison SKIPPED: C++ library not available" >> logs/build.log; \
+	else \
+		echo ""; \
+		echo "=== SKIPPED: Performance comparison (benchmark.py not found) ==="; \
+		echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Performance comparison SKIPPED: benchmark.py not found" >> logs/build.log; \
+	fi
 
 # Clean build artifacts (Python bytecode, egg-info, build dirs)
 clean:
@@ -194,6 +221,12 @@ clean:
 	@if [ -d build ]; then \
 		rm -rf build; \
 		echo "  Removed build/"; \
+	else \
+		echo "  Nothing to clean."; \
+	fi
+	@if [ -d lib ]; then \
+		rm -rf lib; \
+		echo "  Removed lib/ (symlinks to C++ libraries)"; \
 	else \
 		echo "  Nothing to clean."; \
 	fi

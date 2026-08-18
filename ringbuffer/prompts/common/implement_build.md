@@ -15,7 +15,9 @@ Create the build environment for the Ringbuffer library by strictly following th
    - **Language Dispatch**: Detect which languages are implemented by checking for source directories:
      - `src/<os>/cpp/` → C++ build (per-OS, uses `prompts/<os>/cpp/create_build.md` as primary document)
      - `src/common/java/` → Java build (common, platform-insensitive, uses `prompts/common/java/build.md`)
-     - `src/common/python/` → Python build (common, platform-insensitive, uses `prompts/common/python/build.md`)
+     - `src/common/python/` → Python build (common source, platform-specific Makefile):
+       - GNU make systems (macOS, Linux): `src/common/python/Makefile.gnu`
+       - BSD make systems (FreeBSD 14+): `src/<os>/python/Makefile` (per-OS directory with BSD-compatible Makefile)
    - Process each detected language independently. A failure in one language does not stop verification of others.
    - Log which languages are being built: `[timestamp] Languages detected for build: <comma-separated list>`
 
@@ -278,8 +280,15 @@ Create the build environment for the Ringbuffer library by strictly following th
 
    ---
 
-   **Python Build** (from `src/common/python/`):
-   - Navigate to `src/common/python/`.
+   **Python Build** (common source + platform-specific Makefile):
+   - **Common Source**: `src/common/python/` contains shared Python source files (swtr_ringbuffer_pure.py, test scripts, base types). This directory uses `Makefile.gnu` for GNU make systems (macOS + Linux).
+   - **Per-Platform Python Directories**: For BSD make systems (FreeBSD 14+), create `src/<os>/python/` with:
+     - BSD-compatible Makefile (no `$(shell)`, no `ifeq/else`)
+     - Copies of common Python source files from `src/common/python/`
+     - FreeBSD-specific C++ path (`../../freebsd14/cpp`)
+   - **Makefile Selection**:
+     - GNU make (macOS/Linux): Use `src/common/python/Makefile.gnu`
+     - BSD make (FreeBSD 14+): Use `src/<os>/python/Makefile`
    - **Version Check**: Verify Python version meets minimum requirements (3.10+): `python3 --version`. If below 3.10, STOP and report: `ERROR: Detected Python version <detected_version> is below minimum supported 3.10. Cannot proceed.`
    - **Dockerfile Package Validation** (Linux targets only):
      - For each target OS, check the per-OS Dockerfile at `src/common/python/containers/<os>/Dockerfile` and verify it contains:

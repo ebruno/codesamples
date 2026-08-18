@@ -391,6 +391,28 @@ FreeBSD 14 C++ is implemented and verified (static library only). Its prompt dir
 ### Arch Linux (Linux-Hosts-Only)
 Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
 
+### SSH Remote Transfer Rule (All Platforms)
+When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
+- **C++ source files**: Copy the target-host-specific C++ directory (e.g., `src/archlinux/cpp/` for the archlinux remote). These files are per-OS — only copy the directory matching the target OS.
+- **Python source files**: Copy `src/common/python/` (the common Python implementation).
+- **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"` and `ssh <host> "rm -rf <dest>/src/common/python/*"` before the transfer.
+- **Transfer**: Use `scp -r` or `rsync -avz` to copy the cleaned directories from the host to the remote.
+- **Verify**: After transfer, confirm file counts and sizes match between host and remote.
+
+### Python Makefiles by Family (GNU vs BSD)
+The Python implementation uses different Makefile syntax for GNU make and BSD make systems:
+- **GNU make** (macOS, Linux): `src/common/python/Makefile.gnu` — uses `$(shell ...)`, `ifeq/else`
+- **BSD make** (FreeBSD 14+): `src/<os>/python/Makefile` — per-OS directory with BSD-compatible syntax (no `$(shell)`, no `ifeq/else`)
+- **Common source**: Both use the same Python source files from `src/common/python/` (swtr_ringbuffer_pure.py, test scripts, base types)
+- **Per-platform overrides**: FreeBSD 14 has `src/freebsd14/python/` with its own Makefile and copies of common source. FreeBSD 15 will use the same structure.
+- **Makefile selection**: The agent must select the correct Makefile based on the target OS family (GNU vs BSD).
+
+### Git Discipline
+- **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
+- **NEVER commit reports, logs, or build artifacts.** These are regenerated on every run. The `.gitignore` covers them.
+- If the user asks you to "commit" or "stage," decline and remind them they handle all commits.
+- `.gen_state.json` is also excluded from commits (tracked in `.gitignore`).
+
 ### Common Pitfalls
 1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
 2. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).

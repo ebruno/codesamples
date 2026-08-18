@@ -421,8 +421,11 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
   ---
 
-**Python Test Execution** (from `src/common/python/`):
+**Python Test Execution** (common source + platform-specific Makefile):
 - Python is a **common language** — source lives in `src/common/python/` but tests must run on each supported OS.
+- **Makefile Selection**:
+  - GNU make systems (macOS, Linux): Use `src/common/python/Makefile.gnu`
+  - BSD make systems (FreeBSD 14+): Use `src/<os>/python/Makefile` (per-OS directory with BSD-compatible Makefile)
 - **Determine target OSes to test**:
   - If a specific OS was requested → only that OS.
   - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
@@ -435,7 +438,10 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
   3. **Execute Tests**:
-     - **Native**: Navigate to `src/common/python/`, then run tests directly.
+     - **Native**: Navigate to the appropriate Python directory (see Makefile Selection above), then run `make test`. The Makefile automatically:
+       1. Attempts to build the C++ shared library from `src/<os>/cpp/` (target-host-specific).
+       2. If the C++ build fails, gracefully falls back to Pure Python tests only.
+       3. Logs all results (including skip reasons) to `logs/build.log`.
      - **Container**: Run in a container matching the target OS:
        - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
        - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
@@ -456,10 +462,16 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   4. **Verification Steps**:
      - Navigate to `src/common/python/`.
      - Verify Python version meets minimum requirements (3.10+): `python3 --version`.
+     - **FreeBSD 14 exception**: Concurrent tests are SKIPPED on FreeBSD 14 due to RPATH limitation (`ld-elf.so.1` strips `$ORIGIN` from RUNPATH at runtime — dynamic library testing is not possible). Only Pure Python tests are run.
      - Run Concurrent version tests (7 scenarios): `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py $t || exit 1; done`. Verify exit code 0.
      - Run Pure Python version tests (7 scenarios): `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py $t || exit 1; done`. Verify exit code 0.
      - Verify all expected outputs are produced correctly for both versions.
-  5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL> (Concurrent + Pure Python)`.
+     - **Check C++ build status**: Look for `.cpp_build_failed` marker file in `src/common/python/`. If it exists, note the skip reason from `logs/build.log` (e.g., source directory missing, Makefile not found, build failure). If it does not exist, C++ build succeeded.
+  5. **Performance Comparison** (Concurrent vs Pure Python):
+     - Check if the C++ shared library is present in `src/common/python/swtr_ringbuffer/` (look for `.so`, `.dylib`, or `.dll`).
+     - **If the C++ library exists**: Run `python3 benchmark.py` to perform a side-by-side performance comparison between the Concurrent (ctypes + C++ shared lib) and Pure Python implementations. Record timing results, speedup ratios, and overall summary in `src/common/python/logs/build.log`.
+     - **If the C++ library does NOT exist**: Skip the performance comparison. Log a note explaining why (e.g., `C++ library not built for this platform — skipping performance comparison`). The Pure Python tests still run and are validated as above.
+  6. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL> (Concurrent + Pure Python)`. If performance comparison was skipped, include the skip reason.
 
   **Python State Tracking** (after all target OSes complete):
   - Read existing `.gen_state.json` from `src/common/python/` if it exists (created by `verify_build.md`). Preserve all existing fields.
@@ -515,11 +527,15 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
     ## Audit Trail
     - **Python**: [Version output from `python3 --version`]
+    - **C++ Build Status**: [SUCCESS / SKIPPED — reason] (checked via `.cpp_build_failed` marker in `src/common/python/`)
 
     ## Per-OS Results (Current Run)
     | Target OS | Route | Python Version | Status | Notes |
     |-----------|-------|---------------|--------|-------|
     | macos | native | 3.14.x | [PASS/FAIL] | Both Concurrent and Pure Python tested |
+    | freebsd14 | native | 3.11.x | [PASS/FAIL] | Pure Python only — Concurrent skipped (FreeBSD 14 RPATH limitation) |
+
+    **Note:** FreeBSD 14 Concurrent tests are skipped due to `ld-elf.so.1` stripping `$ORIGIN` from RUNPATH at runtime — dynamic library testing is not possible.
 
     ## Fixes and Modifications
     *If files were modified to achieve successful tests, list them here:*
@@ -541,6 +557,8 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
     **Overall:** [X]/7 tests passed. Concurrent (ctypes) selected as default via auto-import.
 
+    **FreeBSD 14 Note:** Concurrent tests are SKIPPED on FreeBSD 14 due to RPATH limitation (`ld-elf.so.1` strips `$ORIGIN` from RUNPATH at runtime). Only Pure Python tests are run on FreeBSD 14.
+
     ## Pure Python Test Results
     **Implementation:** `swtr_ringbuffer_pure.py` — pure Python, no C++ dependency
     **Entry Point:** `from swtr_ringbuffer_pure import SwtrRingBufferPure`
@@ -559,7 +577,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
     ## Verification Details
     - **Python Version Check**: [PASS/FAIL] (>= 3.10 minimum)
-    - **Test Execution**: [PASS/FAIL] (T001-T007 all passed for both implementations)
+    - **Test Execution**: [PASS/FAIL] (T001-T007 all passed for both implementations; FreeBSD 14: Pure Python only)
     - **Dual-Version Architecture**: Active (Concurrent selected via auto-select, Pure Python available as fallback)
     - **State File Updated**: .gen_state.json includes test results
     ```
@@ -570,9 +588,10 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     - **Pure Python Module**: `swtr_ringbuffer_pure.py` exists and is non-empty.
     - **Concurrent Test Script**: `test_ringbuffer.py` exists, is executable (or readable by python3), and exits 0.
     - **Pure Python Test Script**: `test_ringbuffer_pure.py` exists, is executable (or readable by python3), and exits 0.
-    - **No Test Failures**: both test scripts output shows 0 failures (7/7 tests passed for each version).
+    - **No Test Failures**: Pure Python test script shows 0 failures (7/7 passed). Concurrent: 7/7 passed on GNU make systems; SKIPPED on FreeBSD 14 (RPATH limitation).
     - **Reports Generated**: `src/common/python/reports/regression_report.md` exists.
     - **State File**: `src/common/python/.gen_state.json` was created/updated.
+    - **C++ Build Status Noted**: Report includes C++ build status (SUCCESS or SKIPPED with reason) in the Audit Trail section.
 
 **Directives:**
 1. Use `prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).

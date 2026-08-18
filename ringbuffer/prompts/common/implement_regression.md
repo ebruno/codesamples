@@ -16,7 +16,9 @@ Create the test environment for regression testing on a target platform. This co
    - **Language Dispatch**: Detect which languages are implemented by checking for source directories:
      - `src/<os>/cpp/` → C++ test environment (per-OS, uses `prompts/<os>/cpp/create_regression.md` as primary document)
      - `src/common/java/` → Java test environment (common, platform-insensitive, uses `prompts/common/java/build.md` for test structure)
-     - `src/common/python/` → Python test environment (common, platform-insensitive, uses `prompts/common/python/build.md` for test structure)
+     - `src/common/python/` → Python test environment (common source, platform-specific Makefile):
+       - GNU make systems (macOS, Linux): `src/common/python/Makefile.gnu`
+       - BSD make systems (FreeBSD 14+): `src/<os>/python/Makefile` (per-OS directory with BSD-compatible Makefile)
    - Process each detected language independently. A failure in one language does not stop setup of others.
    - Log which languages are being set up: `[timestamp] Languages detected for test setup: <comma-separated list>`
 
@@ -166,9 +168,16 @@ Create the test environment for regression testing on a target platform. This co
 
    ---
 
-   **Python Test Infrastructure** (from `src/common/python/`):
-   - Navigate to `src/common/python/`.
-   - **Test Source**: The test script is `test_ringbuffer.py` in the root of `src/common/python/`. It imports `swtr_ringbuffer`, instantiates `SwtrRingBuffer`, and runs all 7 test scenarios (T001–T007) using temp files for I/O. No separate `tests/` directory is needed for Python.
+   **Python Test Infrastructure** (common source + platform-specific Makefile):
+   - **Common Source**: `src/common/python/` contains shared Python source files (swtr_ringbuffer_pure.py, test scripts, base types). This directory uses `Makefile.gnu` for GNU make systems (macOS + Linux).
+   - **Per-Platform Python Directories**: For BSD make systems (FreeBSD 14+), create `src/<os>/python/` with:
+     - BSD-compatible Makefile (no `$(shell)`, no `ifeq/else`)
+     - Copies of common Python source files from `src/common/python/`
+     - FreeBSD-specific C++ path (`../../freebsd14/cpp`)
+   - **Makefile Selection**:
+     - GNU make (macOS/Linux): Use `src/common/python/Makefile.gnu`
+     - BSD make (FreeBSD 14+): Use `src/<os>/python/Makefile`
+   - **Test Source**: The test script is `test_ringbuffer.py` in the root of the Python source directory. It imports `swtr_ringbuffer`, instantiates `SwtrRingBuffer`, and runs all 7 test scenarios (T001–T007) using temp files for I/O. No separate `tests/` directory is needed for Python.
    - **Dockerfile Package Validation** (Linux targets only):
      - For each target OS, check the per-OS Dockerfile at `src/common/python/containers/<os>/Dockerfile` and verify it contains:
        - `python3` — latest available Python 3.x in each distro's repos (Fedora: latest stable; Debian/Ubuntu: default python3 which is the distro's latest)
