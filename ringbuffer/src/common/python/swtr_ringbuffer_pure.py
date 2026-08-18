@@ -603,17 +603,12 @@ class SwtrRingBufferPure(RingBuffer):
                     # Mark as processing write
                     slot.set_status(BufferStatus.PROCESSING_WRITE)
 
-                # Write data to output (outside the lock)
+                # Write data to output FD (outside the lock)
                 transformed_size = slot.get_transformed_data_size()
                 if transformed_size > 0:
                     try:
                         data_to_write = slot.data[:transformed_size]
-
-                        if self.write_fd == 1:  # stdout
-                            os.write(self.write_fd, data_to_write)
-                        else:
-                            # Write to output stream
-                            self.output_stream.buffer.write(data_to_write)
+                        os.write(self.write_fd, data_to_write)
                     except OSError as e:
                         with self._lock:
                             slot.set_status(BufferStatus.STATUS_ERROR)
