@@ -1,7 +1,7 @@
 {
   "language": "java",
   "version": "1.0.0-1",
-  "java_version": "26.0.2 (macos native), 25.x (containers)",
+  "java_version": "26.0.2 (macos native), 25.x (containers), 25 (archlinux)",
   "maven_version": "3.9.16",
   "os_results": {
     "macos": {
@@ -27,6 +27,22 @@
       "image": "ubuntu:24.04",
       "status": "PASS",
       "timestamp": "2026-08-14T23:53:18Z"
+    },
+    "archlinux": {
+      "route": "native",
+      "image": "N/A",
+      "status": "PASS",
+      "timestamp": "2026-08-17T20:57:44Z",
+      "jdk_version": "25.0.4",
+      "maven_version": "3.9.16",
+      "compiler_release": "25",
+      "test_results": {
+        "total": 18,
+        "passed": 18,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
     }
   },
   "artifacts": {

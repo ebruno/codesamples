@@ -1,7 +1,7 @@
 {
   "language": "python",
   "version": "1.0.0-1",
-  "python_version": "3.14.6",
+  "python_version": "3.14.7 (archlinux), 3.14.6 (macos)",
   "os_results": {
     "raspios": {
       "route": "container",
@@ -16,6 +16,19 @@
       "python_version": "3.14.6",
       "status": "PASS",
       "timestamp": "2026-08-17T14:59:21-0700"
+    },
+    "archlinux": {
+      "route": "native",
+      "image": "N/A",
+      "python_version": "3.14.7",
+      "cpp_compiler": "GCC 16.2.1",
+      "shared_lib": "libswtr_ringbuffer.so (ELF, 61,688 bytes)",
+      "status": "PASS",
+      "timestamp": "2026-08-17T20:51:56Z",
+      "test_results": {
+        "concurrent": {"total": 7, "passed": 7, "failed": 0},
+        "pure_python": {"total": 7, "passed": 7, "failed": 0}
+      }
     }
   },
   "artifacts": {
@@ -29,6 +42,7 @@
   },
   "notes": [
     "Version string changed from 'High Performance' to 'Concurrent' (2026-08-17)",
-    "Crossover analysis: Pure Python faster at all sizes >= 293K (5k lines)"
+    "Crossover analysis: Pure Python faster at all sizes >= 293K (5k lines)",
+    "Arch Linux: C++ shared library built natively on remote system (GCC 16.2.1, -flto)"
   ]
 }
