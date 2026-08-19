@@ -664,3 +664,107 @@ Step 4: shell_command → cat chunkA chunkB chunkC > target/path/file.md (host)
 - **Linux host:** Use `podman` (preferred) or Docker.
 - **Never prepend `localhost/`** to image names with the `container` CLI on macOS.
 - **Never use Docker references in macOS context** — even comparison phrases like "(equivalent to docker run)" can mislead agents into using `docker` instead of `container`.
+
+### Shell Script Portability Rule — No Platform-Dependent External Tools in Bash/Zsh
+
+When creating or modifying shell scripts (`.sh`, `.zsh`), **do not use external tools whose behavior differs across platforms** — rely only on built-in shell features and universally available utilities. This applies to all scripts in the repository, including those in `prompts/`, `utils/bin/`, and any other script directories.
+
+**Supported shells:**
+- **Bash (`bash`)** — primary target for all scripts
+- **Zsh (`zsh`)** — acceptable alternative (macOS default)
+
+**Restricted shells:**
+- **POSIX `sh`** and **`tcsh`** — not feature-rich enough for the project's needs. If a script must run under `sh` or `tcsh`, using external tools is permitted **only if absolutely necessary** and documented with a comment explaining why.
+
+**What counts as a platform-dependent external tool (forbidden in bash/zsh scripts):**
+- **`awk`** — behavior and available features vary significantly between `gawk`, `mawk`, BSD `awk`
+- **`sed`** — syntax differences between GNU `sed` and BSD `sed` (e.g., `-i` flag, extended regex)
+- **`grep`** — feature flags (`-P`, `-E`) and behavior differ between GNU `grep` and BSD `grep`; also, basic regex syntax varies
+- **`cut`, `tr`, `sort`, `uniq`** — minor behavioral differences across implementations
+- **`find`, `xargs`** — flag syntax and behavior differ between GNU and BSD implementations
+- **Any other utility not provided by the shell itself** whose behavior is not guaranteed to be identical across macOS (BSD) and Linux (GNU)
+
+**What is permitted:**
+- **Shell builtins**: `echo`, `printf`, `test`/`[`, `[[`, `read`, `export`, `source`, `local`, `declare`, arrays, parameter expansion (`${var//pattern/replacement}`, `${#array[@]}`, `${file%.txt}`, etc.), arithmetic expansion `$((...))`, globbing
+- **Standard POSIX utilities with guaranteed identical behavior**: `date` (already used throughout the project for timestamps), `cat`, `mkdir -p`, `rm -rf`, `cp`, `mv`, `chmod`
+- **`echo` and `printf`**: Use `printf` preferentially (more portable than `echo` across shells)
+
+**Rationale:**
+- Tools like `grep`, `sed`, and `awk` have different implementations on macOS (BSD) vs. Linux (GNU), leading to subtle bugs when scripts are run across platforms
+- Scripts that rely only on builtins and universally available utilities are maximally portable without requiring additional package installations
+- Reduces dependency surface — no need to verify that `gawk`, GNU `sed`, or GNU `grep` are installed
+- Simpler to reason about — no pipeline complexity, no quoting edge cases with external tool output
+
+**Example — Forbidden:**
+```bash
+# ❌ Uses platform-dependent tools (awk, sed)
+count=$(echo "$data" | awk '{print NF}')
+path=$(echo "$file" | sed 's/\.txt$//')
+lines=$(grep -c "pattern" file.txt)   # grep -c behavior varies; use builtin instead
+```
+
+**Example — Allowed:**
+```bash
+# ✅ Uses builtins only
+read -ra fields <<< "$data"
+count=${#fields[@]}
+path="${file%.txt}"
+
+# ✅ date is permitted (already used throughout the project)
+timestamp=$(date '+%Y-%m-%d %H:%M:%S %z')
+
+# ✅ Standard POSIX utilities with guaranteed behavior
+mkdir -p "$dir"
+cat file1.txt file2.txt > combined.txt
+```
+
+**Exception for `sh`/`tcsh`:**
+If a script must target POSIX `sh` or `tcsh`, external tools may be used when the shell lacks native equivalents. Document the reason with a comment:
+```bash
+# NOTE: Using `grep` here because POSIX sh lacks native regex matching and tcsh has no arrays
+matches=$(grep -c "pattern" file.txt)
+```
+
+**Exception for Makefile recipes:**
+Makefile recipe lines execute under `/bin/sh -c`, which is a restricted POSIX shell environment. Bash/zsh builtins like arrays, `<<<` (here-strings), and `[[ ]]` are **not available**. Makefile recipes may use external tools (`grep`, `sed`, `awk`, etc.) as needed, since the shell is already POSIX sh and cannot support bash/zsh builtins anyway. This exception does **not** apply to standalone shell scripts called *from* Makefiles — those must still follow the rule above.
+
+```makefile
+# ✅ Allowed in Makefile recipes (limited /bin/sh environment)
+count := $(shell grep -c "pattern" file.txt)   # grep is fine here
+
+# ❌ NOT allowed — bash builtins won't work in Makefile recipes
+count := $(shell read -ra fields <<< "$data")   # here-strings don't exist in /bin/sh
+```
+
+### Shebang Line Rule — Use `env` for Portability
+
+All shell scripts MUST use a shebang line that invokes the interpreter via `env` rather than a hardcoded path:
+
+```bash
+#!/usr/bin/env bash    # ✅ Correct — finds bash in PATH, works on all platforms
+#!/usr/bin/env zsh     # ✅ Correct — finds zsh in PATH, works on all platforms
+```
+
+**Forbidden patterns:**
+```bash
+#!/bin/bash            # ❌ Hardcoded — may not exist on all platforms (e.g., Homebrew bash is at /opt/homebrew/bin/bash)
+#!/bin/zsh             # ❌ Hardcoded — macOS ships zsh at /usr/bin/zsh, but custom installs may differ
+#!/bin/sh              # ❌ Hardcoded — POSIX sh location can vary; use env for consistency
+```
+
+**Rationale:**
+- Hardcoded paths like `#!/bin/bash` break on macOS when bash is installed via Homebrew (located at `/opt/homebrew/bin/bash` or `/usr/local/bin/bash`)
+- `env` resolves the interpreter from `PATH`, which is the standard portable approach
+- This rule applies to all `.sh` and `.zsh` files in the repository
+
+**Exception:** Scripts that must run under a specific shell version and are invoked directly by the OS (e.g., githooks installed via `git config core.hookspath`) should still use `env` — the hook runner invokes them as executables, so the shebang is respected.
+
+## README ↔ generate_toplevel_readme.md Sync Rule
+
+**NEVER let the prompt drift from the README.** The README is the source of truth for documentation content. `generate_toplevel_readme.md` describes what the README should look like — it must always match.
+
+When you edit `README.md` directly (add a section, change content, restructure):
+1. **Immediately update** `generate_toplevel_readme.md` to reflect the change in its Content Structure section
+2. The prompt should describe what the README *actually has*, not what it *should have*
+3. If a new section appears in the README that isn't described in the prompt, add it
+4. If a section is removed from the README, remove it from the prompt
