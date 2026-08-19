@@ -380,7 +380,7 @@ Once verification is complete:
 2. Generate JUnit XML at `reports/<lang>/per_os/<os>_regression_report_junit.xml` (Java/Python) or copy from test harness output (C/C++).
 3. Update the consolidated summary at `reports/<lang>/build_verify.md` by merging all per-OS results into a single table.
 4. Append to `src/common/<lang>/logs/build.log` with the target OS noted.
-5. After all languages complete, run `reports/aggregate_junit.sh` to merge all JUnit XML files into `reports/junit/aggregated.xml` and generate `reports/junit/aggregated.html`.
+5. After all languages complete, run `utils/bin/aggregate_junit.sh` to merge all JUnit XML files into `reports/junit/aggregated.xml` and generate `reports/junit/aggregated.html`.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.

@@ -636,7 +636,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     - **C++ Build Status Noted**: Report includes C++ build status (SUCCESS or SKIPPED with reason) in the Audit Trail section.
 
 **Final Aggregation** (after all languages complete):
-- Run `reports/aggregate_junit.sh` to merge all per-OS JUnit XML files into:
+- Run `utils/bin/aggregate_junit.sh` to merge all per-OS JUnit XML files into:
   - `reports/junit/aggregated.xml` — single merged JUnit document with `os` and `lang` attributes
   - `reports/junit/aggregated.html` — human-readable HTML summary viewable in a browser
 - This step is optional but recommended for consolidated review.
