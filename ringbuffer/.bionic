@@ -68,6 +68,7 @@ ringbuffer/
 │   │   └── test_*.py                 # Test scripts
 ├── doc/                            # Documentation and generated assets
 │   └── README.pdf                  # Rendered PDF of README.md
+├── docs/                           # GitLab Pages documentation (zero-length .required_directory)
 ├── animated_graphics/              # Animated graphics artifacts
 │   ├── bin/                        # Scripts for generating animated graphics
 │   │   └── generate_pipeline_animation.py
@@ -84,6 +85,7 @@ ringbuffer/
 - `animated_graphics/` — **Animated graphics.** Artifacts (GIFs) go here; scripts in `animated_graphics/bin/`.
 - `utils/bin/` — **Utility scripts.** Store general-purpose utility scripts here (e.g., gif_to_mp4.sh).
 - `images/` — **Image assets.** Store gif, mp4, png files here.
+- `docs/` — **GitLab Pages documentation.** Contains information intended for use by GitLab Pages.
 
 ## 2. Workflow File Naming Convention
 
