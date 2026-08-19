@@ -1,27 +1,54 @@
 # Git Hooks — Installation
 
-> **Multi-project repo**: This repository contains multiple projects. The hook is scoped to `ringbuffer/prompts/` only — changes to `prompts/` in other projects are ignored.
+> **Multi-project repo**: These hooks are scoped to `ringbuffer/` only — changes in other projects are ignored.
 
 ## Overview
 
-The Ringbuffer project includes a post-commit hook that analyzes changes to `prompts/` files and suggests changelog entries. The hook is stored in the repository under `githooks/` as a sample — each developer installs it locally.
+The Ringbuffer project includes two git hooks stored under `githooks/` as samples — each developer installs them locally:
+
+| Hook | When it runs | Purpose |
+|------|-------------|---------|
+| **pre-commit** | Before each commit | Ensures `README.md` and `prompts/common/generate_toplevel_readme.md` stay in sync |
+| **post-commit** | After each commit | Analyzes prompt changes and suggests CHANGELOG entries |
 
 ## Prerequisites
 
+### Pre-commit hook
+- No external scripts required — self-contained.
+
+### Post-commit hook
 - The suggestion script must exist and be executable: `utils/bin/suggest_changelog_entry.sh`
 - The changelog file should exist (or the script creates it on first apply): `prompts/common/CHANGELOG.md`
 
 ## Installation (One-Time)
 
+The pre-commit hook is a three-file package: a POSIX `sh` wrapper that detects the host OS and delegates to either `pre-commit.bash` (Linux) or `pre-commit.zsh` (macOS). All three must be copied together.
+
 ```bash
 # From the repository root:
+
+# Pre-commit hook — blocks commits if README and prompt drift apart
+cp githooks/pre-commit .git/hooks/pre-commit
+cp githooks/pre-commit.bash .git/hooks/pre-commit.bash
+cp githooks/pre-commit.zsh .git/hooks/pre-commit.zsh
+chmod +x .git/hooks/pre-commit .git/hooks/pre-commit.bash .git/hooks/pre-commit.zsh
+
+# Post-commit hook — suggests CHANGELOG entries for prompt changes
 cp githooks/post-commit .git/hooks/post-commit
 chmod +x .git/hooks/post-commit
 ```
 
-That's it. The hook will now run after every commit.
+## How the Pre-Commit Hook Works
 
-## How It Works
+The pre-commit hook enforces two rules:
+
+### Rule 1: Both-or-None (Hard Block)
+If `README.md` is staged but `prompts/common/generate_toplevel_readme.md` is not (or vice versa), the commit is **blocked**. This ensures the prompt always describes what the README actually contains.
+
+### Rule 2: Section Alignment (Warning)
+If both files are staged, the hook compares their section headers (`##` and `###`). If sections exist in one file but not the other, a **warning** is printed — the commit still proceeds. This catches drift before it compounds.
+
+## How the Post-Commit Hook Works
 
 1. After each `git commit`, the hook checks if any files under `prompts/` were changed.
 2. If no prompt files changed, it exits silently — zero noise on unrelated commits.
@@ -31,6 +58,7 @@ That's it. The hook will now run after every commit.
 ## Uninstalling
 
 ```bash
+rm .git/hooks/pre-commit .git/hooks/pre-commit.bash .git/hooks/pre-commit.zsh
 rm .git/hooks/post-commit
 ```
 
@@ -45,11 +73,23 @@ PROJECT_PREFIX="ringbuffer/"
 PROJECT_PREFIX=""
 ```
 
-That's it — the hook will then work in a standalone repo without any other changes.
+That's it — the hooks will then work in a standalone repo without any other changes.
 
 ## Troubleshooting
 
-**Hook not running?** Verify it's installed and executable:
+### Pre-commit hook not running?
+Verify it's installed and executable:
+```bash
+ls -la .git/hooks/pre-commit
+# Should show: -rwxr-xr-x  ... pre-commit
+```
+
+### Pre-commit hook blocks a commit I want to make?
+- **If the README change is real**: Also stage `prompts/common/generate_toplevel_readme.md` and retry.
+- **If the README change was accidental**: Revert it, or use `git commit --no-verify` (bypasses all hooks — use sparingly).
+
+### Post-commit hook not running?
+Verify it's installed and executable:
 ```bash
 ls -la .git/hooks/post-commit
 # Should show: -rwxr-xr-x  ... post-commit
@@ -60,4 +100,3 @@ ls -la .git/hooks/post-commit
 **Editor not opening?** The script uses `$EDITOR` (defaults to `vi`). Set it explicitly:
 ```bash
 export EDITOR=vim   # or nano, code, etc.
-```

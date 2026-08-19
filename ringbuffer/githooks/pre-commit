@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+# Ringbuffer — Pre-commit hook wrapper: README ↔ generate_toplevel_readme.md consistency
+#
+# POSIX sh entry point.  Detects the host OS and delegates to the appropriate
+# shell implementation stored as sibling files:
+#   - macOS (Darwin) → pre-commit.zsh  (zsh is the default shell on macOS)
+#   - Linux          → pre-commit.bash (bash is standard on Linux)
+#   - FreeBSD        → skipped (tcsh is the default; hook not supported yet)
+#
+# IMPORTANT: This repo contains multiple projects. The hook only triggers
+# for changes under ringbuffer/ — not other project directories.
+
+# Locate sibling implementation files (same directory as this wrapper).
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ── Detect host OS and delegate ────────────────────────────────────────
+OS_NAME=$(uname -s 2>/dev/null || echo "Unknown")
+
+case "$OS_NAME" in
+    Darwin)
+        # macOS — use zsh (the default shell on macOS since Catalina)
+        if [ -x "$SCRIPT_DIR/pre-commit.zsh" ]; then
+            exec zsh "$SCRIPT_DIR/pre-commit.zsh" "$@"
+        else
+            echo "ERROR: githooks/pre-commit.zsh not found or not executable." >&2
+            exit 1
+        fi
+        ;;
+    Linux)
+        # Linux — use bash (standard on all major distros)
+        if [ -x "$SCRIPT_DIR/pre-commit.bash" ]; then
+            exec bash "$SCRIPT_DIR/pre-commit.bash" "$@"
+        else
+            echo "ERROR: githooks/pre-commit.bash not found or not executable." >&2
+            exit 1
+        fi
+        ;;
+    FreeBSD)
+        # FreeBSD — tcsh is the default shell; hook not supported yet.
+        # Exit silently so it doesn't block commits on FreeBSD hosts.
+        exit 0
+        ;;
+    *)
+        # Unknown OS — fall back to bash if available, otherwise skip silently.
+        if [ -x "$SCRIPT_DIR/pre-commit.bash" ]; then
+            exec bash "$SCRIPT_DIR/pre-commit.bash" "$@"
+        fi
+        exit 0
+        ;;
+esac

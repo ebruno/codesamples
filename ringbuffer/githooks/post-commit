@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Ringbuffer — Post-commit hook: suggest CHANGELOG entry for prompt changes
 #
 # This is a sample hook. See githooks/INSTALL.md for installation instructions.
