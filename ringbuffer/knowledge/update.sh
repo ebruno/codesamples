@@ -22,10 +22,15 @@ if [[ ! -f "$VERSION_MK" ]]; then
 fi
 
 # Parse version.mk (uses Makefile syntax: VAR = value, not shell export)
-MAJOR=$(grep '^MAJOR ' "$VERSION_MK" | awk '{print $3}')
-MINOR=$(grep '^MINOR ' "$VERSION_MK" | awk '{print $3}')
-SUBVERSION=$(grep '^SUBVERSION ' "$VERSION_MK" | awk '{print $3}')
-CURRENT_BUILD_ID=$(grep '^BUILD_ID ' "$VERSION_MK" | awk '{print $3}')
+# Bash builtins only — no grep/awk
+while IFS= read -r line; do
+    case "$line" in
+        MAJOR\ *) MAJOR="${line#MAJOR }" ;;
+        MINOR\ *) MINOR="${line#MINOR }" ;;
+        SUBVERSION\ *) SUBVERSION="${line#SUBVERSION }" ;;
+        BUILD_ID\ *) CURRENT_BUILD_ID="${line#BUILD_ID }" ;;
+    esac
+done < "$VERSION_MK"
 CURRENT_BUILD_ID="${CURRENT_BUILD_ID:-0}"
 
 # --- Accept BUILD_ID as argument, or preserve current ---
@@ -66,28 +71,40 @@ cat > "$SCRIPT_DIR/manifest.json" <<EOF
 }
 EOF
 
-# --- Update system-prompt.md version string ---
+# --- Update system-prompt.md version string (bash parameter expansion, no sed) ---
 echo "Updating knowledge/system-prompt.md..."
-# macOS sed -i requires backup extension; GNU sed does not
-if sed --version &>/dev/null 2>&1; then
-    # GNU sed (Linux)
-    sed -i "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/system-prompt.md"
-else
-    # BSD sed (macOS)
-    sed -i '' "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/system-prompt.md"
+_file_content=$(<"$SCRIPT_DIR/system-prompt.md")
+_file_content="${_file_content//Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION}"
+# The above won't work with regex in bash, so use a line-by-line approach
+_tmpfile=$(mktemp)
+while IFS= read -r line; do
+    if [[ "$line" =~ ^Version:\ [0-9.]*-build-[0-9]+ ]]; then
+        line="Version: $FULL_VERSION"
+    fi
+    printf '%s\n' "$line"
+done < "$SCRIPT_DIR/system-prompt.md" > "$_tmpfile"
+# Remove trailing newline if original didn't have one
+if [[ -s "$SCRIPT_DIR/system-prompt.md" ]] && [[ "$(tail -c 1 "$SCRIPT_DIR/system-prompt.md" | wc -l)" -eq 0 ]]; then
+    truncate -s -1 "$_tmpfile"
 fi
+mv "$_tmpfile" "$SCRIPT_DIR/system-prompt.md"
 
-# --- Update Modelfile version string ---
+# --- Update Modelfile version string (bash parameter expansion, no sed) ---
 echo "Updating knowledge/Modelfile..."
-if sed --version &>/dev/null 2>&1; then
-    # GNU sed (Linux)
-    sed -i "s/v[0-9.]*-build-[0-9]*/v$FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
-    sed -i "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
-else
-    # BSD sed (macOS)
-    sed -i '' "s/v[0-9.]*-build-[0-9]*/v$FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
-    sed -i '' "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
+_tmpfile=$(mktemp)
+while IFS= read -r line; do
+    if [[ "$line" =~ ^v[0-9.]*-build-[0-9]+ ]]; then
+        line="v$FULL_VERSION"
+    fi
+    if [[ "$line" =~ ^Version:\ [0-9.]*-build-[0-9]+ ]]; then
+        line="Version: $FULL_VERSION"
+    fi
+    printf '%s\n' "$line"
+done < "$SCRIPT_DIR/Modelfile" > "$_tmpfile"
+if [[ -s "$SCRIPT_DIR/Modelfile" ]] && [[ "$(tail -c 1 "$SCRIPT_DIR/Modelfile" | wc -l)" -eq 0 ]]; then
+    truncate -s -1 "$_tmpfile"
 fi
+mv "$_tmpfile" "$SCRIPT_DIR/Modelfile"
 
 # --- Update .gen_state.json ---
 echo "Updating knowledge/.gen_state.json..."
@@ -112,7 +129,8 @@ for f in "$SCRIPT_DIR"/Modelfile "$SCRIPT_DIR"/system-prompt.md \
          "$SCRIPT_DIR"/examples/*.* \
          "$SCRIPT_DIR"/patterns/*.md; do
     if [[ -f "$f" ]]; then
-        HASH=$(sha256sum "$f" | awk '{print $1}')
+        HASH=$(sha256sum "$f")
+        HASH="${HASH%% *}"  # Extract hash (bash builtin, no awk)
         REL_PATH="${f#$SCRIPT_DIR/}"
         CHECKSUMS="$CHECKSUMS\n    \"$REL_PATH\": \"$HASH\""
     fi

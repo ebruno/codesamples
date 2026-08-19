@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Ringbuffer — Suggest CHANGELOG entry from git diff analysis
 # 
 # Usage: suggest_changelog_entry.sh [COMMIT_HASH]
@@ -16,85 +16,110 @@ CHANGELOG="$WORKDIR/${PROJECT_PREFIX}prompts/common/CHANGELOG.md"
 
 # ── Helper: check if any prompt files changed in this commit ──────────────
 changed_prompt_files() {
-    git diff-tree --no-commit-id --name-only -r "$COMMIT" 2>/dev/null | \
-        grep "^${PROJECT_PREFIX}prompts/" || true
+    # Bash builtins only — no grep
+    git diff-tree --no-commit-id --name-only -r "$COMMIT" 2>/dev/null | while IFS= read -r f; do
+        [[ "$f" == "${PROJECT_PREFIX}prompts/"* ]] && echo "$f"
+    done || true
 }
 
-# ── Helper: extract changed markdown sections from diff context lines ─────
+# ── Helper: extract changed markdown sections from diff context lines (bash builtins only) ─────
 changed_sections() {
-    git diff-tree -p --no-commit-id -r "$COMMIT" 2>/dev/null | \
-        grep '^+ *#' | sed 's/^+ *\([#]*\) .*/\1/' | \
-        awk '{print NR, $0}' | sort -t' ' -k2 -rn | \
-        awk '!seen[$0]++ {print $2}' | head -10 || true
+    # Collect unique changed section headers from diff
+    local _sections=""
+    declare -A _seen_sections
+    while IFS= read -r line; do
+        # Match lines starting with '+ #' (added markdown headers in diff)
+        if [[ "$line" =~ ^\+\ *# ]]; then
+            # Extract the header text after '+ #' or '+ ##' etc.
+            local _header="${line#\+ }"
+            _header="${_header###+}"
+            _header="${_header#\# }"
+            _header="${_header%% *}"  # Get just the section name
+            if [[ -n "$_header" ]] && [[ -z "${_seen_sections[$_header]:-}" ]]; then
+                _seen_sections["$_header"]=1
+                _sections="${_sections}${_sections:+\n}  - ${_header}"
+            fi
+        fi
+    done < <(git diff-tree -p --no-commit-id -r "$COMMIT" 2>/dev/null || true)
+    echo "$_sections"
 }
 
-# ── Helper: count additions/deletions per file ───────────────────────────
+# ── Helper: count additions/deletions per file (bash builtins only) ───────────────────────────
 file_diff_stats() {
     local file="$1"
-    local additions deletions
-    additions=$(git diff-tree -p --no-commit-id -r "$COMMIT" 2>/dev/null | \
-        grep "^+.*${file}" | wc -l | tr -d ' ')
-    deletions=$(git diff-tree -p --no-commit-id -r "$COMMIT" 2>/dev/null | \
-        grep "^-.*${file}" | wc -l | tr -d ' ')
+    local additions=0 deletions=0
+    while IFS= read -r line; do
+        if [[ "$line" == +* ]] && [[ "$line" == *"${file}"* ]]; then
+            (( additions++ )) || true
+        elif [[ "$line" == -* ]] && [[ "$line" == *"${file}"* ]]; then
+            (( deletions++ )) || true
+        fi
+    done < <(git diff-tree -p --no-commit-id -r "$COMMIT" 2>/dev/null || true)
     echo "$additions $deletions"
 }
 
-# ── Helper: suggest rationale based on diff content patterns ──────────────
+# ── Helper: suggest rationale based on diff content patterns (bash builtins only) ──────────────
 suggest_rationale() {
     local diff_text="$1"
     local rationale=""
 
+    # Enable case-insensitive matching for bash regex
+    shopt -s nocasematch
+
     # Pattern: container runtime / Dockerfile changes
-    if echo "$diff_text" | grep -qiE '(FROM\s|container.*runtime|podman|dockerfile|base.image)'; then
+    if [[ "$diff_text" =~ (FROM[[:space:]]|container.*runtime|podman|dockerfile|base\.image) ]]; then
         rationale="Updated container runtime configuration for reproducible builds"
 
     # Pattern: spec precedence rules
-    elif echo "$diff_text" | grep -qiE '(spec.*precedence|platform.*specific.*override)'; then
+    elif [[ "$diff_text" =~ (spec.*precedence|platform.*specific.*override) ]]; then
         rationale="Clarified spec precedence to resolve platform-specific conflicts"
 
     # Pattern: new language specs
-    elif echo "$diff_text" | grep -qiE '(functional\.md|build\.md)' && \
-         echo "$diff_text" | grep -qiE '(python|java|go|rust|c23|c\+\+20)'; then
+    elif [[ "$diff_text" =~ (functional\.md|build\.md) ]] && \
+         [[ "$diff_text" =~ (python|java|go|rust|c23|c\+\+20) ]]; then
         rationale="Added language specification for multi-language implementation"
 
     # Pattern: test patterns or data generation
-    elif echo "$diff_text" | grep -qiE '(pattern|test.*data|generate.*test|zigzag)'; then
+    elif [[ "$diff_text" =~ (pattern|test.*data|generate.*test|zigzag) ]]; then
         rationale="Extended test infrastructure with new pattern or data generation"
 
     # Pattern: slot state accessors / API changes
-    elif echo "$diff_text" | grep -qiE '(get_.*buffer|set_.*status|accessor|slot.*state)'; then
+    elif [[ "$diff_text" =~ (get_.*buffer|set_.*status|accessor|slot.*state) ]]; then
         rationale="Updated library API surface for slot state visibility"
 
     # Pattern: version propagation
-    elif echo "$diff_text" | grep -qiE '(version\.mk|version.*propagat)'; then
+    elif [[ "$diff_text" =~ (version\.mk|version.*propagat) ]]; then
         rationale="Added version propagation from version.mk to target language"
 
     # Pattern: OS detection
-    elif echo "$diff_text" | grep -qiE '(os-release|uname.*-s|sw_vers|host.*detect)'; then
+    elif [[ "$diff_text" =~ (os-release|uname.*-s|sw_vers|host.*detect) ]]; then
         rationale="Enhanced OS detection for cross-platform compatibility"
 
     # Pattern: deduplication / session hints
-    elif echo "$diff_text" | grep -qiE '(session_hints|dedupl|shared.*reference)'; then
+    elif [[ "$diff_text" =~ (session_hints|dedupl|shared.*reference) ]]; then
         rationale="Refactored to reduce redundancy per deduplication discipline"
 
     # Pattern: develop-then-refactor strategy
-    elif echo "$diff_text" | grep -qiE '(develop.*refactor|common.*codebase|platform.insensitive)'; then
+    elif [[ "$diff_text" =~ (develop.*refactor|common.*codebase|platform\.insensitive) ]]; then
         rationale="Updated documentation for develop-then-refactor strategy"
 
     # Pattern: library API design
-    elif echo "$diff_text" | grep -qiE '(library.*first|API.*design|intentional.*abstraction)'; then
+    elif [[ "$diff_text" =~ (library.*first|API.*design|intentional.*abstraction) ]]; then
         rationale="Clarified library-first API design intent for consumers"
 
     # Pattern: prompt versioning / changelog
-    elif echo "$diff_text" | grep -qiE '(gen_state|changelog|prompt.*version)'; then
+    elif [[ "$diff_text" =~ (gen_state|changelog|prompt.*version) ]]; then
         rationale="Added prompt versioning and changelog tracking mechanism"
 
-    # Pattern: large additions (>100 lines) to functional specs
-    elif echo "$diff_text" | grep -c '^+' 2>/dev/null | awk '{exit ($1 > 100) ? 0 : 1}'; then
+    # Pattern: large additions (>100 lines) to functional specs (bash builtins, no grep/awk)
+    local _add_count=0
+    while IFS= read -r line; do
+        [[ "$line" == +* ]] && (( _add_count++ )) || true
+    done <<< "$diff_text"
+    if ((_add_count > 100)); then
         rationale="Expanded functional specification with new requirements"
-
-    # Pattern: deletions across multiple files
-    elif echo "$diff_text" | grep -c '^-' 2>/dev/null | awk '{exit ($1 > 50) ? 0 : 1}'; then
+    # Pattern: deletions across multiple files (bash builtins, no grep/awk)
+    elif ((_add_count > 50)); then
         rationale="Refactored to reduce redundancy and improve maintainability"
 
     # Default: generic
@@ -143,7 +168,7 @@ apply_entry() {
 HEADER
     fi
 
-    # Read existing content, insert entry after the "---" separator line
+    # Read existing content, insert entry after the "---" separator line (bash builtins, no grep)
     local temp_file
     temp_file=$(mktemp)
 
@@ -151,7 +176,7 @@ HEADER
     local found_separator=0
     while IFS= read -r line; do
         echo "$line" >> "$temp_file"
-        if [ $found_separator -eq 0 ] && echo "$line" | grep -q '^---$'; then
+        if [[ $found_separator -eq 0 ]] && [[ "$line" == "---" ]]; then
             found_separator=1
             echo "" >> "$temp_file"
             echo "$entry" >> "$temp_file"
@@ -161,7 +186,7 @@ HEADER
     # Append any remaining content after the separator
     local past_separator=0
     while IFS= read -r line; do
-        if [ $past_separator -eq 0 ] && echo "$line" | grep -q '^---$'; then
+        if [[ $past_separator -eq 0 ]] && [[ "$line" == "---" ]]; then
             past_separator=1
         elif [ $past_separator -eq 1 ]; then
             echo "$line" >> "$temp_file"

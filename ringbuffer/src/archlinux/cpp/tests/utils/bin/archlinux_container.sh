@@ -33,7 +33,20 @@ while [[ $# -gt 0 ]]; do
         -p|--pull)     PULL=true;        shift   ;;
         -q|--quiet)    QUIET=true;       shift   ;;
         -h|--help)
-            sed -n '2,/^#$/p' "$0" | sed 's/^# \?//'
+            # Extract help text from script comments (bash builtins, no sed)
+            _help_started=false
+            while IFS= read -r line; do
+                if [[ "$line" == "#"* ]]; then
+                    _help_started=true
+                    # Remove leading '# ' or '#' and print
+                    line="${line#\# }"
+                    line="${line#\#}"
+                    [[ -z "$line" ]] && break
+                    echo "$line"
+                elif [[ "$_help_started" == true ]]; then
+                    break
+                fi
+            done < "$0"
             exit 0
             ;;
         *) echo "Error: Unknown option $1" >&2; exit 1 ;;
@@ -102,7 +115,7 @@ print('__HAS_NEXT__' if has_next else '__NO_MORE__')
     # Separate tag list from pagination marker
     ALL_TAGS="${ALL_TAGS}${PAGE_TAGS}"$'\n'
 
-    if echo "$PAGE_TAGS" | grep -q "__HAS_NEXT__"; then
+    if [[ "$PAGE_TAGS" == *"__HAS_NEXT__"* ]]; then
         ((PAGE++))
     else
         break
@@ -133,8 +146,11 @@ while IFS= read -r tag; do
         *) continue ;;    # skip: base-20260531.0.xxxx when searching for "base-devel"
     esac
 
-    # Extract the date portion (YYYYMMDD) from the tag name
-    TAG_DATE=$(echo "$tag" | grep -oE '[0-9]{8}' | head -1 || true)
+    # Extract the date portion (YYYYMMDD) from the tag name (bash regex, no grep/head)
+    TAG_DATE=""
+    if [[ "$tag" =~ ([0-9]{8}) ]]; then
+        TAG_DATE="${BASH_REMATCH[1]}"
+    fi
     [[ -z "$TAG_DATE" ]] && continue
 
     # Only consider tags from the target month or earlier (never future)
@@ -150,7 +166,20 @@ while IFS= read -r tag; do
 done <<< "$ALL_TAGS"
 
 if [[ -z "$MATCHING_TAG" ]]; then
-    die "No matching ${VARIANT} tag found for time window ${TARGET_MONTH}. Available tags: $(echo "$ALL_TAGS" | grep -oE '[0-9]{8}' | sort -u | head -5 | tr '\n' ' ')..."
+    # Extract unique dates from tags for error message (bash builtins, no grep/sort/head/tr)
+    _dates=""
+    declare -A _seen_dates
+    while IFS= read -r _tag_line; do
+        [[ -z "$_tag_line" ]] && continue
+        if [[ "$_tag_line" =~ ([0-9]{8}) ]]; then
+            _d="${BASH_REMATCH[1]}"
+            if [[ -z "${_seen_dates[$_d]:-}" ]]; then
+                _seen_dates["$_d"]=1
+                _dates="${_dates}${_dates:+ }${_d}"
+            fi
+        fi
+    done <<< "$ALL_TAGS"
+    die "No matching ${VARIANT} tag found for time window ${TARGET_MONTH}. Available tags: ${_dates}..."
 fi
 
 log "Found target container: archlinux:${MATCHING_TAG} (date: ${BEST_DATE})"

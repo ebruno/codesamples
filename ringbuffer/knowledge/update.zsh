@@ -62,24 +62,36 @@ cat > "$SCRIPT_DIR/manifest.json" <<EOF
 }
 EOF
 
-# --- Update system-prompt.md version string ---
+# --- Update system-prompt.md version string (zsh parameter expansion, no sed) ---
 echo "Updating knowledge/system-prompt.md..."
-if command -v sed &>/dev/null; then
-    sed -i "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/system-prompt.md"
-else
-    # macOS sed -i requires backup extension
-    sed -i '' "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/system-prompt.md"
+_tmpfile=$(mktemp)
+while IFS= read -r line; do
+    if [[ "$line" =~ ^Version:\ [0-9.]*-build-[0-9]+ ]]; then
+        line="Version: $FULL_VERSION"
+    fi
+    printf '%s\n' "$line"
+done < "$SCRIPT_DIR/system-prompt.md" > "$_tmpfile"
+if [[ -s "$SCRIPT_DIR/system-prompt.md" ]] && [[ "$(tail -c 1 "$SCRIPT_DIR/system-prompt.md" | wc -l)" -eq 0 ]]; then
+    truncate -s -1 "$_tmpfile"
 fi
+mv "$_tmpfile" "$SCRIPT_DIR/system-prompt.md"
 
-# --- Update Modelfile version string ---
+# --- Update Modelfile version string (zsh parameter expansion, no sed) ---
 echo "Updating knowledge/Modelfile..."
-if command -v sed &>/dev/null; then
-    sed -i "s/v[0-9.]*-build-[0-9]*/v$FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
-    sed -i "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
-else
-    sed -i '' "s/v[0-9.]*-build-[0-9]*/v$FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
-    sed -i '' "s/Version: [0-9.]*-build-[0-9]*/Version: $FULL_VERSION/" "$SCRIPT_DIR/Modelfile"
+_tmpfile=$(mktemp)
+while IFS= read -r line; do
+    if [[ "$line" =~ ^v[0-9.]*-build-[0-9]+ ]]; then
+        line="v$FULL_VERSION"
+    fi
+    if [[ "$line" =~ ^Version:\ [0-9.]*-build-[0-9]+ ]]; then
+        line="Version: $FULL_VERSION"
+    fi
+    printf '%s\n' "$line"
+done < "$SCRIPT_DIR/Modelfile" > "$_tmpfile"
+if [[ -s "$SCRIPT_DIR/Modelfile" ]] && [[ "$(tail -c 1 "$SCRIPT_DIR/Modelfile" | wc -l)" -eq 0 ]]; then
+    truncate -s -1 "$_tmpfile"
 fi
+mv "$_tmpfile" "$SCRIPT_DIR/Modelfile"
 
 # --- Update .gen_state.json ---
 echo "Updating knowledge/.gen_state.json..."
@@ -104,7 +116,8 @@ for f in "$SCRIPT_DIR"/Modelfile "$SCRIPT_DIR"/system-prompt.md \
          "$SCRIPT_DIR"/examples/*.* \
          "$SCRIPT_DIR"/patterns/*.md; do
     if [[ -f "$f" ]]; then
-        HASH=$(sha256sum "$f" | awk '{print $1}')
+        HASH=$(sha256sum "$f")
+        HASH="${HASH%% *}"  # Extract hash (zsh builtin, no awk)
         REL_PATH="${f#$SCRIPT_DIR/}"
         CHECKSUMS="$CHECKSUMS\n    \"$REL_PATH\": \"$HASH\""
     fi

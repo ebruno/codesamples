@@ -80,7 +80,8 @@ convert_to_mp4() {
         "$OUTPUT"
 
     local FILE_SIZE
-    FILE_SIZE=$(du -h "$OUTPUT" | cut -f1)
+    FILE_SIZE=$(du -h "$OUTPUT")
+    FILE_SIZE="${FILE_SIZE%%\t*}"  # Extract size (bash builtin, no cut)
     echo "    Size: ${FILE_SIZE}"
 }
 

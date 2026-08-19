@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# verify_binary_symmetry.sh — Verify binary symmetry across Linux platforms
+# verify_binary_symmetry.sh — Verify binary symmetry across ALL platforms
 #
-# Compares .cpp and .hpp source files across all Linux platforms (debian, fedora, ubuntu)
+# Compares .cpp and .hpp source files across all platforms (macOS, debian, fedora, ubuntu, raspios)
 # to ensure byte-identical output as required by the common specification.
 #
 # Usage: ./verify_binary_symmetry.sh [workspace_root]
@@ -9,10 +9,13 @@
 
 set -euo pipefail
 
-# --- Version check ---
+# --- Version check (bash builtins only, no head/sed/sort) ---
 REQUIRED_VERSION="5.0"
-CURRENT_VERSION=$(bash --version | head -1 | sed -n 's/.*version \([0-9]*\.[0-9]*\).*/\1/p')
-if [[ "$(printf '%s\n' "$REQUIRED_VERSION" "$CURRENT_VERSION" | sort -V | head -1)" != "$REQUIRED_VERSION" ]]; then
+CURRENT_VERSION="${BASH_VERSION%%(*}"  # Strip everything from '(' onwards (e.g., "5.0.18")
+CURRENT_VERSION="${CURRENT_VERSION##*version }"  # Remove 'version ' prefix if present
+IFS='.' read -r req_major req_minor <<< "$REQUIRED_VERSION"
+IFS='.' read -r cur_major cur_minor _ <<< "$CURRENT_VERSION"
+if (( cur_major < req_major || (cur_major == req_major && cur_minor < req_minor) )); then
     echo "ERROR: Bash $REQUIRED_VERSION or higher required (found $CURRENT_VERSION)" >&2
     exit 1
 fi
@@ -38,8 +41,8 @@ if [[ -z "$WORKSPACE_ROOT" ]]; then
 fi
 
 # --- Configuration ---
-# Linux platforms that should produce byte-identical source files
-LINUX_PLATFORMS=("debian" "fedora" "ubuntu")
+# Platforms that should produce byte-identical source files
+PLATFORMS=("macos" "debian" "fedora" "ubuntu" "raspios")
 
 # Files to compare (relative to src/<os>/cpp/)
 SOURCE_FILES=(
@@ -81,7 +84,7 @@ NC='\033[0m' # No Color
 # --- Main verification loop ---
 echo "=== Binary Symmetry Verification ==="
 echo "Workspace: $WORKSPACE_ROOT"
-echo "Platforms: ${LINUX_PLATFORMS[*]}"
+echo "Platforms: ${PLATFORMS[*]}"
 echo ""
 
 for src_file in "${SOURCE_FILES[@]}"; do
@@ -91,7 +94,7 @@ for src_file in "${SOURCE_FILES[@]}"; do
     declare -a FILE_PATHS=()
     declare -a PLATFORM_NAMES=()
 
-    for platform in "${LINUX_PLATFORMS[@]}"; do
+    for platform in "${PLATFORMS[@]}"; do
         fpath="$WORKSPACE_ROOT/src/$platform/cpp/$src_file"
         if [[ -f "$fpath" ]]; then
             FILE_PATHS+=("$fpath")
@@ -153,6 +156,6 @@ if [[ $FAIL -gt 0 ]]; then
 else
     echo ""
     echo "RESULT: SYMMETRY VERIFIED"
-    echo "All compared source files are byte-identical across Linux platforms."
+    echo "All compared source files are byte-identical across all platforms."
     exit 0
 fi

@@ -94,12 +94,14 @@ for test_num in 001 002 003 004 005 006 007; do
     if [ -f "$exit_code_file" ]; then
         exit_code=$(cat "$exit_code_file")
     else
-        # Fallback: check log for error patterns
-        if grep -q "ERROR:" "$log_file" 2>/dev/null || grep -q "FAIL" "$log_file" 2>/dev/null; then
-            exit_code=1
-        else
-            exit_code=0
-        fi
+        # Fallback: check log for error patterns (bash builtins, no grep)
+        exit_code=0
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" == *"ERROR:"* ]] || [[ "$line" == *"FAIL"* ]]; then
+                exit_code=1
+                break
+            fi
+        done < "$log_file" 2>/dev/null || true
     fi
     
     # Get execution time in milliseconds (companion .time file)
@@ -109,8 +111,8 @@ for test_num in 001 002 003 004 005 006 007; do
         exec_time_ms=$(cat "$time_file")
     fi
     
-    # Convert to seconds for JUnit (with millisecond precision)
-    exec_time_sec=$(awk "BEGIN {printf \"%.3f\", $exec_time_ms / 1000}")
+    # Convert to seconds for JUnit (with millisecond precision) — bash printf, no awk
+    exec_time_sec=$(printf "%d.%03d" "$((exec_time_ms / 1000))" "$((exec_time_ms % 1000))")
     total_time_ms=$((total_time_ms + exec_time_ms))
     
     # Determine pass/fail based on expected exit code
@@ -122,13 +124,27 @@ for test_num in 001 002 003 004 005 006 007; do
   </testcase>
 EOF
     else
-        # Test failed - capture error output from log
-        error_output=$(grep "ERROR:" "$log_file" 2>/dev/null | head -5 || echo "")
-        if [ -z "$error_output" ]; then
-            error_output=$(head -5 "$log_file" 2>/dev/null || echo "Unknown failure")
+        # Test failed - capture error output from log (bash builtins, no grep/head)
+        error_output=""
+        _line_count=0
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" == *"ERROR:"* ]] && [[ -z "$error_output" ]]; then
+                error_output="$line"
+            fi
+            if (( _line_count < 5 )); then
+                [[ -z "$error_output" ]] && error_output="${error_output:+$error_output
+}$line"
+            fi
+            (( _line_count++ )) || true
+        done < "$log_file" 2>/dev/null || true
+        if [[ -z "$error_output" ]]; then
+            error_output="Unknown failure"
         fi
-        # Escape XML special characters in error output
-        escaped_output=$(echo "$error_output" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | tr '\n' ' ')
+        # Escape XML special characters in error output (bash parameter expansion, no sed/tr)
+        escaped_output="${error_output//&/\&amp;}"
+        escaped_output="${escaped_output//</\&lt;}"
+        escaped_output="${escaped_output//>/\&gt;}"
+        escaped_output="${escaped_output//$'\n'/ }"
         
         cat >> "$output_file" << EOF
   <testcase name="$test_id" classname="ringbuffer.test" time="$exec_time_sec">
@@ -142,14 +158,15 @@ EOF
 done
 
 # Close XML document with summary attributes
-# Replace placeholder values in the header with actual totals
-total_time_sec=$(awk "BEGIN {printf \"%.3f\", $total_time_ms / 1000}")
-# Handle sed -i portability: macOS requires backup extension, Linux does not
-if uname -s | grep -q Darwin; then
-    sed -i '' "s/__TOTAL_TESTS__/$total_tests/; s/__TOTAL_FAILURES__/$total_failures/; s/__TOTAL_ERRORS__/$total_errors/; s/__TOTAL_TIME__/$total_time_sec/" "$output_file"
-else
-    sed -i "s/__TOTAL_TESTS__/$total_tests/; s/__TOTAL_FAILURES__/$total_failures/; s/__TOTAL_ERRORS__/$total_errors/; s/__TOTAL_TIME__/$total_time_sec/" "$output_file"
-fi
+# Replace placeholder values in the header with actual totals (bash printf, no awk)
+total_time_sec=$(printf "%d.%03d" "$((total_time_ms / 1000))" "$((total_time_ms % 1000))")
+# Replace placeholders using bash parameter expansion (no sed, no platform-specific -i)
+_file_content=$(<"$output_file")
+_file_content="${_file_content//__TOTAL_TESTS__/$total_tests}"
+_file_content="${_file_content//__TOTAL_FAILURES__/$total_failures}"
+_file_content="${_file_content//__TOTAL_ERRORS__/$total_errors}"
+_file_content="${_file_content//__TOTAL_TIME__/$total_time_sec}"
+printf '%s' "$_file_content" > "$output_file"
 
 cat >> "$output_file" << EOF
   <system-out>Total execution time: ${total_time_ms}ms</system-out>

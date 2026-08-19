@@ -64,7 +64,11 @@ if [[ ! -f "$TRAIN_FILE" ]]; then
     exit 1
 fi
 
-TRAIN_COUNT=$(wc -l < "$TRAIN_FILE" | tr -d ' ')
+# Count lines using zsh builtin (no wc/tr)
+TRAIN_COUNT=0
+while IFS= read -r _line || [[ -n "$_line" ]]; do
+    (( TRAIN_COUNT++ )) || true
+done < "$TRAIN_FILE"
 echo "Instruction dataset: $TRAIN_COUNT training pairs"
 
 # --- Build model ---

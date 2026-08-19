@@ -97,12 +97,14 @@ for test_num in 001 002 003 004 005 006 007; do
     if [[ -f "$exit_code_file" ]]; then
         exit_code=$(<"$exit_code_file")
     else
-        # Fallback: check log for error patterns
-        if grep -q "ERROR:" "$log_file" 2>/dev/null || grep -q "FAIL" "$log_file" 2>/dev/null; then
-            exit_code=1
-        else
-            exit_code=0
-        fi
+        # Fallback: check log for error patterns (zsh builtins, no grep)
+        exit_code=0
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" == *"ERROR:"* ]] || [[ "$line" == *"FAIL"* ]]; then
+                exit_code=1
+                break
+            fi
+        done < "$log_file" 2>/dev/null || true
     fi
     
     # Get execution time in milliseconds (companion .time file)
@@ -112,8 +114,8 @@ for test_num in 001 002 003 004 005 006 007; do
         exec_time_ms=$(<"$time_file")
     fi
     
-    # Convert to seconds for JUnit (with millisecond precision)
-    exec_time_sec=$(printf "%.3f" "$exec_time_ms / 1000")
+    # Convert to seconds for JUnit (with millisecond precision) — zsh printf with arithmetic
+    exec_time_sec=$(printf "%d.%03d" "$((exec_time_ms / 1000))" "$((exec_time_ms % 1000))")
     total_time_ms=$((total_time_ms + exec_time_ms))
     
     # Determine pass/fail based on expected exit code
@@ -125,12 +127,21 @@ for test_num in 001 002 003 004 005 006 007; do
             echo "  </testcase>"
         } >> "$output_file"
     else
-        # Test failed - capture error output from log
+        # Test failed - capture error output from log (zsh builtins, no grep/head)
         local error_output=""
-        if grep -q "ERROR:" "$log_file" 2>/dev/null; then
-            error_output=$(grep "ERROR:" "$log_file" | head -5)
-        else
-            error_output=$(head -5 "$log_file")
+        local _line_count=0
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" == *"ERROR:"* ]] && [[ -z "$error_output" ]]; then
+                error_output="$line"
+            fi
+            if (( _line_count < 5 )); then
+                [[ -z "$error_output" ]] && error_output="${error_output:+$error_output
+}$line"
+            fi
+            (( _line_count++ )) || true
+        done < "$log_file" 2>/dev/null || true
+        if [[ -z "$error_output" ]]; then
+            error_output="Unknown failure"
         fi
         # Escape XML special characters in error output
         local escaped_output="${error_output//&/\&amp;}"
@@ -149,11 +160,16 @@ for test_num in 001 002 003 004 005 006 007; do
     total_tests=$((total_tests + 1))
 done
 
-# Close XML document with summary attributes
-total_time_sec=$(printf "%.3f" "$total_time_ms / 1000")
+# Close XML document with summary attributes (zsh printf with arithmetic)
+total_time_sec=$(printf "%d.%03d" "$((total_time_ms / 1000))" "$((total_time_ms % 1000))")
 
-# Replace placeholder values in the header with actual totals
-sed -i '' "s/__TOTAL_TESTS__/$total_tests/; s/__TOTAL_FAILURES__/$total_failures/; s/__TOTAL_ERRORS__/$total_errors/; s/__TOTAL_TIME__/$total_time_sec/" "$output_file"
+# Replace placeholder values in the header with actual totals (zsh parameter expansion, no sed)
+_file_content=$(<"$output_file")
+_file_content="${_file_content//__TOTAL_TESTS__/$total_tests}"
+_file_content="${_file_content//__TOTAL_FAILURES__/$total_failures}"
+_file_content="${_file_content//__TOTAL_ERRORS__/$total_errors}"
+_file_content="${_file_content//__TOTAL_TIME__/$total_time_sec}"
+printf '%s' "$_file_content" > "$output_file"
 
 {
     echo "  <system-out>Total execution time: ${total_time_ms}ms</system-out>"
