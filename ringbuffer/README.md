@@ -37,6 +37,15 @@ The project follows a **develop-then-refactor** strategy with three phases:
 
 **Note:** Unimplemented languages should not be considered a negative — the spec scaffolding is in place and the dispatcher prompt (`add_language.md`) routes correctly.
 
+## Prompt Execution Pattern
+Every workflow follows a consistent pattern:
+1. **Common workflow** provides structure, image/version resolution, and routing decisions
+2. **Platform-specific primary document** (`create_*.md`) is the authoritative execution guide
+3. **Common spec** (`common/cpp/*.md` or `common/<lang>/*.md`) provides technical requirements
+4. **Platform spec** (`<os>/cpp/*.md` or `<os>/<lang>/*.md`) provides platform-specific overrides
+
+When a common workflow says "execute `create_*.md` as the PRIMARY document," it means: read it for directives and immediate requirements, follow its steps as the main execution path, use the common workflow for infrastructure (image resolution, routing) only.
+
 ## Development Methodology
 
 This project was created entirely from scratch using an LLM (Large Language Model) as the primary development tool. Every aspect of the codebase — from architecture decisions to implementation details, build configuration, test infrastructure, and documentation — was generated through interactive prompt-driven development.
@@ -55,6 +64,22 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 
 ## Key Specifications
 - **Multi-OS Support**: Seamless deployment across various Linux distributions and macOS.
+- **Language Standards and Classification**:
+  - C: C23 primary, C17/C11 fallback
+  - C++: C++20 primary, C++17 fallback
+  - Java: SE 25 primary, SE 24-17 fallback
+  - Go: 1.24 primary, 1.23/1.22 fallback
+  - Python: 3.14 primary, 3.13-3.10 fallback
+  - Rust: 1.84.0 primary, 1.56.0 fallback
+  - Minimum supported versions are enforced — implementations must detect and report actual toolchain version, stopping if below minimum.
+  - **Platform-sensitive** (c, cpp): require per-OS overrides for threading primitives, I/O multiplexing (epoll vs kqueue), and build flags
+  - **Platform-insensitive** (python, java, go, rust): use standard library abstractions for identical source everywhere
+- **Language-Specific Build Systems**:
+  - C/C++: GNU Make (`Makefile`) → `lib/libswtr_ringbuffer-<version>.{a|so|dylib}`
+  - Java: Apache Maven (`pom.xml`) → `target/ringbuffer-<version>.jar`
+  - Go: Go Modules (`go.mod`) with `-buildmode=c-{archive,shared}` → `lib/libringbuffer.{a|so|dylib}`
+  - Python: Interpreted, no build system; depends on C library shared object via `ctypes`
+  - Rust: Cargo (`Cargo.toml`) with `crate-type = ["staticlib", "cdylib"]` → `target/release/libswtr_ringbuffer.{a,so|dylib}`
 - **Multi-Language Support**: C++, Java, Python implementations with shared functional specifications; C, Go, Rust in development pipeline.
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
@@ -62,6 +87,13 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **Core Principle — Library-First Flexibility**: Consumer flexibility > API simplicity. No hidden abstractions — consumers should be able to observe and control state at any granularity without wrapper code. Opt-in complexity: basic usage is simple (construct, set transform, start), but advanced usage must not require extending the library. The abstract class interface is a stable public API contract.
 
 ## Core Features
+- **Shared Behavioral Contract (All Languages)**: Every implementation must satisfy these requirements regardless of language:
+  - **Three-stage pipeline**: Independent read, transform, and write stages operating on a shared pool of buffer slots
+  - **Status-driven coordination**: Slots transition through states (`readyforread` → `readyfortransform` → `readyforwrite` → `readyforread`)
+  - **Cooperative cancellation**: Pipeline stages must support graceful shutdown via a stop signal or equivalent mechanism
+  - **Error handling**: An error handler callback that returns non-zero to trigger pipeline shutdown
+  - **EOF detection**: When read returns EOF (0 bytes), the pipeline must propagate `LAST_BUFFER_TO_TRANSFORM` → `LAST_BUFFER_TO_WRITE` through all stages, then terminate cleanly
+  - **Transform in-place**: The transform function receives the slot's data buffer and modifies it directly; `transformed_data_buffer_size` must be updated with the result size
 - **Pipelined Architecture**: Decoupled read, transform, and write loops for maximum throughput.
 - **Performance**: 
     - **Cache Alignment**: Buffer slots and counters are aligned to 64-byte boundaries to prevent false sharing.
@@ -308,6 +340,15 @@ auto rb = std::make_unique<SwtrRingBuffer>(4, BufferStatus::readyforread, 4096, 
 
 **Transform types**: `0` (identity/bypass), `1` (uppercase), `2` (XOR with 0xFF). User-supplied transforms are passed as `std::function<void(std::vector<uint8_t>&, size_t&)>` and can implement any custom logic.
 
+### Version Propagation
+All languages derive version from `version.mk` — each has a specific mechanism:
+- **C/C++**: Makefile `include version.mk` (direct)
+- **Java**: `version.sh` reads `version.mk`, injects into `pom.xml` as Maven properties
+- **Go**: `version.sh` reads `version.mk`, generates `version.go` with typed constants
+- **Python**: `version.sh` reads `version.mk`, generates `version.py` with module constants
+- **Rust**: `build.rs` reads `version.mk`, generates `src/version.rs` with constants
+- **Core Principle**: `version.mk` is the single source of truth — no language defines its own version independently.
+
 ### Pipeline Architecture Diagram
 
 The following diagram shows how the three pipeline threads interact through shared slots:
@@ -376,6 +417,9 @@ Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory conta
 - **Hierarchy**: The implementation must strictly follow the `RingBuffer` $\rightarrow$ `SwtrRingBuffer` hierarchy.
 - **Platform Sync**: When updating any platform's source, build, or test artifacts, the same changes MUST be applied to all other Linux platforms. Use the cross-platform update propagation directives in `update_functional.md`, `update_build.md`, and `update_testing.md`.
 - **Prompt Deduplication**: Repeated content (container runtime rules, host-target compatibility checks, spec precedence statements) MUST be extracted into shared reference documents (e.g., `prompts/common/session_hints.md`) and referenced via relative links rather than duplicated verbatim across functional.md, build.md, and testing.md in every platform directory. This reduces maintenance burden and ensures consistency across 215+ prompt files.
+- **Cross-Platform Generation Mandate**: All platform source code MUST be generated **independently** from the common specification. Do NOT copy source files, Makefiles, or Dockerfiles between platforms. Each platform generates its own artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
+  - **Allowed Makefile differences**: `CONTAINER_IMAGE` variable value, working directory path in container run commands, host distro detection check.
+  - **Allowed Dockerfile differences**: `FROM` base image line, package installation RUN blocks (platform-specific package managers).
 
 ### Part B: The Prompt-Driven Workflow
 This project is managed via a set of prompts that define the desired state of the codebase. The agent requires a valid path to the prompt file to execute the workflow.
@@ -470,15 +514,15 @@ The agent harness uses two key configuration files to maintain consistency acros
 #### Test Matrix (T001–T007)
 The test suite validates functional correctness, error handling, transform operations, and stress conditions:
 
-| Test ID | Description | Transform | Error Mode | Expected Exit Code |
-| :--- | :--- | :--- | :--- | :--- |
-| T001 | Identity (normal) | 0 (none) | 0 (no error) | 0 |
-| T002 | Stress test (1 slot, 1 byte) | 0 (none) | 0 (no error) | 0 |
-| T003 | Uppercase transform | 1 (uppercase) | 0 (no error) | 0 |
-| T004 | Small input, fast EOF | 0 (none) | 0 (no error) | 0 |
-| T005 | Fatal error mode | 0 (none) | 1 (fatal) | 1 |
-| T006 | Non-fatal error mode | 0 (none) | 2 (non-fatal) | 0 |
-| T007 | XOR transform | 2 (XOR 0xFF) | 0 (no error) | 0 |
+| Test | Config | Expected Exit | Output Match? |
+|------|--------|---------------|---------------|
+| T001 | Default (identity transform) | 0 | Yes — output == input |
+| T002 | 1 slot, 1-byte buffer (stress) | 0 | Yes — output == input |
+| T003 | Uppercase transform | 0 | Yes — output matches expected |
+| T004 | Small input, fast EOF | 0 | Yes — output == input |
+| T005 | Fatal error mode | **1** | Not checked (partial output) |
+| T006 | Non-fatal error mode | 0 | Yes — output == input |
+| T007 | XOR transform | 0 | Yes — output matches expected binary data |
 
 **Test program CLI**: `test001_staticlib [-o output_file] [-l log_file] [-s slots] [-b size] [-t transform_type] [-e error_mode] [-r] [-w <ip:port>] <input_file>`
 
@@ -928,6 +972,21 @@ When adding a new OS, follow this checklist:
 10. **Verify** — Run `lint_prompts.sh` to validate directory structure and required files
 11. **Update `.bionic`** — Add the new OS to the platform classification table and implementation phases
 12. **Update README.md** — Add the new OS to the Supported Platforms table and this Developer & Maintainer Guide section
+
+#### 7.5 SSH Remote Transfer Rule (All Platforms)
+When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
+- **C++ source files**: Copy the target-host-specific C++ directory (e.g., `src/archlinux/cpp/` for the archlinux remote). These files are per-OS — only copy the directory matching the target OS.
+- **Python source files**: Copy `src/common/python/` (the common Python implementation).
+- **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"` and `ssh <host> "rm -rf <dest>/src/common/python/*"` before the transfer.
+- **Transfer**: Use `scp -r` or `rsync -avz` to copy the cleaned directories from the host to the remote.
+- **Verify**: After transfer, confirm file counts and sizes match between host and remote.
+
+#### 7.6 Python Makefiles by Family (GNU vs BSD)
+The Python implementation uses different Makefile syntax for GNU make and BSD make systems:
+- **GNU make** (macOS, Linux): `src/common/python/Makefile.gnu` — uses `$(shell ...)`, `ifeq/else`
+- **BSD make** (FreeBSD 14+): `src/<os>/python/Makefile` — per-OS directory with BSD-compatible syntax (no `$(shell)`, no `ifeq/else`)
+- **Common source**: Both use the same Python source files from `src/common/python/` (swtr_ringbuffer_pure.py, test scripts, base types)
+- **Per-platform overrides**: FreeBSD 14 has `src/freebsd14/python/` with its own Makefile and copies of common source. FreeBSD 15 will use the same structure.
 
 #### 8. Common Pitfalls to Avoid
 

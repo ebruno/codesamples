@@ -664,3 +664,13 @@ Step 4: shell_command → cat chunkA chunkB chunkC > target/path/file.md (host)
 - **Linux host:** Use `podman` (preferred) or Docker.
 - **Never prepend `localhost/`** to image names with the `container` CLI on macOS.
 - **Never use Docker references in macOS context** — even comparison phrases like "(equivalent to docker run)" can mislead agents into using `docker` instead of `container`.
+
+## README ↔ generate_toplevel_readme.md Sync Rule
+
+**NEVER let the prompt drift from the README.** The README is the source of truth for documentation content. `generate_toplevel_readme.md` describes what the README should look like — it must always match.
+
+When you edit `README.md` directly (add a section, change content, restructure):
+1. **Immediately update** `generate_toplevel_readme.md` to reflect the change in its Content Structure section
+2. The prompt should describe what the README *actually has*, not what it *should have*
+3. If a new section appears in the README that isn't described in the prompt, add it
+4. If a section is removed from the README, remove it from the prompt
