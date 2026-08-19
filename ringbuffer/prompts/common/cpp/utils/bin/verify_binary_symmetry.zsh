@@ -8,11 +8,15 @@
 
 set -euo pipefail
 
-# --- Version check ---
+# --- Version check (zsh builtins only, no sort/head) ---
 REQUIRED_VERSION="5.8"
-CURRENT_VERSION=${ZSH_VERSION}
-if [[ "$(printf '%s\n' "$REQUIRED_VERSION" "$CURRENT_VERSION" | sort -V | head -1)" != "$REQUIRED_VERSION" ]]; then
-    echo "ERROR: Zsh $REQUIRED_VERSION or higher required (found $CURRENT_VERSION)" >&2
+CURRENT_VERSION=${ZSH_VERSION%%.*}  # Major version
+CURRENT_VERSION="${CURRENT_VERSION}.${ZSH_VERSION#*.}"  # Major.minor (strip patch)
+CURRENT_VERSION="${CURRENT_VERSION%%(*}"  # Strip '(' if present
+IFS='.' read -r req_major req_minor <<< "$REQUIRED_VERSION"
+IFS='.' read -r cur_major cur_minor _ <<< "$CURRENT_VERSION"
+if (( cur_major < req_major || (cur_major == req_major && cur_minor < req_minor) )); then
+    echo "ERROR: Zsh $REQUIRED_VERSION or higher required (found ${ZSH_VERSION})" >&2
     exit 1
 fi
 

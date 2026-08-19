@@ -12,10 +12,13 @@
 
 set -euo pipefail
 
-# --- Version check ---
+# --- Version check (bash builtins only, no head/sed/sort) ---
 REQUIRED_VERSION="5.0"
-CURRENT_VERSION=$(bash --version | head -1 | sed -n 's/.*version \([0-9]*\.[0-9]*\).*/\1/p')
-if [[ "$(printf '%s\n' "$REQUIRED_VERSION" "$CURRENT_VERSION" | sort -V | head -1)" != "$REQUIRED_VERSION" ]]; then
+CURRENT_VERSION="${BASH_VERSION%%(*}"  # Strip everything from '(' onwards (e.g., "5.0.18")
+CURRENT_VERSION="${CURRENT_VERSION##*version }"  # Remove 'version ' prefix if present
+IFS='.' read -r req_major req_minor <<< "$REQUIRED_VERSION"
+IFS='.' read -r cur_major cur_minor _ <<< "$CURRENT_VERSION"
+if (( cur_major < req_major || (cur_major == req_major && cur_minor < req_minor) )); then
     echo "ERROR: Bash $REQUIRED_VERSION or higher required (found $CURRENT_VERSION)" >&2
     exit 1
 fi
