@@ -23,6 +23,9 @@ ringbuffer/
 │   │   ├── implement_regression.md   # Test infrastructure setup workflow
 │   │   ├── run_regression.md         # Test execution workflow
 │   │   └── verify_build.md           # Build verification workflow
+│   ├── common/<lang>/                # Language-specific specs (shared across all OSes)
+│   │   ├── build.md                  # Build specification
+│   │   └── functional.md             # Functional implementation spec
 │   ├── common/cpp/                   # C++-specific specs (shared)
 │   │   ├── build.md                  # Build specification
 │   │   ├── functional.md             # Functional implementation spec
@@ -40,18 +43,29 @@ ringbuffer/
 │   │   ├── functional.md             # Platform-specific functional requirements
 │   │   ├── build.md                  # Platform-specific build requirements
 │   │   └── testing.md                # Platform-specific test requirements
-│   └── reference_linux/cpp/          # Canonical reference for cross-platform verification
+│   ├── <os>/<lang>/                  # Per-OS placeholder prompts (build.md, functional.md, testing.md)
+│   │   # Contains non-zero placeholder text pointing to common specs
+│   │   # (except C/C++ which have full platform-specific specs, FreeBSD 15 is zero-length)
+│   └── reference_linux/<lang>/       # Canonical reference for cross-platform verification (zero-length)
 ├── src/                              # Generated source code per platform
-│   └── <os>/cpp/                     # One directory per target OS
-│       ├── *.hpp / *.cpp             # Source files
-│       ├── Makefile                  # Build configuration
-│       ├── version.mk                # Library version (NOT OS version)
-│       ├── containers/               # Dockerfiles (Linux only; macOS has none)
-│       ├── tests/                    # Test infrastructure
-│       ├── logs/                     # Build and execution logs (build.log)
-│       ├── reports/                  # Build and verification reports
-│       ├── lib/                      # Built libraries (.a, .so/.dylib)
-│       └── specs/                    # Copied spec files for reference
+│   ├── <os>/cpp/                     # Per-OS C++ source (one directory per target OS)
+│   │   ├── *.hpp / *.cpp             # Source files
+│   │   ├── Makefile                  # Build configuration
+│   │   ├── version.mk                # Library version (NOT OS version)
+│   │   ├── containers/               # Dockerfiles (Linux only; macOS has none)
+│   │   ├── tests/                    # Test infrastructure
+│   │   ├── logs/                     # Build and execution logs (build.log)
+│   │   ├── reports/                  # Build and verification reports
+│   │   ├── lib/                      # Built libraries (.a, .so/.dylib)
+│   │   └── specs/                    # Copied spec files for reference
+│   ├── common/java/                  # Common Java source (identical across all OSes)
+│   │   ├── pom.xml                   # Maven build configuration
+│   │   └── swtr/                    # Java source packages
+│   ├── common/python/                # Common Python source (identical across all OSes)
+│   │   ├── Makefile.gnu              # GNU make build configuration
+│   │   ├── swtr_ringbuffer/          # Concurrent (ctypes) module
+│   │   ├── swtr_ringbuffer_pure.py   # Pure Python implementation
+│   │   └── test_*.py                 # Test scripts
 ├── doc/                            # Documentation and generated assets
 │   └── README.pdf                  # Rendered PDF of README.md
 ├── animated_graphics/              # Animated graphics artifacts
@@ -118,8 +132,8 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 |----------|-----------------|-----------------------------------|-------------------|
 | **C** | C23 | C17, C11 | ✅ Common spec created |
 | **C++** | C++20 | C++17 | *(already in place)* |
-| **Java** | Java SE 25 (JDK 25) | SE 24, 23, 22, 21, 20, 19, 18, 17 | Java SE 17 (LTS) |
-| **Go** | Go 1.24 | Go 1.23, 1.22 | Go 1.22 |
+| **Java** | Java SE 25 (JDK 25) | SE 24, 23, 22, 21, 20, 19, 18, 17 | ✅ Common spec created |
+| **Go** | Go 1.24 | Go 1.23, 1.22 | ✅ Common spec created |
 | **Python** | Python 3.14 | 3.13, 3.12, 3.11, 3.10 | ✅ Common spec created |
 | **Rust** | 1.84.0 | 1.56.0 (fallback) | ✅ Common spec created |
 
@@ -305,6 +319,7 @@ Generate scripts that read `version.mk` and produce language-specific version fi
 **4.A — Reference Linux Scaffolding**
 Create zero-length `build.md`, `functional.md`, `testing.md` files in:
 - `prompts/reference_linux/c/`
+- `prompts/reference_linux/go/`
 - `prompts/reference_linux/python/`
 - `prompts/reference_linux/rust/`
 
