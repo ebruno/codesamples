@@ -119,6 +119,92 @@ lrwxrwxrwx 1 root root 4 Feb 4 2025 /bin/sh -> dash
 
 ---
 
+
+## Runtime Environment Detection
+
+> **Purpose:** Determine whether the current execution context is a macOS host, Linux bare metal, or inside a container — so the correct container CLI can be selected.
+
+### Detection Script (Recommended)
+
+```bash
+#!/bin/bash
+# Detect runtime environment and select appropriate container CLI
+detect_runtime() {
+    # 1. macOS host — only 'container' CLI available (Apple Container)
+    if command -v container &>/dev/null; then
+        echo "macOS host — use 'container' CLI"
+        return 0
+    fi
+
+    # 2. Linux bare metal — check for podman first, then docker
+    if command -v podman &>/dev/null; then
+        echo "Linux bare metal — use 'podman'"
+        return 0
+    fi
+
+    if command -v docker &>/dev/null; then
+        echo "Linux bare metal — use 'docker'"
+        return 0
+    fi
+
+    # 3. Inside a container or minimal environment — no runtime available
+    echo "Inside container or minimal environment"
+    return 1
+}
+
+detect_runtime
+```
+
+### Detection Methods (In Priority Order)
+
+| Method | Command | Container Result | Bare Metal Result | Notes |
+|--------|---------|-----------------|-------------------|-------|
+| **1. CLI availability** | `command -v container/podman/docker` | None found | podman or docker found | Most reliable — no extra tools needed |
+| **2. cgroup check** | `cat /proc/1/cgroup` | `0::/` (container root) | `0::/init.scope` (systemd) | Always available on Linux; requires parsing |
+| **3. systemd-detect-virt** | `systemd-detect-virt` | Not installed (minimal) | Returns `none` (bare metal) | Most reliable when available; not in minimal containers |
+
+### Platform-Specific Container Runtime Availability
+
+| Platform | macOS Host | Linux Bare Metal (podman) | Linux Bare Metal (docker) | Container Image |
+|----------|-----------|--------------------------|--------------------------|-----------------|
+| **macOS** | `container` ✅ | N/A (not Linux) | N/A (not Linux) | N/A |
+| **Debian** | `container` ✅ | ❌ Not installed (shuttle01) | ✅ Installed (29.5.0) | ❌ Neither |
+| **Ubuntu** | `container` ✅ | May be available | May be available (desktop) | ❌ Neither |
+| **Raspios** | `container` ✅ | May be available | ✅ Likely (official install script) | ❌ Neither |
+| **Fedora** | `container` ✅ | ✅ Likely (native podman distro) | May be available | ❌ Neither |
+| **Arch Linux** | `container` ✅ | ✅ Likely (community-maintained) | May be available (AUR) | ❌ Neither |
+
+> **Key finding:** Bare metal Debian (shuttle01) has `docker` 29.5.0 but NOT `podman`. Fedora is the only platform where `podman` is expected to be pre-installed on bare metal (Fedora's default container runtime).
+
+### Container CLI Selection Logic for Makefiles
+
+```makefile
+# Detect and set CONTAINER_CMD based on runtime environment
+CONTAINER_CMD := $(shell \
+    if command -v container &>/dev/null; then \
+        echo "container"; \
+    elif command -v podman &>/dev/null; then \
+        echo "podman"; \
+    elif command -v docker &>/dev/null; then \
+        echo "docker"; \
+    else \
+        echo ""; \
+    fi)
+
+# Fail if no container runtime is available
+ifeq ($(CONTAINER_CMD),)
+$(error No container runtime found. Install 'container' (macOS), 'podman', or 'docker'.)
+endif
+```
+
+### Important Notes
+
+1. **macOS golden rule:** Never use `docker` or `podman` on macOS — only the `container` CLI (Apple Container).
+2. **Never prepend `localhost/`** to image names with the `container` CLI on macOS — it forces a network lookup that times out.
+3. **Container images are minimal** — they typically do NOT have `docker`, `podman`, or `container` installed inside them. The runtime is always on the host.
+4. **Bare metal Debian has `docker`, not `podman`** — this was verified on shuttle01.sc.brunoe.net.
+5. **Fedora is the only platform where `podman` is expected** on bare metal (it's Fedora's default container runtime).
+6. **Raspberry Pi OS typically has `docker`** installed via the official install script, rarely `podman`.
 ## Toolchain (Raspios Container — Actual Measured Values)
 
 ### C/C++ Compiler
