@@ -46,7 +46,7 @@ ringbuffer/
 │   ├── <os>/<lang>/                  # Per-OS placeholder prompts (build.md, functional.md, testing.md)
 │   │   # Contains non-zero placeholder text pointing to common specs
 │   │   # (except C/C++ which have full platform-specific specs, FreeBSD 15 is zero-length)
-│   └── reference_linux/<lang>/       # Canonical reference for cross-platform verification (zero-length)
+│   └── reference_linux/<lang>/       # Canonical reference for cross-platform verification (non-zero placeholder text)
 ├── src/                              # Generated source code per platform
 │   ├── <os>/cpp/                     # Per-OS C++ source (one directory per target OS)
 │   │   ├── *.hpp / *.cpp             # Source files
@@ -119,6 +119,7 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 | Linux distributions (amd64) | Fedora, Debian (stock), Ubuntu, reference_linux | Yes — `container` on macOS hosts, `podman` on Linux hosts |
 | Linux distributions (arm64) | Raspberry Pi OS | Yes — native on Apple Silicon, `podman` on Linux hosts |
 | Excluded | FreeBSD 15 only | Zero-length files only; do not modify |
+| Generic FreeBSD | `prompts/freebsd/` (C++ only) | Non-zero — generic 14.x/15.x FreeBSD C++ build spec for SSH-based remote builds |
 | Implemented (Linux-hosts-only) | Arch Linux | Yes — `podman` on Linux hosts; macOS skip with logging
 
 > **Debian vs. Raspberry Pi OS:** Both share `ID=debian` in `/etc/os-release`. They are distinguished by the presence of `/etc/rpi-issue`: if it exists, this is Raspberry Pi OS; otherwise, stock Debian. See `prompts/common/session_hints.md` for the full detection logic.
@@ -197,8 +198,8 @@ Every implementation must satisfy these requirements regardless of language:
 | Python common specs | ✅ `prompts/common/python/functional.md` (22,797 bytes), `build.md` (7,028 bytes) created |
 | Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
 | `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,801 bytes) created — Phase 2 complete |
-| Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios, freebsd14) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). Java, Python, C, Go, and Rust all follow this pattern; C/C++ per-OS prompts contain full platform-specific specs. |
-| `reference_linux` scaffolding | ✅ Complete — zero-length files exist for C, Go, Python, Rust (`build.md`, `functional.md`, `testing.md`). |
+| Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). FreeBSD 14: Python, Java, C have placeholders; Go and Rust need placeholder files created. C/C++ per-OS prompts contain full platform-specific specs. |
+| `reference_linux` scaffolding | ✅ Complete — non-zero placeholder text exists for C, Go, Python, Rust (`build.md`, `functional.md`, `testing.md`). |
 
 ### Implementation Phases
 
@@ -305,25 +306,25 @@ Generate scripts that read `version.mk` and produce language-specific version fi
 ##### Risk Notes for Phase 3
 - **C per-OS overrides are placeholders**: All C per-OS `build.md`, `functional.md`, and `testing.md` files contain placeholder text pointing to common specs (non-zero). Unlike C++ (which has ~6KB per-OS overrides with real platform-specific content), C implementation will be more speculative. The common spec covers all platform differences, but there is no per-OS reference to validate against.
 - **Non-C++ source code exists**: `src/common/python/` and `src/common/java/` have full source code. Go, Rust, and C source directories do not yet exist — those languages will be generated from specs alone.
-- **Reference Linux scaffolding complete**: Zero-length files exist for C, Go, Python, Rust in `reference_linux/`.
+- **Reference Linux scaffolding complete**: Non-zero placeholder files exist for C, Go, Python, Rust in `reference_linux/`.
 
 #### Phase 4: Verification and Documentation
 1. Run `verify_binary_symmetry.sh` for C (Linux distros)
 2. Run `lint_prompts.sh` to validate prompt structure
 3. Update project README with multi-language support documentation
 4. Generate PDF documentation with `pandoc`
-5. Create `reference_linux` scaffolding for C, Python, Rust (zero-length files)
+5. Create `reference_linux` scaffolding for C, Python, Rust (non-zero placeholder files)
 6. Clarify utility scripts scope — determine if `prompts/common/cpp/utils/bin/` scripts are language-agnostic or C++-specific
 
 ##### Phase 4 Sub-Steps
 **4.A — Reference Linux Scaffolding**
-Create zero-length `build.md`, `functional.md`, `testing.md` files in:
+Create non-zero placeholder `build.md`, `functional.md`, `testing.md` files in:
 - `prompts/reference_linux/c/`
 - `prompts/reference_linux/go/`
 - `prompts/reference_linux/python/`
 - `prompts/reference_linux/rust/`
 
-These maintain directory structure consistency with C++ and provide a canonical reference point for cross-platform verification.
+Each file contains placeholder text pointing to the common spec for that language, with a note that this directory is a canonical reference point for cross-platform verification and should not be used as a generation target.
 
 **4.B — Utility Scripts Scope Review**
 The existing utility scripts in `prompts/common/cpp/utils/bin/` are:
@@ -399,9 +400,9 @@ All platform source code MUST be generated **independently** from the common spe
 2. Package installation RUN blocks (platform-specific package managers)
 
 ### Excluded Platforms
-FreeBSD 15 is excluded from active development. Its prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
+FreeBSD 15 is excluded from active development. Its prompt directories contain explicit exclusion messages (`build.md`, `functional.md`, `testing.md` all state: "Excluded platform — do not modify"). If any non-zero content exists beyond these exclusion messages, remove it.
 
-FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain full spec files and source code. Do not modify FreeBSD 14 **C/C++** prompt directories (`build.md`, `functional.md`, `testing.md` remain zero-length). Python, Java, C, Go, and Rust per-OS prompt directories may contain placeholder text (non-zero `testing.md`, `build.md`, `functional.md`) — this is allowed and recommended to prevent zero-length file confusion.
+FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain placeholder text pointing to `prompts/freebsd/cpp/` (generic FreeBSD 14.x/15.x spec) and `prompts/common/cpp/` (common specs). Python, Java, C, Go, and Rust per-OS prompt directories contain non-zero placeholder text pointing to common specs — this is allowed and recommended to prevent zero-length file confusion.
 
 ### Arch Linux (Linux-Hosts-Only)
 Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
