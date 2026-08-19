@@ -128,6 +128,8 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 
 **macOS is native-only.** It never uses containers, Dockerfiles, or `container` targets. All builds and tests run on the host using native toolchains (Clang, `make`, `ar`).
 
+**Linux distro testing on macOS host:** When running regression tests for Linux distributions (Fedora, Debian, Ubuntu, Raspberry Pi OS) from a macOS host, tests MUST run inside the target OS container — never natively on macOS. The `container` command (Apple Container) is used to execute `make verify` inside the `ringbuffer_<os>_test` container. The library is built in a separate `_build` container and the test directory (with Makefile, data, utils) is mounted into the `_test` container. This ensures `readelf`, `g++`, and other Linux-specific tools are available during verification.
+
 **macOS Shell & Make — Critical for Local Builds:**
 - **Default shell is zsh** (since macOS Catalina 10.15), NOT bash. Scripts should use `#!/usr/bin/env zsh` or `#!/usr/bin/env bash`.
 - **`make` on macOS is BSD make** (not GNU make). Same syntax constraints as FreeBSD: `${VAR}`, `.include`, explicit file lists — no `$(wildcard)`, no `ifeq/else`.
