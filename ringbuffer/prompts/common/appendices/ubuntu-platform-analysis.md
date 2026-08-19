@@ -125,7 +125,7 @@ lrwxrwxrwx 1 root root 4 Mar 31 2024 /bin/sh -> dash
 ### Detection Script (Recommended)
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 # Detect runtime environment and select appropriate container CLI
 detect_runtime() {
     # 1. macOS host — only 'container' CLI available (Apple Container)

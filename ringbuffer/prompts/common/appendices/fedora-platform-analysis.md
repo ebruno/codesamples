@@ -169,7 +169,7 @@ $ /bin/sh -c 'var=hello world; echo ${var:0:5}' 2>&1 | head -3
 ### Detection Script (Recommended)
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 # Detect runtime environment and select appropriate container CLI
 detect_runtime() {
     # 1. macOS host — only 'container' CLI available (Apple Container)

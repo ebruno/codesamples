@@ -64,7 +64,7 @@ Create one script per shell language:
 
 **Requirements:**
 - **Shebang and Version Check:** Same as generate scripts.
-- **Validation Logic:** Implement the validation regex provided by the pattern file. Use shell-native string operations where possible (avoid `sed`, `awk`, `grep` for data processing in Bash/Zsh).
+- **Validation Logic:** Implement the validation regex provided by the pattern file. Use shell-native string operations where possible (avoid `sed`, `awk`, `grep` for data processing in Bash/Zsh). See the Shell Script Portability Rule in `.bionic` — these tools have different implementations on macOS (BSD) vs. Linux (GNU), leading to subtle cross-platform bugs.
 - **Exit Codes:** Exit 0 on success, non-zero on failure. Print a clear message indicating which line failed and why (line number, expected vs actual).
 - **Execute Permission:** `chmod +x verify_test_data.sh verify_test_data.zsh`
 
@@ -75,7 +75,8 @@ Create one script per shell language:
 
 **Requirements:**
 - **Shebang and Version Check:** Same as above.
-- **Input Parsing:** Read `.exit` files (e.g., `T001.exit`) for pass/fail, `.time` files for execution time. Fall back to log file pattern matching (`grep -q "ERROR:"` / `grep -q "FAIL"`) if companion files are absent.
+- **Input Parsing:** Read `.exit` files (e.g., `T001.exit`) for pass/fail, `.time` files for execution time. Fall back to log file pattern matching (`grep -q "ERROR:"` / `grep -q "FAIL"`) if companion files are absent. Note: `grep` is used here as a fallback pattern-matching mechanism — for data processing in Bash/Zsh scripts, prefer shell-native operations. See the Shell Script Portability Rule in `.bionic` for details on platform-dependent tool restrictions.
+- **Permitted Utilities:** `date`, `cat`, `mkdir -p`, `rm -rf`, `cp`, `mv`, `chmod` are always permitted (guaranteed identical behavior across platforms). Do NOT use `grep`, `sed`, `awk`, `cut`, `sort`, or `find` in Bash/Zsh scripts — their behavior differs between macOS (BSD) and Linux (GNU).
 - **Expected Exit Codes:** Maintain an authoritative mapping of expected exit codes per test ID (from the pattern file's JUnit Test Matrix). Pass/fail is determined by `actual_exit_code == expected_exit_code`. Do NOT treat all non-zero exits as failures.
 - **XML Generation:** Produce valid JUnit XML with:
   - `<testsuites>` root element with `tests`, `failures`, `errors`, and `time` attributes.

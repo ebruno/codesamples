@@ -66,7 +66,9 @@ When the host OS is macOS and the target OS is a Linux distribution, the `contai
     - **Bash**: Version **5.0** or higher.
     - **Tcsh**: Version **6.22** or higher.
   - **Version Enforcement**: Every script MUST implement a version check at the beginning of the file. If the current shell version is below the minimum, the script must print a clear error message and exit with a non-zero status.
-  - **Implementation Style**: Prefer shell built-ins (parameter expansion, arrays) over external tools (sed, awk, cut) to ensure maximum portability and performance.
+  - **Implementation Style**: MUST use shell built-ins (parameter expansion, arrays, redirection) for all data processing. Do NOT use platform-dependent external tools (`grep`, `sed`, `awk`, `cut`, `sort`, `find`) in Bash/Zsh scripts — their behavior differs between macOS (BSD) and Linux (GNU). Permitted utilities: `date`, `cat`, `mkdir -p`, `rm -rf`, `cp`, `mv`, `chmod` (guaranteed identical behavior across platforms).
+  - **Shebang**: All utility scripts MUST use the `/usr/bin/env` wrapper for their shebang line (e.g., `#!/usr/bin/env bash`, `#!/usr/bin/env zsh`). Absolute paths to shells (e.g., `#!/bin/bash`) MUST NOT be used.
+  - **Makefile recipes**: Makefile recipe lines execute under `/bin/sh -c`, which is a restricted POSIX shell. Bash/Zsh builtins like arrays, `<<<` (here-strings), and `[[ ]]` are NOT available. Makefile recipes may use external tools (`grep`, `sed`, `awk`) as needed since the shell is already POSIX sh. This exception does NOT apply to standalone shell scripts called from Makefiles.
 - **Toolchain Configuration**:
   - The `Makefile` MUST configure `CXXFLAGS` and `LDFLAGS` based on the value of the `CXX` variable.
   - The only supported values for `CXX` are `g++` and `clang++`.

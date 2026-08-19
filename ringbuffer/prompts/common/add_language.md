@@ -244,6 +244,12 @@ Generate the build system configuration based on the language. **All version num
   - Generates `src/version.rs` with typed constants and a formatted `VERSION` string
   - Or uses `build.rs` to read `version.mk` at compile time and set environment variables
 
+**Shell Script Rules for Build Scripts:** All `version.sh` scripts (Java, Go, Python) and any other build-time shell scripts MUST follow the Shell Script Portability Rule in `.bionic`:
+- Shebang: `#!/usr/bin/env bash`
+- Use shell built-ins (parameter expansion, arrays) — do NOT use `grep`, `sed`, `awk` for data processing
+- Permitted utilities: `date`, `cat`, `mkdir -p`, `rm -rf`
+- See `.bionic` for the full rule including Makefile recipe exceptions
+
 ---
 
 ## 4. Test Infrastructure Generation
