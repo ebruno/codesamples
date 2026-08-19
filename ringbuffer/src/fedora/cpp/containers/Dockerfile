@@ -8,6 +8,7 @@ RUN dnf install -y --setopt=timeout=300 \
         gcc-c++ \
         binutils \
         make \
+        which \
         cmake \
         doxygen \
         clang \

@@ -217,9 +217,13 @@ Verify that all implemented languages build successfully across supported operat
 
    **0.3 C/C++ Verification** (from `src/<os>/cpp/`):
    - Navigate to `src/<os>/cpp/`.
+   - **Container Image Resolution** (Linux targets on non-matching host only):
+     - Resolve the image name from the per-OS Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+     - Build the image if it does not already exist: `container build -t ringbuffer_<os>_build:latest -f src/<os>/cpp/containers/Dockerfile .`
+     - Use `ringbuffer_<os>_build:latest` as `<container_image>` in subsequent commands.
    - **Build Execution**: If using a container, wrap the build command with the appropriate runtime:
-     - **macOS host**: `container run --rm -v $(pwd):/app <container_image> make clean && make`
-     - **Linux host**: `podman run --rm -v $(pwd):/app <container_image> make clean && make`
+     - **macOS host**: `container run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make clean && make`
+     - **Linux host**: `podman run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make clean && make`
      - If native execution is permitted (host matches target), run `make clean && make` directly.
      - If the build fails, log the error and STOP processing for this platform.
    - **Post-Build Verification**:
