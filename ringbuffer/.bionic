@@ -183,8 +183,8 @@ Every implementation must satisfy these requirements regardless of language:
 | Python common specs | ✅ `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) created |
 | Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
 | `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,050 bytes) created — Phase 2 complete |
-| Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios, freebsd14) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). Java and Python both follow this pattern; C/C++ per-OS prompts contain full platform-specific specs. |
-| `reference_linux` scaffolding | ⚠️ Only exists for C++ — needs zero-length files for C, Python, Rust. `reference_linux/python/` created (zero-length). |
+| Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios, freebsd14) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). Java, Python, C, Go, and Rust all follow this pattern; C/C++ per-OS prompts contain full platform-specific specs. |
+| `reference_linux` scaffolding | ✅ Complete — zero-length files exist for C, Go, Python, Rust (`build.md`, `functional.md`, `testing.md`). |
 
 ### Implementation Phases
 
@@ -223,11 +223,11 @@ Created `prompts/common/add_language.md` (22,050 bytes) — the unified entry po
 
 #### Phase 3: Implement Languages on Platforms
 For each language, implement on all target OSes:
-1. **C**: Implement on macOS (native), Fedora, Debian, Ubuntu
-2. **Java**: Implement on macOS (native), Fedora, Debian, Ubuntu
-3. **Go**: Implement on macOS (native), Fedora, Debian, Ubuntu
-4. **Python**: Implement on macOS (native), Fedora, Debian, Ubuntu
-5. **Rust**: Implement on macOS (native), Fedora, Debian, Ubuntu
+1. **C**: Implement on macOS (native), Fedora, Debian, Ubuntu, Arch Linux (Linux-hosts-only), Raspberry Pi OS
+2. **Java**: Implement on macOS (native), Fedora, Debian, Ubuntu, Arch Linux (Linux-hosts-only), Raspberry Pi OS
+3. **Go**: Implement on macOS (native), Fedora, Debian, Ubuntu, Arch Linux (Linux-hosts-only), Raspberry Pi OS
+4. **Python**: Implement on macOS (native), Fedora, Debian, Ubuntu, Arch Linux (Linux-hosts-only), Raspberry Pi OS
+5. **Rust**: Implement on macOS (native), Fedora, Debian, Ubuntu, Arch Linux (Linux-hosts-only), Raspberry Pi OS
 
 Each implementation must:
 - Generate source code from the common spec (independently, no copying)
@@ -289,9 +289,9 @@ Generate scripts that read `version.mk` and produce language-specific version fi
 - Include detected version, files generated, build verification results
 
 ##### Risk Notes for Phase 3
-- **C per-OS overrides are empty**: All C per-OS `build.md` and `functional.md` files are 0 bytes. Unlike C++ (which has ~6KB per-OS overrides with real platform-specific content), C implementation will be more speculative. The common spec covers all platform differences, but there is no per-OS reference to validate against.
-- **No existing non-C++ source code**: `src/` only has C++ directories. All other languages will be generated from specs alone — higher risk of compilation failures or incorrect API surface.
-- **Reference Linux scaffolding missing**: `reference_linux/` only exists for C++. Needs zero-length files for C, Python, Rust to maintain consistency.
+- **C per-OS overrides are placeholders**: All C per-OS `build.md`, `functional.md`, and `testing.md` files contain placeholder text pointing to common specs (non-zero). Unlike C++ (which has ~6KB per-OS overrides with real platform-specific content), C implementation will be more speculative. The common spec covers all platform differences, but there is no per-OS reference to validate against.
+- **Non-C++ source code exists**: `src/common/python/` and `src/common/java/` have full source code. Go, Rust, and C source directories do not yet exist — those languages will be generated from specs alone.
+- **Reference Linux scaffolding complete**: Zero-length files exist for C, Go, Python, Rust in `reference_linux/`.
 
 #### Phase 4: Verification and Documentation
 1. Run `verify_binary_symmetry.sh` for C (Linux distros)
@@ -386,7 +386,7 @@ All platform source code MUST be generated **independently** from the common spe
 ### Excluded Platforms
 FreeBSD 15 is excluded from active development. Its prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
 
-FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain full spec files and source code. Do not modify FreeBSD 14 **C/C++** prompt directories (`build.md`, `functional.md`, `testing.md` remain zero-length). Python/Java per-OS prompt directories may contain placeholder text (non-zero `testing.md`, `build.md`, `functional.md`) — this is allowed and recommended to prevent zero-length file confusion.
+FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain full spec files and source code. Do not modify FreeBSD 14 **C/C++** prompt directories (`build.md`, `functional.md`, `testing.md` remain zero-length). Python, Java, C, Go, and Rust per-OS prompt directories may contain placeholder text (non-zero `testing.md`, `build.md`, `functional.md`) — this is allowed and recommended to prevent zero-length file confusion.
 
 ### Arch Linux (Linux-Hosts-Only)
 Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
