@@ -10,8 +10,8 @@ ALL_COMPILERS := g++ clang++
 AVAILABLE_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
   $(if $(shell which $(COMP) >/dev/null 2>&1 && echo found),$(COMP)))
 
-# Default compiler (first available)
-CXX := $(firstword $(AVAILABLE_COMPILERS))
+# Default compiler (first available) — ?= respects CXX from environment
+CXX ?= $(firstword $(AVAILABLE_COMPILERS))
 
 # ============================================================================
 # Per-compiler LTO flags: g++ uses -flto, clang++ uses -flto=thin
@@ -31,13 +31,14 @@ endef
 
 $(eval $(COMPILER_LTO_FLAGS))
 
-override CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic $(LTO_FLAG) -I.
+override CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic $(LTO_FLAG) \
+           -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 
 # Linker flags: ELF format (Linux)
 ifeq ($(strip $(CXX)),g++)
   LDFLAGS = -Wl,--gc-sections
 else ifeq ($(strip $(CXX)),clang++)
-  LDFLAGS = -flto=thin
+  LDFLAGS = -Wl,--gc-sections -flto=thin
 endif
 
 RM = rm -rf
@@ -45,15 +46,22 @@ RM = rm -rf
 SRCS = $(wildcard *.cpp)
 OBJS = $(SRCS:%.cpp=%.o)
 
+LIB_NAME = libswtr_ringbuffer
 LIB_DIR = lib
 BUILD_DIR = build
 
 VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).so
 
-.PHONY: all clean verify test-all
+.PHONY: all static shared clean dist-clean verify test-all
 
 all: $(LIB_DIR) $(BUILD_DIR) $(VERSIONED_STATIC) $(VERSIONED_SHARED)
+
+static: $(VERSIONED_STATIC)
+	@cd $(LIB_DIR) && ln -sf libswtr_ringbuffer-$(VERSION).a libswtr_ringbuffer.a
+
+shared: $(VERSIONED_SHARED)
+	@cd $(LIB_DIR) && ln -sf libswtr_ringbuffer-$(VERSION).so libswtr_ringbuffer.so
 
 $(LIB_DIR):
 	mkdir -p $(LIB_DIR)
@@ -62,6 +70,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 %.o: %.cpp
+	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(VERSIONED_STATIC): $(OBJS)
@@ -69,14 +78,18 @@ $(VERSIONED_STATIC): $(OBJS)
 	@echo "Static library: $@"
 
 $(VERSIONED_SHARED): $(OBJS)
-	$(CXX) -shared $(LDFLAGS) -o $@ $^ -pthread
+	$(CXX) -shared $(LDFLAGS) -Wl,-soname,$(LIB_NAME).so -o $@ $^ -pthread
 	@ln -sf libswtr_ringbuffer-$(VERSION).so $(LIB_DIR)/libswtr_ringbuffer.so
 	@ln -sf libswtr_ringbuffer-$(VERSION).so $(LIB_DIR)/libswtr_ringbuffer.so.1
 	@echo "Shared library: $@"
 
 clean:
-	$(RM) $(OBJS) $(VERSIONED_STATIC) $(VERSIONED_SHARED)
-	$(RM) $(LIB_DIR) $(BUILD_DIR)
+	$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
+	@find . -name '*.o.tmp' -delete 2>/dev/null || true
+
+dist-clean: clean container-clean
+	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
+	@$(RM) reports ../reports logs
 
 verify: all
 	@echo "=== Static Library ==="
@@ -120,6 +133,7 @@ $(foreach COMP,$(AVAILABLE_COMPILERS),$(eval $(call PER_COMPILER_BUILD_TARGETS,$
 test-all:
 	@$(foreach COMP,$(AVAILABLE_COMPILERS),\
 		echo "=== Building with $(COMP) ==="; \
+		CXX=$(COMP) make clean; \
 		CXX=$(COMP) make all; \
 		echo "=== Verify $(COMP) ==="; \
 		CXX=$(COMP) make verify; \

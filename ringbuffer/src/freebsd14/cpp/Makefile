@@ -1,13 +1,14 @@
-include version.mk
+.include "version.mk"
 
 # Toolchain configuration — FreeBSD clang++ (only compiler available)
-CXX := clang++
+CXX = clang++
 
 # LTO flag: always -flto=thin on FreeBSD (no g++ special case)
 LTO_FLAG = -flto=thin
 
 # FreeBSD: clang++ uses libc++ by default (headers available)
-CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic ${LTO_FLAG} -fvisibility=hidden -ffunction-sections -fdata-sections -I. -pthread
+CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic ${LTO_FLAG} \
+           -fvisibility=hidden -ffunction-sections -fdata-sections -I. -pthread
 
 # Linker flags: FreeBSD uses ELF, same as Linux
 LDFLAGS = -Wl,--gc-sections
@@ -53,6 +54,7 @@ ${VERSIONED_SHARED}: ${OBJS}
 
 clean:
 	${RM} ${BUILD_DIR} ${LIB_DIR} *.o *~ #*#
+	@find . -name '*.o.tmp' | xargs rm -f 2>/dev/null || true
 
 dist-clean: clean
 .if exists(tests)

@@ -128,6 +128,18 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 
 **macOS is native-only.** It never uses containers, Dockerfiles, or `container` targets. All builds and tests run on the host using native toolchains (Clang, `make`, `ar`).
 
+**macOS Shell & Make — Critical for Local Builds:**
+- **Default shell is zsh** (since macOS Catalina 10.15), NOT bash. Scripts should use `#!/usr/bin/env zsh` or `#!/usr/bin/env bash`.
+- **`make` on macOS is BSD make** (not GNU make). Same syntax constraints as FreeBSD: `${VAR}`, `.include`, explicit file lists — no `$(wildcard)`, no `ifeq/else`.
+- **GNU make must be installed via Homebrew** as `gmake`. Do NOT assume `make` is GNU make on macOS.
+- **Homebrew paths differ by CPU architecture:**
+  - Apple Silicon (M1/M2/M3): `/opt/homebrew/bin/`
+  - Intel: `/usr/local/bin/`
+- **`date` on macOS is BSD date** — supports `%z` for timezone offset (same as FreeBSD). Use `date '+%Y-%m-%d %H:%M:%S %z'`.
+- **No `lipo`/`otool` equivalent on FreeBSD** — use `readelf`, `file`, `nm` instead.
+- **Universal binaries:** macOS supports fat/universal binaries (`lipo -create`) combining arm64 + x86_64. FreeBSD and Linux do not.
+- **Makefile recipe shell:** `make` on macOS invokes `/bin/sh -c` for recipes. On macOS, `/bin/sh` is a compatibility shim that invokes `zsh` in POSIX mode. Bash builtins (arrays, `<<<`, `[[ ]]`) are **not available** in Makefile recipes on macOS — same restriction as Linux.
+
 ## 5. Language Standards and Classification
 
 ### Language Version Requirements
@@ -406,8 +418,27 @@ FreeBSD 15 is excluded from active development. Its prompt directories contain e
 
 FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain placeholder text pointing to `prompts/freebsd/cpp/` (generic FreeBSD 14.x/15.x spec) and `prompts/common/cpp/` (common specs). Python, Java, C, Go, and Rust per-OS prompt directories contain non-zero placeholder text pointing to common specs — this is allowed and recommended to prevent zero-length file confusion.
 
+**FreeBSD 14 Shell & Make — Critical for Remote Builds:**
+- **Default shell is tcsh** (`/bin/tcsh`), NOT bash or sh. This affects how SSH commands are interpreted.
+- **`make` on FreeBSD uses tcsh** for recipe execution (not bash/sh). Shell redirects like `2>&1`, `> file`, `|` may not work as expected in interactive SSH sessions.
+- **When running commands via SSH on FreeBSD 14, wrap shell redirects in `bash -c "..."`:**
+  ```bash
+  ssh ebruno@10.10.41.244 'bash -c "cd ~/ringbuffer/src/freebsd14/cpp && make all 2>&1"'
+  ```
+- **`gmake` is NOT installed** on FreeBSD 14. Only BSD make is available — all Makefiles MUST use BSD syntax (`${VAR}`, `.include`, `.if/.endif`, explicit file lists — no `$(wildcard)`, no `ifeq/else`).
+- **`version.mk` on FreeBSD must use `${VAR}` syntax**, not GNU `$(VAR)`, because it is included by BSD make.
+- **Available shells on FreeBSD 14:** tcsh (default), bash (`/usr/local/bin/bash`), sh (`/bin/sh`). zsh is NOT installed.
+- **Makefile recipe shell:** `make` on FreeBSD invokes `/bin/sh -c` for recipes. On FreeBSD 14, `/bin/sh` is the BSD `sh` (not bash). Bash builtins (arrays, `<<<`, `[[ ]]`) are **not available** in Makefile recipes on FreeBSD.
+- See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for full shell availability details.
+
 ### Arch Linux (Linux-Hosts-Only)
 Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
+
+**CXX override pattern:** The Arch Linux Makefile uses `CXX ?= $(firstword $(AVAILABLE_COMPILERS))` — the `?=` means it respects an already-set CXX. To build with clang++ (default is g++, first alphabetically), use:
+```bash
+make CXX=clang++ all    # ✅ Works — command-line override respected
+```
+Do NOT use `export CXX=clang++` before `make` — that does not work because the Makefile's auto-detection runs unconditionally with `:=`. The `?=` fix (applied 2026-08-19) allows command-line override but not environment variable override from the calling shell.
 
 ### SSH Remote Transfer Rule (All Platforms)
 When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
@@ -416,6 +447,34 @@ When testing on a remote system via SSH, the following files must be transferred
 - **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"` and `ssh <host> "rm -rf <dest>/src/common/python/*"` before the transfer.
 - **Transfer**: Use `scp -r` or `rsync -avz` to copy the cleaned directories from the host to the remote.
 - **Verify**: After transfer, confirm file counts and sizes match between host and remote.
+
+### Remote Build/Testing Workflow (Enforced)
+When building or running regression tests on a remote system via SSH, **always** follow this sequence:
+
+1. **Make changes locally.** All source edits happen in the workspace on the local machine (git-tracked, reviewable).
+2. **Create a tarball** of the files needed for build or regression test:
+   ```bash
+   tar -czf /tmp/ringbuffer_<target>.tar.gz src/<os>/cpp/ prompts/common/cpp/
+   ```
+3. **SSH to remote → clean workspace** (delete old files):
+   ```bash
+   ssh <host> "rm -rf ~/source_code/codesamples/ringbuffer/src/<os>/cpp/*"
+   ```
+4. **SCP tarball over → unpack on remote**:
+   ```bash
+   scp /tmp/ringbuffer_<target>.tar.gz <host>:~/source_code/codesamples/ringbuffer/
+   ssh <host> "cd ~/source_code/codesamples/ringbuffer && tar -xzf ringbuffer_<target>.tar.gz"
+   ```
+5. **Run build/test remotely**:
+   ```bash
+   ssh <host> "cd ~/source_code/codesamples/ringbuffer/src/<os>/cpp && make all"
+   ```
+
+**Rules:**
+- **Never edit files directly on the remote.** All changes start locally.
+- **Always clean before unpacking** to avoid stale files from previous builds.
+- **Use tarball + SCP** (not `scp -r` of individual files) for reliable, atomic transfers.
+- **Verify after transfer** — confirm file counts and sizes match between local tarball contents and remote unpacked files.
 
 ### Python Makefiles by Family (GNU vs BSD)
 The Python implementation uses different Makefile syntax for GNU make and BSD make systems:
