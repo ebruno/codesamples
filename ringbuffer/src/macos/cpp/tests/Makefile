@@ -80,7 +80,7 @@ verify: deploy_utils all
 	@$(BIN_DIR)/test001_staticlib -t 2 -o $(LOG_DIR)/t007_out.txt -l $(LOG_DIR)/t007.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t007.exit
 	@diff -q $(LOG_DIR)/t007_out.txt data/expected/t007_out.txt > /dev/null 2>&1 && echo "T007: PASS (output match)" || echo "T007: FAIL (output mismatch)"
 	@# Generate Reports (Markdown + JUnit XML)
-	@./utils/bin/generate_junit_report.zsh
+	@./utils/bin/generate_junit_report.zsh -o $(REPORT_DIR)/cpp/per_os/macos_regression_report_junit.xml
 	@echo "Verification complete."
 
 # ============================================================================
@@ -152,7 +152,7 @@ verify-with-CXX: deploy_utils
 	@$(BIN_DIR)/test001_staticlib_$(CXX) -t 2 -o $(LOG_DIR)/t007_out.txt -l $(LOG_DIR)/t007.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t007.exit
 	@diff -q $(LOG_DIR)/t007_out.txt data/expected/t007_out.txt > /dev/null 2>&1 && echo "T007: PASS (output match)" || echo "T007: FAIL (output mismatch)"
 	@# Generate Reports (Markdown + JUnit XML)
-	@./utils/bin/generate_junit_report.zsh
+	@./utils/bin/generate_junit_report.zsh -o $(REPORT_DIR)/cpp/per_os/macos_regression_report_junit.xml
 	@echo "Verification complete."
 
 test-report-init:

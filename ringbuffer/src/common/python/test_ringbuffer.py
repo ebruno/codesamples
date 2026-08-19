@@ -11,6 +11,8 @@ Examples:
     python3 test_ringbuffer.py 2 1 1      # T002: Stress test (1 slot, 1-byte buffer)
 """
 
+import argparse
+import datetime
 import os
 import sys
 import tempfile
@@ -404,34 +406,26 @@ def run_test007(num_slots, buffer_size):
             os.unlink(out_path)
 
 
+def parse_args():
+    """Parse command-line arguments including optional --junit flag."""
+    parser = argparse.ArgumentParser(description='Ring buffer test harness (Concurrent)')
+    parser.add_argument('test_number', type=int, help='Test number (1-7)')
+    parser.add_argument('num_slots', type=int, nargs='?', default=DEFAULT_NUM_SLOTS,
+                        help=f'Number of buffer slots (default: {DEFAULT_NUM_SLOTS})')
+    parser.add_argument('buffer_size', type=int, nargs='?', default=DEFAULT_BUFFER_SIZE,
+                        help=f'Buffer size per slot in bytes (default: {DEFAULT_BUFFER_SIZE})')
+    parser.add_argument('--junit', type=str, default=None,
+                        help='Path to JUnit XML output file (appends <testcase> element)')
+    return parser.parse_args()
+
+
 def main():
     """Main entry point — dispatches to the specified test."""
-    if len(sys.argv) < 2:
-        print("Usage: python3 test_ringbuffer.py <test_number> [num_slots] [buffer_size]", file=sys.stderr)
-        sys.exit(1)
+    args = parse_args()
 
-    try:
-        test_number = int(sys.argv[1])
-    except ValueError:
-        print(f"ERROR: Invalid test number: {sys.argv[1]}", file=sys.stderr)
-        sys.exit(1)
-
-    num_slots = DEFAULT_NUM_SLOTS
-    buffer_size = DEFAULT_BUFFER_SIZE
-
-    if len(sys.argv) >= 3:
-        try:
-            num_slots = int(sys.argv[2])
-        except ValueError:
-            print(f"ERROR: Invalid num_slots: {sys.argv[2]}", file=sys.stderr)
-            sys.exit(1)
-
-    if len(sys.argv) >= 4:
-        try:
-            buffer_size = int(sys.argv[3])
-        except ValueError:
-            print(f"ERROR: Invalid buffer_size: {sys.argv[3]}", file=sys.stderr)
-            sys.exit(1)
+    test_number = args.test_number
+    num_slots = args.num_slots
+    buffer_size = args.buffer_size
 
     # Validate parameters
     if num_slots < 1:
@@ -443,7 +437,6 @@ def main():
         sys.exit(1)
 
     # Run the specified test
-    success = False
     try:
         if test_number == 1:
             success = run_test001(num_slots, buffer_size)
@@ -465,10 +458,61 @@ def main():
 
         if success:
             print(f"Test {test_number} PASSED")
-            sys.exit(0)
+            status = "passed"
         else:
             print(f"Test {test_number} FAILED")
-            sys.exit(1)
+            status = "failed"
+
+        # Write JUnit XML if requested
+        junit_file = args.junit
+        if junit_file:
+            test_id = f"T00{test_number}"
+            descriptions = {
+                1: "Default (identity transform)",
+                2: "Stress test (1 slot, 1-byte buffer)",
+                3: "Uppercase transform",
+                4: "Small input, fast EOF",
+                5: "Fatal error mode",
+                6: "Non-fatal error mode",
+                7: "XOR transform (bit-inverted)",
+            }
+            description = descriptions.get(test_number, f"Test {test_number}")
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            testcase_xml = (
+                f'  <testcase name="{test_id}" classname="swtr_ringbuffer" '
+                f'time="0.001" timestamp="{timestamp}">\n'
+                f'    <system-out>{description}</system-out>\n'
+            )
+            if status == "failed":
+                testcase_xml += f'    <failure message="Test {test_id} failed"/>\n'
+            testcase_xml += f'  </testcase>\n'
+
+            # Append to JUnit file (create if not exists)
+            junit_dir = os.path.dirname(junit_file)
+            if junit_dir:
+                os.makedirs(junit_dir, exist_ok=True)
+
+            # Check if file exists and has content
+            if os.path.exists(junit_file) and os.path.getsize(junit_file) > 0:
+                with open(junit_file, 'r') as f:
+                    existing = f.read()
+                # Insert before </testsuites>
+                if '</testsuites>' in existing:
+                    existing = existing.replace('</testsuites>', testcase_xml + '</testsuites>')
+                else:
+                    # Append new testsuite
+                    existing += testcase_xml + '</testsuites>\n'
+                with open(junit_file, 'w') as f:
+                    f.write(existing)
+            else:
+                # Create new JUnit file
+                with open(junit_file, 'w') as f:
+                    f.write(f'<?xml version="1.0" encoding="UTF-8"?>\n')
+                    f.write(f'<testsuites name="ringbuffer_concurrent" tests="1" failures="0" errors="0">\n')
+                    f.write(testcase_xml)
+                    f.write(f'</testsuites>\n')
+
+        sys.exit(0 if success else 1)
 
     except Exception as e:
         print(f"ERROR: Test {test_number} raised exception: {e}", file=sys.stderr)

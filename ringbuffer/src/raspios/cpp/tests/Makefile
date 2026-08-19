@@ -151,7 +151,7 @@ verify: static dynamic validate-data deploy-utils
 	echo "End Time: $$end_time"; \
 	echo ""; \
 	echo "=== Generating JUnit Report ==="; \
-	$(UTILS_DIR)/bin/generate_junit_report.sh -l $(LOGS_DIR) -o $(REPORTS_DIR)/regression_report_junit.xml || echo "WARNING: JUnit report generation failed"; \
+	$(UTILS_DIR)/bin/generate_junit_report.sh -l $(LOGS_DIR) -o $(REPORTS_DIR)/cpp/per_os/raspios_regression_report_junit.xml || echo "WARNING: JUnit report generation failed"; \
 	echo ""; \
 	echo "=== Generating Regression Report ==="; \
 	{ \
@@ -243,7 +243,7 @@ verify-with-CXX: validate-data deploy-utils
 	echo "End Time: $$end_time"; \
 	echo ""; \
 	echo "=== Generating JUnit Report ==="; \
-	$(UTILS_DIR)/bin/generate_junit_report.sh -l $(LOGS_DIR) -o $(REPORTS_DIR)/regression_report_junit.xml || echo "WARNING: JUnit report generation failed"; \
+	$(UTILS_DIR)/bin/generate_junit_report.sh -l $(LOGS_DIR) -o $(REPORTS_DIR)/cpp/per_os/raspios_regression_report_junit.xml || echo "WARNING: JUnit report generation failed"; \
 	echo ""; \
 	echo "=== Generating Regression Report ==="; \
 	{ \

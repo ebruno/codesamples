@@ -206,7 +206,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       - **Verify Artifacts**:
         - Confirm that both `test001_staticlib` and `test001_dynamiclib` exist in the `tests/bin/` directory. If either is missing, STOP and report a build failure.
         - Confirm that the `make verify` target in the test Makefile completed successfully (this includes library artifact verification, full test matrix execution, and report generation).
-        - **JUnit Report**: Confirm that `tests/reports/regression_report_junit.xml` was generated and follows the required JUnit XML structure.
+        - **JUnit Report**: Confirm that `reports/cpp/per_os/<os>_regression_report_junit.xml` was generated and follows the required JUnit XML structure.
       - **Evaluate**: If any step fails, follow the procedure below. Do NOT loop indefinitely.
 
          **Build/Verification Failure Procedure:**
@@ -246,7 +246,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       - Log results to `build.log`.
 
    4. **Report Generation**:
-      - Generate the Markdown regression report at `tests/reports/regression_report.md` using the following format:
+      - Generate the Markdown regression report at `reports/cpp/per_os/<os>_regression.md` and JUnit XML at `reports/cpp/per_os/<os>_regression_report_junit.xml` using the following format:
 
         ```markdown
         # Regression Verification Report - [Full Platform Name] (use the full platform name from `testing.md`, e.g., 'Fedora 44', 'Debian 13', 'Ubuntu 24.04 LTS')
@@ -284,7 +284,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
         - **Artifacts Verified**: [Yes/No] (Architecture, SONAME/Install Name, Binary Size)
         ```
 
-      - Generate the JUnit XML report at `tests/reports/regression_report_junit.xml` following the mandated JUnit XML structure, including per-test `<testcase time="...">` attributes and a `<system-out>` summary with total execution time.
+      - Generate the JUnit XML report at `reports/cpp/per_os/<os>_regression_report_junit.xml` following the mandated JUnit XML structure, including per-test `<testcase time="...">` attributes and a `<system-out>` summary with total execution time.
       - Log report generation to `build.log`.
 
    5. **State Tracking**:
@@ -328,6 +328,10 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - Linux host: `command -v podman` — if not found, STOP.
   3. **Execute Tests**:
      - **Native**: Navigate to `src/common/java/`, then run tests directly.
+       After Maven completes, copy JUnit XML to the reports directory:
+       ```bash
+       cp target/surefire-reports/TEST-*.xml reports/java/per_os/<os>_regression_report_junit.xml
+       ```
      - **Container**: Run in a container matching the target OS:
        - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/java/containers/<os>/Dockerfile | sed 's/^FROM //')`
        - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
@@ -389,7 +393,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   - Compute SHA-256 hashes of `pom.xml` and `version.mk`.
 
   **Java Report Generation** (after all target OSes complete):
-  - Generate the Markdown regression report at `src/common/java/reports/regression_report.md` using the following format:
+  - Generate the Markdown regression report at `reports/java/per_os/<os>_regression.md` and copy JUnit XML from `target/surefire-reports/TEST-*.xml` to `reports/java/per_os/<os>_regression_report_junit.xml` using the following format:
 
     ```markdown
     # Regression Verification Report — Java
@@ -431,7 +435,8 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     - **JAR Artifact**: `target/ringbuffer-*.jar` exists and is non-empty.
     - **Test Reports**: `target/surefire-reports/` directory exists and contains test result files.
     - **No Test Failures**: surefire output shows 0 failures (check `target/surefire-reports/*.txt` for "Failures:" or "Errors:").
-    - **Reports Generated**: `src/common/java/reports/regression_report.md` exists.
+    - **Reports Generated**: `reports/java/per_os/<os>_regression.md` exists.
+    - **JUnit XML**: `reports/java/per_os/<os>_regression_report_junit.xml` exists (copied from `target/surefire-reports/TEST-*.xml`).
     - **State File**: `src/common/java/.gen_state.json` was created/updated.
 
   ---
@@ -457,6 +462,22 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
        1. Attempts to build the C++ shared library from `src/<os>/cpp/` (target-host-specific).
        2. If the C++ build fails, gracefully falls back to Pure Python tests only.
        3. Logs all results (including skip reasons) to `logs/build.log`.
+     - **JUnit Generation**: After running tests, generate JUnit XML by executing both test harnesses with `--junit` flag:
+       ```bash
+       # Clear any existing JUnit file
+       rm -f reports/python/per_os/<os>_regression_report_junit.xml
+       # Run Concurrent tests (T001-T007)
+       for t in 1 2 3 4 5 6 7; do
+           echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | \
+           python3 test_ringbuffer.py $t --junit reports/python/per_os/<os>_regression_report_junit.xml || exit 1
+       done
+       # Run Pure Python tests (T001-T007) — appends to same file
+       for t in 1 2 3 4 5 6 7; do
+           echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | \
+           python3 test_ringbuffer_pure.py $t --junit reports/python/per_os/<os>_regression_report_junit.xml || exit 1
+       done
+       ```
+       The JUnit file will contain two `<testsuite>` elements: one for `ringbuffer_concurrent` and one for `ringbuffer_pure_python`, each with 7 `<testcase>` elements.
      - **Container**: Run in a container matching the target OS:
        - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
        - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
@@ -527,7 +548,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   - Compute SHA-256 hashes of `version.mk`, both test modules, and both test scripts.
 
   **Python Report Generation** (after all target OSes complete):
-  - Generate the Markdown regression report at `src/common/python/reports/regression_report.md` using the following format:
+  - Generate the Markdown regression report at `reports/python/per_os/<os>_regression.md` and JUnit XML at `reports/python/per_os/<os>_regression_report_junit.xml` using the following format:
 
     ```markdown
     # Regression Verification Report — Python
@@ -609,9 +630,16 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     - **Concurrent Test Script**: `test_ringbuffer.py` exists, is executable (or readable by python3), and exits 0.
     - **Pure Python Test Script**: `test_ringbuffer_pure.py` exists, is executable (or readable by python3), and exits 0.
     - **No Test Failures**: Pure Python test script shows 0 failures (7/7 passed). Concurrent: 7/7 passed on GNU make systems; SKIPPED on FreeBSD 14 (RPATH limitation).
-    - **Reports Generated**: `src/common/python/reports/regression_report.md` exists.
+    - **Reports Generated**: `reports/python/per_os/<os>_regression.md` exists.
+    - **JUnit XML**: `reports/python/per_os/<os>_regression_report_junit.xml` exists (contains both Concurrent and Pure Python results).
     - **State File**: `src/common/python/.gen_state.json` was created/updated.
     - **C++ Build Status Noted**: Report includes C++ build status (SUCCESS or SKIPPED with reason) in the Audit Trail section.
+
+**Final Aggregation** (after all languages complete):
+- Run `reports/aggregate_junit.sh` to merge all per-OS JUnit XML files into:
+  - `reports/junit/aggregated.xml` — single merged JUnit document with `os` and `lang` attributes
+  - `reports/junit/aggregated.html` — human-readable HTML summary viewable in a browser
+- This step is optional but recommended for consolidated review.
 
 **Directives:**
 1. Use `prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).

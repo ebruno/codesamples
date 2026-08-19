@@ -253,7 +253,7 @@ Verify that all implemented languages build successfully across supported operat
    ---
 
    **1. Report Generation**:
-   - For C/C++: Generate a build verification report at `src/<os>/reports/build_verify_report.md` with the following format:
+   - For C/C++: Generate a build verification report at `reports/cpp/per_os/<os>_build_verify.md` and JUnit XML at `reports/cpp/per_os/<os>_regression_report_junit.xml` (if applicable) with the following format:
      ```markdown
      # Build Verification Report - [OS Name] <version> — C/C++
      **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
@@ -275,7 +275,7 @@ Verify that all implemented languages build successfully across supported operat
      ## Notes
      - Any additional notes about the build process.
      ```
-   - For Java: Generate a build verification report at `src/common/java/reports/build_verify_report.md` with the following format:
+   - For Java: Generate a build verification report at `reports/java/per_os/<os>_build_verify.md` and copy JUnit XML from `target/surefire-reports/TEST-*.xml` to `reports/java/per_os/<os>_regression_report_junit.xml` with the following format:
      ```markdown
      # Build Verification Report — Java
      **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
@@ -293,7 +293,7 @@ Verify that all implemented languages build successfully across supported operat
      ## Notes
      - Any additional notes about the build process.
      ```
-   - For Python: Generate a build verification report at `src/common/python/reports/build_verify_report.md` with the following format:
+   - For Python: Generate a build verification report at `reports/python/per_os/<os>_build_verify.md` and JUnit XML at `reports/python/per_os/<os>_regression_report_junit.xml` with the following format:
      ```markdown
      # Build Verification Report — Python
      **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
@@ -375,7 +375,12 @@ Verify that all implemented languages build successfully across supported operat
    - Calculate and include the total elapsed time since the start timestamp in each final entry.
 
 **Reporting:**
-Once verification is complete, generate a summary report at `src/<os>/reports/build_verify_report.md` (C/C++) or `src/common/<lang>/reports/build_verify_report.md` (Java/Python).
+Once verification is complete:
+1. Generate the per-OS report at `reports/<lang>/per_os/<os>_build_verify.md` (Java/Python) or `reports/cpp/per_os/<os>_build_verify.md` (C/C++).
+2. Generate JUnit XML at `reports/<lang>/per_os/<os>_regression_report_junit.xml` (Java/Python) or copy from test harness output (C/C++).
+3. Update the consolidated summary at `reports/<lang>/build_verify.md` by merging all per-OS results into a single table.
+4. Append to `src/common/<lang>/logs/build.log` with the target OS noted.
+5. After all languages complete, run `reports/aggregate_junit.sh` to merge all JUnit XML files into `reports/junit/aggregated.xml` and generate `reports/junit/aggregated.html`.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `.cpp`, `.hpp`, or `Makefile`), such as `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
