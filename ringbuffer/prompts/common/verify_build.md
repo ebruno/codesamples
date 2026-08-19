@@ -187,7 +187,7 @@ Verify that all implemented languages build successfully across supported operat
         - macOS host: `command -v container` — if not found, STOP.
         - Linux host: `command -v podman` — if not found, STOP.
      3. **Execute Verification**:
-        - **Native**: Navigate to `src/common/python/`, then run the verification steps directly.
+        - **Native**: Navigate to `src/common/python/`, then run `make build` to compile the C++ shared library and create the symlink in `lib/`. If the C++ build fails (e.g., no C++ source directory), note it and continue — Pure Python tests still apply. Then run the verification steps below.
         - **Container**: Run in a container matching the target OS:
           - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
           - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
