@@ -127,7 +127,7 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 | Category | Languages | Prompt Structure | Rationale |
 |----------|-----------|-----------------|-----------|
 | **Platform-sensitive** | `c`, `cpp` | Common spec + per-OS overrides. Source code differs across platforms (threading, I/O, build flags). | Requires platform-specific concurrency primitives (`pthread` on both but different threading library availability), I/O multiplexing (`epoll` vs `kqueue`), and build flags (shared lib naming, linker options, universal binary on macOS). |
-| **Platform-insensitive** | `python`, `java`, `go`, `rust` | Single common spec. Per-OS directories contain zero-length or minimal override files only. Source code is identical everywhere. | Standard library abstracts platform differences; build config (`Cargo.toml`, `pom.xml`, `go.mod`) is identical across platforms. Python implementation is **pure Python** (no C-extension wrapping). Rust uses Unix-family abstractions (`std::sync::atomic`, `std::thread`, `libc`) that work identically on macOS and Linux. |
+| **Platform-insensitive** | `python`, `java`, `go`, `rust` | Single common spec. Per-OS directories contain placeholder text in `build.md`, `functional.md`, and `testing.md` (pointing to the common spec). Source code is identical everywhere. | Standard library abstracts platform differences; build config (`Cargo.toml`, `pom.xml`, `go.mod`) is identical across platforms. Python implementation is **pure Python** (no C-extension wrapping). Rust uses Unix-family abstractions (`std::sync::atomic`, `std::thread`, `libc`) that work identically on macOS and Linux. |
 
 ### Language-Specific Build Systems
 | Language | Build System | Artifact Output |
@@ -183,8 +183,8 @@ Every implementation must satisfy these requirements regardless of language:
 | Python common specs | ✅ `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) created |
 | Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
 | `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,050 bytes) created — Phase 2 complete |
-| Per-OS language directories | ✅ Zero-length files exist for all languages/OSes (macos, fedora, debian, ubuntu) |
-| `reference_linux` scaffolding | ⚠️ Only exists for C++ — needs zero-length files for C, Python, Rust |
+| Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios, freebsd14) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). Java and Python both follow this pattern; C/C++ per-OS prompts contain full platform-specific specs. |
+| `reference_linux` scaffolding | ⚠️ Only exists for C++ — needs zero-length files for C, Python, Rust. `reference_linux/python/` created (zero-length). |
 
 ### Implementation Phases
 
@@ -386,7 +386,7 @@ All platform source code MUST be generated **independently** from the common spe
 ### Excluded Platforms
 FreeBSD 15 is excluded from active development. Its prompt directories contain only zero-length `build.md`, `functional.md`, and `testing.md` files. If any non-zero content exists, remove it.
 
-FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain full spec files and source code. Do not modify FreeBSD 14 prompt directories.
+FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain full spec files and source code. Do not modify FreeBSD 14 **C/C++** prompt directories (`build.md`, `functional.md`, `testing.md` remain zero-length). Python/Java per-OS prompt directories may contain placeholder text (non-zero `testing.md`, `build.md`, `functional.md`) — this is allowed and recommended to prevent zero-length file confusion.
 
 ### Arch Linux (Linux-Hosts-Only)
 Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.

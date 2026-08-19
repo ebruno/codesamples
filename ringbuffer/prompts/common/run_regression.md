@@ -14,7 +14,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
    - **Host-OS Auto-Detection**: At the start of every run, detect the host OS:
      - If `uname -s` returns `Darwin`, set `host_os = macOS`.
      - If it returns `Linux`, read the distro ID from `/etc/os-release`: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
-     - Supported Linux distros: `ubuntu`, `debian`, `fedora`, `raspios`.
+     - Supported Linux distros: `ubuntu`, `debian`, `fedora`, `raspios`, `archlinux`.
    - **Targeting**:
      - **Specified Platform + Language**: If the user specifies a language and platform (e.g., "run regression for java on fedora"), run tests only for that language on that OS. Run natively if host matches target; use container if host doesn't match.
      - **Specified Platform Only**: If the user specifies a platform but no language (e.g., "run regression for debian"), run tests for all implemented languages on that OS. Run natively if host matches target; use container if host doesn't match.
@@ -37,11 +37,26 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      | raspios | raspios | Run natively (arm64 native on Apple Silicon) |
      | raspios | debian/fedora/ubuntu | Use `podman` to run in target OS container |
      | raspios | macos | **Skip** — macOS cannot be containerized |
+     | macOS | archlinux | **Skip** — Arch Linux is Linux-hosts-only (no container images for Apple Silicon) |
+     | Fedora | archlinux | Use `podman` to run in target OS container |
+     | Debian | archlinux | Use `podman` to run in target OS container |
+     | Ubuntu | archlinux | Use `podman` to run in target OS container |
+     | raspios | archlinux | Use `podman` to run in target OS container |
+     | Arch Linux | archlinux | Run natively (Linux-hosts-only) |
+     | Arch Linux | macos | **Skip** — macOS cannot be containerized |
+     | freebsd14 | freebsd14 | Run natively (FreeBSD is native-only, no containers) |
+     | macOS | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on macOS |
+     | Fedora | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | Debian | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | Ubuntu | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | raspios | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | Arch Linux | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
    - **Mode Override**: If the request includes `use container`, force container execution for all non-macOS targets, overriding native routing.
    - **Container Runtime Selection**:
      - macOS host → use `container` command (Apple Container)
      - Linux host → use `podman`
    - **macOS is native-only**: macOS builds and tests NEVER use containers, regardless of host OS.
+   - **FreeBSD is native-only**: FreeBSD builds and tests NEVER use containers, regardless of host OS.
    - **Entry Point** (C/C++ only): When targeting a specific C/C++ OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
      - **If it exists**: Consult it for image resolution and platform-specific directives.
      - **If it does not exist**: Proceed with only `prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
@@ -428,7 +443,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   - BSD make systems (FreeBSD 14+): Use `src/<os>/python/Makefile` (per-OS directory with BSD-compatible Makefile)
 - **Determine target OSes to test**:
   - If a specific OS was requested → only that OS.
-  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
+  - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14) using the routing table.
 - For each target OS:
   1. **Routing Decision**: Apply the routing table from Step 1.
      - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
@@ -533,6 +548,11 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     | Target OS | Route | Python Version | Status | Notes |
     |-----------|-------|---------------|--------|-------|
     | macos | native | 3.14.x | [PASS/FAIL] | Both Concurrent and Pure Python tested |
+    | fedora | container | 3.x.x | [PASS/FAIL] | Both Concurrent and Pure Python tested |
+    | debian | container | 3.x.x | [PASS/FAIL] | Both Concurrent and Pure Python tested |
+    | ubuntu | container | 3.x.x | [PASS/FAIL] | Both Concurrent and Pure Python tested |
+    | archlinux | native | 3.x.x | [PASS/FAIL] | Linux-hosts-only — both Concurrent and Pure Python tested |
+    | raspios | container | 3.x.x | [PASS/FAIL] | Both Concurrent and Pure Python tested |
     | freebsd14 | native | 3.11.x | [PASS/FAIL] | Pure Python only — Concurrent skipped (FreeBSD 14 RPATH limitation) |
 
     **Note:** FreeBSD 14 Concurrent tests are skipped due to `ld-elf.so.1` stripping `$ORIGIN` from RUNPATH at runtime — dynamic library testing is not possible.
@@ -623,8 +643,8 @@ You MUST NOT:
 - **C/C++**: FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active C/C++ development (no native build toolchain on FreeBSD).
 - **Python/Java**: FreeBSD 14 Python is verified and active — regression testing IS executed for common languages on FreeBSD 14.
 - **ArchLinux**: Excluded from all active development (no container images for Apple Silicon).
-- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/`.
-- The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files.
-- If these directories contain any non-zero files, remove them.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/` **for C/C++**.
+- For **C/C++**: The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files. If these directories contain any non-zero C/C++ prompt files, remove them.
+- For **Python/Java**: Per-OS `testing.md` files may contain placeholder text (e.g., "Python is platform-insensitive — use common spec"). This is allowed and recommended to prevent zero-length file confusion.
 
 If the user wants to set up test infrastructure from scratch, they should use `prompts/common/implement_regression.md` instead.

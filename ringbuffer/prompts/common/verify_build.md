@@ -8,7 +8,7 @@ Verify that all implemented languages build successfully across supported operat
    - **Host-OS Auto-Detection**: At the start of every run, detect the host OS:
      - If `uname -s` returns `Darwin`, set `host_os = macOS`.
      - If it returns `Linux`, read the distro ID from `/etc/os-release`: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
-     - Supported Linux distros: `ubuntu`, `debian`, `fedora`, `raspios`.
+     - Supported Linux distros: `ubuntu`, `debian`, `fedora`, `raspios`, `archlinux`.
    - **Targeting**: 
      - **Specified Platform + Language**: If the user specifies a language and platform (e.g., "verify_build for java on fedora"), verify only that language on that OS. Run natively if host matches target; use container if host doesn't match.
      - **Specified Platform Only**: If the user specifies a platform but no language (e.g., "run build_verify for debian"), verify all implemented languages on that OS. Run natively if host matches target; use container if host doesn't match.
@@ -31,6 +31,20 @@ Verify that all implemented languages build successfully across supported operat
      | raspios | raspios | Run natively (arm64 native on Apple Silicon) |
      | raspios | debian/fedora/ubuntu | Use `podman` to run in target OS container |
      | raspios | macos | **Skip** — macOS cannot be containerized |
+     | macOS | archlinux | **Skip** — Arch Linux is Linux-hosts-only (no container images for Apple Silicon) |
+     | Fedora | archlinux | Use `podman` to run in target OS container |
+     | Debian | archlinux | Use `podman` to run in target OS container |
+     | Ubuntu | archlinux | Use `podman` to run in target OS container |
+     | raspios | archlinux | Use `podman` to run in target OS container |
+     | Arch Linux | archlinux | Run natively (Linux-hosts-only) |
+     | Arch Linux | macos | **Skip** — macOS cannot be containerized |
+     | freebsd14 | freebsd14 | Run natively (FreeBSD is native-only, no containers) |
+     | macOS | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on macOS |
+     | Fedora | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | Debian | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | Ubuntu | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | raspios | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
+     | Arch Linux | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
    - **Mode Override**: If the request includes `use container`, force container execution for all non-macOS targets, overriding native routing.
    - **Container Runtime Selection**:
      - macOS host → use `container` command (Apple Container)
@@ -163,7 +177,7 @@ Verify that all implemented languages build successfully across supported operat
    - Python is a **common language** — source lives in `src/common/python/` but must be verified on each supported OS.
    - **Determine target OSes to verify**:
      - If a specific OS was requested → only that OS.
-     - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
+     - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14) using the routing table.
    - For each target OS:
      1. **Routing Decision**: Apply the routing table from Step 1.
         - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
