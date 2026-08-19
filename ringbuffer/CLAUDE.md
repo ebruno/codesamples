@@ -179,10 +179,10 @@ Every implementation must satisfy these requirements regardless of language:
 | C++ common specs | ✅ `prompts/common/cpp/functional.md`, `build.md` complete |
 | Java common specs | ✅ `prompts/common/java/functional.md`, `build.md` created |
 | Go common specs | ✅ `prompts/common/go/functional.md`, `build.md` created |
-| C common specs | ✅ `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,088 bytes) created |
-| Python common specs | ✅ `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) created |
+| C common specs | ✅ `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,247 bytes) created |
+| Python common specs | ✅ `prompts/common/python/functional.md` (22,797 bytes), `build.md` (7,028 bytes) created |
 | Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
-| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,050 bytes) created — Phase 2 complete |
+| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,801 bytes) created — Phase 2 complete |
 | Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios, freebsd14) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). Java, Python, C, Go, and Rust all follow this pattern; C/C++ per-OS prompts contain full platform-specific specs. |
 | `reference_linux` scaffolding | ✅ Complete — zero-length files exist for C, Go, Python, Rust (`build.md`, `functional.md`, `testing.md`). |
 
