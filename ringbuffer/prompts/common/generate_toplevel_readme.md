@@ -59,18 +59,21 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
        - **### Pipeline Animation** — `animated_graphics/pipeline_animation.gif` (45 frames, 1000ms each, ~45s cycle)
    13. **## Initial Development Environment** — OS, Hardware (core count + RAM), AI Tools subsection: Agent Harness (name/version/commit), Model Name, Model Specs (parameter count, architecture, optimization method)
    14. **## Project Structure** — Deterministic file mapping strategy (max 3 functions per `.cpp` file). Per-OS `src/<os>/cpp/` includes `specs/` subdirectory. **reference_linux** as canonical reference platform in `prompts/reference_linux/`. Platform-insensitive languages: Java (`src/common/java/`), Python (`src/common/python/`). FreeBSD 14 Python (`src/freebsd14/python/`), Raspberry Pi OS Java (`src/raspios/java/`).
-   15. **## Developer & Maintainer Guide** — See Part A/B/E below
-   16. **## Supported Platforms** — OS-grouped table (OS, Language, Version, Verified Compilers). All platforms including FreeBSD 14/15. Footnote: `*TBS: To Be Supplied | WIP: Work In Progress`
-   17. **## Known Issues & Toolchain Limitations** — Ubuntu 24.04 clang++ unsupported, FreeBSD 14 RUNPATH limitation (static library only), Arch Linux amd64-only containers
-   18. **## Where We Are At** — Current implementation status per platform/language, verification results (binary symmetry, prompt linting), operational capabilities. Subsections:
+   15. **## Developer & Maintainer Guide** — See Part A/B/C/E below
+   16. **## Required Tools** — Per-OS toolchain requirements (compiler, make, binary analysis tools like otool/readelf)
+   17. **## Containerized Build Environment (if applicable)** — Base image, toolchain installation, container path
+   18. **## macOS Skip Logic (if applicable)** — Graceful skip with logging for Linux-hosts-only platforms
+   19. **## Supported Platforms** — OS-grouped table (OS, Language, Version, Verified Compilers). All platforms including FreeBSD 14/15. Footnote: `*TBS: To Be Supplied | WIP: Work In Progress`
+   20. **## Known Issues & Toolchain Limitations** — Ubuntu 24.04 clang++ unsupported, FreeBSD 14 RUNPATH limitation (static library only), Arch Linux amd64-only containers
+   21. **## Where We Are At** — Current implementation status per platform/language, verification results (binary symmetry, prompt linting), operational capabilities. Subsections:
        - **### Current Status (as of YYYY-MM-DD)** — C++ complete for macOS/Debian/Fedora/Ubuntu/Raspios/ArchLinux; Java/Python common implementations; C/Go/Rust pre-Phase A
        - **### What Works Today** — Auto-generated table: C++ library, Java library, Python library, Build system, Test infrastructure, Binary symmetry, Prompt linting, State tracking, Multi-language verify, Java regression, Changelog suggestions
-   19. **## Where We're Going** — Static roadmap (updated manually):
+   22. **## Where We're Going** — Static roadmap (updated manually):
        - **### Near-Term (Next Iterations)** — Additional languages C/Go/Rust, additional test patterns beyond zigzag, enhanced CI/CD
        - **### Medium-Term (Roadmap)** — FreeBSD 15 implementation, Arch Linux C++ source generation on Linux host, more comprehensive test coverage (concurrent access patterns, memory pressure, signal handling), documentation expansion
        - **### Long-Term (Vision)** — Full multi-language library, cross-platform verification suite comparing behavior across language/platform combinations, plugin ecosystem for custom transforms
-   20. **## Appendices** — Table of appendix files under `prompts/common/appendices/`: archlinux-platform-analysis.md, cpp-cross-compiler-compatibility.md, debian-platform-analysis.md, fedora-platform-analysis.md, freebsd-platform-analysis.md, freebsd14_java_verification.md, freebsd14_python_verification.md, macos-platform-analysis.md, raspios-platform-analysis.md, ubuntu-platform-analysis.md
-   21. **## License** — BSD 3-Clause License
+   23. **## Appendices** — Table of appendix files under `prompts/common/appendices/`: archlinux-platform-analysis.md, cpp-cross-compiler-compatibility.md, debian-platform-analysis.md, fedora-platform-analysis.md, freebsd-platform-analysis.md, freebsd14_java_verification.md, freebsd14_python_verification.md, macos-platform-analysis.md, raspios-platform-analysis.md, ubuntu-platform-analysis.md
+   24. **## License** — BSD 3-Clause License
 
 3. **Maintenance & Workflow (Developer/Maintainer Section)**:
    This section must be split into three parts:
@@ -251,23 +254,6 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
    - **Linux-Hosts-Only Platforms**: ArchLinux — C++ (macOS skip with logging)
    - **Footnote**: Immediately following the table, include this exact footnote:
      `*TBS: To Be Supplied | WIP: Work In Progress`
-
-5. **PDF Generation** (Post-Processing):
-   After the README is generated or updated, convert it to PDF. Mermaid diagrams are rendered as SVG images via `mmdc`, then embedded by pandoc.
-
-   - **Prerequisites**: pandoc (v3.x+), mmdc (mermaid-cli via npm), node.js, and lualatex must be installed.
-   - **Step 1 — Extract mermaid diagrams to SVG**:
-     ```bash
-     mmdc -i README.md -o README_diagrams.md -a diagrams --outputFormat svg
-     ```
-     This produces `diagrams/README_diagrams-1.svg` (the rendered diagram) and `README_diagrams.md` (a copy of README with mermaid blocks replaced by image references).
-   - **Step 2 — Generate PDF**:
-     ```bash
-     pandoc README_diagrams.md --pdf-engine=lualatex -o doc/README.pdf
-     ```
-   - **Output**: The PDF is written to `doc/README.pdf`.
-   - **When to regenerate**: Run both steps after any README update that adds or modifies mermaid diagrams, or when the content structure changes significantly.
-   - **Verification**: Open `doc/README.pdf` and confirm all mermaid diagrams render correctly with proper formatting.
 
 **Verification:**
 Ensure all placeholders are replaced with real-time detected data and that the formatting is professional, using clean Markdown tables and lists.

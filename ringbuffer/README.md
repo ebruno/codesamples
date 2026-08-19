@@ -533,7 +533,19 @@ The README.md is generated from a structured prompt that enforces a strict secti
 - *Prompt:* `prompts/common/generate_toplevel_readme.md`
 - *Syntax Example:* `"Use prompts/common/generate_toplevel_readme.md to regenerate the top-level README.md"`
 
-The prompt gathers environment data (OS, hardware, AI tooling), scans the platform matrix from `src/`, and assembles all sections including the Pipeline Architecture Diagram, API examples, Developer & Maintainer Guide, and Supported Platforms table.
+**When to regenerate:**
+- After adding or removing a platform/language implementation in `src/`
+- After updating version numbers (`version.mk`) on any platform
+- After adding new languages, test patterns, or prompt files
+- When the "What Works Today" status table needs refreshing (e.g., after fixing binary symmetry or prompt linting)
+- After restructuring the project directory layout
+
+**Updating the prompt itself:**
+`README.md` is the source of truth. `prompts/common/generate_toplevel_readme.md` must be kept in sync with it. When you edit README.md directly (which is common), use this prompt to have the agent sync both files:
+
+- *Syntax Example:* `"Use prompts/common/generate_toplevel_readme.md to sync the prompt with README.md as source of truth"`
+
+This tells the agent to read both files, compare their section structures, and update `generate_toplevel_readme.md`'s Content Structure list to match README.md's actual sections.
 
 **Pipeline Animation (`animated_graphics/bin/generate_pipeline_animation.py`)**
 Regenerates the `pipeline_animation.gif` demonstrating the three-stage pipeline with 45 frames at 1000ms each (~45s total cycle). The animation shows the Read → Transform → Write thread progression through shared slots with independent atomic index counters.
