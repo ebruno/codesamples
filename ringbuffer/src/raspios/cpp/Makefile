@@ -77,7 +77,7 @@ else
     all: $(STATIC_LIB) $(SHARED_LIB)
 endif
 
-.PHONY: all static shared clean dist-clean container container-clean lint format test-all
+.PHONY: test  all static shared clean dist-clean container container-clean lint format test-all
 
 # Static Library Target
 static: $(STATIC_LIB)
@@ -103,6 +103,8 @@ $(SHARED_LIB): $(OBJS)
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+test: all
+	@if [ -d tests ]; then $(MAKE) -C tests verify; else echo "No tests directory"; fi
 
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o "*.o" "*~" "#*#"

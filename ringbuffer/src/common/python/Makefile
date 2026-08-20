@@ -1,4 +1,4 @@
-.PHONY: clean dist-clean container container-clean build test
+.PHONY: all clean dist-clean container container-clean build test
 
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
@@ -62,7 +62,7 @@ container-clean:
 		$(CONTAINER_CMD) image rm -f $$img 2>/dev/null || true;\
 	done
 
-.PHONY: build test syntax-check
+.PHONY: all build test syntax-check
 
 # Detect current platform and map to C++ source directory
 UNAME_S := $(shell uname -s)
@@ -88,6 +88,18 @@ else
     CPP_SRC_DIR := ../../reference_linux/cpp
   endif
 endif
+
+# Build the C++ shared library and create symlinks (verify_build entry point)
+all: build
+	@mkdir -p lib
+	@if [ -f ../../$(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so ]; then \
+		LIB=$$(ls ../../$(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so | head -1); \
+		ln -sf "$$(basename $$LIB)" lib/libswtr_ringbuffer.so; \
+		echo "Created symlink: lib/libswtr_ringbuffer.so -> $$LIB"; \
+	else \
+		echo "WARNING: C++ shared library not found in $(CPP_SRC_DIR)/lib/"; \
+	touch .cpp_build_failed; \
+	fi
 
 # Build the C++ shared library - always rebuilds even if library exists
 # to ensure we have the latest build. If build fails, notes it and continues.
@@ -204,9 +216,9 @@ clean:
 		echo "  Nothing to clean.";\
 	fi
 
-# Full cleanup: build artifacts + container images + test output
+# Full cleanup: build artifacts + container images
+# Note: reports are managed at top-level reports/python/per_os/
+# Per-platform runs clean only their own report files before regenerating
 dist-clean: clean container-clean
-	@for dir in logs reports; do\
-		rm -rf $$dir 2>/dev/null || true;\
-	done
+	@rm -rf logs 2>/dev/null || true
 	@echo "Python dist-clean complete."

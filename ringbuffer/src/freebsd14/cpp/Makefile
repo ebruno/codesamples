@@ -30,7 +30,7 @@ BUILD_DIR = build
 VERSIONED_STATIC = ${LIB_DIR}/libswtr_ringbuffer-${VERSION}.a
 VERSIONED_SHARED = ${LIB_DIR}/libswtr_ringbuffer-${VERSION}.so
 
-.PHONY: all static shared clean dist-clean test-all
+.PHONY: test  all static shared clean dist-clean test-all
 
 all: static shared
 
@@ -51,6 +51,8 @@ ${VERSIONED_SHARED}: ${OBJS}
 %.o: %.cpp
 	@mkdir -p ${BUILD_DIR}
 	${CXX} ${CXXFLAGS} -c $< -o $@
+test: all
+	@if [ -d tests ]; then $(MAKE) -C tests verify; else echo "No tests directory"; fi
 
 clean:
 	${RM} ${BUILD_DIR} ${LIB_DIR} *.o *~ #*#

@@ -47,6 +47,8 @@ dist-clean: clean
 	fi; \
 	echo "Cleaning session files..."; \
 	rm -rf .ringbuffer_sessions/; \
+	echo "Cleaning all reports (*.md and *.xml)..."; \
+	find reports -type f \( -name "*.md" -o -name "*.xml" \) -delete 2>/dev/null || true; \
 	END=$$(date +%s); \
 	ELAPSED=$$((END - START)); \
 	HH=$$(printf "%02d" $$((ELAPSED / 3600))); \

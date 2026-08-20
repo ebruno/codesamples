@@ -209,8 +209,10 @@ Verify that all implemented languages build successfully across supported operat
      2. **Container Pre-flight Check** (Linux targets only):
         - macOS host: `command -v container` — if not found, STOP.
         - Linux host: `command -v podman` — if not found, STOP.
-     3. **Execute Verification**:
-        - **Native**: Navigate to `src/common/java/`, then run the verification steps directly.
+     3. **Execute Build** (verify_build uses `make all` — build only, no tests):
+        - **Native**: Navigate to `src/common/java/`, then run `make all`. The Makefile automatically:
+          1. Runs Maven to compile and package (`mvn clean compile package`)
+          2. Creates JAR symlink: `lib/ringbuffer.jar` → `target/ringbuffer-<version>.jar`
         - **Container**: Run in a container matching the target OS:
           - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/java/containers/<os>/Dockerfile | sed 's/^FROM //')`
           - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
@@ -218,33 +220,21 @@ Verify that all implemented languages build successfully across supported operat
           ```bash
           # macOS host targeting Linux distro:
           if [ -f src/<os>/java/pom.xml ]; then
-              container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn compile package && rm -rf target/classes target/test-classes"
+              container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && make all"
           else
-              container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn compile package && rm -rf target/classes target/test-classes"
+              container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && make all"
           fi
           # Linux host targeting another Linux distro:
           if [ -f src/<os>/java/pom.xml ]; then
-              podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn compile package && rm -rf target/classes target/test-classes"
+              podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && make all"
           else
-              podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn compile package && rm -rf target/classes target/test-classes"
+              podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && make all"
           fi
           ```
-     4. **Verification Steps** (run in the appropriate execution context):
-        - Navigate to `src/common/java/`.
-        - **Toolchain Check**: Verify `mvn` is available: `command -v mvn`. If not found, STOP and report that Maven must be installed.
-        - **Compile + Package**: Run `mvn compile package` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
-        - **Clean up intermediates**: `rm -rf target/classes target/test-classes`.
-        - **Artifact Check**: Verify JAR exists in `target/`: `ls target/ringbuffer-*.jar`. If no JAR found, STOP and report build failure.
-        - **Classload Test**: Run a quick classload test to verify no runtime errors on load:
-          ```bash
-          java -cp "target/ringbuffer-*.jar" swtr.test.TestRingbuffer 2>&1 | head -5
-          ```
-          Verify no `NoClassDefFoundError`, `ExceptionInInitializerError`, or other runtime exceptions.
-          If multiple JARs exist (e.g., sources jar), use the main artifact explicitly:
-          ```bash
-          MAIN_JAR=$(ls target/ringbuffer-*.jar | grep -v sources)
-          java -cp "$MAIN_JAR" swtr.test.TestRingbuffer 2>&1 | head -5
-          ```
+     4. **Post-Build Verification**:
+        - Verify the JAR artifact exists: `target/ringbuffer-<version>.jar`
+        - Verify the symlink exists: `lib/ringbuffer.jar` → `target/ringbuffer-<version>.jar`
+        - If any check fails, STOP and report the error.
      5. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java verification on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
    ---
@@ -262,31 +252,25 @@ Verify that all implemented languages build successfully across supported operat
      2. **Container Pre-flight Check** (Linux targets only):
         - macOS host: `command -v container` — if not found, STOP.
         - Linux host: `command -v podman` — if not found, STOP.
-     3. **Execute Verification**:
-        - **Native**: Navigate to `src/common/python/`, then run `make build` to compile the C++ shared library and create the symlink in `lib/`. If the C++ build fails (e.g., no C++ source directory), note it and continue — Pure Python tests still apply. Then run the verification steps below.
+     3. **Execute Build** (verify_build uses `make all` — build only, no tests):
+        - **Native**: Navigate to `src/common/python/`, then run `make all`. The Makefile automatically:
+          1. Builds the C++ shared library from `src/<os>/cpp/` (target-host-specific) via parent Makefile.
+          2. Creates symlink: `lib/libswtr_ringbuffer.so` → `<os>/cpp/lib/libswtr_ringbuffer-<version>.so`
         - **Container**: Run in a container matching the target OS:
           - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
           - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
           ```bash
           # macOS host targeting Linux distro:
           cd src/common/python && container build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-          container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && python3 -m py_compile *.py"
+          container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && make all"
           # Linux host targeting another Linux distro:
           cd src/common/python && podman build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-          podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && python3 -m py_compile *.py"
+          podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && make all"
           ```
-     4. **Verification Steps** (run in the appropriate execution context):
-        - Navigate to `src/common/python/`.
-        - **Version Check**: Verify Python version meets minimum requirements (3.10+): `python3 --version`. If below 3.10, STOP and report: `ERROR: Detected Python version <detected_version> is below minimum supported 3.10. Cannot proceed.`
-        - **Syntax Check**: Run `python3 -m py_compile` on all `.py` files:
-          ```bash
-          for f in *.py; do python3 -m py_compile "$f" || { echo "SYNTAX ERROR in $f"; exit 1; }; done
-          ```
-          If any file fails, STOP and report the error.
-        - **Import Check (Concurrent)**: Run `python3 -c "import swtr_ringbuffer; print(swtr_ringbuffer._version)"` to verify the Concurrent module imports cleanly. If import fails, STOP and report the error.
-        - **Instantiation Check (Concurrent)**: Run `python3 -c "from swtr_ringbuffer import SwtrRingBuffer; rb = SwtrRingBuffer(4, 256); print(type(rb))"` to verify Concurrent class is instantiable. If instantiation fails, STOP and report the error.
-        - **Import Check (Pure Python)**: Run `python3 -c "import swtr_ringbuffer_pure; print(swtr_ringbuffer_pure.__name__)"` to verify the Pure Python module imports cleanly. If import fails, STOP and report the error.
-        - **Instantiation Check (Pure Python)**: Run `python3 -c "from swtr_ringbuffer_pure import SwtrRingBufferPure; rb = SwtrRingBufferPure(4, 256); print(type(rb))"` to verify Pure Python class is instantiable. If instantiation fails, STOP and report the error.
+     4. **Post-Build Verification**:
+        - Verify the C++ shared library exists in `src/<os>/cpp/lib/`
+        - Verify the symlink exists: `lib/libswtr_ringbuffer.so` → versioned library
+        - If any check fails, STOP and report the error.
      5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python verification on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
    ---
@@ -298,11 +282,14 @@ Verify that all implemented languages build successfully across supported operat
      - Build the image if it does not already exist: `container build -t ringbuffer_<os>_build:latest -f src/<os>/cpp/containers/Dockerfile .`
      - Use `ringbuffer_<os>_build:latest` as `<container_image>` in subsequent commands.
    - **Build Execution**: If using a container, wrap the build command with the appropriate runtime:
-     - **macOS host**: `container run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make clean && make`
-     - **Linux host**: `podman run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make clean && make`
-     - If native execution is permitted (host matches target), run `make clean && make` directly.
-     - If the build fails, log the error and STOP processing for this platform.
-   - **Post-Build Verification**:
+     - **macOS host**: `container run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make test`
+     - **Linux host**: `podman run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make test`
+     - If native execution is permitted (host matches target), run `make test` directly.
+     - The Makefile's `test` target automatically:
+       1. Builds the library (`all` target — static + shared)
+       2. Runs tests/verify in the `tests/` subdirectory
+     - If `make test` fails, log the error and STOP processing for this platform.
+   - **Post-Build Verification** (performed by `tests/Makefile verify`):
      - Verify the library was built: Check that `lib/libswtr_ringbuffer.a` (static) and/or `lib/libswtr_ringbuffer.so` / `.dylib` (shared) exist.
      - Verify binary format:
        - **Linux**: `file lib/libswtr_ringbuffer.so` should show "ELF 64-bit"
@@ -381,30 +368,43 @@ Verify that all implemented languages build successfully across supported operat
      **Python Version:** <detected_version>
 
      ## Build Status
-     - **Syntax Check**: [PASS/FAIL] (all .py files)
-     - **Concurrent Import**: [PASS/FAIL]
-     - **Concurrent Instantiation**: [PASS/FAIL]
-     - **Pure Python Import**: [PASS/FAIL]
-     - **Pure Python Instantiation**: [PASS/FAIL]
+     - **make test**: [PASS/FAIL]
+     - **C++ Library Build**: [SUCCESS / SKIPPED — reason] (checked via `.cpp_build_failed` marker)
 
-     ## Concurrent (ctypes) Verification
-     | Check | Result | Details |
-     |-------|--------|---------|
-     | Syntax Check | [PASS/FAIL] | swtr_ringbuffer/swtr_ringbuffer_hp.py, base.py, __init__.py |
-     | Import Check | [PASS/FAIL] | import swtr_ringbuffer, version = "Concurrent" |
-     | Instantiation Check | [PASS/FAIL] | SwtrRingBufferHP(4, 256) |
-     | Shared Library | [PASS/FAIL] | libswtr_ringbuffer.so/.dylib available |
+     ## Concurrent (ctypes) Test Results
+     **Implementation:** `swtr_ringbuffer/swtr_ringbuffer_hp.py` — ctypes binding to C++ shared library
+     **Entry Point:** `from swtr_ringbuffer import SwtrRingBuffer` (auto-selects Concurrent when available)
 
-     ## Pure Python Verification
-     | Check | Result | Details |
-     |-------|--------|---------|
-     | Syntax Check | [PASS/FAIL] | swtr_ringbuffer_pure.py |
-     | Import Check | [PASS/FAIL] | import swtr_ringbuffer_pure |
-     | Instantiation Check | [PASS/FAIL] | SwtrRingBufferPure(4, 256) |
-     | Dependencies | [PASS/FAIL] | No external dependencies |
+     | Test | Description | Result |
+     |------|-------------|--------|
+     | T001 | Default (identity transform) | [PASS/FAIL] |
+     | T002 | Stress test (1 slot, 1-byte buffer) | [PASS/FAIL] |
+     | T003 | Uppercase transform | [PASS/FAIL] |
+     | T004 | Small input, fast EOF | [PASS/FAIL] |
+     | T005 | Fatal error mode | [PASS/FAIL] |
+     | T006 | Non-fatal error mode | [PASS/FAIL] |
+     | T007 | XOR transform (bit-inverted) | [PASS/FAIL] |
+
+     **Overall:** [X]/7 tests passed. Concurrent (ctypes) selected as default via auto-import.
+
+     ## Pure Python Test Results
+     **Implementation:** `swtr_ringbuffer_pure.py` — pure Python, no C++ dependency
+     **Entry Point:** `from swtr_ringbuffer_pure import SwtrRingBufferPure`
+
+     | Test | Description | Result |
+     |------|-------------|--------|
+     | T001 | Default (identity transform) | [PASS/FAIL] |
+     | T002 | Stress test (1 slot, 1-byte buffer) | [PASS/FAIL] |
+     | T003 | Uppercase transform | [PASS/FAIL] |
+     | T004 | Small input, fast EOF | [PASS/FAIL] |
+     | T005 | Fatal error mode | [PASS/FAIL] |
+     | T006 | Non-fatal error mode | [PASS/FAIL] |
+     | T007 | XOR transform (bit-inverted) | [PASS/FAIL] |
+
+     **Overall:** [X]/7 tests passed. Pure Python provides full feature parity with Concurrent version.
 
      ## Notes
-     - Any additional notes about the build process.
+     - Any additional notes about the build process (e.g., C++ library not available, performance benchmark results).
      ```
 
    **2. State Tracking** (Java and Python only):

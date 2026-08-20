@@ -245,6 +245,12 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
           - **macOS**: `otool -L test001_dynamiclib` should show the shared library. `test001_staticlib` should not.
       - Log results to `build.log`.
 
+  - **Per-Platform Cleanup**: Before generating reports, remove only this platform's existing report files to avoid stale data:
+    ```bash
+    rm -f reports/cpp/per_os/<os>_regression.md reports/cpp/per_os/<os>_regression_report_junit.xml
+    ```
+    Do NOT delete other OS reports or the entire `reports/` directory.
+
    4. **Report Generation**:
       - Generate the Markdown regression report at `reports/cpp/per_os/<os>_regression.md` and JUnit XML at `reports/cpp/per_os/<os>_regression_report_junit.xml` using the following format:
 
@@ -403,11 +409,11 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
   3. **Execute Tests**:
-     - **Native**: Navigate to `src/common/java/`, then run tests directly.
-       After Maven completes, copy JUnit XML to the reports directory:
-       ```bash
-       cp target/surefire-reports/TEST-*.xml reports/java/per_os/<os>_regression_report_junit.xml
-       ```
+     - **Native**: Navigate to `src/common/java/`, then run `cd tests && make test`. The Makefile automatically:
+       1. Builds the Java project (`mvn clean compile package`)
+       2. Runs all 7 test scenarios (T001-T007) using `TestRingbuffer` class
+       3. Compares output against expected results in `data/expected/`
+       4. Generates JUnit XML and Markdown reports
      - **Container**: Run in a container matching the target OS:
        - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/java/containers/<os>/Dockerfile | sed 's/^FROM //')`
        - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
@@ -415,24 +421,22 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
        ```bash
        # macOS host targeting Linux distro:
        if [ -f src/<os>/java/pom.xml ]; then
-           container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
+           container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && cd tests && make test"
        else
-           container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
+           container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && cd tests && make test"
        fi
        # Linux host targeting another Linux distro:
        if [ -f src/<os>/java/pom.xml ]; then
-           podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
+           podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && cd tests && make test"
        else
-           podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
+           podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && cd tests && make test"
        fi
        ```
   4. **Verification Steps**:
-     - Navigate to `src/common/java/`.
-     - Run `mvn package` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
-     - Clean up intermediate build artifacts: `rm -rf target/classes target/test-classes`.
-     - Verify test reports exist in `target/surefire-reports/`.
-     - Verify no test failures in the output.
-     - Verify JAR artifact exists in `target/`: `ls target/ringbuffer-*.jar`. If no JAR found, STOP and report build failure.
+     - Navigate to `src/common/java/tests/`.
+     - Run `make test` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
+     - The Makefile handles: build, test execution, output comparison, and report generation.
+     - Verify JUnit XML exists in `reports/java/per_os/<os>_regression_report_junit.xml`.
   5. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
   **Java State Tracking** (after all target OSes complete):
@@ -467,6 +471,12 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     }
     ```
   - Compute SHA-256 hashes of `pom.xml` and `version.mk`.
+
+  - **Per-Platform Cleanup**: Before generating reports, remove only this platform's existing report files to avoid stale data:
+    ```bash
+    rm -f reports/java/per_os/<os>_regression.md reports/java/per_os/<os>_regression_report_junit.xml
+    ```
+    Do NOT delete other OS reports or the entire `reports/` directory.
 
   **Java Report Generation** (after all target OSes complete):
   - Generate the Markdown regression report at `reports/java/per_os/<os>_regression.md` and copy JUnit XML from `target/surefire-reports/TEST-*.xml` to `reports/java/per_os/<os>_regression_report_junit.xml` using the following format:
@@ -534,55 +544,28 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
   3. **Execute Tests**:
-     - **Native**: Navigate to the appropriate Python directory (see Makefile Selection above), then run `make test`. The Makefile automatically:
-       1. Attempts to build the C++ shared library from `src/<os>/cpp/` (target-host-specific).
+     - **Native**: Navigate to `src/common/python/tests/`, then run `make test`. The Makefile automatically:
+       1. Builds the C++ shared library from `src/<os>/cpp/` (target-host-specific) via parent Makefile.
        2. If the C++ build fails, gracefully falls back to Pure Python tests only.
-       3. Logs all results (including skip reasons) to `logs/build.log`.
-     - **JUnit Generation**: After running tests, generate JUnit XML by executing both test harnesses with `--junit` flag:
-       ```bash
-       # Clear any existing JUnit file
-       rm -f reports/python/per_os/<os>_regression_report_junit.xml
-       # Run Concurrent tests (T001-T007)
-       for t in 1 2 3 4 5 6 7; do
-           echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | \
-           python3 test_ringbuffer.py $t --junit reports/python/per_os/<os>_regression_report_junit.xml || exit 1
-       done
-       # Run Pure Python tests (T001-T007) — appends to same file
-       for t in 1 2 3 4 5 6 7; do
-           echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | \
-           python3 test_ringbuffer_pure.py $t --junit reports/python/per_os/<os>_regression_report_junit.xml || exit 1
-       done
-       ```
-       The JUnit file will contain two `<testsuite>` elements: one for `ringbuffer_concurrent` and one for `ringbuffer_pure_python`, each with 7 `<testcase>` elements.
+       3. Runs Concurrent harness (T001-T007) using `test_ringbuffer.py`.
+       4. Runs Pure Python harness (T001-T007) using `test_ringbuffer_pure.py`.
+       5. Generates JUnit XML and Markdown reports.
      - **Container**: Run in a container matching the target OS:
        - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
        - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
        ```bash
        # macOS host targeting Linux distro:
        cd src/common/python && container build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-       # Run Concurrent version tests
-       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py \$t || exit 1; done"
-       # Run Pure Python version tests
-       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py \$t || exit 1; done"
+       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app/tests && make test"
        # Linux host targeting another Linux distro:
        cd src/common/python && podman build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-       # Run Concurrent version tests
-       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py \$t || exit 1; done"
-       # Run Pure Python version tests
-       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py \$t || exit 1; done"
+       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app/tests && make test"
        ```
   4. **Verification Steps**:
-     - Navigate to `src/common/python/`.
-     - Verify Python version meets minimum requirements (3.10+): `python3 --version`.
+     - Navigate to `src/common/python/tests/`.
+     - Run `make test`. The Makefile handles: build, test execution (Concurrent + Pure Python), and report generation.
      - **FreeBSD 14 exception**: Concurrent tests are SKIPPED on FreeBSD 14 due to RPATH limitation (`ld-elf.so.1` strips `$ORIGIN` from RUNPATH at runtime — dynamic library testing is not possible). Only Pure Python tests are run.
-     - Run Concurrent version tests (7 scenarios): `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer.py $t || exit 1; done`. Verify exit code 0.
-     - Run Pure Python version tests (7 scenarios): `for t in 1 2 3 4 5 6 7; do echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | python3 test_ringbuffer_pure.py $t || exit 1; done`. Verify exit code 0.
-     - Verify all expected outputs are produced correctly for both versions.
-     - **Check C++ build status**: Look for `.cpp_build_failed` marker file in `src/common/python/`. If it exists, note the skip reason from `logs/build.log` (e.g., source directory missing, Makefile not found, build failure). If it does not exist, C++ build succeeded.
-  5. **Performance Comparison** (Concurrent vs Pure Python):
-     - Check if the C++ shared library is present in `src/common/python/swtr_ringbuffer/` (look for `.so`, `.dylib`, or `.dll`).
-     - **If the C++ library exists**: Run `python3 benchmark.py` to perform a side-by-side performance comparison between the Concurrent (ctypes + C++ shared lib) and Pure Python implementations. Record timing results, speedup ratios, and overall summary in `src/common/python/logs/build.log`.
-     - **If the C++ library does NOT exist**: Skip the performance comparison. Log a note explaining why (e.g., `C++ library not built for this platform — skipping performance comparison`). The Pure Python tests still run and are validated as above.
+     - Verify JUnit XML exists in `reports/python/per_os/<os>_regression_report_junit.xml`.
   6. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL> (Concurrent + Pure Python)`. If performance comparison was skipped, include the skip reason.
 
   **Python State Tracking** (after all target OSes complete):
@@ -622,6 +605,12 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     }
     ```
   - Compute SHA-256 hashes of `version.mk`, both test modules, and both test scripts.
+
+  - **Per-Platform Cleanup**: Before generating reports, remove only this platform's existing report files to avoid stale data:
+    ```bash
+    rm -f reports/python/per_os/<os>_regression.md reports/python/per_os/<os>_regression_report_junit.xml
+    ```
+    Do NOT delete other OS reports or the entire `reports/` directory.
 
   **Python Report Generation** (after all target OSes complete):
   - Generate the Markdown regression report at `reports/python/per_os/<os>_regression.md` and JUnit XML at `reports/python/per_os/<os>_regression_report_junit.xml` using the following format:

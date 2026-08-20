@@ -1,4 +1,4 @@
-.PHONY: clean dist-clean container container-clean
+.PHONY: all clean dist-clean container container-clean test
 
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
@@ -82,9 +82,28 @@ clean:
 		echo "  Nothing to clean."; \
 	fi
 
-# Full cleanup: build artifacts + container images + test output
+# Build the Java project (compile + package) and create JAR symlink
+all:
+	@echo "Building Java project..."
+	mvn clean compile package -q
+	@mkdir -p lib
+	@if [ -f target/ringbuffer-*.jar ]; then \
+		JAR=$$(ls target/ringbuffer-*.jar | head -1); \
+		ln -sf "$$(basename $$JAR)" lib/ringbuffer.jar; \
+		echo "Created symlink: lib/ringbuffer.jar -> $$JAR"; \
+	else \
+		echo "ERROR: JAR not found in target/"; exit 1; \
+	fi
+
+# Run full build + tests via Maven
+test: clean
+	@echo "Running Java test suite..."
+	mvn clean test -q 2>&1 || { echo "ERROR: mvn test failed"; exit 1; }
+	@echo "Java tests passed."
+
+# Full cleanup: build artifacts + container images
+# Note: reports are managed at top-level reports/java/per_os/
+# Per-platform runs clean only their own report files before regenerating
 dist-clean: clean container-clean
-	@for dir in logs reports; do \
-		rm -rf $$dir 2>/dev/null || true; \
-	done
+	@rm -rf logs 2>/dev/null || true
 	@echo "Java dist-clean complete."

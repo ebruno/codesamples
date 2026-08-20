@@ -492,8 +492,26 @@ The Python implementation uses different Makefile syntax for GNU make and BSD ma
 - If the user asks you to "commit" or "stage," decline and remind them they handle all commits.
 - `.gen_state.json` is also excluded from commits (tracked in `.gitignore`).
 
+### Build vs Test Workflow Pattern (All Languages)
+
+Every language follows the same two-step pattern:
+
+1. **`verify_build`** → `<os>/<lang>/Makefile all` (build only, no tests)
+   - C/C++: `src/<os>/cpp/Makefile all` → builds static + shared libs, creates symlinks
+   - Java: `src/common/java/Makefile all` → runs Maven, creates JAR symlink
+   - Python: `src/common/python/Makefile all` → builds C++ shared lib, creates symlink
+   - **Never** runs tests — only produces build artifacts and symlinks
+
+2. **`run_regression`** → `tests/Makefile verify` (build + test matrix T001-T007)
+   - C/C++: `src/<os>/cpp/tests/Makefile verify` → runs test harness with T001-T007
+   - Java: `src/common/java/tests/Makefile verify` → runs TestRingbuffer T001-T007
+   - Python: `src/common/python/tests/Makefile verify` → runs Concurrent + Pure Python T001-T007
+   - The `tests/Makefile` has a `test: verify` target so `make test` also works
+
+**Golden rule:** Never use `tests/Makefile verify` for build verification. Never use `<os>/<lang>/Makefile all` for regression testing.
+
 ### Common Pitfalls
-1. **Shell ENOENT after session compaction:** If `shell_command` fails instantly with `spawn ... ENOENT`, the scratchpad directory may not have been materialized yet (happens after session compaction). Run a trivial sandboxed Python call first to create it, then retry the shell command. **Remove this note once LM Studio fixes the bug.**
+1. **Shell ENOENT after session compaction (cross-platform: macOS + Windows):** If `shell_command` fails instantly with `spawn ... ENOENT`, the harness's default cwd resolution produces a subpath under the scratchpad that was never created (the scratchpad root itself IS materialized). **Fix:** Pass an explicit `workdir` set to any existing directory (e.g., the project root). If it still fails, run one sandboxed-Python call first to materialize the scratchpad, then retry with explicit `workdir`. **Remove this note once LM Studio fixes the bug.**
 2. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
 3. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).
 4. **`make clean` loops over all languages:** The main Makefile's `clean` target iterates over C++ (`src/*/cpp/`), Java (`src/common/java/`), and Python (`src/common/python/`) directories, calling `make clean` in each. Per-directory Makefiles handle actual artifact removal (e.g., C++ removes `build/`, `lib/`; Java removes `target/`; Python removes `__pycache__/`, `.egg-info/`, `build/`).
