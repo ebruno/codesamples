@@ -18,7 +18,7 @@ Each stage uses its own independent atomic index counter, so threads operate on 
 The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters.
 
 The core focus of the project is **binary symmetry within OS families**, with minimal differences allowed when crossing OS boundaries:
-- **Same OS Family (e.g., all Linux distros):** Source code is naturally identical since toolchain changes are applied uniformly. The build system handles platform-specific flags (linker options, container images), but `.cpp` and `.hpp` files are byte-identical.
+- **Same OS Family (e.g., all Linux distros):** Source code is byte-identical across ALL platforms **by construction via symlinks to a single canonical source tree in `src/common/cpp/`**. The build system handles platform-specific flags (linker options, container images), but `.cpp` and `.hpp` files are byte-identical.
 - **Cross OS Family (Linux vs macOS vs FreeBSD):** Differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls (e.g., file sync behavior, threading primitives). The core logic, architecture, and API surface remain identical.
 - **Platform-Insensitive Languages (Java, Python, Go, Rust):** Source code is byte-identical across ALL platforms by design. These languages abstract platform differences through their standard libraries.
 - **Platform-Sensitive Languages (C, C++):** Source code is byte-identical within the same OS family. Cross-family differences are limited to `#ifdef` guards for OS-specific behavior (e.g., macOS `F_FULLFSYNC` vs Linux `F_DATASYNC`).
@@ -53,7 +53,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 **How it works:**
 - **Interactive Prompt Generation**: All workflow prompts were created through iterative dialogue with the LLM, refining specifications until they precisely captured the desired behavior.
 - **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
-- **Binary Symmetry**: Source code is byte-identical across ALL platforms (macOS, Linux distributions). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
+- **Binary Symmetry**: Source code is byte-identical across ALL platforms **by construction via symlinks to `src/common/cpp/`**. The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
 - **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
 - **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations. The **post-commit hook** (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs and suggests changelog entries — the hook is scoped to `ringbuffer/prompts/` when in a multi-project repo (controlled by `PROJECT_PREFIX` variable in the script).
 
@@ -80,6 +80,11 @@ This project was created entirely from scratch using an LLM (Large Language Mode
   - Go: Go Modules (`go.mod`) with `-buildmode=c-{archive,shared}` → `lib/libringbuffer.{a|so|dylib}`
   - Python: Interpreted, no build system; depends on C library shared object via `ctypes`
   - Rust: Cargo (`Cargo.toml`) with `crate-type = ["staticlib", "cdylib"]` → `target/release/libswtr_ringbuffer.{a,so|dylib}`
+- **Unified Build/Test Pattern** (all languages):
+  - `verify_build` → `<os>/<lang>/Makefile all` — builds artifacts and creates symlinks (no tests)
+  - `run_regression` → `tests/Makefile verify` — runs T001–T007 test matrix, generates reports
+  - Main Makefile must have `test: all` → calls `$(MAKE) -C tests verify`
+  - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for full details
 - **Multi-Language Support**: C++, Java, Python implementations with shared functional specifications; C, Go, Rust in development pipeline.
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
@@ -257,7 +262,7 @@ Produces: `Makefile`, `version.mk`, and built library artifacts (`.a` static, `.
 ```
 "Use prompts/common/verify_build.md to run build_verify for macos"
 ```
-Confirms: library compiles, produces correct Mach-O binaries, symbol visibility is correct, and binary sizes are within expected ranges.
+Runs: `<os>/<lang>/Makefile all` — builds library artifacts and creates symlinks (no tests). Confirms: library compiles, produces correct Mach-O binaries, symbol visibility is correct, and binary sizes are within expected ranges.
 
 ### Step 4: Set Up Test Infrastructure
 ```
@@ -269,7 +274,7 @@ Produces: `tests/` directory with Makefile, test data (T001–T007), utility scr
 ```
 "Use prompts/common/run_regression.md to run regression_test on macos"
 ```
-Executes: the full T001–T007 test matrix, generates `regression_report.md` and `regression_report_junit.xml`.
+Runs: `tests/Makefile verify` — executes the full T001–T007 test matrix, generates `regression_report.md` and `regression_report_junit.xml`.
 
 **Linux platforms:** Replace native commands with container-wrapped equivalents. For example, `make` becomes `container run --rm -v $(pwd):/app ringbuffer_ubuntu_test make`. The container runtime (`container` on macOS hosts, `podman` on Linux hosts) is selected automatically by the Makefile.
 
@@ -374,9 +379,16 @@ flowchart LR
     ReadThread -->|slots: data + status| TransformThread
     TransformThread -->|slots: transformed data| WriteThread
 
-    classDef thread fill:#e8f4fd,stroke:#2196F3,stroke-width:2px
-    classDef slot fill:#fff3e0,stroke:#FF9800,stroke-width:2px
-    class ReadThread,TransformThread,WriteThread thread
+    classDef read fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef transform fill:#fff3e0,stroke:#ef6c00,stroke-width:3px
+    classDef write fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
+    classDef idle fill:#f5f5f5,stroke:#757575,stroke-width:2px
+    classDef active fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    class R1,W3 idle
+    class R2,T2,W2 active
+    class ReadThread read
+    class TransformThread transform
+    class WriteThread write
 ```
 
 **Key points:**
@@ -407,17 +419,297 @@ Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory conta
 
 **Platform-Insensitive Languages**: Java and Python implementations live in `src/common/` (not per-OS), as they are platform-independent. Each language has its own build system: Maven for Java, pure Python with `py_compile` for verification.
 
+## Source File Layout & Symlink Usage
+
+### How C++ Source Files Are Organized
+
+The project uses a **common + per-OS override** pattern for C++ source files:
+
+```
+src/
+├── common/cpp/                          ← Canonical source of truth (21 .hpp/.cpp files)
+│   ├── ringbuffer.hpp                   ← All platforms read this file via symlink
+│   ├── Lifecycle.cpp                    ← All platforms read this file via symlink
+│   ├── ... (all 21 shared source files)
+│   └── tests/                           ← Shared test infrastructure
+│       ├── src/test001.cpp              ← Symlinked to all OS dirs
+│       ├── data/expected/t*.txt         ← Expected outputs (macOS + FreeBSD 14)
+│       ├── data/inputs/test*.txt        ← Test inputs (Linux distros share these)
+│       └── utils/bin/*                  ← Utility scripts (symlinked to all OS dirs)
+│
+├── macos/cpp/                           ← macOS-specific overrides only (real files)
+│   ├── Makefile                         ← macOS build config (universal binaries, @rpath)
+│   ├── version.mk                       ← BSD make syntax (${VAR})
+│   ├── README.md                        ← macOS-specific docs
+│   └── ringbuffer.hpp → ../../common/cpp/ringbuffer.hpp  ← symlink to common
+│   └── ... (all other .hpp/.cpp are symlinks)
+│
+├── fedora/cpp/                          ← Fedora-specific overrides only (real files)
+│   ├── Makefile                         ← Fedora build config (dnf, container image)
+│   └── ringbuffer.hpp → ../../common/cpp/ringbuffer.hpp    ← symlink to common
+│   └── ... (all other .hpp/.cpp are symlinks)
+│
+├── debian/cpp/                          ← Debian-specific overrides only
+├── ubuntu/cpp/                          ← Ubuntu-specific overrides only
+├── raspios/cpp/                         ← Raspberry Pi OS-specific overrides only
+├── archlinux/cpp/                       ← Arch Linux-specific overrides only
+└── freebsd14/cpp/                       ← FreeBSD 14-specific overrides only
+```
+
+**Key principle:** Source code lives in exactly one place (`src/common/cpp/`). Each OS directory contains only:
+
+1. **Real files** — `Makefile`, `version.mk`, `README.md`, `LICENSE` (OS-specific build config and docs)
+2. **Symlinks** — All `.hpp` and `.cpp` files pointing to `src/common/cpp/`
+
+This ensures **binary symmetry by construction** — there is no possibility of source drift between platforms because every platform reads from the same canonical file.
+
+### Symlink Awareness & Compatibility
+
+| Aspect | Detail |
+|--------|--------|
+| **Symlinks are tracked in git** | Git stores symlinks as references on Unix. `git clone` preserves them automatically on macOS, Linux, and FreeBSD. |
+| **Build tools** | All standard C++ toolchains (`clang++`, `g++`) follow symlinks transparently. No build changes needed. |
+| **Source inspection** | `ls -la` shows symlink targets; `cat`, `grep`, and editors follow symlinks automatically. Use `readlink -f` to resolve the real path. |
+| **`git blame`** | Shows history of `src/common/cpp/`, not the symlink. This is correct — the source lives in common/. |
+| **`git diff`** | Shows changes to `src/common/cpp/`. Per-OS directories show no diffs for source files (they're symlinks). |
+| **Web-based file viewers** | GitHub/GitLab show symlink target paths, not source content. To view source in a browser, navigate to `src/common/cpp/` directly or clone locally. |
+| **IDE navigation** | Most IDEs (VS Code, CLion) follow symlinks for go-to-definition and search. Some may show the symlink path in breadcrumbs — this is cosmetic only. |
+
+### Compatibility Matrix
+
+| Platform | Symlink Support | Build Support | Notes |
+|----------|----------------|---------------|-------|
+| **macOS** | ✅ Native | ✅ Full | All toolchains work natively; universal binaries supported |
+| **Linux (all distros)** | ✅ Native | ✅ Full | All toolchains work natively; containerized builds supported |
+| **FreeBSD** | ✅ Native | ✅ Full | All toolchains work natively; static library only (RPATH limitation) |
+| **Windows** | ⏳ Roadmap | ⏳ Roadmap | Not currently supported — see [Windows Support](#windows-support) below |
+
+### Windows Support (Roadmap)
+
+Windows is **not currently supported**. The project targets macOS, Linux distributions, and FreeBSD — all Unix-family platforms with native symlink support.
+
+**Why Windows is excluded today:**
+- Git on Windows defaults to `core.symlinks=false`, storing symlink targets as 0-byte text files instead of actual symlinks
+- Without Developer Mode or admin privileges, Windows cannot create the symlinks that `src/<os>/cpp/` depends on
+- The project's build toolchains (clang++, g++) are available on Windows via MSYS2/WSL, but the symlink-based source layout would break
+
+**Roadmap:** Windows support is planned for a future release. Two approaches are under consideration:
+1. **Symlink fallback** — A `make sync` target that detects broken symlinks and copies common source into per-OS directories, allowing builds without symlink support
+2. **Git configuration guidance** — Document the `git config core.symlinks true` + Developer Mode setup required for Windows users
+
+The symlink-based architecture makes this straightforward to support — the only change needed is a copy fallback when symlinks aren't available.
+
+**Estimated timeline:** TBD — depends on demand and resource allocation.
+
+### Why Symlinks Over Copying?
+
+The alternative — copying `src/common/cpp/` into each OS directory before build — introduces **drift risk**: if the copy step is skipped or fails silently, an OS directory contains stale source that compiles but doesn't match the spec. Symlinks make drift **impossible** by construction: every platform always reads the current canonical source.
+
+The tradeoff is reduced web-viewer clarity (GitHub/GitLab show symlink metadata rather than source content) and no Windows support today. For the project's target platforms (macOS + Linux + FreeBSD), symlinks provide the strongest guarantee of source consistency. Windows support is planned for a future release via a `make sync` fallback that copies common source when symlinks aren't available.
+
+### How to Identify Symlinked vs Real Files
+
+When browsing `src/<os>/cpp/`, use these commands to distinguish:
+
+```bash
+# List all files with symlink indicators (real files show size, symlinks show →)
+ls -la src/macos/cpp/
+
+# Resolve a symlink to its real path
+readlink -f src/macos/cpp/ringbuffer.hpp
+# → /path/to/ringbuffer/src/common/cpp/ringbuffer.hpp
+
+# Find all symlinks in an OS directory
+find src/macos/cpp -maxdepth 1 -type l
+
+# Find all real files in an OS directory
+find src/macos/cpp -maxdepth 1 -type f
+
+# Verify a file is symlinked (exit 0 = symlink, exit 1 = real file)
+[ -L src/macos/cpp/ringbuffer.hpp ] && echo "symlink" || echo "real file"
+```
+
+### Build Artifact Symlinks (Separate from Source)
+
+In addition to source symlinks, each OS directory contains **versioned-name → unversioned-name** symlinks in the `lib/` subdirectory:
+
+```
+src/macos/cpp/lib/
+├── libswtr_ringbuffer.a → libswtr_ringbuffer-1.0.0-1.a
+└── libswtr_ringbuffer.dylib → libswtr_ringbuffer-1.0.0-1.dylib
+```
+
+These are build artifacts (gitignored) and serve a different purpose: allowing consumers to link against `libswtr_ringbuffer.a` without knowing the exact version string. They are created by each OS's `Makefile all` target and regenerated on every build.
+
+## Project Policies
+
+### Shell Script Portability
+
+All shell scripts in this project follow strict portability rules to ensure they work identically across macOS (BSD), Linux (GNU), and FreeBSD:
+
+**Supported shells:**
+- **Bash (`bash`)** — primary target for all scripts
+- **Zsh (`zsh`)** — acceptable alternative (macOS default)
+- **Tcsh (`tcsh`)** — used only for FreeBSD 14 remote builds (FreeBSD default shell)
+
+**Forbidden in bash/zsh scripts:**
+The following external tools are **forbidden** because their behavior differs between GNU (Linux) and BSD (macOS/FreeBSD) implementations:
+- `awk` — behavior varies between `gawk`, `mawk`, BSD `awk`
+- `sed` — syntax differences between GNU `sed` and BSD `sed` (e.g., `-i` flag, extended regex)
+- `grep` — feature flags (`-P`, `-E`) and behavior differ between GNU grep and BSD grep
+- `cut`, `tr`, `sort`, `uniq` — minor behavioral differences across implementations
+- `find`, `xargs` — flag syntax and behavior differ between GNU and BSD implementations
+- **`which`** — external binary with inconsistent behavior; use `command -v` instead
+- Any other utility not provided by the shell itself whose behavior is not guaranteed to be identical across platforms
+
+**What is permitted:**
+- **Shell builtins**: `echo`, `printf`, `test`/`[`, `[[`, `read`, `export`, `source`, `local`, `declare`, arrays, parameter expansion (`${var//pattern/replacement}`, `${#array[@]}`, `${file%.txt}`), arithmetic expansion `$((...))`, globbing
+- **Standard POSIX utilities with guaranteed identical behavior**: `date` (timestamps), `cat`, `mkdir -p`, `rm -rf`, `cp`, `mv`, `chmod`
+- **`command -v`** — use this instead of `which` to check if a command exists. It is a shell builtin (not an external binary), works identically in bash, zsh, and sh, and is faster (no process fork).
+
+**tcsh exception:**
+In tcsh scripts, `which` is a **builtin** (not the external `/usr/bin/which` binary), so it is permitted and preferred for command existence checks:
+```csh
+# tcsh — which is a builtin, perfectly portable
+csh:which gcc && echo "gcc found"
+
+# bash/zsh — use command -v instead (never which)
+bash:command -v gcc && echo "gcc found"
+```
+
+**Shebang line rule:**
+All shell scripts MUST use `env` for portability:
+```bash
+#!/usr/bin/env bash    # ✅ Correct — finds bash in PATH, works on all platforms
+#!/bin/bash            # ❌ Hardcoded — may not exist on all platforms (e.g., Homebrew bash)
+```
+
+**Makefile recipe exception:**
+Makefile recipes execute under `/bin/sh -c`, which is a restricted POSIX shell environment. Bash/zsh builtins like arrays, `<<<` (here-strings), and `[[ ]]` are **not available**. Makefile recipes may use external tools (`grep`, `sed`, `awk`, etc.) as needed, since the shell is already POSIX sh and cannot support bash/zsh builtins anyway.
+
+### SSH Authentication Policy
+
+**Golden Rule — Key-Based Authentication Only:**
+SSH remote execution requires key-based authentication only. **Password authentication is not supported and prohibited.** All remote hosts must have the user's public key installed in `~/.ssh/authorized_keys`. If password authentication is required, the workflow cannot proceed.
+
+**Rationale:**
+- Automated workflows (CI pipelines, agent harnesses) cannot interactively enter passwords
+- Password-based SSH is a security risk — keys are cryptographically stronger and can be revoked without changing passwords
+- Key-based authentication enables passwordless automation, which is essential for remote build/test workflows
+
+**Setup:**
+```bash
+# Generate a key pair (if you don't have one)
+ssh-keygen -t ed25519 -C "ringbuffer-workspace"
+
+# Install public key on remote host
+cat ~/.ssh/id_ed25519.pub | ssh <user>@<host> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+
+# Verify passwordless login works
+ssh <user>@<host> "echo 'SSH key authentication working'"
+```
+
+**Verification:**
+The workflow will fail immediately if SSH requires a password. If you encounter an authentication prompt, the key is not properly installed on the remote host.
+
+### Git Discipline
+
+- **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
+- **NEVER commit reports, logs, or build artifacts.** These are regenerated on every run. The `.gitignore` covers them.
+- If the user asks you to "commit" or "stage," decline and remind them they handle all commits.
+- `.gen_state.json` is also excluded from commits (tracked in `.gitignore`).
+
+### Build vs Test Workflow Pattern (All Languages)
+
+Every language follows the same two-step pattern:
+
+1. **`verify_build`** → `<os>/<lang>/Makefile all` (build only, no tests)
+   - C/C++: `src/<os>/cpp/Makefile all` → builds static + shared libs, creates symlinks
+   - Java: `src/common/java/Makefile all` → runs Maven, creates JAR symlink
+   - Python: `src/common/python/Makefile all` → builds C++ shared lib, creates symlink
+   - **Never** runs tests — only produces build artifacts and symlinks
+
+2. **`run_regression`** → `tests/Makefile verify` (build + test matrix T001-T007)
+   - C/C++: `src/<os>/cpp/tests/Makefile verify` → runs test harness with T001-T007
+   - Java: `src/common/java/tests/Makefile verify` → runs TestRingbuffer T001-T007
+   - Python: `src/common/python/tests/Makefile verify` → runs Concurrent + Pure Python T001-T007
+   - The `tests/Makefile` has a `test: verify` target so `make test` also works
+
+**Golden rule:** Never use `tests/Makefile verify` for build verification. Never use `<os>/<lang>/Makefile all` for regression testing.
+
+### Container Commands (macOS)
+
+- **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
+- **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_debian_build:latest ...`, NOT `container run localhost/ringbuffer_debian_build:latest ...`.
+- **Debian Makefile LTO_FLAG:** The Debian container's g++ does not support `-flto=thin`. Use `-flto` instead. The Makefile's LTO_FLAG logic must reflect this.
+
+### Prompt Changelog Discipline
+
+When modifying any prompt file that affects generated code, record the change in `prompts/common/CHANGELOG.md` using this format:
+
+```markdown
+## [YYYY-MM-DD] <short description>
+- **File**: `prompts/<path>/functional.md`
+- **Change**: <one-line description>
+- **Rationale**: <why this change was made>
+```
+
+This is a documentation discipline — no automation logic uses the changelog at this time. The `utils/bin/suggest_changelog_entry.sh` script can analyze git diffs and suggest entries for manual review.
+
+### Prompt Deduplication Discipline
+
+Before adding repeated content (container runtime rules, host-target compatibility, spec precedence) to a new or existing prompt file:
+1. Check if the content already exists in `prompts/common/session_hints.md` or another shared reference document.
+2. If it does, add a relative link instead of duplicating the text.
+3. If it doesn't, add it to `prompts/common/session_hints.md` first, then reference it from the platform-specific prompt.
+
+### Makefile Tab Discipline
+
+Makefiles require **real tab characters**, not spaces, for recipe indentation. When generating Makefiles programmatically (e.g., via Python or heredocs), use explicit `\t` for tabs. This is a common source of build failures — BSD make on macOS and GNU make on Linux both reject space-indented recipes.
+
+### Version Naming Convention
+
+`version.mk` contains the **Ringbuffer library version** (e.g., `1.0.0`), NOT the OS version. All languages derive their version from this single file:
+- C/C++: `Makefile include version.mk` (direct)
+- Java: `version.sh` reads `version.mk`, injects into `pom.xml`
+- Go: `version.sh` generates `version.go` with typed constants
+- Python: `version.sh` generates `version.py` with module constants
+- Rust: `build.rs` reads `version.mk`, generates `src/version.rs`
+
+### Mermaid Diagram Validation
+
+When adding or updating any mermaid diagram in the README (or any markdown file), **validate that it renders before committing**. Mermaid has strict syntax rules — parentheses `()`, at-signs `@`, and multi-line labels all cause silent parse failures that produce blank diagrams in GitHub/GitLab.
+
+**Common syntax pitfalls:**
+- **Parentheses in labels**: Must be quoted — use `["text (with parens)"]` not `[Text (with parens)]`
+- **At-signs in edge labels**: Must be quoted — use `-->|"ssh@host"| Node` not `-->|ssh@host| Node`
+- **Multi-line labels**: Use `<br>` for line breaks, but single-line labels are safer and render more consistently
+- **`direction` inside subgraphs**: Forbidden — causes Safari/GitLab rendering failures. Use only at the top level (`flowchart LR`)
+- **Node names starting with reserved words**: Avoid `SSH`, `A`, `B` as node IDs — use descriptive names like `SshRemote`, `BuildStep`
+
+**Validation command:**
+```bash
+# Render a diagram to PNG and check for errors (exit 0 = success)
+mmdc -i diagram.mmd -o /tmp/diagram.png -b white
+```
+
+**Workflow:**
+1. Write the mermaid diagram in a standalone `.mmd` file (not inline in markdown)
+2. Run `mmdc -i diagram.mmd -o /tmp/diagram.png -b white` to validate
+3. If it renders successfully, copy the diagram into the markdown file
+4. Never commit a diagram that hasn't been validated with `mmdc`
+
 ## Developer & Maintainer Guide
 
 ### Part A: The Golden Rules (Coding Standards)
-- **Binary Symmetry**: Source code MUST be byte-identical across ALL platforms (macOS, Linux — debian, fedora, ubuntu, raspios). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
+- **Binary Symmetry**: Source code MUST be byte-identical across ALL platforms (macOS, Linux — debian, fedora, ubuntu, raspios) **by construction via symlinks to `src/common/cpp/`**. The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
 - **File Distribution**: No `.cpp` file may contain more than 3 function definitions.
 - **Include Discipline**: `ringbuffer.hpp` must be the first non-comment include, followed by alphabetical standard headers, then local headers.
 - **Naming**: All private member variables MUST use the trailing underscore convention (e.g., `member_variable_`).
 - **Hierarchy**: The implementation must strictly follow the `RingBuffer` $\rightarrow$ `SwtrRingBuffer` hierarchy.
-- **Platform Sync**: When updating any platform's source, build, or test artifacts, the same changes MUST be applied to all other Linux platforms. Use the cross-platform update propagation directives in `update_functional.md`, `update_build.md`, and `update_testing.md`.
+- **Platform Sync**: Source code lives in `src/common/cpp/` and is symlinked to all OS directories. Edit the common source — it automatically propagates to every platform. Build artifacts (`Makefile`, `version.mk`) remain per-OS and must be updated independently when platform-specific behavior changes.
 - **Prompt Deduplication**: Repeated content (container runtime rules, host-target compatibility checks, spec precedence statements) MUST be extracted into shared reference documents (e.g., `prompts/common/session_hints.md`) and referenced via relative links rather than duplicated verbatim across functional.md, build.md, and testing.md in every platform directory. This reduces maintenance burden and ensures consistency across 215+ prompt files.
-- **Cross-Platform Generation Mandate**: All platform source code MUST be generated **independently** from the common specification. Do NOT copy source files, Makefiles, or Dockerfiles between platforms. Each platform generates its own artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
+- **Cross-Platform Generation Mandate**: All platform source code lives in `src/common/cpp/` and is symlinked from each OS directory. Do NOT copy source files between platforms — use symlinks to maintain a single canonical source tree. Each platform generates its own build artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
   - **Allowed Makefile differences**: `CONTAINER_IMAGE` variable value, working directory path in container run commands, host distro detection check.
   - **Allowed Dockerfile differences**: `FROM` base image line, package installation RUN blocks (platform-specific package managers).
 
@@ -445,10 +737,213 @@ Use these to synchronize the codebase with updated specifications.
 - *Example:* `"Use prompts/ubuntu/cpp/update_functional.md to synchronize the ubuntu implementation with the updated common specifications"`
 
 **Verification & Testing:**
-- *Build Verify:* `prompts/common/verify_build.md` — Use this for a first-pass sanity check on library compilation. Supports C/C++, Java, and Python verification.
+- *Build Verify:* `prompts/common/verify_build.md` — Runs `<os>/<lang>/Makefile all` (build only, no tests). Supports C/C++, Java, and Python verification.
   - *Example:* `"Use prompts/common/verify_build.md to run build_verify for debian and fedora"`
-- *Regression Test:* `prompts/common/regression_test.md` — Use this for final validation of the library and test suite.
-  - *Example:* `"Use prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
+- *Regression Test:* `prompts/common/run_regression.md` — Runs `tests/Makefile verify` (build + T001–T007 test matrix). Supports C/C++, Java, and Python.
+  - *Example:* `"Use prompts/common/run_regression.md to run regression on debian, fedora, macos"`
+
+#### Build & Test Workflows
+
+The project uses two distinct workflows with strict separation of concerns. **Never cross the boundary** between build verification and regression testing.
+
+##### Scope Patterns
+
+| Pattern | Description | Example Command |
+|---------|-------------|----------------|
+| **Single OS, Single Lang** | One platform, one language | `verify_build macos cpp` |
+| **Single OS, Multiple Lang** | One platform, all languages | `verify_build macos` |
+| **Multiple OS, Single Lang** | All platforms, one language | `verify_build cpp` |
+| **Multiple OS, Multiple Lang** | All platforms, all languages | `verify_build` |
+
+##### Execution Modes
+
+Every workflow supports three execution modes, selected by the target:
+
+| Mode | Syntax | Requirements |
+|------|--------|-------------|
+| **Native** | `<os>` (e.g., `macos`, `fedora`) | Toolchain installed on host; no container/SSH needed |
+| **Container** | `<os>/container` (e.g., `fedora/container`) | Container runtime (`podman` on Linux, `container` on macOS); full `src/` mount for symlink resolution |
+| **SSH Remote** | `<os>/ssh@<host>` (e.g., `archlinux/ssh@10.10.41.227`) | Key-based SSH access; tarball transfer of source + prompts |
+
+**SSH Requirements:**
+- **Key-based authentication only** — passwords are prohibited (see [SSH Authentication Policy](#ssh-authentication-policy))
+- Remote host must have the target toolchain installed (g++, clang++, etc.)
+- Source files transferred via tarball + SCP before workflow execution
+- All changes start locally; never edit directly on the remote
+
+##### verify_build Workflow
+
+Build verification confirms that source code compiles and produces correct artifacts. It runs `<os>/<lang>/Makefile all` — **no tests are executed**.
+
+```mermaid
+flowchart TD
+    Start([Start: verify_build]) --> Scope[Parse scope: OS + Language]
+    Scope --> Mode{Execution mode?}
+    
+    Mode -->|native| Native[Resolve native toolchain: clang++/g++]
+    Mode -->|container| Container[Resolve container image: podman/container CLI]
+    Mode -->|"ssh@host"| SshRemote[Prepare tarball: src/ + prompts/]
+    
+    Native --> PreCheck[Pre-flight checks: toolchain version, disk space]
+    Container --> PreCheck
+    SshRemote --> SCP[SCP tarball to remote host]
+    SCP --> RemoteClean[Remote: rm -rf old files]
+    RemoteClean --> RemoteUnpack[Remote: tar -xzf]
+    RemoteUnpack --> PreCheck
+    
+    PreCheck --> Build[Execute: make all]
+    Build --> Artifacts{Artifacts exist?}
+    
+    Artifacts -->|No| FailBuild[FAIL: Build error - check build.log]
+    Artifacts -->|Yes| Symmetry["Binary symmetry: verify_binary_symmetry.sh (Linux only)"]
+    Symmetry --> Lint[Prompt linting: lint_prompts.sh]
+    
+    Symmetry -->|Fail| FailSym[FAIL: Source drift - rebuild affected platforms]
+    Lint -->|Fail| FailLint[FAIL: Structural issue - fix prompt layout]
+    
+    FailBuild --> EndFail([End: FAIL])
+    FailSym --> EndFail
+    FailLint --> EndFail
+    
+    Lint --> Report[Generate build.log: compiler version, artifact sizes]
+    Report --> EndOK([End: PASS])
+    
+    classDef startend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef process fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef fail fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef ssh fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    class Start,EndOK startend
+    class Scope,Native,Container,PreCheck,Build,Artifacts,Symmetry,Lint,Report process
+    class Mode,SSH decision
+    class SCP,RemoteClean,RemoteUnpack ssh
+    class FailBuild,FailSym,FailLint,EndFail fail
+```
+
+##### run_regression Workflow
+
+Regression testing executes the full T001–T007 test matrix and validates output against expected results. It runs `tests/Makefile verify`.
+
+```mermaid
+flowchart TD
+    Start([Start: run_regression]) --> Scope[Parse scope: OS + Language]
+    Scope --> Mode{Execution mode?}
+    
+    Mode -->|native| Native[Resolve native toolchain]
+    Mode -->|container| Container[Resolve container image: full src/ mount required]
+    Mode -->|"ssh@host"| SshRemote[Prepare tarball: src/ + prompts/]
+    
+    Native --> PreCheck[Pre-flight checks: toolchain, test data exists]
+    Container --> PreCheck
+    SshRemote --> SCP[SCP tarball to remote host]
+    SCP --> RemoteClean[Remote: rm -rf old files]
+    RemoteClean --> RemoteUnpack[Remote: tar -xzf]
+    RemoteUnpack --> PreCheck
+    
+    PreCheck --> BuildTest["Build test harness: make all (in tests/)"]
+    BuildTest --> HarnessOK{test001 binary exists?}
+    
+    HarnessOK -->|No| FailHarness[FAIL: Test harness build error]
+    HarnessOK -->|Yes| RunTests[Execute T001-T007: for each test in order]
+    
+    RunTests --> TLoop{All tests complete?}
+    TLoop -->|No| NextTest[Run next test]
+    NextTest --> CollectResult[Collect result: exit code, stdout diff]
+    CollectResult --> TLoop
+    
+    TLoop -->|Yes| Results{All tests passed?}
+    
+    Results -->|No| FailTests[FAIL: Test failure - check output vs expected]
+    Results -->|Yes| JUnit[Generate JUnit XML: regression_report_junit.xml]
+    
+    FailTests --> EndFail([End: FAIL])
+    JUnit --> Markdown[Generate Markdown report: regression_report.md]
+    Markdown --> Summary[Summary: pass/fail counts, per-test timing]
+    Summary --> EndOK([End: PASS])
+    
+    classDef startend fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef process fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef fail fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef ssh fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef test fill:#fce4ec,stroke:#c62828,stroke-width:2px
+    class Start,EndOK startend
+    class Scope,Native,Container,PreCheck,BuildTest,HarnessOK,JUnit,Markdown,Summary process
+    class Mode,TLoop,Results decision
+    class SCP,RemoteClean,RemoteUnpack ssh
+    class FailHarness,FailTests,EndFail fail
+    class RunTests,NextTest,CollectResult test
+```
+
+##### Execution Mode Decision Flowchart
+
+```mermaid
+flowchart TD
+    Start([Select target]) --> Host{Host OS?}
+    
+    Host -->|macOS| MacCheck{Target OS?}
+    MacCheck -->|macos| Native[Native build: clang++, make]
+    MacCheck -->|fedora/debian/ubuntu| Container{Container runtime?}
+    Container -->|container CLI| AppleCont[Apple Container: omit localhost/ prefix]
+    Container -->|podman available| PodmanCont[podman: full src/ mount]
+    Container -->|neither| Skip[SKIP: Log message, no container runtime]
+    
+    Host -->|Linux| LinuxCheck{Target OS?}
+    LinuxCheck -->|macos| SkipMac[SKIP: macOS is native-only, cannot containerize]
+    LinuxCheck -->|fedora/debian/ubuntu/arch| PodmanCont
+    LinuxCheck -->|archlinux| SshCheck{Remote host? archlinux/ssh@host}
+    
+    Host -->|FreeBSD| FBSDCheck{Target OS?}
+    FBSDCheck -->|freebsd14| Native
+    FBSDCheck -->|other| SkipMac
+    
+    SshCheck -->|Yes| SshRemote[SSH remote: key-based auth only, tarball transfer]
+    SshCheck -->|No| SkipArch[SKIP: No remote host configured for archlinux]
+    
+    Native --> End([Execute])
+    AppleCont --> End
+    PodmanCont --> End
+    SshRemote --> End
+    Skip --> EndSkip([End: Skipped])
+    SkipMac --> EndSkip
+    SkipArch --> EndSkip
+    
+    classDef startend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef process fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef skip fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px
+    classDef ssh fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    class Start,End,EndSkip startend
+    class Native,AppleCont,PodmanCont,SshRemote process
+    class Host,MacCheck,Container,LinuxCheck,SshCheck decision
+    class Skip,SkipMac,SkipArch skip
+    class SshRemote ssh
+```
+
+##### Platform-Specific Notes
+
+| Platform | Build Command | Test Command | Container Runtime | Special Notes |
+|----------|--------------|--------------|-------------------|---------------|
+| **macOS** | `make all` (BSD make) | `make test` | N/A — native only | Use `gmake` for GNU make; universal binary via `lipo -create` |
+| **Fedora** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ with `-flto=thin`; dnf package manager |
+| **Debian** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ uses `-flto` (not `-flto=thin`); apt package manager |
+| **Ubuntu** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ with `-flto=thin`; apt package manager |
+| **Arch Linux** | `make all` (GNU make) | `make test` | N/A — SSH only | Multi-compiler Makefile (g++/clang++ auto-detect); amd64-only container |
+| **Raspberry Pi OS** | `make all` (GNU make) | `make test` | `podman` or `container` | arm64 container image; apt package manager |
+| **FreeBSD 14** | `make all` (BSD make) | `make verify` | N/A — native only | Static library only; no RPATH/$ORIGIN support |
+
+##### Error Handling & Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| `make: command not found` on macOS | BSD make vs GNU make confusion | Use `gmake` (Homebrew) for GNU syntax; native `make` works for BSD syntax |
+| `ENOENT: spawn ... ENOENT` | Shell harness cwd resolution failure | Pass explicit `workdir` to shell command |
+| Symlink broken in container | Relative symlink not resolved | Mount full `src/` tree, not just the OS directory |
+| `ld: library not found` | RPATH not set for dynamic lib | Check `@rpath` on macOS, `$ORIGIN` on Linux (not supported on FreeBSD 14) |
+| Test fails with exit code 1 | Expected for T005 (fatal error mode) | Verify other tests pass; T005 is designed to fail |
+| `make: *** No rule to make target` | Space instead of tab in Makefile | Regenerate Makefile with real tabs (`\t`) |
+| SSH hangs on password prompt | Key not installed on remote host | Install public key to `~/.ssh/authorized_keys`; passwords prohibited |
+| Binary symmetry fails | Source drift between platforms | Rebuild all affected Linux distros from `src/common/cpp/` |
 
 #### Test Data Pattern System
 The Ringbuffer project uses a **pattern-driven** approach to test data generation. Instead of hardcoding pattern logic into each script, patterns are defined in standalone specification files that serve as the single source of truth. This ensures binary symmetry across all platforms and languages.
@@ -981,9 +1476,14 @@ When adding a new OS, follow this checklist:
 7. **Create update prompts** (`update_functional.md`, `update_build.md`, `update_testing.md`)
 8. **If containerized:** Create Dockerfile at `src/<os>/cpp/containers/Dockerfile` with appropriate base image and package installation
 9. **If containerized:** Ensure macOS compatibility (skip logic for Linux-hosts-only, native support for arm64)
-10. **Verify** — Run `lint_prompts.sh` to validate directory structure and required files
-11. **Update `.bionic`** — Add the new OS to the platform classification table and implementation phases
-12. **Update README.md** — Add the new OS to the Supported Platforms table and this Developer & Maintainer Guide section
+10. **Build/Test Pattern** — Every new OS/language MUST include:
+    - `<os>/<lang>/Makefile all` — Build target (creates artifacts + symlinks, **never** runs tests)
+    - `<os>/<lang>/tests/Makefile verify` — Test target (runs T001–T007, generates reports)
+    - Main Makefile must have `test: all` → calls `$(MAKE) -C tests verify`
+    - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for full details
+11. **Verify** — Run `lint_prompts.sh` to validate directory structure and required files
+12. **Update `.bionic`** — Add the new OS to the platform classification table and implementation phases
+13. **Update README.md** — Add the new OS to the Supported Platforms table and this Developer & Maintainer Guide section
 
 #### 7.5 SSH Remote Transfer Rule (All Platforms)
 When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
@@ -1106,7 +1606,11 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | | Python | v1.0.0 | python 3.14.x |
 | **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
 | **ArchLinux** | C++ | v1.0.0[^2] | g++ 16.2.1, clang++ 22.1.8 |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
 | **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x (Pure Python only — Concurrent skipped, RPATH limitation) |
 | **FreeBSD 15** | C++ | TBS | — |
 
 [^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
@@ -1131,8 +1635,10 @@ Loaded template 'Fedora' — all fields populated with defaults.
 - **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, Raspberry Pi OS, and Arch Linux — all at v1.0.0
 - **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
 - **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
+- **Java/Python on ArchLinux** — verified via SSH remote build (Linux-hosts-only)
+- **Java/Python on FreeBSD 14** — Java verified; Python Pure Python only (Concurrent skipped due to RPATH limitation)
 - **C++ implementation complete for Arch Linux** — v1.0.0, all 7 regression tests pass on both g++ and clang++; native build via SSH to remote Linux host (no container support on Apple Silicon)
-- **Binary symmetry verified** across ALL platforms: 21 source files confirmed byte-identical between macOS, debian, fedora, ubuntu, raspios, and archlinux via automated `verify_binary_symmetry.sh`
+- **Binary symmetry verified** across ALL platforms: 21 source files confirmed byte-identical between macOS, debian, fedora, ubuntu, raspios, and archlinux via automated `verify_binary_symmetry.sh` — source lives in single canonical tree (`src/common/cpp/`) with symlinks from each OS directory
 - **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection (7 platforms: macOS, debian, fedora, ubuntu, raspios, archlinux)
 - **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
 
@@ -1156,12 +1662,13 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | Capability | Status | Details |
 |------------|--------|---------|
 | C++ library (macOS) | ✅ Complete | Universal binaries (arm64 + x86_64), static + shared libs |
-| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios/archlinux |
+| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios/archlinux — enforced by symlinks to `src/common/cpp/` |
 | Java library (all OS) | ✅ Complete | Maven build, JAR artifact, classload test verified |
 | Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
-| Build system | ✅ Complete | Makefiles with container overrides, versioned artifacts |
-| Test infrastructure | ✅ Complete | T001–T007 matrix, JUnit XML output, pattern-driven data |
-| Binary symmetry | ✅ Verified | All compared source files byte-identical across macOS and all Linux platforms
+| Build system | ✅ Complete | Unified `all` target pattern: `<os>/<lang>/Makefile all` (build + symlinks, no tests) |
+| Test infrastructure | ✅ Complete | Unified `verify` target pattern: `tests/Makefile verify` (T001–T007, reports) |
+| Build/test separation | ✅ Enforced | `verify_build` uses `<os>/<lang>/Makefile all`; `run_regression` uses `tests/Makefile verify` |
+| Binary symmetry | ✅ Verified | All compared source files byte-identical across macOS and all Linux platforms — enforced by symlinks to single canonical tree (`src/common/cpp/`)
 | Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
 | State tracking | ✅ Operational | `.gen_state.json` on all 6 active platforms |
 | Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
