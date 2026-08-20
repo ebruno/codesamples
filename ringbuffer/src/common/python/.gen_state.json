@@ -1,7 +1,7 @@
 {
   "language": "python",
   "version": "1.0.0-1",
-  "python_version": "3.14.7 (archlinux), 3.14.6 (macos)",
+  "python_version": "3.14.6",
   "os_results": {
     "raspios": {
       "route": "container",
@@ -15,7 +15,7 @@
       "image": "N/A",
       "python_version": "3.14.6",
       "status": "PASS",
-      "timestamp": "2026-08-17T14:59:21-0700"
+      "timestamp": "2026-08-20T02:29:31.523204+00:00"
     },
     "archlinux": {
       "route": "native",
@@ -23,6 +23,14 @@
       "status": "PASS",
       "timestamp": "2026-08-18T08:56:42-0700",
       "notes": "C++ shared library built successfully. Concurrent (7/7) + Pure Python (7/7) all passed."
+    },
+    "fedora": {
+      "route": "container",
+      "image": "ringbuffer_python_fedora:latest",
+      "python_version": "3.14+",
+      "status": "PASS",
+      "timestamp": "2026-08-20T02:33:53.710334+00:00",
+      "notes": "Pure Python only \u2014 C++ source not available in container"
     }
   },
   "artifacts": {
@@ -31,12 +39,11 @@
   },
   "sha256": {
     "version_mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
-    "swtr_ringbuffer_py": "275ee8df7f8fcdd05e40a2598d03b07410934b5eb700542004ccf14e4da5ec31",
-    "test_ringbuffer_py": "e6e29a568e178f5ccffaa5d05cf154d17cf0c5d5e22d49f28d8968dfcd1866b1",
-    "version.mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
-    "swtr_ringbuffer_pure.py": "0ffedbd302bcf7f4879d947ff792d989814344f94cf1496b0c27e29e4b9f43e5",
-    "test_ringbuffer.py": "e6e29a568e178f5ccffaa5d05cf154d17cf0c5d5e22d49f28d8968dfcd1866b1",
-    "test_ringbuffer_pure.py": "badbe7f143d44f5b0747bc0f87ba8a51d3024492f2078c79f6f8d54fe54ec265"
+    "base_py": "b36d62e49c63eb44dba2518f28d4169ba573664eb14909b51e20bda3179d8974",
+    "swtr_ringbuffer_hp_py": "5eca4d297dbc210e231fdedb491c6b924bca299194a7397b2de2b791f77f74dd",
+    "swtr_ringbuffer_pure_py": "0ffedbd302bcf7f4879d947ff792d989814344f94cf1496b0c27e29e4b9f43e5",
+    "test_ringbuffer_py": "a385ed71ee0d27003b49ba9c267f08fe70b255fd5b778effa4dc0105bedd721e",
+    "test_ringbuffer_pure_py": "c0f5679243247372ee770eef3f5b6179ebaf0c6c827c977c0cc92e2256d2887e"
   },
   "notes": [
     "Version string changed from 'High Performance' to 'Concurrent' (2026-08-17)",
