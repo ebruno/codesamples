@@ -415,20 +415,20 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
        ```bash
        # macOS host targeting Linux distro:
        if [ -f src/<os>/java/pom.xml ]; then
-           container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+           container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
        else
-           container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+           container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
        fi
        # Linux host targeting another Linux distro:
        if [ -f src/<os>/java/pom.xml ]; then
-           podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+           podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
        else
-           podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn test package -DskipTests && rm -rf target/classes target/test-classes"
+           podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && mvn package && rm -rf target/classes target/test-classes"
        fi
        ```
   4. **Verification Steps**:
      - Navigate to `src/common/java/`.
-     - Run `mvn test package -DskipTests` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
+     - Run `mvn package` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
      - Clean up intermediate build artifacts: `rm -rf target/classes target/test-classes`.
      - Verify test reports exist in `target/surefire-reports/`.
      - Verify no test failures in the output.
