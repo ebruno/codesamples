@@ -32,7 +32,7 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
       - Current status note: C++ in Phase A; Java/Python in Phase B; C/Go/Rust pre-Phase A
    5. **## Prompt Execution Pattern** — Four-step pattern: common workflow → platform-specific primary document (`create_*.md`) → common spec → platform spec
    6. **## Development Methodology** — LLM-created from scratch. Interactive prompt generation, binary symmetry as deliberate instruction, incremental refinement, **prompt versioning** via `.gen_state.json` SHA-256 hashes with changelog tracking (`prompts/common/CHANGELOG.md`). Post-commit hook (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs.
-   7. **## Key Specifications** — Multi-OS support (macOS, Fedora, Debian, Ubuntu, Raspberry Pi OS, Arch Linux, FreeBSD 14), Multi-Language support (C++, Java, Python implemented; C, Go, Rust in pipeline). **Language Standards and Classification**: version requirements per language (C23/C17, C++20/C++17, Java SE 25/SE 24-17, Go 1.24/1.23, Python 3.14/3.13-3.10, Rust 1.84.0/1.56.0). **Language-Specific Build Systems**: C/C++ GNU Make, Java Maven, Go Modules, Python interpreted/ctypes, Rust Cargo. Multi-Toolchain (GCC/Clang), C++20 standards, **Library-First API Design** (~20 slot-level accessor methods intentional).
+   7. **## Key Specifications** — Multi-OS support (macOS, Fedora, Debian, Ubuntu, Raspberry Pi OS, Arch Linux, FreeBSD 14), Multi-Language support (C++, Java, Python implemented; C, Go, Rust in pipeline). **Language Standards and Classification**: version requirements per language (C23/C17, C++20/C++17, Java SE 25/SE 24-17, Go 1.24/1.23, Python 3.14/3.13-3.10, Rust 1.84.0/1.56.0). **Language-Specific Build Systems**: C/C++ GNU Make, Java Maven, Go Modules, Python interpreted/ctypes, Rust Cargo. **Unified Build/Test Pattern** (all languages): `verify_build` → `<os>/<lang>/Makefile all` (build + symlinks, no tests); `run_regression` → `tests/Makefile verify` (T001–T007, reports); main Makefile `test: all` → calls `$(MAKE) -C tests verify`. Multi-Toolchain (GCC/Clang), C++20 standards, **Library-First API Design** (~20 slot-level accessor methods intentional).
    8. **## Core Features** — **Shared Behavioral Contract (All Languages)**: three-stage pipeline, status-driven coordination (`readyforread` → `readyfortransform` → `readyforwrite` → `readyforread`), cooperative cancellation, error handler callback (non-zero = shutdown), EOF detection (`LAST_BUFFER_TO_TRANSFORM` → `LAST_BUFFER_TO_WRITE`), transform in-place. Pipelined Architecture, Performance (Cache Alignment 64-byte, Small Binaries `-ffunction-sections`, Universal Binaries macOS `lipo -create`, Compiler Flags `-fvisibility=hidden`/`-flto=thin`), Data Integrity (MD5/SHA256/SHA512 per slot), Diagnostics (NVI Logging per-stage verbosity).
    9. **## LLM Knowledge Package** — Versioned knowledge packages for C++, Java, Python. Subsections:
       - **### What It Contains** — `knowledge/` directory tree (manifest.json, Modelfile, system-prompt.md, api-reference/, examples/, patterns/, instruction-dataset/)
@@ -48,9 +48,9 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
    11. **## Quick Start: End-to-End Workflow (macOS Example)** — Five-step prompt-driven process with exact prompts and outputs:
        - **### Step 1: Generate Source Code** — `create_functional.md` → `.hpp`, `.cpp` files in `src/macos/cpp/`
        - **### Step 2: Create Build Environment** — `create_build.md` → Makefile, version.mk, library artifacts in `src/macos/cpp/lib/`
-       - **### Step 3: Verify the Build** — `verify_build.md` → Mach-O binaries, symbol visibility
+       - **### Step 3: Verify the Build** — `verify_build.md` → runs `<os>/<lang>/Makefile all` (build + symlinks, no tests) → Mach-O binaries, symbol visibility
        - **### Step 4: Set Up Test Infrastructure** — `create_regression.md` → tests/ with Makefile, test data T001-T007
-       - **### Step 5: Execute Regression Tests** — `run_regression.md` → T001-T007, regression_report.md, JUnit XML
+       - **### Step 5: Execute Regression Tests** — `run_regression.md` → runs `tests/Makefile verify` (T001-T007, reports) → regression_report.md, JUnit XML
        - **### Incremental Updates** — `update_functional.md`, `update_build.md`, `update_testing.md`
    12. **## Library API Example** — Construction, transform setup, I/O configuration, pipeline execution. Subsections:
        - **### Advanced Configuration** — Per-stage logging (`set_read_logging_enabled`, `set_transform_verbosity`), checksum algorithm selection (`set_checksum_alg`), custom error handler (plain C function pointer). Transform types: `0` (identity), `1` (uppercase), `2` (XOR 0xFF). User transforms: `std::function<void(std::vector<uint8_t>&, size_t&)>`
@@ -59,21 +59,41 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
        - **### Pipeline Animation** — `animated_graphics/pipeline_animation.gif` (45 frames, 1000ms each, ~45s cycle)
    13. **## Initial Development Environment** — OS, Hardware (core count + RAM), AI Tools subsection: Agent Harness (name/version/commit), Model Name, Model Specs (parameter count, architecture, optimization method)
    14. **## Project Structure** — Deterministic file mapping strategy (max 3 functions per `.cpp` file). Per-OS `src/<os>/cpp/` includes `specs/` subdirectory. **reference_linux** as canonical reference platform in `prompts/reference_linux/`. Platform-insensitive languages: Java (`src/common/java/`), Python (`src/common/python/`). FreeBSD 14 Python (`src/freebsd14/python/`), Raspberry Pi OS Java (`src/raspios/java/`).
-   15. **## Developer & Maintainer Guide** — See Part A/B/C/E below
-   16. **## Required Tools** — Per-OS toolchain requirements (compiler, make, binary analysis tools like otool/readelf)
-   17. **## Containerized Build Environment (if applicable)** — Base image, toolchain installation, container path
-   18. **## macOS Skip Logic (if applicable)** — Graceful skip with logging for Linux-hosts-only platforms
-   19. **## Supported Platforms** — OS-grouped table (OS, Language, Version, Verified Compilers). All platforms including FreeBSD 14/15. Footnote: `*TBS: To Be Supplied | WIP: Work In Progress`
-   20. **## Known Issues & Toolchain Limitations** — Ubuntu 24.04 clang++ unsupported, FreeBSD 14 RUNPATH limitation (static library only), Arch Linux amd64-only containers
-   21. **## Where We Are At** — Current implementation status per platform/language, verification results (binary symmetry, prompt linting), operational capabilities. Subsections:
-       - **### Current Status (as of YYYY-MM-DD)** — C++ complete for macOS/Debian/Fedora/Ubuntu/Raspios/ArchLinux; Java/Python common implementations; C/Go/Rust pre-Phase A
-       - **### What Works Today** — Auto-generated table: C++ library, Java library, Python library, Build system, Test infrastructure, Binary symmetry, Prompt linting, State tracking, Multi-language verify, Java regression, Changelog suggestions
-   22. **## Where We're Going** — Static roadmap (updated manually):
+   15. **## Source File Layout & Symlink Usage** — C++ source deduplication via symlinks to `src/common/cpp/`. Subsections: How C++ Source Files Are Organized (directory tree, 21 shared source files), Symlink Awareness & Compatibility table (git tracking, build tools, IDE navigation, web viewers), Compatibility Matrix (macOS/Linux/FreeBSD ✅, Windows ⏳ Roadmap), Windows Support subsection, Why Symlinks Over Copying (drift prevention), How to Identify Symlinked vs Real Files (`ls -la`, `readlink -f`, `find`), Build Artifact Symlinks (versioned → unversioned in lib/).
+   16. **## Project Policies** — Operational rules for the project. Subsections:
+       - **### Shell Script Portability** — Forbidden tools (awk, sed, grep, cut, tr, sort, uniq, find, xargs, which), permitted builtins, `command -v` vs `which`, tcsh exception
+       - **### SSH Authentication Policy** — Golden rule: key-based auth only, passwords prohibited
+       - **### Git Discipline** — Never commit; user handles all commits; no reports/logs/artifacts committed
+       - **### Build vs Test Workflow Pattern** — Golden rule: never cross `verify_build` / `run_regression` boundaries
+       - **### Container Commands (macOS)** — No podman, no `localhost/` prefix, Debian LTO_FLAG exception
+       - **### Prompt Changelog Discipline** — CHANGELOG.md format for prompt changes
+       - **### Prompt Deduplication Discipline** — Check `session_hints.md` before duplicating content
+       - **### Makefile Tab Discipline** — Real tabs, not spaces
+       - **### Version Naming Convention** — `version.mk` = library version, not OS version
+       - **### Mermaid Diagram Validation** — Validate diagrams with `mmdc` before committing; common pitfalls (parentheses quoting, at-signs in edge labels, `direction` inside subgraphs)
+   17. **## Developer & Maintainer Guide** — See Part A/B/C/E below
+   17.5 **## Build & Test Workflows** — Two distinct workflows with strict separation of concerns. Subsections:
+       - **### Scope Patterns** — Single OS/Single Lang, Single OS/Multiple Lang, Multiple OS/Single Lang, Multiple OS/Multiple Lang
+       - **### Execution Modes** — Native (`<os>`), Container (`<os>/container`), SSH Remote (`<os>/ssh@<host>`) with requirements
+       - **### verify_build Workflow** — Mermaid diagram: scope parsing → mode selection (native/container/ssh) → pre-flight checks → build → artifact verification → binary symmetry check → prompt linting → report generation
+       - **### run_regression Workflow** — Mermaid diagram: scope → mode selection → pre-flight → build test harness → T001-T007 loop → JUnit/Markdown report generation
+       - **### Execution Mode Decision Flowchart** — Mermaid diagram: decision tree for selecting native, container, or SSH based on host OS and target platform
+       - **### Platform-Specific Notes** — Table: build/test commands, container runtime, special notes per platform (macOS, Fedora, Debian, Ubuntu, Arch Linux, Raspberry Pi OS, FreeBSD 14)
+       - **### Error Handling & Troubleshooting** — Table: common symptoms, likely causes, fixes (ENOENT, symlink resolution in containers, RPATH, T005 expected failure, Makefile tabs, SSH password prompt)
+   18. **## Required Tools** — Per-OS toolchain requirements (compiler, make, binary analysis tools like otool/readelf)
+   19. **## Containerized Build Environment (if applicable)** — Base image, toolchain installation, container path
+   20. **## macOS Skip Logic (if applicable)** — Graceful skip with logging for Linux-hosts-only platforms
+   21. **## Supported Platforms** — OS-grouped table (OS, Language, Version, Verified Compilers). All platforms including FreeBSD 14/15. Footnote: `*TBS: To Be Supplied | WIP: Work In Progress`
+   22. **## Known Issues & Toolchain Limitations** — Ubuntu 24.04 clang++ unsupported, FreeBSD 14 RUNPATH limitation (static library only), Arch Linux amd64-only containers
+   23. **## Where We Are At** — Current implementation status per platform/language, verification results (binary symmetry, prompt linting), operational capabilities. Subsections:
+       - **### Current Status (as of YYYY-MM-DD)** — C++ complete for macOS/Debian/Fedora/Ubuntu/Raspios/ArchLinux; Java/Python common implementations (including ArchLinux via SSH, FreeBSD 14 native); C/Go/Rust pre-Phase A
+       - **### What Works Today** — Auto-generated table: C++ library, Java library, Python library, Build system (unified `all` target), Test infrastructure (unified `verify` target), Build/test separation, Binary symmetry, Prompt linting, State tracking, Multi-language verify, Java regression, Changelog suggestions
+   24. **## Where We're Going** — Static roadmap (updated manually):
        - **### Near-Term (Next Iterations)** — Additional languages C/Go/Rust, additional test patterns beyond zigzag, enhanced CI/CD
        - **### Medium-Term (Roadmap)** — FreeBSD 15 implementation, Arch Linux C++ source generation on Linux host, more comprehensive test coverage (concurrent access patterns, memory pressure, signal handling), documentation expansion
        - **### Long-Term (Vision)** — Full multi-language library, cross-platform verification suite comparing behavior across language/platform combinations, plugin ecosystem for custom transforms
-   23. **## Appendices** — Table of appendix files under `prompts/common/appendices/`: archlinux-platform-analysis.md, cpp-cross-compiler-compatibility.md, debian-platform-analysis.md, fedora-platform-analysis.md, freebsd-platform-analysis.md, freebsd14_java_verification.md, freebsd14_python_verification.md, macos-platform-analysis.md, raspios-platform-analysis.md, ubuntu-platform-analysis.md
-   24. **## License** — BSD 3-Clause License
+   25. **## Appendices** — Table of appendix files under `prompts/common/appendices/`: archlinux-platform-analysis.md, cpp-cross-compiler-compatibility.md, debian-platform-analysis.md, fedora-platform-analysis.md, freebsd-platform-analysis.md, freebsd14_java_verification.md, freebsd14_python_verification.md, macos-platform-analysis.md, raspios-platform-analysis.md, ubuntu-platform-analysis.md
+   26. **## License** — BSD 3-Clause License
 
 3. **Maintenance & Workflow (Developer/Maintainer Section)**:
    This section must be split into three parts:
@@ -119,10 +139,10 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
      - *Syntax Example:* `"Use prompts/debian/cpp/update_functional.md to synchronize the debian implementation with the updated common specifications"`
    
    - **Verification & Testing:**
-     - `prompts/common/verify_build.md`: Use this for a first-pass sanity check on library compilation.
+     - `prompts/common/verify_build.md`: Runs `<os>/<lang>/Makefile all` (build only, no tests). Supports C/C++, Java, Python.
        - *Syntax Example:* `"Use prompts/common/verify_build.md to run build_verify for debian and fedora"`
-     - `prompts/common/regression_test.md`: Use this for final validation of the library and test suite.
-       - *Syntax Example:* `"Use prompts/common/regression_test.md to do regression_test on debian, fedora, macos"`
+     - `prompts/common/run_regression.md`: Runs `tests/Makefile verify` (build + T001–T007 test matrix). Supports C/C++, Java, Python.
+       - *Syntax Example:* `"Use prompts/common/run_regression.md to run regression on debian, fedora, macos"`
 
    **Test Matrix (T001–T007):**
    Include a table documenting all seven test scenarios. This is ground truth — every implementation must pass:
@@ -215,7 +235,7 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
    - **4. Container Configuration**: Dockerfile structure (RPM vs DEB package managers), container runtime selection (`container` on macOS, `podman` on Linux), macOS pre-flight checks
    - **5. Required Prompt Files**: 9 files per OS in `prompts/<os>/cpp/` (create_functional.md, create_build.md, create_regression.md, functional.md, build.md, testing.md, update_functional.md, update_build.md, update_testing.md)
    - **6. Reference Implementations to Review**: macOS (native-only, universal binaries), Raspberry Pi OS (arm64 container on Apple Silicon), Arch Linux (Linux-hosts-only, rolling release)
-   - **7. Implementation Checklist**: 12 steps from OS classification through README update
+   - **7. Implementation Checklist**: 13 steps from OS classification through README update (includes Build/Test Pattern step: `<os>/<lang>/Makefile all`, `tests/Makefile verify`, main Makefile `test: all`)
    - **### Required Tools**: Per-OS toolchain requirements (compiler, make, binary analysis tools like otool/readelf)
    - **### Containerized Build Environment (if applicable)**: Base image, toolchain installation, container path
    - **### macOS Skip Logic (if applicable)**: Graceful skip with logging for Linux-hosts-only platforms
@@ -228,7 +248,7 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
      4. Run `verify_binary_symmetry.sh` and capture exit code → status = ✅ Verified or ❌ Failed
      5. Run `lint_prompts.sh` and capture exit code → status = ✅ Operational or ❌ Failed
      6. Generate a Markdown table with columns: Capability, Status (✅/⚠️/❌), Details
-     7. Include rows for: C library (per OS), C++ library (per OS — macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14), Go library (per OS), Java library (common + per-OS variants like raspios/java, freebsd14/python), Python library (common + per-OS variants), Rust library (per OS), Build system, Test infrastructure, Binary symmetry, Prompt linting, State tracking, LLM Knowledge Package (check for knowledge/ directory and manifest.json), LinkedIn Post Generator (check for prompts/common/linkedin/)
+     7. Include rows for: C library (per OS), C++ library (per OS — macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14), Go library (per OS), Java library (common + per-OS variants like raspios/java, freebsd14/python), Python library (common + per-OS variants), Rust library (per OS), Build system (unified `all` target pattern: `<os>/<lang>/Makefile all`), Test infrastructure (unified `verify` target pattern: `tests/Makefile verify`), Build/test separation (`verify_build` uses `<os>/<lang>/Makefile all`; `run_regression` uses `tests/Makefile verify`), Binary symmetry, Prompt linting, State tracking, LLM Knowledge Package (check for knowledge/ directory and manifest.json), LinkedIn Post Generator (check for prompts/common/linkedin/)
    
    **Static Roadmap Content:**
    - Near-Term (Next Iterations): Additional languages (C, Go, Rust implementation), additional test patterns beyond zigzag, enhanced CI/CD integration with automated verification scripts
@@ -247,11 +267,11 @@ ightarrow$ Write**) and binary symmetry focus. Platform classification:
      - **Fedora**: C++, Java, Python (containerized amd64)
      - **Ubuntu**: C++, Java, Python (containerized amd64; clang++ unsupported — see Known Issues)
      - **Raspberry Pi OS**: C++, Java (containerized arm64 on Apple Silicon)
-     - **ArchLinux**: C++ (Linux-hosts-only; macOS skip with logging)
-     - **FreeBSD 14**: C++, Python (native-only; static library only for C++ — see Known Issues)
+     - **ArchLinux**: C++, Java, Python (Linux-hosts-only; macOS skip with logging)
+     - **FreeBSD 14**: C++, Java, Python (native-only; static library only for C++ — see Known Issues; Python Pure Python only)
      - **FreeBSD 15**: C++ (excluded; zero-length placeholder files only)
    - **Excluded Platforms (MUST ALWAYS APPEAR)**: FreeBSD 15 — C++ with `TBS` status. Never remove it, even if no `version.mk` exists.
-   - **Linux-Hosts-Only Platforms**: ArchLinux — C++ (macOS skip with logging)
+   - **Linux-Hosts-Only Platforms**: ArchLinux — C++, Java, Python (macOS skip with logging)
    - **Footnote**: Immediately following the table, include this exact footnote:
      `*TBS: To Be Supplied | WIP: Work In Progress`
 
