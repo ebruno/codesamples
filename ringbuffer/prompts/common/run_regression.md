@@ -3,6 +3,11 @@
 **Objective:** 
 Execute the regression test matrix (T001–T007) on an already-set-up platform. This covers build, test execution, artifact verification, report generation, state tracking, and log finalization.
 
+**Build/Test Pattern (MANDATORY):** Every language follows the same two-step pattern:
+- `verify_build` → `<os>/<lang>/Makefile all` (build only, no tests)
+- `run_regression` → `tests/Makefile verify` (test matrix T001-T007)
+- See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for details.
+
 **Prerequisite:** Infrastructure setup from `prompts/common/implement_regression.md` must be completed before proceeding. The `tests/` directory, test Makefile, Dockerfile, utility scripts, and test data must already exist.
 
 **Inputs:**

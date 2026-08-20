@@ -3,6 +3,12 @@
 **Objective:** 
 Create the build environment for the Ringbuffer library by strictly following the specifications defined in `prompts/common/cpp/build.md` and the platform-specific specifications in `prompts/<os>/cpp/build.md`. For platform-insensitive languages (Java, Python), follow `prompts/common/<lang>/build.md`.
 
+**MANDATORY — Build/Test Pattern:** Every new OS/language MUST include:
+1. **`<os>/<lang>/Makefile all`** — Build target (creates artifacts + symlinks, no tests)
+2. **`<os>/<lang>/tests/Makefile verify`** — Test target (runs T001-T007, generates reports)
+3. **Main Makefile** must have `test: all` → calls `$(MAKE) -C tests verify`
+- See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for full details.
+
 **Inputs:**
 1. **Target OSes**: One or more operating systems to target (e.g., `fedora`, `debian,ubuntu`). If not specified, all OSes in `src/` are processed.
 2. **Target Image**: An optional container image override (e.g., `fedora:43`, `debian:12`). If provided, this overrides the default image specified in each OS's `create_build.md`. If not provided, use the default image from the target OS's prompt.

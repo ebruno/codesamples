@@ -171,6 +171,25 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 
 ### Prompt Syntax for Adding Languages
 The basic prompt syntax is: `add <language> to <os>`
+
+**MANDATORY — Build/Test Pattern for Every New OS/Language:** When adding a new OS or language, you MUST create the following Makefile targets:
+
+1. **`<os>/<lang>/Makefile all`** — Build target (used by `verify_build`). Must:
+   - Compile/package the language source
+   - Create versioned artifacts (e.g., `libswtr_ringbuffer-1.0.0.a`)
+   - Create symlinks from unversioned names to versioned artifacts (e.g., `libswtr_ringbuffer.a` → `libswtr_ringbuffer-1.0.0.a`)
+   - **Never** run tests
+
+2. **`<os>/<lang>/tests/Makefile verify`** — Test target (used by `run_regression`). Must:
+   - Run the full T001-T007 test matrix
+   - Compare output against expected results
+   - Generate JUnit XML and Markdown reports
+   - The `tests/Makefile` must also have a `test: verify` target so `make test` works
+
+3. **Main Makefile** must have: `test: all` → calls `$(MAKE) -C tests verify`
+
+**Golden rule:** `verify_build` uses `<os>/<lang>/Makefile all`. `run_regression` uses `tests/Makefile verify`. Never cross these boundaries.
+
 - **Inferred**: Ringbuffer implementation for the specified language on the target OS
 - **Platform-sensitive routing** (`c`, `cpp`): Reads common spec + per-OS overrides, generates platform-specific source, performs cross-platform symmetry verification between Linux distros
 - **Platform-insensitive routing** (`python`, `java`, `go`, `rust`): Reads single common spec, generates identical source for all platforms, no cross-platform symmetry needed

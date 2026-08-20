@@ -3,6 +3,11 @@
 **Objective:** 
 Verify that all implemented languages build successfully across supported operating systems.
 
+**Build/Test Pattern (MANDATORY):** Every language follows the same two-step pattern:
+- `verify_build` → `<os>/<lang>/Makefile all` (build only, no tests)
+- `run_regression` → `tests/Makefile verify` (test matrix T001-T007)
+- See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for details.
+
 **Process:**
 1. **Target and Mode Selection**:
    - **Host-OS Auto-Detection**: At the start of every run, detect the host OS:
