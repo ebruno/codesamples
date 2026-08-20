@@ -493,15 +493,16 @@ The Python implementation uses different Makefile syntax for GNU make and BSD ma
 - `.gen_state.json` is also excluded from commits (tracked in `.gitignore`).
 
 ### Common Pitfalls
-1. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
-2. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).
-3. **`make clean` loops over all languages:** The main Makefile's `clean` target iterates over C++ (`src/*/cpp/`), Java (`src/common/java/`), and Python (`src/common/python/`) directories, calling `make clean` in each. Per-directory Makefiles handle actual artifact removal (e.g., C++ removes `build/`, `lib/`; Java removes `target/`; Python removes `__pycache__/`, `.egg-info/`, `build/`).
-4. **`dist-clean` reports elapsed time:** The top-level `dist-clean` target captures a start timestamp at the beginning of `clean`, then after all dist-work completes, prints `Dist-clean completed in HH:MM:SS`. A `.ringbuffer_start` temp file passes the start time from `clean` to `dist-clean`.
-5. **`.ringbuffer_start` is a temp file:** The `.ringbuffer_start` file stores the epoch seconds captured at `clean` start. It is read and deleted by `dist-clean` after computing elapsed time. Do not commit it to git.
-6. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
-7. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
-8. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
-9. **FreeBSD 14 RPATH limitation:** FreeBSD 14's `ld-elf.so.1` does NOT support `$ORIGIN` in RUNPATH — the dynamic linker strips it to empty at runtime. **Dynamic library testing is not possible on FreeBSD 14.** Use static library only (via `make verify` target). See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for details.
+1. **Shell ENOENT after session compaction:** If `shell_command` fails instantly with `spawn ... ENOENT`, the scratchpad directory may not have been materialized yet (happens after session compaction). Run a trivial sandboxed Python call first to create it, then retry the shell command. **Remove this note once LM Studio fixes the bug.**
+2. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
+3. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).
+4. **`make clean` loops over all languages:** The main Makefile's `clean` target iterates over C++ (`src/*/cpp/`), Java (`src/common/java/`), and Python (`src/common/python/`) directories, calling `make clean` in each. Per-directory Makefiles handle actual artifact removal (e.g., C++ removes `build/`, `lib/`; Java removes `target/`; Python removes `__pycache__/`, `.egg-info/`, `build/`).
+5. **`dist-clean` reports elapsed time:** The top-level `dist-clean` target captures a start timestamp at the beginning of `clean`, then after all dist-work completes, prints `Dist-clean completed in HH:MM:SS`. A `.ringbuffer_start` temp file passes the start time from `clean` to `dist-clean`.
+6. **`.ringbuffer_start` is a temp file:** The `.ringbuffer_start` file stores the epoch seconds captured at `clean` start. It is read and deleted by `dist-clean` after computing elapsed time. Do not commit it to git.
+7. **`dist-clean` must recurse:** The `dist-clean` target MUST check for and clean the `tests/` directory if it exists.
+8. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
+9. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
+10. **FreeBSD 14 RPATH limitation:** FreeBSD 14's `ld-elf.so.1` does NOT support `$ORIGIN` in RUNPATH — the dynamic linker strips it to empty at runtime. **Dynamic library testing is not possible on FreeBSD 14.** Use static library only (via `make verify` target). See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for details.
 
 ### Container Commands (macOS)
 - **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
