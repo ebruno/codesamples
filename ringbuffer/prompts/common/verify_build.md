@@ -120,6 +120,82 @@ Verify that all implemented languages build successfully across supported operat
 
    ---
 
+   **Error Handling Discipline** (applies to ALL languages and platforms):
+   - When `verify_build` or `run_regression` encounters an error for a specific language/os combination:
+     1. **STOP** processing that language/os immediately — do NOT attempt to fix the error.
+     2. **Record** the full error details (command run, output, exit code) in that language/os's individual report file.
+     3. **Move on** to the next language/os in the list — do not let one failure block testing of other platforms.
+     4. **Do NOT make any changes** to source files, build configs, or platform overrides unless the user has explicitly granted permission.
+   - This prevents agents from silently fixing issues during verification/regression runs, which masks real problems and makes unauthorized changes.
+   - The agent's role is to **detect and report**, not to **fix and continue**.
+
+   **Error Reporting Structure** (at the end of all processing):
+   - After all language/os combinations have been processed, generate a final summary section with:
+     1. **Overall Status**: Count of passed vs failed language/os pairs.
+     2. **TODO List**: A numbered list of all lang/os pairs that encountered errors, with:
+        - Platform and language (e.g., `1. Java on Raspberry Pi OS`)
+        - Brief error description (e.g., `JDK 17 does not support <release>25</release>`)
+        - Location of detailed error in individual report (e.g., `See src/raspios/java/reports/verify_report.md`)
+     3. **Full Error Details**: For each failed lang/os pair, include the complete error output in a collapsible or clearly delimited section.
+   - Example format:
+     ```
+     ## Error Summary
+     **Passed:** 5/7 | **Failed:** 2/7
+
+     ### TODO — Items Requiring User Attention
+     1. **Java on Raspberry Pi OS**
+        - Error: JDK 17 does not support `<release>25</release>` in pom.xml
+        - Detail: `error: release version 25 not supported`
+        - See: `src/raspios/java/reports/verify_report.md`
+     2. **Java on Arch Linux**
+        - Error: JDK 21 does not support `<release>25</release>` in pom.xml
+        - Detail: `error: release version 25 not supported`
+        - See: `src/archlinux/java/reports/verify_report.md`
+
+     ### Full Error Details
+     #### Java on Raspberry Pi OS
+     ```
+     [full error output, command run, exit code]
+     ```
+     #### Java on Arch Linux
+     ```
+     [full error output, command run, exit code]
+     ```
+     ```
+
+   **Universal Toolchain Compatibility Gate** (applies to ALL languages — runs BEFORE any build attempt):
+   - This is a **blocking gate** for every language and platform — the build cannot proceed until toolchain versions match.
+   - For each target OS, BEFORE executing any language-specific build or test:
+     1. **Check for an existing platform-specific override** at `src/<os>/<lang>/`:
+        - Java: `pom.xml`
+        - C/C++: Makefile with platform-specific flags, or `version.mk` compatibility
+        - Python: per-OS Makefile with correct interpreter path
+        - Go: `go.mod` with compatible version constraint
+        - Rust: `Cargo.toml` with compatible edition/target
+     2. **If an override exists**: verify it matches the detected toolchain version (see step 3). If it does, proceed to build. If not, update the override (step 4).
+     3. **Detect the actual toolchain version** in the target environment (container or remote):
+        - **Java**: `JDK_VER=$(java -version 2>&1 | grep 'version' | head -1 | sed 's/.*"\([0-9]*\).*/\1/')`
+        - **C/C++**: `CC_VER=$($CC --version 2>&1 | head -1)` (detect compiler and version)
+        - **Python**: `PY_VER=$(python3 --version 2>&1 | awk '{print $2}' | cut -d. -f1,2)`
+        - **Go**: `GO_VER=$(go version 2>&1 | awk '{print $3}' | sed 's/go//')`
+        - **Rust**: `RUST_VER=$(rustc --version 2>&1 | awk '{print $2}')`
+     4. **If no override exists, or the existing one does not match**: create a platform-specific override with the correct version baked in:
+        ```bash
+        # Example for Java (JDK version too low):
+        if [ "$JDK_VER" -lt "$POM_RELEASE" ]; then
+            echo "Creating platform override: JDK $JDK_VER does not support <release>$POM_RELEASE</release>"
+            mkdir -p src/<os>/<lang>/
+            sed "s|<release>$POM_RELEASE</release>|<release>$JDK_VER</release>|g" src/common/<lang>/pom.xml > src/<os>/<lang>/pom.xml
+            echo "Created src/<os>/<lang>/pom.xml with <release>$JDK_VER</release>"
+        fi
+        ```
+        - For C/C++: If the detected compiler does not support required flags (e.g., `-std=c++20`), create a platform-specific Makefile override with compatible flags.
+        - For Python: If detected version is below minimum, create a platform-specific Makefile override targeting the available version.
+        - For Go/Rust: If detected version is below minimum, create a platform-specific build config override.
+     5. **Log**: `[timestamp] Toolchain compatibility check: lang=<lang> detected=<version> required=<config_version> STATUS=OK|MISMATCH override_created=<yes|no>`
+     6. **This gate must pass for every language/platform combination** before any build or test command is executed.
+     7. **Key principle**: Check for overrides first, create them if missing (with correct version baked in), then proceed on the **first try**. No STOP/re-execute loop needed.
+
    **0.1 Java Verification** (from `src/common/java/`):
    - Java is a **common language** — source lives in `src/common/java/` but must be verified on each supported OS.
    - **Determine target OSes to verify**:
