@@ -584,6 +584,41 @@ Every language follows the same two-step pattern:
 
 **Golden rule:** Never use `tests/Makefile verify` for build verification. Never use `<os>/<lang>/Makefile all` for regression testing.
 
+**CRITICAL — DO NOT CONFUSE:**
+- `verify_build` → **always** uses `make all` (build only, no tests)
+- `run_regression` → **always** uses `make verify` in the `tests/` directory (build + T001-T007)
+- If you find yourself about to run `make verify` during `verify_build`, STOP — that is wrong.
+- If you find yourself about to run `make all` during `run_regression`, STOP — that is wrong.
+
+**SELF-CHECK BEFORE EXECUTING:**
+- Am I in `verify_build`? → Must run `make all`, NOT `make verify`
+- Am I in `run_regression`? → Must run `make verify`, NOT `make all`
+- If unsure, re-read the workflow header to confirm which mode you are in.
+
+### Standard Clean + Build Process (When C++ Is Used)
+
+For any language that depends on the C++ shared library (Python, and future languages with C bindings), the standard process before running `make all` in the language directory is:
+
+1. **`make clean`** in `<os>/cpp/` — removes stale C++ library artifacts (`.a`, `.so`, `.dylib`, object files)
+2. **`make clean`** in `<os>/<lang>/` (or `src/common/<lang>/`) — removes stale language-specific build artifacts
+3. **`make all`** in `<os>/<lang>/` (or `src/common/<lang>/`) — builds C++ library, creates symlinks
+
+**Why this matters:** If the C++ library was previously built for a different platform (e.g., ELF ARM64 inside a container), stale artifacts on the host will cause linker errors (e.g., `archive member not a mach-o file`). Cleaning both the C++ and language directories ensures no stale artifacts remain.
+
+**Example — Python on macOS:**
+```bash
+cd src/macos/cpp && make clean          # Remove stale C++ library
+cd src/common/python && make clean      # Remove stale Python artifacts
+cd src/common/python && make all        # Build C++ lib, create symlinks
+```
+
+**Example — Python on Fedora (from macOS host):**
+```bash
+cd src/fedora/cpp && make clean         # Remove stale C++ library
+cd src/common/python && make clean      # Remove stale Python artifacts
+cd src/common/python && make all        # Builds inside container via Makefile
+```
+
 ### Common Pitfalls
 1. **Shell ENOENT after session compaction (cross-platform: macOS + Windows):** If `shell_command` fails instantly with `spawn ... ENOENT`, the harness's default cwd resolution produces a subpath under the scratchpad that was never created (the scratchpad root itself IS materialized). **Fix:** Pass an explicit `workdir` set to any existing directory (e.g., the project root). If it still fails, run one sandboxed-Python call first to materialize the scratchpad, then retry with explicit `workdir`. **Remove this note once LM Studio fixes the bug.**
 2. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.

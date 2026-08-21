@@ -52,15 +52,26 @@ else
     CONTAINER_CMD = podman
 endif
 
+# Detect if already inside a container (prevent nested containers)
+INSIDE_CONTAINER := $(shell test -f /.dockerenv && echo yes || echo no)
+
 # When host is not Fedora (e.g. macOS), auto-build inside container
-ifeq ($(UNAME_S),Darwin)
+ifeq ($(INSIDE_CONTAINER),yes)
+    # Already in a container - build natively
+    all: clean static shared
+else ifeq ($(UNAME_S),Darwin)
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
+    test: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make test
 else ifneq ($(HOST_DISTRO),fedora)
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
+    test: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make test
 else
     all: clean static shared
+    test: all
 endif
 
 static: $(VERSIONED_STATIC)

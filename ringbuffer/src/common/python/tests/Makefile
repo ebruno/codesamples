@@ -11,7 +11,7 @@ UTILS_BIN_DIR = utils/bin
 all:
 	@echo "Building Python test environment..."
 	@if [ -f ../Makefile ]; then \
-		cd .. && make build 2>&1 | tail -5; \
+		make -C .. build 2>&1 | tail -5; \
 	else \
 		echo "No parent Makefile found — using Pure Python only"; \
 	fi

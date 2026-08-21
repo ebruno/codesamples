@@ -64,7 +64,15 @@ else
     CONTAINER_CMD = podman
 endif
 
+# Detect if already inside a container (prevent nested containers)
+INSIDE_CONTAINER := $(shell test -f /.dockerenv && echo yes || echo no)
+
 # When host is not Ubuntu (e.g. macOS), auto-build inside container
+# This conditional logic ensures cross-OS builds use containers automatically
+ifeq ($(INSIDE_CONTAINER),yes)
+    # Already in a container - build natively
+    all: clean $(STATIC_LIB) $(SHARED_LIB)
+else ifeq ($(UNAME_S),Darwin)
 # This conditional logic ensures cross-OS builds use containers automatically
 ifeq ($(UNAME_S),Darwin)
     all: container
@@ -102,8 +110,16 @@ $(SHARED_LIB): $(OBJS)
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-test: all
-	@if [ -d tests ]; then $(MAKE) -C tests verify; else echo "No tests directory"; fi
+# Auto-container for test when host is not ubuntu
+ifeq ($(UNAME_S),Darwin)
+    test: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make test
+else ifneq ($(HOST_DISTRO),ubuntu)
+    test: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make test
+else
+    test: all
+endif
 
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o "*.o" "*~" "#*#"

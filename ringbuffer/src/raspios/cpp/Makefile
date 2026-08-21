@@ -103,8 +103,16 @@ $(SHARED_LIB): $(OBJS)
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-test: all
-	@if [ -d tests ]; then $(MAKE) -C tests verify; else echo "No tests directory"; fi
+# Auto-container for test when host is not raspios
+ifeq ($(UNAME_S),Darwin)
+    test: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make test
+else ifneq ($(HOST_DISTRO),raspios)
+    test: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make test
+else
+    test: all
+endif
 
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o "*.o" "*~" "#*#"

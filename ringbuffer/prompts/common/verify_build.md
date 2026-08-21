@@ -200,6 +200,36 @@ Verify that all implemented languages build successfully across supported operat
      ```
      ```
 
+   **CRITICAL — DO NOT CONFUSE:**
+   - `verify_build` → **always** uses `make all` (build only, no tests)
+   - `run_regression` → **always** uses `make verify` in the `tests/` directory (build + T001-T007)
+   - If you find yourself about to run `make verify` during `verify_build`, STOP — that is wrong.
+   - If you find yourself about to run `make all` during `run_regression`, STOP — that is wrong.
+
+   **SELF-CHECK BEFORE EXECUTING:**
+   - Am I in `verify_build`? → Must run `make all`, NOT `make verify`
+   - Am I in `run_regression`? → Must run `make verify`, NOT `make all`
+   - If unsure, re-read the workflow header to confirm which mode you are in.
+
+   **Standard Clean + Build Process (When C++ Is Used)**
+   - For any language that depends on the C++ shared library (Python, and future languages with C bindings), run this sequence BEFORE `make all` in the language directory:
+     1. **`make clean`** in `<os>/cpp/` — removes stale C++ library artifacts (`.a`, `.so`, `.dylib`, object files)
+     2. **`make clean`** in `<os>/<lang>/` (or `src/common/<lang>/`) — removes stale language-specific build artifacts
+     3. **`make all`** in `<os>/<lang>/` (or `src/common/<lang>/`) — builds C++ library, creates symlinks
+   - **Why this matters:** If the C++ library was previously built for a different platform (e.g., ELF ARM64 inside a container), stale artifacts on the host will cause linker errors (e.g., `archive member not a mach-o file`). Cleaning both the C++ and language directories ensures no stale artifacts remain.
+   - **Example — Python on macOS:**
+     ```bash
+     cd src/macos/cpp && make clean          # Remove stale C++ library
+     cd src/common/python && make clean      # Remove stale Python artifacts
+     cd src/common/python && make all        # Build C++ lib, create symlinks
+     ```
+   - **Example — Python on Fedora (from macOS host):**
+     ```bash
+     cd src/fedora/cpp && make clean         # Remove stale C++ library
+     cd src/common/python && make clean      # Remove stale Python artifacts
+     cd src/common/python && make all        # Builds inside container via Makefile
+     ```
+
    **Universal Toolchain Compatibility Gate** (applies to ALL languages — runs BEFORE any build attempt):
    - This is a **blocking gate** for every language and platform — the build cannot proceed until toolchain versions match.
    - For each target OS, BEFORE executing any language-specific build or test:
