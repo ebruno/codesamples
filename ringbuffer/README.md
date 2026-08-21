@@ -33,7 +33,7 @@ The project follows a **develop-then-refactor** strategy with three phases:
 2. **Phase B — Common Refactor:** Once Phase A passes all tests, extract the common logic into `src/common/<lang>/`. Platform-specific overrides (build flags, container images) remain per-OS; all shared logic lives in common.
 3. **Phase C — Platform Rollout:** Generate source for remaining platforms from the common spec + per-OS overrides.
 
-**Current Status:** C++ is in Phase A (developed on macOS, Debian, Fedora, Ubuntu, Raspios — not yet refactored to common). Java and Python are in Phase B (common implementations exist at `src/common/java/` and `src/common/python/`). C, Go, and Rust are pre-Phase A (specs created, implementation pending).
+**Current Status:** C++ is in Phase B (common implementations exist at `src/common/cpp/` with symlinks from all 8 OS platforms — macOS, Debian, Fedora, Ubuntu, Raspios, Arch Linux, FreeBSD 14). Java and Python are in Phase B (common implementations exist at `src/common/java/` and `src/common/python/`). C, Go, and Rust are pre-Phase A (specs created, implementation pending).
 
 **Note:** Unimplemented languages should not be considered a negative — the spec scaffolding is in place and the dispatcher prompt (`add_language.md`) routes correctly.
 
@@ -53,7 +53,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 **How it works:**
 - **Interactive Prompt Generation**: All workflow prompts were created through iterative dialogue with the LLM, refining specifications until they precisely captured the desired behavior.
 - **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
-- **Binary Symmetry**: Source code is byte-identical across ALL platforms **by construction via symlinks to `src/common/cpp/`**. The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
+- **Binary Symmetry**: Source code is byte-identical across ALL platforms **by construction via symlinks to `src/common/cpp/`** (C++) or shared common directories (`src/common/java/`, `src/common/python/`). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
 - **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
 - **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations. The **post-commit hook** (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs and suggests changelog entries — the hook is scoped to `ringbuffer/prompts/` when in a multi-project repo (controlled by `PROJECT_PREFIX` variable in the script).
 
@@ -410,12 +410,14 @@ The following animation demonstrates the three-stage pipeline in action, showing
     - **Model Name**: qwen3.6-35b-a3b-mlx
     - **Model Specs**: 37.75 GB, 162816 context window, parallelism factor 4, Decoder-only Transformer architecture, local execution.
 
+> **Note:** This section documents the environment where the project was created. Development may occur on different hardware/OS configurations — see [Platform-Specific Notes](#platform-specific-notes) for build differences across platforms.
+
 ## Project Structure
 The project uses a **Deterministic File Mapping** strategy. Logic groups are mapped to specific filenames (e.g., `ReadOps.cpp`, `Threading.cpp`) with a strict constraint of **maximum 3 functions per file** to minimize git collisions and maximize modularity.
 
 Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory containing copies of the specification files used to generate that platform's code, for reference and audit purposes.
 
-**reference_linux**: A canonical reference platform in `prompts/reference_linux/cpp/` used for cross-platform verification. Source code is not generated here; it serves as the authoritative spec against which other platforms are compared.
+**reference_linux**: A canonical reference platform in `src/reference_linux/cpp/` used for cross-platform verification. Contains test infrastructure (Makefile, Dockerfile, test data) but no generated source code — it serves as the authoritative spec against which other platforms are compared.
 
 **Platform-Insensitive Languages**: Java and Python implementations live in `src/common/` (not per-OS), as they are platform-independent. Each language has its own build system: Maven for Java, pure Python with `py_compile` for verification.
 
@@ -431,16 +433,26 @@ src/
 │   ├── ringbuffer.hpp                   ← All platforms read this file via symlink
 │   ├── Lifecycle.cpp                    ← All platforms read this file via symlink
 │   ├── ... (all 21 shared source files)
-│   └── tests/                           ← Shared test infrastructure
-│       ├── src/test001.cpp              ← Symlinked to all OS dirs
-│       ├── data/expected/t*.txt         ← Expected outputs (macOS + FreeBSD 14)
-│       ├── data/inputs/test*.txt        ← Test inputs (Linux distros share these)
-│       └── utils/bin/*                  ← Utility scripts (symlinked to all OS dirs)
+│   └── tests/                           ← Canonical test infrastructure
+│       ├── src/test001.cpp              ← Test source (referenced by OS test Makefiles)
+│       ├── data/expected/t*.txt         ← Expected outputs
+│       ├── data/inputs/test*.txt        ← Test inputs
+│       └── utils/bin/*                  ← Utility scripts (deployed to each OS)
+│
+├── common/java/                         ← Java implementation (Maven, platform-insensitive)
+│   ├── pom.xml                          ← Maven build config
+│   ├── swtr/                            ← Java source packages
+│   └── tests/                           ← Test harness (T001-T007)
+│
+├── common/python/                       ← Python implementation (platform-insensitive)
+│   ├── Makefile                         ← Build config
+│   └── swtr_ringbuffer/                 ← Python source packages
 │
 ├── macos/cpp/                           ← macOS-specific overrides only (real files)
 │   ├── Makefile                         ← macOS build config (universal binaries, @rpath)
 │   ├── version.mk                       ← BSD make syntax (${VAR})
 │   ├── README.md                        ← macOS-specific docs
+│   ├── LICENSE                          ← License file
 │   └── ringbuffer.hpp → ../../common/cpp/ringbuffer.hpp  ← symlink to common
 │   └── ... (all other .hpp/.cpp are symlinks)
 │
@@ -453,13 +465,15 @@ src/
 ├── ubuntu/cpp/                          ← Ubuntu-specific overrides only
 ├── raspios/cpp/                         ← Raspberry Pi OS-specific overrides only
 ├── archlinux/cpp/                       ← Arch Linux-specific overrides only
-└── freebsd14/cpp/                       ← FreeBSD 14-specific overrides only
+├── freebsd14/cpp/                       ← FreeBSD 14-specific overrides only
+└── reference_linux/cpp/                 ← Reference platform (test infra only, no source)
 ```
 
 **Key principle:** Source code lives in exactly one place (`src/common/cpp/`). Each OS directory contains only:
 
 1. **Real files** — `Makefile`, `version.mk`, `README.md`, `LICENSE` (OS-specific build config and docs)
 2. **Symlinks** — All `.hpp` and `.cpp` files pointing to `src/common/cpp/`
+3. **Real `tests/` directory** — Each OS has its own test infrastructure (Makefile, containers/, data/) that references common test source and scripts
 
 This ensures **binary symmetry by construction** — there is no possibility of source drift between platforms because every platform reads from the same canonical file.
 
@@ -474,6 +488,7 @@ This ensures **binary symmetry by construction** — there is no possibility of 
 | **`git diff`** | Shows changes to `src/common/cpp/`. Per-OS directories show no diffs for source files (they're symlinks). |
 | **Web-based file viewers** | GitHub/GitLab show symlink target paths, not source content. To view source in a browser, navigate to `src/common/cpp/` directly or clone locally. |
 | **IDE navigation** | Most IDEs (VS Code, CLion) follow symlinks for go-to-definition and search. Some may show the symlink path in breadcrumbs — this is cosmetic only. |
+| **Test infrastructure** | NOT symlinked — each OS has its own real `tests/` directory with Makefile, containers/, and data/. Only the README.md in tests/ is symlinked to `../../../common/cpp/tests/README.md`. |
 
 ### Compatibility Matrix
 
@@ -702,14 +717,14 @@ mmdc -i diagram.mmd -o /tmp/diagram.png -b white
 ## Developer & Maintainer Guide
 
 ### Part A: The Golden Rules (Coding Standards)
-- **Binary Symmetry**: Source code MUST be byte-identical across ALL platforms (macOS, Linux — debian, fedora, ubuntu, raspios) **by construction via symlinks to `src/common/cpp/`**. The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
+- **Binary Symmetry**: Source code MUST be byte-identical across ALL platforms (macOS, Linux — debian, fedora, ubuntu, raspios, archlinux, freebsd14) **by construction via symlinks to `src/common/cpp/`** (C++) or shared common directories (`src/common/java/`, `src/common/python/`). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
 - **File Distribution**: No `.cpp` file may contain more than 3 function definitions.
 - **Include Discipline**: `ringbuffer.hpp` must be the first non-comment include, followed by alphabetical standard headers, then local headers.
 - **Naming**: All private member variables MUST use the trailing underscore convention (e.g., `member_variable_`).
 - **Hierarchy**: The implementation must strictly follow the `RingBuffer` $\rightarrow$ `SwtrRingBuffer` hierarchy.
-- **Platform Sync**: Source code lives in `src/common/cpp/` and is symlinked to all OS directories. Edit the common source — it automatically propagates to every platform. Build artifacts (`Makefile`, `version.mk`) remain per-OS and must be updated independently when platform-specific behavior changes.
+- **Platform Sync**: Source code lives in `src/common/cpp/` and is symlinked to all OS directories. Edit the common source — it automatically propagates to every platform. Build artifacts (`Makefile`, `version.mk`) remain per-OS and must be updated independently when platform-specific behavior changes. Test infrastructure (`tests/`) is per-OS (real directories, not symlinks) but references common test source and scripts.
 - **Prompt Deduplication**: Repeated content (container runtime rules, host-target compatibility checks, spec precedence statements) MUST be extracted into shared reference documents (e.g., `prompts/common/session_hints.md`) and referenced via relative links rather than duplicated verbatim across functional.md, build.md, and testing.md in every platform directory. This reduces maintenance burden and ensures consistency across 215+ prompt files.
-- **Cross-Platform Generation Mandate**: All platform source code lives in `src/common/cpp/` and is symlinked from each OS directory. Do NOT copy source files between platforms — use symlinks to maintain a single canonical source tree. Each platform generates its own build artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
+- **Cross-Platform Generation Mandate**: All platform source code lives in `src/common/cpp/` and is symlinked from each OS directory. Do NOT copy source files between platforms — use symlinks to maintain a single canonical source tree. Each platform generates its own build artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences). Test infrastructure (`tests/`) is per-OS with real directories containing OS-specific Makefiles, container configs, and test data.
   - **Allowed Makefile differences**: `CONTAINER_IMAGE` variable value, working directory path in container run commands, host distro detection check.
   - **Allowed Dockerfile differences**: `FROM` base image line, package installation RUN blocks (platform-specific package managers).
 
@@ -1623,8 +1638,8 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x (Pure Python only — Concurrent skipped, RPATH limitation) |
-| | Go | v1.0.0 | placeholder (scaffolding complete, implementation pending) |
-| | Rust | v1.0.0 | placeholder (scaffolding complete, implementation pending) |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
 | **FreeBSD 15** | C++ | TBS | — |
 
 [^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
@@ -1643,17 +1658,17 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 ## Where We Are At
 
-### Current Status (as of 2026-08-16)
+### Current Status (as of 2026-08-20)
 
 **Implementation:**
-- **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, Raspberry Pi OS, and Arch Linux — all at v1.0.0
+- **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, Raspberry Pi OS, Arch Linux, and FreeBSD 14 — all at v1.0.0
 - **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
 - **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
 - **Java/Python on ArchLinux** — verified via SSH remote build (Linux-hosts-only)
 - **Java/Python on FreeBSD 14** — Java verified; Python Pure Python only (Concurrent skipped due to RPATH limitation)
 - **C++ implementation complete for Arch Linux** — v1.0.0, all 7 regression tests pass on both g++ and clang++; native build via SSH to remote Linux host (no container support on Apple Silicon)
 - **Binary symmetry verified** across ALL platforms: 21 source files confirmed byte-identical between macOS, debian, fedora, ubuntu, raspios, and archlinux via automated `verify_binary_symmetry.sh` — source lives in single canonical tree (`src/common/cpp/`) with symlinks from each OS directory
-- **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection (7 platforms: macOS, debian, fedora, ubuntu, raspios, archlinux)
+- **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection (8 platforms: macOS, debian, fedora, ubuntu, raspios, archlinux, freebsd14)
 - **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
 
 **Verification & Quality Gates:**
@@ -1677,6 +1692,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 |------------|--------|---------|
 | C++ library (macOS) | ✅ Complete | Universal binaries (arm64 + x86_64), static + shared libs |
 | C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios/archlinux — enforced by symlinks to `src/common/cpp/` |
+| C++ library (FreeBSD 14) | ✅ Complete | Static library only (RPATH limitation), all 7 tests pass |
 | Java library (all OS) | ✅ Complete | Maven build, JAR artifact, classload test verified |
 | Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
 | Build system | ✅ Complete | Unified `all` target pattern: `<os>/<lang>/Makefile all` (build + symlinks, no tests) |
@@ -1684,7 +1700,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | Build/test separation | ✅ Enforced | `verify_build` uses `<os>/<lang>/Makefile all`; `run_regression` uses `tests/Makefile verify` |
 | Binary symmetry | ✅ Verified | All compared source files byte-identical across macOS and all Linux platforms — enforced by symlinks to single canonical tree (`src/common/cpp/`)
 | Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
-| State tracking | ✅ Operational | `.gen_state.json` on all 6 active platforms |
+| State tracking | ✅ Operational | `.gen_state.json` on all 8 active platforms |
 | Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
 | Java regression | ✅ Passed | 18 assertions, 0 failures across all 4 OSes (macOS native + debian/fedora/ubuntu containers) |
 | Go/Rust scaffolding | ✅ Complete | Placeholder prompts exist for all OSes (macos, fedora, debian, ubuntu, archlinux, raspios); common specs created |
@@ -1701,7 +1717,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 ### Medium-Term (Roadmap)
 
-- **FreeBSD 15 implementation** — Currently excluded with zero-length placeholder files. FreeBSD 14 C++ is implemented and verified (static library only). Implementation requires writing the platform/language spec files and generating source code.
+- **FreeBSD 15 implementation** — Currently excluded with zero-length placeholder files. FreeBSD 14 C++ is implemented and verified (static library only, all 7 tests pass). Implementation requires writing the platform/language spec files and generating source code.
 - **Arch Linux C++ source generation** — Prompts are implemented (`prompts/archlinux/cpp/`); actual source code generation requires executing `create_functional.md`, `create_build.md`, and `create_regression.md` on a Linux host.
 - **More comprehensive test coverage** — Additional test scenarios for edge cases (concurrent access patterns, memory pressure, signal handling).
 - **Documentation expansion** — API reference generation from headers, performance benchmarking documentation, container deployment guides.
