@@ -520,6 +520,25 @@ FreeBSD 14 C++ is implemented and verified (static library only). Its prompt dir
 - **Available shells on FreeBSD 14:** tcsh (default), bash (`/usr/local/bin/bash`), sh (`/bin/sh`). zsh is NOT installed.
 - **Makefile recipe shell:** `make` on FreeBSD invokes `/bin/sh -c` for recipes. On FreeBSD 14, `/bin/sh` is the BSD `sh` (not bash). Bash builtins (arrays, `<<<`, `[[ ]]`) are **not available** in Makefile recipes on FreeBSD.
 - See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for full shell availability details.
+- **macOS local testing of FreeBSD Makefiles:** macOS ships with GNU make 3.81, not BSD make. To test FreeBSD Makefiles locally on macOS, you MUST use `bmake` (BSD make installed via Homebrew). Never use `make` or `gmake` for FreeBSD Makefile testing on macOS — GNU make syntax is incompatible and will produce misleading errors. If `bmake` is not found, report an error: `ERROR: bmake (BSD make) is required for testing FreeBSD Makefiles locally. Install with: brew install bmake`.
+
+**Critical tcsh Syntax Rules (Learned 2026-08-21):**
+- **`then` must be on its own line or followed by `;`:** `if ( cond ) then\naction` or `if ( cond ) then; action`. Never `if ( cond ) then action` on one line — produces "Improper then" error.
+- **`endif` closes the most recent unmatched `if`:** Each nested if must have its own endif. Do not put multiple one-line if/then/endif on separate lines without proper nesting — the final endif will close the wrong block.
+- **`while` uses `end`, NOT `then/endif`:** `while ( expr ) ... end`
+- **`shift` only shifts by 1**, not by N like bash: need `shift; shift` for "shift 2"
+- **`switch` case labels are glob patterns**, not quoted strings: use `case -l:` not `case "-l":`
+- **Inside foreach, tcsh switch case labels are glob patterns** — use `if/else` instead of `switch/case` for numeric comparisons
+- **Arithmetic uses `@` operator**, not `$((...))` bash syntax: `@ x = $a + $b`, NOT `set x = $(($a + $b))`
+- **String comparison needs quotes:** `$test_num == "001"` not `$test_num == 001` (tcsh treats `001` as variable name)
+- **`==` in tcsh expressions does string comparison**, not numeric
+- **tcsh `case` labels must be at column 0** (no leading spaces)
+- **tcsh `while` and `end` must appear alone on their input lines**
+- **`-n` test checks if value is a non-zero NUMBER**, NOT if string is non-empty. Use `$#var > 0` to check for non-empty strings.
+- **`${var//pattern/replacement}` is a bash-ism**, NOT supported in tcsh. Use external tools (sed) for string replacement — this is allowed per the .bionic tcsh exception rule.
+- **`<<<` (here-string) is a bash-ism**, NOT available in tcsh. Use `echo "$var" | sed ...` instead.
+- **Backtick command substitution** (`set var = \`cmd\``) can cause "Missing '}'" false positives in `tcsh -n` syntax check, but works correctly when run from a file. Always test tcsh scripts as files, not with `-c`.
+- **When running tcsh scripts via SSH on FreeBSD**, always use `tcsh /path/to/script.tcsh` — never inline tcsh code via SSH `-c`.
 
 ### Arch Linux (Linux-Hosts-Only)
 Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
@@ -765,120 +784,16 @@ These scripts are referenced by `verify_build.md` and should be run as part of t
 - At the start of every new session, your first response to the user must explicitly begin with: "✅ [.bionic configuration successfully loaded]" before addressing the user's prompt.
 
 # Tool Availability Check — Run at Session Start
-At the start of every new session, run this shell command to verify all required tools are available:
+At the start of every new session, run the appropriate tool check script:
 
-```bash
-echo "=== clang ===" && which clang 2>/dev/null || echo "NOT FOUND"
-echo "=== clang++ ===" && which clang++ 2>/dev/null || echo "NOT FOUND"
-echo "=== gcc ===" && which gcc 2>/dev/null || echo "NOT FOUND"
-echo "=== g++ ===" && which g++ 2>/dev/null || echo "NOT FOUND"
-echo "=== make ===" && which make 2>/dev/null || echo "NOT FOUND"
-echo "=== cmake ===" && which cmake 2>/dev/null || echo "NOT FOUND"
-echo "=== ffmpeg ===" && which ffmpeg 2>/dev/null || echo "NOT FOUND"
-echo "=== ffprobe ===" && which ffprobe 2>/dev/null || echo "NOT FOUND"
-echo "=== pandoc ===" && which pandoc 2>/dev/null || echo "NOT FOUND"
-echo "=== mmdc ===" && which mmdc 2>/dev/null || echo "NOT FOUND"
-echo "=== glab ===" && which glab 2>/dev/null || echo "NOT FOUND"
-echo "=== gh ===" && which gh 2>/dev/null || echo "NOT FOUND"
-```
+- **macOS (zsh host):** `./utils/bin/check_tools.zsh`
+- **Linux distributions (bash host):** `./utils/bin/check_tools.sh`
 
-Then display a Tool Availability Report in this format:
+The script checks all required tools, reports what is found and missing with paths, and returns:
+- Exit code 0: all tools present
+- Exit code 1: one or more tools missing (with installation instructions)
 
-## Tool Availability Report
-
-| Tool | Status | Used For |
-|------|--------|----------|
-| **clang / clang++** | ✅ Available (`<path>`) or ❌ Missing | C/C++ compiler (macOS native) |
-| **gcc / g++** | ✅ Available (`<path>`) or ❌ Missing | C/C++ compiler (alternative) |
-| **make** | ✅ Available (`<path>`) or ❌ Missing | Build automation (runs Makefiles) |
-| **cmake** | ✅ Available (`<path>`) or ❌ Missing | Cross-platform build system generator |
-| **ffmpeg** | ✅ Available (`<path>`) or ❌ Missing | Convert animated GIF to MP4, inspect media files |
-| **ffprobe** | ✅ Available (`<path>`) or ❌ Missing | Verify MP4 output (duration, frame rate, resolution) |
-| **pandoc** | ✅ Available (`<path>`) or ❌ Missing | Render README.md to PDF with embedded diagrams |
-| **mmdc** (mermaid-cli) | ✅ Available (`<path>`) or ❌ Missing | Render Mermaid diagrams to SVG for PDF embedding |
-| **glab** (GitLab CLI) | ✅ Available (`<path>`) or ❌ Missing | GitLab CLI tool |
-| **gh** (GitHub CLI) | ✅ Available (`<path>`) or ❌ Missing | GitHub CLI tool |
-
-### What Cannot Be Done (Missing Tools)
-- List each missing tool and what functionality is unavailable because of it.
-- If all tools are present, state: "None — all required tools are available."
-
-### Installation Instructions for Missing Tools
-When a tool is missing, report the installation command based on the detected host OS. Detect the host OS using `uname -s` and `/etc/os-release` (Linux only).
-
-**macOS (`Darwin`):**
-```bash
-# Install Homebrew if not present:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Then install missing tools:
-brew install cmake ffmpeg pandoc mermaid-cli
-echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zshrc  # Apple Silicon
-# or
-echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc     # Intel
-source ~/.zshrc
-```
-
-**Fedora (`ID=fedora`):**
-```bash
-# Install missing tools (requires sudo):
-sudo dnf install -y cmake ffmpeg pandoc mermaid-cli
-# Note: mmdc (mermaid-cli) may require Node.js first:
-sudo dnf install -y nodejs npm
-npm install -g @mermaid-js/mermaid-cli
-```
-
-**Debian (`ID=debian`):**
-```bash
-# Install missing tools (requires sudo):
-sudo apt-get update
-sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
-# Note: mmdc (mermaid-cli) may require Node.js first:
-sudo apt-get install -y nodejs npm
-npm install -g @mermaid-js/mermaid-cli
-```
-
-**Ubuntu (`ID=ubuntu`):**
-```bash
-# Install missing tools (requires sudo):
-sudo apt-get update
-sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
-# Note: mmdc (mermaid-cli) may require Node.js first:
-sudo apt-get install -y nodejs npm
-npm install -g @mermaid-js/mermaid-cli
-```
-
-**Other Linux (fallback):**
-```bash
-# Detect package manager and install:
-if command -v dnf &>/dev/null; then
-    sudo dnf install -y cmake ffmpeg pandoc mermaid-cli
-elif command -v apt-get &>/dev/null; then
-    sudo apt-get update && sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
-elif command -v yum &>/dev/null; then
-    sudo yum install -y cmake ffmpeg pandoc mermaid-cli
-elif command -v pacman &>/dev/null; then
-    sudo pacman -S cmake ffmpeg pandoc mermaid-cli
-fi
-# For mmdc, install Node.js first if needed:
-if ! command -v npm &>/dev/null; then
-    # Install Node.js via nvm or package manager, then:
-    npm install -g @mermaid-js/mermaid-cli
-fi
-```
-
-**Report format for missing tools:**
-```markdown
-### Missing Tools and Installation Instructions
-| Tool | Status | Used For | Install Command |
-|------|--------|----------|-----------------|
-| **cmake** | ❌ Missing | Cross-platform build system generator | `brew install cmake` (macOS) or `sudo dnf install -y cmake` (Fedora) |
-| **ffmpeg** | ❌ Missing | Convert animated GIF to MP4, inspect media files | `brew install ffmpeg` (macOS) or `sudo dnf install -y ffmpeg` (Fedora) |
-| **pandoc** | ❌ Missing | Render README.md to PDF with embedded diagrams | `brew install pandoc` (macOS) or `sudo dnf install -y pandoc` (Fedora) |
-| **mmdc** | ❌ Missing | Render Mermaid diagrams to SVG for PDF embedding | `brew install mermaid-cli` (macOS) or `sudo dnf install -y mermaid-cli` (Fedora) |
-```
-
-If all tools are present, state: "None — all required tools are available."
+The tool list and per-OS installation commands are maintained in the scripts themselves. To add or remove a required tool, update both `utils/bin/check_tools.zsh` and `utils/bin/check_tools.sh`. No `.bionic` changes needed.
 
 # Error Handling — Shell Commands
 - If you start getting shell errors (e.g., commands failing, unexpected output, toolchain issues), report the issue to the user and **stop processing immediately**. Do not attempt to work around shell errors or continue with subsequent workflow steps.
@@ -1043,3 +958,35 @@ When you edit `README.md` directly (add a section, change content, restructure):
 2. The prompt should describe what the README *actually has*, not what it *should have*
 3. If a new section appears in the README that isn't described in the prompt, add it
 4. If a section is removed from the README, remove it from the prompt
+
+### FreeBSD 14 SSH Execution — tcsh Script Rule (Permanent)
+
+**FreeBSD 14 default shell is `tcsh`, NOT bash or sh.** This has critical implications for SSH execution:
+
+- **NEVER use `bash -c` on FreeBSD 14** — bash is forbidden per the .bionic rules
+- **NEVER use `2>&1` redirects in tcsh** — produces "Ambiguous output redirect" error
+- **NEVER use double-quoted `*` globs in tcsh** — tcsh expands them before running, causing "No match" errors
+- **Always use single quotes around paths with `*`** to prevent glob expansion: `'${path}/'*`
+
+**Correct workflow for FreeBSD 14 SSH execution:**
+
+1. **Create a local tcsh script** at `utils/bin/run_freebsd_ssh.tcsh` that runs ON THE REMOTE host
+2. **The tcsh script handles all remote operations:**
+   - Clean workspace: `/bin/rm -rf '${os_dir}/'*` (single quotes prevent glob expansion)
+   - Extract tarball: `/bin/tar -xzf ringbuffer_${TARGET_OS}.tar.gz`
+   - Run make: `/usr/bin/make clean` and `/usr/bin/make verify`
+3. **From the host script (run_regression.sh/zsh):**
+   - Step 1: Create tarball of source code
+   - Step 2: SCP both the tarball AND the tcsh script to remote (`/tmp/run_freebsd_ssh.tcsh`)
+   - Step 3: SSH to remote and run `tcsh /tmp/run_freebsd_ssh.tcsh '${remote_base}' '${TARGET_OS}'`
+   - Step 4: Clean up remote temp files (`rm -f /tmp/run_freebsd_ssh.tcsh`)
+
+**Key tcsh syntax rules:**
+- Use `set var = "value"` for variable assignment
+- Use `${var}` for variable expansion (no `$var` without braces in paths)
+- Use `if ( condition ) then ... endif` for conditionals
+- Use `$status` to capture exit codes
+- Use single quotes around any path containing `*`: `'${path}/'*`
+- No `2>&1` — use separate stderr capture if needed
+
+**This rule is permanent.** Any future FreeBSD 14 SSH work MUST use the tcsh script approach — never inline bash or sh commands via SSH.

@@ -40,7 +40,7 @@ deploy_utils:
 container:
 	@echo "Container not used for FreeBSD native build"
 
-verify: build-cpp deploy-utils
+verify: build-cpp deploy_utils all
 	@mkdir -p ${LOG_DIR} ${REPORT_DIR}
 	@echo "Compiler:" > ${REPORT_DIR}/compiler_version.txt
 	@clang++ -v >> ${REPORT_DIR}/compiler_version.txt 2>&1 || true
@@ -61,7 +61,8 @@ verify: build-cpp deploy-utils
 	@diff -q ${LOG_DIR}/t006_out.txt data/expected/t006_out.txt > /dev/null 2>&1 && echo "T006: PASS (output match)" || echo "T006: FAIL (output mismatch)"
 	@${BIN_DIR}/test001_staticlib -t 2 -o ${LOG_DIR}/t007_out.txt -l ${LOG_DIR}/t007.log data/inputs/test001.txt; echo $$? > ${LOG_DIR}/t007.exit
 	@diff -q ${LOG_DIR}/t007_out.txt data/expected/t007_out.txt > /dev/null 2>&1 && echo "T007: PASS (output match)" || echo "T007: FAIL (output mismatch)"
-	# JUnit report skipped - zsh not installed
+	@echo "Generating JUnit report..."
+	@../../../../prompts/common/cpp/utils/bin/generate_junit_report.tcsh -l ${LOG_DIR} -o ${REPORT_DIR}/regression_report_junit.xml
 	@echo "Verification complete."
 
 clean:

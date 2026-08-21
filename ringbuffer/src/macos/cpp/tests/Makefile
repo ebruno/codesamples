@@ -60,7 +60,7 @@ deploy_utils:
 container:
 	@echo "Container not used for macOS native build"
 
-verify: build-cpp deploy-utils all
+verify: build-cpp deploy_utils all
 	@mkdir -p $(LOG_DIR) $(REPORT_DIR)
 	@# Audit Trail: capture compiler and linker versions
 	@echo "Compiler:" > $(REPORT_DIR)/compiler_version.txt
