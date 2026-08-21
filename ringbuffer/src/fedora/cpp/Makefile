@@ -62,13 +62,9 @@ ifeq ($(INSIDE_CONTAINER),yes)
 else ifeq ($(UNAME_S),Darwin)
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
-    test: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make test
 else ifneq ($(HOST_DISTRO),fedora)
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
-    test: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make test
 else
     all: clean static shared
     test: all

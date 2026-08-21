@@ -83,6 +83,7 @@ else ifneq ($(HOST_DISTRO),ubuntu)
 else
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 endif
+endif
 
 .PHONY: test  all static shared clean dist-clean container container-clean lint format test-all
 

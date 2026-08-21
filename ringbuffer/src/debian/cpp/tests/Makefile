@@ -23,11 +23,9 @@ LIB_DIR = ../lib
 STATIC_LIB = $(LIB_DIR)/libswtr_ringbuffer.a
 SHARED_LIB = $(LIB_DIR)/libswtr_ringbuffer.so
 
-# Container settings
+# Container settings (minimal — host script orchestrates)
 CONTAINER_IMAGE = ringbuffer_debian_test
 DOCKERFILE = containers/debian/Dockerfile
-
-# Detect Container Runtime
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
     CONTAINER_CMD = container
@@ -36,17 +34,13 @@ else
 endif
 
 # Compiler auto-detection: Linux order is g++ first, then clang++
-ifeq ($(UNAME_S),Darwin)
-  ALL_COMPILERS := clang++ g++
-else
-  ALL_COMPILERS := g++ clang++
-endif
+ALL_COMPILERS := g++ clang++
 
 # Filter to only distinct compilers (skip if same binary)
 DISTINCT_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
   $(if $(filter $(COMP),$(DISTINCT_COMPILERS)),,$(shell if [ -x "$(COMP)" ] && ! $(COMP) --version 2>/dev/null | grep -q "clang"; then echo "$(COMP)"; fi)))
 
-.PHONY: all static dynamic clean dist-clean container container-clean verify validate-data deploy-utils test-all
+.PHONY: all static dynamic clean dist-clean verify validate-data deploy-utils test-all
 
 all: static dynamic
 
@@ -113,26 +107,7 @@ validate-data:
 	@echo "Test data validation passed"
 
 # Run verification (artifact check + test matrix)
-# Auto-container for verify when host is not Debian
-ifeq ($(UNAME_S),Darwin)
-    CONTAINER_RUN = $(CONTAINER_CMD) run --rm -v $$(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/debian/cpp/tests $(CONTAINER_IMAGE)
-    verify: container
-	@$(CONTAINER_RUN) make verify-native
-else ifneq ($(HOST_DISTRO),debian)
-    CONTAINER_RUN = $(CONTAINER_CMD) run --rm -v $$(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/debian/cpp/tests $(CONTAINER_IMAGE)
-    verify: container
-	@$(CONTAINER_RUN) make verify-native
-else
-    verify: static dynamic validate-data deploy-utils
-endif
-
-# Native verification (runs inside container or on matching host)
-verify-native: build-cpp validate-data deploy-utils
-	@if [ -f ../UNSUPPORTED.md ]; then \
-		echo "C++ unsupported — skipping static/dynamic library checks"; \
-	else \
-		$(MAKE) static dynamic; \
-	fi
+verify: build-cpp static dynamic validate-data deploy-utils
 
 # Build C++ library if not present (skip if unsupported)
 build-cpp:
@@ -146,10 +121,10 @@ build-cpp:
 		echo ""; \
 	else \
 		echo "=== Artifact Verification ==="; \
-		@file -L $(STATIC_LIB) | grep -q "current ar archive" && echo "Static library: OK" || (echo "Static library: FAIL"; exit 1); \
-		@file -L $(SHARED_LIB) | grep -q "shared object" && echo "Shared library: OK" || (echo "Shared library: FAIL"; exit 1); \
-		@readelf -d $(SHARED_LIB) | grep -q "SONAME.*libswtr_ringbuffer.so" && echo "SONAME: OK" || (echo "SONAME: FAIL"; exit 1); \
-		@size $(SHARED_LIB) | tail -1 | awk '{total=$$1+$$2+$$3; print "Binary size: " total " bytes (text=" $$1 ", data=" $$2 ", bss=" $$3 ")"}'; \
+		file -L $(STATIC_LIB) | grep -q "current ar archive" && echo "Static library: OK" || (echo "Static library: FAIL"; exit 1); \
+		file -L $(SHARED_LIB) | grep -q "shared object" && echo "Shared library: OK" || (echo "Shared library: FAIL"; exit 1); \
+		readelf -d $(SHARED_LIB) | grep -q "SONAME.*libswtr_ringbuffer.so" && echo "SONAME: OK" || (echo "SONAME: FAIL"; exit 1); \
+		size $(SHARED_LIB) | tail -1 | awk '{total=$$1+$$2+$$3; print "Binary size: " total " bytes (text=" $$1 ", data=" $$2 ", bss=" $$3 ")"}'; \
 		echo ""; \
 	fi
 	@echo "=== Audit Trail ==="
@@ -157,70 +132,35 @@ build-cpp:
 	@ld -v >> $(REPORTS_DIR)/compiler_version.txt 2>&1 || true
 	@echo "Compiler and linker versions captured"
 	@echo ""
-	@echo "=== Test Matrix Execution ==="
 	@if [ -f ../UNSUPPORTED.md ]; then \
 		echo "C++ unsupported on this platform — test matrix skipped (see ../UNSUPPORTED.md)"; \
 	else \
-			@start_time=$$(date '+%Y-%m-%d %H:%M:%S %z'); \
-			echo "Start Time: $$start_time"; \
-			for test_id in T001 T002 T003 T004 T005 T006 T007; do \
-				test_start=$$(date +%s%N); \
-				echo "Running $$test_id..."; \
-				case $$test_id in \
-					T001) $(TEST_STATIC) -s 4 -b 4096 -t 0 -e 0 $(DATA_DIR)/inputs/test001.txt > $(DATA_DIR)/expected/t001.out 2> $(LOGS_DIR)/t001.log ;; \
-					T002) $(TEST_STATIC) -s 1 -b 1 -t 0 -e 0 $(DATA_DIR)/inputs/test001.txt > $(DATA_DIR)/expected/t002.out 2> $(LOGS_DIR)/t002.log ;; \
-					T003) $(TEST_STATIC) -s 4 -b 10 -t 1 -e 0 $(DATA_DIR)/inputs/test001.txt > $(DATA_DIR)/expected/t003.out 2> $(LOGS_DIR)/t003.log ;; \
-					T004) $(TEST_STATIC) -s 4 -b 4096 -t 0 -e 0 $(DATA_DIR)/inputs/test001.txt > $(DATA_DIR)/expected/t004.out 2> $(LOGS_DIR)/t004.log ;; \
-					T005) $(TEST_STATIC) -s 4 -b 4096 -t 0 -e 1 $(DATA_DIR)/inputs/test001.txt > $(DATA_DIR)/expected/t005.out 2> $(LOGS_DIR)/t005.log ;; \
-					T006) $(TEST_STATIC) -s 4 -b 4096 -t 0 -e 2 $(DATA_DIR)/inputs/test001.txt > $(DATA_DIR)/expected/t006.out 2> $(LOGS_DIR)/t006.log ;; \
-					T007) $(TEST_STATIC) -s 4 -b 4096 -t 2 -e 0 $(DATA_DIR)/inputs/test001.txt > $(DATA_DIR)/expected/t007.out 2> $(LOGS_DIR)/t007.log ;; \
-				esac; \
-				test_exit=$$?; \
-				echo "$$test_exit" > $(LOGS_DIR)/$$test_id.exit; \
-				test_end=$$(date +%s%N); \
-				test_time_ms=$$(( (test_end - test_start) / 1000000 )); \
-				echo "$$test_time_ms" > $(LOGS_DIR)/$$test_id.time; \
-			done; \
-			end_time=$$(date '+%Y-%m-%d %H:%M:%S %z'); \
-			echo "End Time: $$end_time"; \
-			echo ""; \
-			echo "=== Generating JUnit Report ==="; \
-			$(UTILS_DIR)/bin/generate_junit_report.sh -l $(LOGS_DIR) -o $(REPORTS_DIR)/cpp/per_os/debian_regression_report_junit.xml || echo "WARNING: JUnit report generation failed"; \
-			echo ""; \
-			echo "=== Generating Regression Report ==="; \
-			{ \
-				echo "# Regression Verification Report - Debian"; \
-				echo "**Date:** $$start_time"; \
-				echo "**Start Time:** $$start_time"; \
-				echo "**End Time:** $$end_time"; \
-				echo ""; \
-				echo "## Audit Trail"; \
-				cat $(REPORTS_DIR)/compiler_version.txt 2>/dev/null || echo "Version capture unavailable"; \
-				echo ""; \
-				echo "## Test Results"; \
-				echo "| Test ID | Description | Result | Execution Time (ms) | Note |"; \
-				echo "| :--- | :--- | :--- | :--- | :--- |"; \
-				for test_id in T001 T002 T003 T004 T005 T006 T007; do \
-					exit_code=0; \
-					if [ -f "$(LOGS_DIR)/$$test_id.exit" ]; then exit_code=$$(cat $(LOGS_DIR)/$$test_id.exit); fi; \
-					time_ms="N/A"; \
-					if [ -f "$(LOGS_DIR)/$$test_id.time" ]; then time_ms=$$(cat $(LOGS_DIR)/$$test_id.time); fi; \
-					case $$test_id in \
-						T001) desc="Exact match with input" ;; \
-						T002) desc="Stress test (1 slot, 1 byte)" ;; \
-						T003) desc="All chars uppercase" ;; \
-						T004) desc="Input < 1 slot (fast EOF)" ;; \
-						T005) desc="Pipeline stop (Fatal Error)" ;; \
-						T006) desc="Pipeline continues (Non-fatal)" ;; \
-						T007) desc="Bit-inverted output" ;; \
-					esac; \
-					case $$test_id in \
-						T005) expected_exit=1 ;; \
-					*) expected_exit=0 ;; \
-					esac; \
-					if [ "$$exit_code" -eq "$$expected_exit" ]; then result="PASS"; else result="FAIL"; fi; \
-					echo "| $$test_id | $$desc | $$result | $$time_ms | exit=$$exit_code |"; \
-				done; \
-			} > $(REPORTS_DIR)/regression_report.md; \
-			echo "Regression report generated: $(REPORTS_DIR)/regression_report.md"
-		fi
+		TEST_STATIC=$(TEST_STATIC) DATA_DIR=$(DATA_DIR) LOGS_DIR=$(LOGS_DIR) REPORTS_DIR=$(REPORTS_DIR) UTILS_DIR=$(UTILS_DIR) CXX=$(CXX) OS_NAME=Debian $(UTILS_DIR)/bin/run_test_matrix.sh; \
+	fi
+
+# Container image build (called by host script)
+CONTAINER_IMAGE = ringbuffer_debian_test
+DOCKERFILE = containers/debian/Dockerfile
+
+container:
+	@mkdir -p logs
+	@if ! $(CONTAINER_CMD) image ls --quiet 2>/dev/null | grep -q $(CONTAINER_IMAGE); then \
+		echo "Building container image: $(CONTAINER_IMAGE)"; \
+		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) ../..; \
+	else \
+		echo "Image $(CONTAINER_IMAGE) already exists."; \
+	fi
+
+container-clean:
+	@echo "Removing container image..."; \
+	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
+
+clean:
+	@$(RM) $(BIN_DIR) 2>/dev/null || true
+	@rm -f $(LOGS_DIR)/*.log $(LOGS_DIR)/*.exit $(LOGS_DIR)/*.time 2>/dev/null || true
+	@rm -f $(REPORTS_DIR)/regression_report.md $(REPORTS_DIR)/compiler_version.txt 2>/dev/null || true
+	@rm -rf $(REPORTS_DIR)/cpp/per_os 2>/dev/null || true
+
+dist-clean: clean
+	@$(RM) $(LOGS_DIR) 2>/dev/null || true
+	@$(RM) $(REPORTS_DIR) 2>/dev/null || true

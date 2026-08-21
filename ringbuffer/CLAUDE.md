@@ -620,7 +620,7 @@ cd src/common/python && make all        # Builds inside container via Makefile
 ```
 
 ### Common Pitfalls
-1. **Shell ENOENT after session compaction (cross-platform: macOS + Windows):** If `shell_command` fails instantly with `spawn ... ENOENT`, the harness's default cwd resolution produces a subpath under the scratchpad that was never created (the scratchpad root itself IS materialized). **Fix:** Pass an explicit `workdir` set to any existing directory (e.g., the project root). If it still fails, run one sandboxed-Python call first to materialize the scratchpad, then retry with explicit `workdir`. **Remove this note once LM Studio fixes the bug.**
+1. **Shell ENOENT after session compaction (cross-platform: macOS + Windows):** If `shell_command` fails instantly with `spawn ... ENOENT`, the harness's default cwd resolution produces a subpath under the scratchpad that was never created. **Diagnosis:** The bug is not about the shell binary being missing — it is about the harness computing a cwd path that does not exist on disk. The spawn error masquerades as a broken Git/zsh/bash install but the shell binary is fine. **Fix:** Pass an explicit `workdir` set to any existing directory (e.g., the project root). This is the primary fix — it should work on the first try. If it still fails, run one sandboxed-Python call that writes an output file first (materializes the scratchpad), then retry with explicit `workdir`. **Remove this note once LM Studio fixes the bug.**
 2. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
 3. **Directory pre-creation:** Always `mkdir -p` before writing to a directory (e.g., `reports/`, `logs/`).
 4. **`make clean` loops over all languages:** The main Makefile's `clean` target iterates over C++ (`src/*/cpp/`), Java (`src/common/java/`), and Python (`src/common/python/`) directories, calling `make clean` in each. Per-directory Makefiles handle actual artifact removal (e.g., C++ removes `build/`, `lib/`; Java removes `target/`; Python removes `__pycache__/`, `.egg-info/`, `build/`).
@@ -634,6 +634,29 @@ cd src/common/python && make all        # Builds inside container via Makefile
 12. **Dockerfiles are at `src/<os>/containers/`, not in language directories:** The unified Dockerfile for each OS lives at `src/<os>/containers/build/Dockerfile` and `src/<os>/containers/test/Dockerfile`. Old paths like `src/common/python/containers/fedora/build/Dockerfile` no longer exist.
 13. **Build and test Dockerfiles are identical:** Both install the full toolset for all languages. There is no inheritance between them — each inherits only from the base OS image.
 14. **`make container` in language Makefiles builds both build and test images:** The `container-build-%` target builds `ringbuffer_<os>_build`, and `container-test-%` depends on it to build `ringbuffer_<os>_test`. Both use the same Dockerfile path (`../../$(OS_$*_DIR)/containers/build/Dockerfile` or `test/Dockerfile`).
+
+### Makefile & Shell Script Testing — Always Use OS Containers
+
+**Golden Rule:** Never test OS-specific Makefiles or shell scripts on the macOS host. Always run them inside the target OS container where `/bin/sh` matches the target platform's shell.
+
+**Why:** Debian, Ubuntu, and Raspios use **Dash** (`/bin/sh` → `dash`), which is strict POSIX — no bashisms like `[[ ]]`, arrays, `${var,,}`, or process substitution. Fedora uses Bash. Testing on macOS (zsh) masks these differences entirely.
+
+**Rule:**
+- **`make -n` syntax check**: Run inside `ringbuffer_<os>_build` container: `container run --rm -v $(pwd):/app/ringbuffer/<os>/cpp -w /app/ringbuffer/<os>/cpp ringbuffer_<os>_build make -n <target>`
+- **Actual test execution**: Run inside `ringbuffer_<os>_build` container (same image, simpler for now): `container run --rm -v $(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/<os>/cpp/tests ringbuffer_<os>_build make verify`
+- **After any Makefile change**: Always run `make -n` inside the container first to verify syntax before running actual builds
+- **Container build**: If the image doesn't exist, build it first with `make container` from the OS directory
+
+**OS Container Mapping:**
+| OS | Build Container | Shell (`/bin/sh`) | Notes |
+|----|-----------------|--------------------|-------|
+| Debian | `ringbuffer_debian_build` | Dash | Strict POSIX — no bashisms |
+| Fedora | `ringbuffer_fedora_build` | Bash | Supports bashisms |
+| Ubuntu | `ringbuffer_ubuntu_build` | Dash | Strict POSIX — no bashisms |
+| Raspios | `ringbuffer_raspios_build` | Dash | Strict POSIX — no bashisms |
+| Arch Linux | `ringbuffer_archlinux_build` | Bash | amd64-only — macOS skip (see platform analysis) |
+
+**Fallback for macOS skip cases:** When the target OS has no arm64 container image (e.g., Arch Linux amd64-only on Apple Silicon), consult the platform analysis doc for the closest equivalent. If no container is available, `make -n` on host is best-effort only — it cannot catch `/bin/sh` differences.
 
 ### Container Naming Convention
 - **Build containers**: `ringbuffer_<os>_build` — used only by `verify_build`. Contains full toolset for all languages (C/C++, Java, Python).

@@ -72,14 +72,15 @@ ifeq ($(INSIDE_CONTAINER),yes)
     # Already in a container - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 else ifeq ($(UNAME_S),Darwin)
-# This conditional logic ensures cross-OS builds use containers automatically
-ifeq ($(UNAME_S),Darwin)
+    # macOS host - use container for cross-OS build
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/debian/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),debian)
+    # Non-Debian Linux host - use container for cross-OS build
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/debian/cpp $(CONTAINER_IMAGE) make all
 else
+    # Debian host - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 endif
 
