@@ -57,7 +57,6 @@ DOCKERFILE = ../containers/build/Dockerfile
 # Detect Container Runtime and Host OS
 UNAME_S := $(shell uname -s)
 HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
-
 ifeq ($(UNAME_S),Darwin)
     CONTAINER_CMD = container
 else
@@ -65,7 +64,8 @@ else
 endif
 
 # Detect if already inside a container (prevent nested containers)
-INSIDE_CONTAINER := $(shell test -f /.dockerenv && echo yes || echo no)
+# Check multiple indicators: IN_CONTAINER env var, /.dockerenv, /run/.containerenv, or cgroup
+INSIDE_CONTAINER := $(shell if [ "$$IN_CONTAINER" = "1" ] || test -f /.dockerenv || test -f /run/.containerenv; then echo yes; elif grep -q 'docker\|kubepods\|containerd' /proc/1/cgroup 2>/dev/null; then echo yes; else echo no; fi)
 
 # When host is not Ubuntu (e.g. macOS), auto-build inside container
 # This conditional logic ensures cross-OS builds use containers automatically
@@ -73,16 +73,16 @@ ifeq ($(INSIDE_CONTAINER),yes)
     # Already in a container - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 else ifeq ($(UNAME_S),Darwin)
-# This conditional logic ensures cross-OS builds use containers automatically
-ifeq ($(UNAME_S),Darwin)
+    # macOS host - use container for cross-OS build
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),ubuntu)
+    # Non-Ubuntu Linux host - use container for cross-OS build
     all: container
 	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make all
 else
+    # Ubuntu host - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
-endif
 endif
 
 .PHONY: test  all static shared clean dist-clean container container-clean lint format test-all
@@ -111,6 +111,7 @@ $(SHARED_LIB): $(OBJS)
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 # Auto-container for test when host is not ubuntu
 ifeq ($(UNAME_S),Darwin)
     test: container
@@ -130,12 +131,21 @@ dist-clean: clean container-clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 	@$(RM) reports ../reports logs
 
-
-
 # Container Management
 container:
 	@mkdir -p logs
 	@echo "Checking build container..."
+ifeq ($(UNAME_S),Darwin)
+	@echo "macOS host detected — checking Apple Container service..."
+	@if ! $(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running"; then \
+		echo "Starting Apple Container service..."; \
+		$(CONTAINER_CMD) system start; \
+		sleep 5; \
+		$(CONTAINER_CMD) system status 2>/dev/null | grep -q "status.*running" || (echo "ERROR: Container service failed to start" && exit 1); \
+	else \
+		echo "Apple Container service is running."; \
+	fi
+endif
 	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q $(CONTAINER_IMAGE); then \
 		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
 		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
@@ -146,7 +156,7 @@ container:
 
 container-clean:
 	@echo "Removing build container image..."
-	@$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) || true
+	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
 	@echo "Container environment cleaned."
 
 # Container Health Check

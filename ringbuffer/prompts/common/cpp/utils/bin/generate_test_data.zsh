@@ -52,8 +52,10 @@ generate_line() {
         prefix="${n} "
     fi
     
+    local suffix=$(printf "%04d" "$n")
+    
     if (( n == 1 )); then
-        echo "${prefix}${template} ${prefix}"
+        echo "${prefix}${template} ${suffix}"
         return
     fi
     
@@ -74,7 +76,7 @@ generate_line() {
     local prefix_part="${chars[1:$((i-1))]}"
     local suffix_part="${chars[$((i+1)),$L]}"
     
-    echo "${prefix}${prefix_part} ${suffix_part} ${prefix}"
+    echo "${prefix}${prefix_part} ${suffix_part} ${suffix}"
 }
 
 # Generate output — truncate first, then append per line (avoids error messages going to data file)

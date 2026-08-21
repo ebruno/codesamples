@@ -1,4 +1,6 @@
-FROM docker.io/vascoguita/raspios:arm64-bookworm
+ARG BASE_IMAGE=docker.io/vascoguita/raspios:arm64-bookworm
+
+FROM ${BASE_IMAGE}
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive

@@ -1,4 +1,6 @@
-FROM debian:13
+ARG BASE_IMAGE=debian:13
+
+FROM ${BASE_IMAGE}
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive

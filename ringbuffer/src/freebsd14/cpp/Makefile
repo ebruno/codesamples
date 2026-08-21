@@ -30,10 +30,10 @@ BUILD_DIR = build
 VERSIONED_STATIC = ${LIB_DIR}/libswtr_ringbuffer-${VERSION}.a
 VERSIONED_SHARED = ${LIB_DIR}/libswtr_ringbuffer-${VERSION}.so
 
+.SUFFIXES: .cpp
 .PHONY: test  all static shared clean dist-clean test-all
 
-# Always clean first for repeatability in verify_build
-all: clean static shared
+all: static shared
 
 static: ${VERSIONED_STATIC}
 	cd ${LIB_DIR} && ln -sf libswtr_ringbuffer-${VERSION}.a libswtr_ringbuffer.a

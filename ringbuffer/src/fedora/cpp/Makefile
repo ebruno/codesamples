@@ -53,7 +53,8 @@ else
 endif
 
 # Detect if already inside a container (prevent nested containers)
-INSIDE_CONTAINER := $(shell test -f /.dockerenv && echo yes || echo no)
+# Check multiple indicators: IN_CONTAINER env var, /.dockerenv, /run/.containerenv, or cgroup
+INSIDE_CONTAINER := $(shell if [ "$$IN_CONTAINER" = "1" ] || test -f /.dockerenv || test -f /run/.containerenv; then echo yes; elif grep -q 'docker\|kubepods\|containerd' /proc/1/cgroup 2>/dev/null; then echo yes; else echo no; fi)
 
 # When host is not Fedora (e.g. macOS), auto-build inside container
 ifeq ($(INSIDE_CONTAINER),yes)

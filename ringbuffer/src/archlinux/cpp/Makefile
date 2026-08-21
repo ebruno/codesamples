@@ -53,11 +53,46 @@ BUILD_DIR = build
 VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).so
 
-.PHONY: test  all static shared clean dist-clean verify test-all
+# ============================================================================
+# Container Configuration (cross-platform builds)
+# ============================================================================
+
+CONTAINER_IMAGE = ringbuffer_archlinux_build
+DOCKERFILE = ../containers/build/Dockerfile
+
+# Detect Container Runtime and Host OS
+UNAME_S := $(shell uname -s)
+HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
+ifeq ($(UNAME_S),Darwin)
+    CONTAINER_CMD = container
+else
+    CONTAINER_CMD = podman
+endif
+
+# Detect if already inside a container (prevent nested containers)
+# Check multiple indicators: IN_CONTAINER env var, /.dockerenv, /run/.containerenv, or cgroup
+INSIDE_CONTAINER := $(shell if [ "$$IN_CONTAINER" = "1" ] || test -f /.dockerenv || test -f /run/.containerenv; then echo yes; elif grep -q 'docker\|kubepods\|containerd' /proc/1/cgroup 2>/dev/null; then echo yes; else echo no; fi)
+
+# When host is not Arch Linux (e.g. macOS), auto-build inside container
+ifeq ($(INSIDE_CONTAINER),yes)
+    # Already in a container - build natively
+    all: clean static shared
+else ifeq ($(UNAME_S),Darwin)
+    # macOS host - use container for cross-OS build
+    all: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
+else ifneq ($(HOST_DISTRO),arch)
+    # Non-Arch Linux host - use container for cross-OS build
+    all: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
+else
+    # Arch Linux host - build natively
+    all: clean static shared
+endif
+
+.PHONY: test  all static shared clean dist-clean verify test-all container container-clean
 
 # Always clean first for repeatability in verify_build
-all: clean static shared
-
 static: $(LIB_DIR) $(VERSIONED_STATIC)
 	@cd $(LIB_DIR) && ln -sf libswtr_ringbuffer-$(VERSION).a libswtr_ringbuffer.a
 
@@ -83,6 +118,7 @@ $(VERSIONED_SHARED): $(OBJS)
 	@ln -sf libswtr_ringbuffer-$(VERSION).so $(LIB_DIR)/libswtr_ringbuffer.so
 	@ln -sf libswtr_ringbuffer-$(VERSION).so $(LIB_DIR)/libswtr_ringbuffer.so.1
 	@echo "Shared library: $@"
+
 test: all
 	@if [ -d tests ]; then $(MAKE) -C tests verify; else echo "No tests directory"; fi
 
@@ -103,6 +139,29 @@ verify: all
 	@file $(VERSIONED_SHARED)
 	@readelf -d $(VERSIONED_SHARED) | grep SONAME || echo "No SONAME"
 	@nm -C $(VERSIONED_SHARED) | grep SwtrRingBuffer | head -5
+
+# ============================================================================
+# Container Management
+# ============================================================================
+
+container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then \
+		echo "ERROR: No container runtime found."; exit 1; \
+	fi
+	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q "$(CONTAINER_IMAGE)"; then \
+		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
+		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
+	else \
+		echo "Image $(CONTAINER_IMAGE) already exists. Skipping build."; \
+	fi
+	@echo "Container environment ready."
+
+container-clean:
+	@if [ -z "$(CONTAINER_CMD)" ]; then \
+		echo "ERROR: No container runtime found."; exit 1; \
+	fi
+	@echo "Removing $(CONTAINER_IMAGE)..."
+	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
 
 # ============================================================================
 # Per-compiler build targets: libswtr_ringbuffer_<compiler>

@@ -53,8 +53,10 @@ generate_line() {
         prefix="${n} "
     fi
     
+    local suffix=$(printf "%04d" "$n")
+    
     if (( n == 1 )); then
-        echo "${prefix}${template} ${prefix}"
+        echo "${prefix}${template} ${suffix}"
         return
     fi
     
@@ -82,7 +84,7 @@ generate_line() {
         modified+="${chars[$c]}"
     done
     
-    echo "${prefix}${modified} ${prefix}"
+    echo "${prefix}${modified} ${suffix}"
 }
 
 # Generate output — truncate first, then append per line (avoids error messages going to data file)

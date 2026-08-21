@@ -26,7 +26,7 @@ test001_dynamiclib: src/test001.cpp
 	${CXX} ${CXXFLAGS} src/test001.cpp -L${LIB_DIR} ${LDFLAGS} -lswtr_ringbuffer -o ${BIN_DIR}/test001_dynamiclib
 
 deploy_utils:
-	@echo "Utils already present from tar extraction" 
+	@echo "Utils already present from tar extraction"
 
 container:
 	@echo "Container not used for FreeBSD native build"

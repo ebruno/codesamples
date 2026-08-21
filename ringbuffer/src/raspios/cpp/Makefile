@@ -57,23 +57,30 @@ DOCKERFILE = ../containers/build/Dockerfile
 # Detect Container Runtime and Host OS
 UNAME_S := $(shell uname -s)
 HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
-
 ifeq ($(UNAME_S),Darwin)
     CONTAINER_CMD = container
 else
     CONTAINER_CMD = podman
 endif
 
-# When host is not raspios (e.g. macOS), auto-build inside container
-ifeq ($(IN_CONTAINER),1)
+# Detect if already inside a container (prevent nested containers)
+# Check multiple indicators: IN_CONTAINER env var, /.dockerenv, /run/.containerenv, or cgroup
+INSIDE_CONTAINER := $(shell if [ "$$IN_CONTAINER" = "1" ] || test -f /.dockerenv || test -f /run/.containerenv; then echo yes; elif grep -q 'docker\|kubepods\|containerd' /proc/1/cgroup 2>/dev/null; then echo yes; else echo no; fi)
+
+# When host is not Raspios (e.g. macOS), auto-build inside container
+ifeq ($(INSIDE_CONTAINER),yes)
+    # Already in a container - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 else ifeq ($(UNAME_S),Darwin)
+    # macOS host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $$(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),raspios)
+    # Non-Raspios Linux host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $$(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make all
 else
+    # Raspios host - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 endif
 
@@ -103,6 +110,7 @@ $(SHARED_LIB): $(OBJS)
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 # Auto-container for test when host is not raspios
 ifeq ($(UNAME_S),Darwin)
     test: container
@@ -121,8 +129,6 @@ clean:
 dist-clean: clean container-clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 	@$(RM) reports ../reports logs
-
-
 
 # Container Management
 container:
@@ -149,7 +155,7 @@ endif
 
 container-clean:
 	@echo "Removing build container image..."
-	@$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) || true
+	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
 	@echo "Container environment cleaned."
 
 # Container Health Check

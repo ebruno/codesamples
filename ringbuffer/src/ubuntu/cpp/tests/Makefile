@@ -47,14 +47,23 @@ all: static dynamic
 static: $(TEST_STATIC)
 dynamic: $(TEST_DYNAMIC)
 
+# Library build rules (invoked when library is missing)
+$(STATIC_LIB): ../Makefile
+	@echo "Building C++ library..."
+	$(MAKE) -C .. all
+
+$(SHARED_LIB): ../Makefile
+	@echo "Building C++ library..."
+	$(MAKE) -C .. all
+
 # Static linking test binary
-$(TEST_STATIC): $(SRC_DIR)/test001.cpp
+$(TEST_STATIC): $(SRC_DIR)/test001.cpp $(STATIC_LIB)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ \
 		$(STATIC_LIB)
 
 # Dynamic linking test binary
-$(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp
+$(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp $(SHARED_LIB)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ \
 		-L$(LIB_DIR) -lswtr_ringbuffer \
@@ -107,7 +116,7 @@ validate-data:
 	@echo "Test data validation passed"
 
 # Run verification (artifact check + test matrix)
-verify: build-cpp static dynamic validate-data deploy-utils
+verify: static dynamic build-cpp validate-data deploy-utils
 
 # Build C++ library if not present (skip if unsupported)
 build-cpp:

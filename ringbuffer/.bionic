@@ -10,6 +10,21 @@ The correct workflow:
 
 If you find yourself about to edit CLAUDE.md, STOP — go to `.bionic` instead.
 
+## ⚠️ MANDATORY: Read Entire .bionic File
+**Always read the ENTIRE `.bionic` file at session start. Use this exact pattern:**
+
+```python
+# Step 1: Read first 200KB (covers any reasonable file size)
+first = read_file_chars(path=".bionic", start_char=0, chars_to_read=200000)
+# Step 2: If result ends with a read_file_chars hint, read the rest
+if first ends_with "read_file_chars":
+    second = read_file_chars(path=".bionic", start_char=200000, chars_to_read=200000)
+```
+
+- **NEVER** use `read_file_lines` with the default 500-line limit — this truncates critical rules (SSH transfer, FreeBSD shell, Arch Linux CXX override, etc.) that live past line 500.
+- If you find yourself about to use `read_file_lines` on `.bionic`, STOP — use `read_file_chars` instead.
+- This rule is self-referential: if you are reading this, you have already read the entire file.
+
 # Ringbuffer Project — Session Startup Instructions
 
 ## 1. Project Structure Quick Reference
@@ -505,6 +520,7 @@ FreeBSD 14 C++ is implemented and verified (static library only). Its prompt dir
 - **Available shells on FreeBSD 14:** tcsh (default), bash (`/usr/local/bin/bash`), sh (`/bin/sh`). zsh is NOT installed.
 - **Makefile recipe shell:** `make` on FreeBSD invokes `/bin/sh -c` for recipes. On FreeBSD 14, `/bin/sh` is the BSD `sh` (not bash). Bash builtins (arrays, `<<<`, `[[ ]]`) are **not available** in Makefile recipes on FreeBSD.
 - See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for full shell availability details.
+- **macOS local testing of FreeBSD Makefiles:** macOS ships with GNU make 3.81, not BSD make. To test FreeBSD Makefiles locally on macOS, you MUST use `bmake` (BSD make installed via Homebrew). Never use `make` or `gmake` for FreeBSD Makefile testing on macOS — GNU make syntax is incompatible and will produce misleading errors. If `bmake` is not found, report an error: `ERROR: bmake (BSD make) is required for testing FreeBSD Makefiles locally. Install with: brew install bmake`.
 
 ### Arch Linux (Linux-Hosts-Only)
 Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
@@ -671,6 +687,14 @@ cd src/common/python && make all        # Builds inside container via Makefile
 - **Containers inherit ONLY from base OS image** (`fedora:44`, `debian:13`, `ubuntu:24.04`, raspios base) — NEVER from each other.
 - **Deprecated**: Old per-language Dockerfiles at `src/common/python/containers/` and `src/common/java/containers/` have been removed.
 
+### Arch Linux Container Image Pinning
+- **Arch Linux is a rolling release** — it has no `VERSION_ID` in `/etc/os-release`. Always identify by `ID=arch` alone.
+- **Container tag strategy: datestamp-based.** Pin to a specific date 3 months in the past for reproducible builds. Never use `latest` or unversioned tags like `base`.
+- **Example:** If today is 2026-08-21, use `FROM archlinux:2026.05.01`.
+- **How to determine the date:** Calculate 3 months back from today, format as `YYYY.MM.DD`. Check Docker Hub for the exact datestamp tag that exists (Arch publishes daily snapshots).
+- **macOS hosts:** `archlinux:base` and datestamp tags are amd64-only. macOS scripts must skip Arch Linux containers with a logged message (already handled by the "Linux-hosts-only" rule).
+- **Linux hosts:** Use `podman` with the pinned datestamp tag.
+
 ### Container Commands (macOS)
 - **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
 - **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_fedora_build:latest ...`, NOT `container run localhost/ringbuffer_fedora_build:latest ...`.
@@ -757,6 +781,7 @@ echo "=== pandoc ===" && which pandoc 2>/dev/null || echo "NOT FOUND"
 echo "=== mmdc ===" && which mmdc 2>/dev/null || echo "NOT FOUND"
 echo "=== glab ===" && which glab 2>/dev/null || echo "NOT FOUND"
 echo "=== gh ===" && which gh 2>/dev/null || echo "NOT FOUND"
+echo "=== bmake ===" && which bmake 2>/dev/null || echo "NOT FOUND"
 ```
 
 Then display a Tool Availability Report in this format:
@@ -775,6 +800,7 @@ Then display a Tool Availability Report in this format:
 | **mmdc** (mermaid-cli) | ✅ Available (`<path>`) or ❌ Missing | Render Mermaid diagrams to SVG for PDF embedding |
 | **glab** (GitLab CLI) | ✅ Available (`<path>`) or ❌ Missing | GitLab CLI tool |
 | **gh** (GitHub CLI) | ✅ Available (`<path>`) or ❌ Missing | GitHub CLI tool |
+| **bmake** (BSD make) | ✅ Available (`<path>`) or ❌ Missing | BSD make — required for testing FreeBSD Makefiles locally |
 
 ### What Cannot Be Done (Missing Tools)
 - List each missing tool and what functionality is unavailable because of it.
@@ -789,7 +815,7 @@ When a tool is missing, report the installation command based on the detected ho
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Then install missing tools:
-brew install cmake ffmpeg pandoc mermaid-cli
+brew install cmake ffmpeg pandoc mermaid-cli bmake
 echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zshrc  # Apple Silicon
 # or
 echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc     # Intel
@@ -799,7 +825,7 @@ source ~/.zshrc
 **Fedora (`ID=fedora`):**
 ```bash
 # Install missing tools (requires sudo):
-sudo dnf install -y cmake ffmpeg pandoc mermaid-cli
+sudo dnf install -y cmake ffmpeg pandoc mermaid-cli bmake mk-files
 # Note: mmdc (mermaid-cli) may require Node.js first:
 sudo dnf install -y nodejs npm
 npm install -g @mermaid-js/mermaid-cli
@@ -809,7 +835,7 @@ npm install -g @mermaid-js/mermaid-cli
 ```bash
 # Install missing tools (requires sudo):
 sudo apt-get update
-sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
+sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli bmake
 # Note: mmdc (mermaid-cli) may require Node.js first:
 sudo apt-get install -y nodejs npm
 npm install -g @mermaid-js/mermaid-cli
@@ -819,7 +845,17 @@ npm install -g @mermaid-js/mermaid-cli
 ```bash
 # Install missing tools (requires sudo):
 sudo apt-get update
-sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
+sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli bmake
+# Note: mmdc (mermaid-cli) may require Node.js first:
+sudo apt-get install -y nodejs npm
+npm install -g @mermaid-js/mermaid-cli
+```
+
+**Raspberry Pi OS (`ID=raspios`):**
+```bash
+# Install missing tools (requires sudo):
+sudo apt-get update
+sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli bmake
 # Note: mmdc (mermaid-cli) may require Node.js first:
 sudo apt-get install -y nodejs npm
 npm install -g @mermaid-js/mermaid-cli
@@ -829,13 +865,13 @@ npm install -g @mermaid-js/mermaid-cli
 ```bash
 # Detect package manager and install:
 if command -v dnf &>/dev/null; then
-    sudo dnf install -y cmake ffmpeg pandoc mermaid-cli
+    sudo dnf install -y cmake ffmpeg pandoc mermaid-cli bmake mk-files
 elif command -v apt-get &>/dev/null; then
-    sudo apt-get update && sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli
+    sudo apt-get update && sudo apt-get install -y cmake ffmpeg pandoc mermaid-cli bmake
 elif command -v yum &>/dev/null; then
-    sudo yum install -y cmake ffmpeg pandoc mermaid-cli
+    sudo yum install -y cmake ffmpeg pandoc mermaid-cli bmake mk-files
 elif command -v pacman &>/dev/null; then
-    sudo pacman -S cmake ffmpeg pandoc mermaid-cli
+    sudo pacman -S cmake ffmpeg pandoc mermaid-cli bmake mk-files
 fi
 # For mmdc, install Node.js first if needed:
 if ! command -v npm &>/dev/null; then

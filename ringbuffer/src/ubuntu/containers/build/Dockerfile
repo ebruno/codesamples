@@ -1,4 +1,6 @@
-FROM ubuntu:24.04
+ARG BASE_IMAGE=ubuntu:24.04
+
+FROM ${BASE_IMAGE}
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive

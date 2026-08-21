@@ -47,8 +47,10 @@ generate_line() {
         prefix="${n} "
     fi
     
+    suffix=$(printf "%04d" "$n")
+    
     if [ "$n" -eq 1 ]; then
-        echo "${prefix}${template} ${prefix}"
+        echo "${prefix}${template} ${suffix}"
         return
     fi
     
@@ -66,7 +68,7 @@ generate_line() {
     # Replace character at position i with space (1-based index)
     prefix_part="${template:0:$((i-2))}"
     suffix_part="${template:$i}"
-    echo "${prefix}${prefix_part} ${suffix_part} ${prefix}"
+    echo "${prefix}${prefix_part} ${suffix_part} ${suffix}"
 }
 
 # Generate output — truncate first, then append per line (avoids error messages going to data file)

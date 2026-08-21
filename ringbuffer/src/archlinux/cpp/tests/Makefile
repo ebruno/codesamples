@@ -1,184 +1,179 @@
 include ../version.mk
 
-# ============================================================================
-# Compiler auto-detection: Arch Linux has both g++ and clang++ available
-# ============================================================================
-
-ALL_COMPILERS := g++ clang++
-
-# Filter to only compilers that exist on the system
-DISTINCT_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
-  $(if $(shell which $(COMP) >/dev/null 2>&1 && echo found),$(COMP)))
-
-# Default compiler (first available)
-CXX := $(firstword $(DISTINCT_COMPILERS))
-
-# ============================================================================
-# Per-compiler LTO flags: g++ uses -flto, clang++ uses -flto=thin
-# ============================================================================
-
-define COMPILER_LTO_FLAGS
-ifeq ($(strip $(CXX)),g++)
-  LTO_FLAG := -flto
-else ifeq ($(strip $(CXX)),clang++)
-  LTO_FLAG := -flto=thin
-endif
-endef
-
-# ============================================================================
-# Build configuration (uses default CXX)
-# ============================================================================
-
-$(eval $(COMPILER_LTO_FLAGS))
-
-override CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -Wpedantic $(LTO_FLAG) -I.. -I../src/archlinux/cpp
-LDFLAGS = -Wl,-rpath,$(abspath ../lib)
-
+# Compiler settings
+CXX = g++
+CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -I..
+LDFLAGS = 
 RM = rm -rf
 
-UTILS_PROMPT_DIR = ../../../../prompts/common/cpp/utils/bin
-UTILS_BIN_DIR = utils/bin
-
+# Directories
+SRC_DIR = src
 BIN_DIR = bin
+DATA_DIR = data
+LOGS_DIR = logs
+REPORTS_DIR = reports
+UTILS_DIR = utils
+
+# Test binary names
+TEST_STATIC = $(BIN_DIR)/test001_staticlib
+TEST_DYNAMIC = $(BIN_DIR)/test001_dynamiclib
+
+# Library paths
 LIB_DIR = ../lib
-LOG_DIR = logs
-REPORT_DIR = reports
+STATIC_LIB = $(LIB_DIR)/libswtr_ringbuffer.a
+SHARED_LIB = $(LIB_DIR)/libswtr_ringbuffer.so
 
-all: test001_staticlib test001_dynamiclib
+# Container settings (minimal — host script orchestrates)
+CONTAINER_IMAGE = ringbuffer_archlinux_test
+DOCKERFILE = containers/archlinux/Dockerfile
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    CONTAINER_CMD = container
+else
+    CONTAINER_CMD = podman
+endif
 
-test001_staticlib: src/test001.cpp
+# Compiler auto-detection: Linux order is g++ first, then clang++
+ALL_COMPILERS := g++ clang++
+
+# Filter to only distinct compilers (skip if same binary)
+DISTINCT_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
+  $(if $(filter $(COMP),$(DISTINCT_COMPILERS)),,$(shell if [ -x "$(COMP)" ] && ! $(COMP) --version 2>/dev/null | grep -q "clang"; then echo "$(COMP)"; fi)))
+
+.PHONY: all static dynamic clean dist-clean verify validate-data deploy-utils test-all build-cpp
+
+all: static dynamic
+
+static: $(TEST_STATIC)
+dynamic: $(TEST_DYNAMIC)
+
+# Library build rule (invoked when library is missing)
+$(STATIC_LIB): ../Makefile
+	@echo "Building C++ library..."
+	$(MAKE) -C .. all
+
+$(SHARED_LIB): ../Makefile
+	@echo "Building C++ library..."
+	$(MAKE) -C .. all
+
+# Static linking test binary
+$(TEST_STATIC): $(SRC_DIR)/test001.cpp $(STATIC_LIB)
 	@mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) src/test001.cpp $(LIB_DIR)/libswtr_ringbuffer.a -o $(BIN_DIR)/test001_staticlib
+	$(CXX) $(CXXFLAGS) $< -o $@ \
+		$(STATIC_LIB)
 
-test001_dynamiclib: src/test001.cpp
+# Dynamic linking test binary
+$(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp $(SHARED_LIB)
 	@mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) src/test001.cpp -L$(LIB_DIR) -lswtr_ringbuffer -o $(BIN_DIR)/test001_dynamiclib
+	$(CXX) $(CXXFLAGS) $< -o $@ \
+		-L$(LIB_DIR) -lswtr_ringbuffer \
+		-Wl,-rpath,$(abspath $(LIB_DIR))
 
-deploy_utils:
-	mkdir -p $(UTILS_BIN_DIR)
-	cp $(UTILS_PROMPT_DIR)/* $(UTILS_BIN_DIR)/
-
-container:
-	@echo "Container not used for Arch Linux native build"
-
-verify: deploy_utils all
-	@mkdir -p $(LOG_DIR) $(REPORT_DIR)
-	@# Audit Trail: capture compiler and linker versions
-	@echo "Compiler:" > $(REPORT_DIR)/compiler_version.txt
-	@$(CXX) -v >> $(REPORT_DIR)/compiler_version.txt 2>&1 || true
-	@echo "Linker:" >> $(REPORT_DIR)/compiler_version.txt
-	@$(CXX) -print-prog-name=ld -v >> $(REPORT_DIR)/compiler_version.txt 2>&1 || true
-	@echo "Running Test Matrix..."
-	@# T001: Identity transform, normal operation (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib -o $(LOG_DIR)/t001_out.txt -l $(LOG_DIR)/t001.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t001.exit
-	@diff -q $(LOG_DIR)/t001_out.txt data/expected/t001_out.txt > /dev/null 2>&1 && echo "T001: PASS (output match)" || echo "T001: FAIL (output mismatch)"
-	@# T002: Stress test (1 slot, 1 byte buffer) (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib -s 1 -b 1 -o $(LOG_DIR)/t002_out.txt -l $(LOG_DIR)/t002.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t002.exit
-	@diff -q $(LOG_DIR)/t002_out.txt data/expected/t002_out.txt > /dev/null 2>&1 && echo "T002: PASS (output match)" || echo "T002: FAIL (output mismatch)"
-	@# T003: Uppercase transform (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib -b 10 -t 1 -o $(LOG_DIR)/t003_out.txt -l $(LOG_DIR)/t003.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t003.exit
-	@diff -q $(LOG_DIR)/t003_out.txt data/expected/t003_out.txt > /dev/null 2>&1 && echo "T003: PASS (output match)" || echo "T003: FAIL (output mismatch)"
-	@# T004: Small input, fast EOF (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib -o $(LOG_DIR)/t004_out.txt -l $(LOG_DIR)/t004.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t004.exit
-	@diff -q $(LOG_DIR)/t004_out.txt data/expected/t004_out.txt > /dev/null 2>&1 && echo "T004: PASS (output match)" || echo "T004: FAIL (output mismatch)"
-	@# T005: Fatal error mode (expect exit 1)
-	@$(BIN_DIR)/test001_staticlib -e 1 -o $(LOG_DIR)/t005_out.txt -l $(LOG_DIR)/t005.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t005.exit
-	@# T006: Non-fatal error mode (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib -e 2 -o $(LOG_DIR)/t006_out.txt -l $(LOG_DIR)/t006.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t006.exit
-	@diff -q $(LOG_DIR)/t006_out.txt data/expected/t006_out.txt > /dev/null 2>&1 && echo "T006: PASS (output match)" || echo "T006: FAIL (output mismatch)"
-	@# T007: XOR transform (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib -t 2 -o $(LOG_DIR)/t007_out.txt -l $(LOG_DIR)/t007.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t007.exit
-	@diff -q $(LOG_DIR)/t007_out.txt data/expected/t007_out.txt > /dev/null 2>&1 && echo "T007: PASS (output match)" || echo "T007: FAIL (output mismatch)"
-	@# Generate Reports (Markdown + JUnit XML)
-	@./utils/bin/generate_junit_report.zsh -o $(REPORT_DIR)/cpp/per_os/archlinux_regression_report_junit.xml
-	@echo "Verification complete."
-
-# ============================================================================
-# Per-compiler test binaries: test001_staticlib_<compiler>
-# ============================================================================
-
+# Per-compiler test binaries
 define PER_COMPILER_TEST_TARGETS
-test001_staticlib_$(1): src/test001.cpp
+test001_staticlib_$(1): $(SRC_DIR)/test001.cpp
 	@mkdir -p $(BIN_DIR)
-	$(1) -std=c++20 -O3 -Wall -Wextra -Wpedantic $$(ifeq ($(1),clang++),-flto=thin,-flto) -I.. -I../src/archlinux/cpp src/test001.cpp $(LIB_DIR)/libswtr_ringbuffer.a -o $(BIN_DIR)/test001_staticlib_$(1)
+	$(1) $(CXXFLAGS) $< -o $(BIN_DIR)/test001_staticlib_$(1) \
+		$(STATIC_LIB)
 
-test001_dynamiclib_$(1): src/test001.cpp
+test001_dynamiclib_$(1): $(SRC_DIR)/test001.cpp
 	@mkdir -p $(BIN_DIR)
-	$(1) -std=c++20 -O3 -Wall -Wextra -Wpedantic $$(ifeq ($(1),clang++),-flto=thin,-flto) -I.. -I../src/archlinux/cpp src/test001.cpp -L$(LIB_DIR) -lswtr_ringbuffer -o $(BIN_DIR)/test001_dynamiclib_$(1)
+	$(1) $(CXXFLAGS) $< -o $(BIN_DIR)/test001_dynamiclib_$(1) \
+		-L$(LIB_DIR) -lswtr_ringbuffer \
+		-Wl,-rpath,$(abspath $(LIB_DIR))
 endef
 
 $(foreach COMP,$(DISTINCT_COMPILERS),$(eval $(call PER_COMPILER_TEST_TARGETS,$(COMP))))
 
-# ============================================================================
-# Multi-compiler test cycle: test-all
-# Runs verify with each available compiler using per-compiler binaries.
-# ============================================================================
-
-test-all: test-report-init
-	@$(foreach COMP,$(DISTINCT_COMPILERS),\
-		echo "=== Testing with $(COMP) ==="; \
-		$(MAKE) test001_staticlib_$(COMP); \
-		$(MAKE) verify-with-CXX=$(COMP); \
-		$(MAKE) append-test-report COMP=$(COMP); \
-		echo ""; \
-	)
-	@echo "=== Multi-compiler test complete ==="
-
-verify-with-CXX: deploy_utils
-	@mkdir -p $(LOG_DIR) $(REPORT_DIR)
-	@# Audit Trail: capture compiler and linker versions
-	@echo "Compiler:" > $(REPORT_DIR)/compiler_version_$(CXX).txt
-	@$(CXX) -v >> $(REPORT_DIR)/compiler_version_$(CXX).txt 2>&1 || true
-	@echo "Linker:" >> $(REPORT_DIR)/compiler_version_$(CXX).txt
-	@$(CXX) -print-prog-name=ld -v >> $(REPORT_DIR)/compiler_version_$(CXX).txt 2>&1 || true
-	@echo "Running Test Matrix with $(CXX)..."
-	@# T001: Identity transform, normal operation (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib_$(CXX) -o $(LOG_DIR)/t001_out.txt -l $(LOG_DIR)/t001.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t001.exit
-	@diff -q $(LOG_DIR)/t001_out.txt data/expected/t001_out.txt > /dev/null 2>&1 && echo "T001: PASS (output match)" || echo "T001: FAIL (output mismatch)"
-	@# T002: Stress test (1 slot, 1 byte buffer) (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib_$(CXX) -s 1 -b 1 -o $(LOG_DIR)/t002_out.txt -l $(LOG_DIR)/t002.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t002.exit
-	@diff -q $(LOG_DIR)/t002_out.txt data/expected/t002_out.txt > /dev/null 2>&1 && echo "T002: PASS (output match)" || echo "T002: FAIL (output mismatch)"
-	@# T003: Uppercase transform (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib_$(CXX) -b 10 -t 1 -o $(LOG_DIR)/t003_out.txt -l $(LOG_DIR)/t003.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t003.exit
-	@diff -q $(LOG_DIR)/t003_out.txt data/expected/t003_out.txt > /dev/null 2>&1 && echo "T003: PASS (output match)" || echo "T003: FAIL (output mismatch)"
-	@# T004: Small input, fast EOF (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib_$(CXX) -o $(LOG_DIR)/t004_out.txt -l $(LOG_DIR)/t004.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t004.exit
-	@diff -q $(LOG_DIR)/t004_out.txt data/expected/t004_out.txt > /dev/null 2>&1 && echo "T004: PASS (output match)" || echo "T004: FAIL (output mismatch)"
-	@# T005: Fatal error mode (expect exit 1)
-	@$(BIN_DIR)/test001_staticlib_$(CXX) -e 1 -o $(LOG_DIR)/t005_out.txt -l $(LOG_DIR)/t005.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t005.exit
-	@# T006: Non-fatal error mode (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib_$(CXX) -e 2 -o $(LOG_DIR)/t006_out.txt -l $(LOG_DIR)/t006.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t006.exit
-	@diff -q $(LOG_DIR)/t006_out.txt data/expected/t006_out.txt > /dev/null 2>&1 && echo "T006: PASS (output match)" || echo "T006: FAIL (output mismatch)"
-	@# T007: XOR transform (expect exit 0)
-	@$(BIN_DIR)/test001_staticlib_$(CXX) -t 2 -o $(LOG_DIR)/t007_out.txt -l $(LOG_DIR)/t007.log data/inputs/test001.txt; echo $$? > $(LOG_DIR)/t007.exit
-	@diff -q $(LOG_DIR)/t007_out.txt data/expected/t007_out.txt > /dev/null 2>&1 && echo "T007: PASS (output match)" || echo "T007: FAIL (output mismatch)"
-	@# Generate Reports (Markdown + JUnit XML)
-	@./utils/bin/generate_junit_report.zsh -o $(REPORT_DIR)/cpp/per_os/archlinux_regression_report_junit.xml
-	@echo "Verification complete."
-
-test-report-init:
-	@mkdir -p reports
-	@echo "# Test Report" > reports/test_report.md
-	@echo "" >> reports/test_report.md
-	@echo "**Generated:** $$(date '+%Y-%m-%d %H:%M:%S %z')" >> reports/test_report.md
-	@echo "" >> reports/test_report.md
-
-append-test-report:
-	@mkdir -p reports
-	@echo "## $(COMP)" >> reports/test_report.md
-	@echo "" >> reports/test_report.md
-	@echo "**Compiler:** $$( $(COMP) --version | head -1 )" >> reports/test_report.md
-	@echo "" >> reports/test_report.md
-	@if [ -f "$(REPORT_DIR)/compiler_version_$(COMP).txt" ]; then \
-		echo "**Compiler Info:**"; cat $(REPORT_DIR)/compiler_version_$(COMP).txt >> reports/test_report.md; \
+# Deploy authoritative utility scripts from prompts
+deploy-utils:
+	@echo "Deploying authoritative utility scripts..."
+	@if [ -d "../../../../prompts/common/cpp/utils/bin" ]; then \
+		for script in ../../../../prompts/common/cpp/utils/bin/*; do \
+			if [ -f "$$script" ]; then \
+				cp -f "$$script" "$(UTILS_DIR)/bin/"; \
+				echo "  Deployed: $$(basename $$script)"; \
+			fi; \
+		done; \
 	else \
-		echo "**Compiler Info:** N/A" >> reports/test_report.md; \
+		echo "  Authoritative scripts directory not mounted in container — using existing scripts in $(UTILS_DIR)/bin/"; \
 	fi
-	@echo "" >> reports/test_report.md
+
+# Validate test data
+validate-data:
+	@echo "Validating test data..."
+	@if [ -d "$(DATA_DIR)/inputs" ]; then \
+		for f in $(DATA_DIR)/inputs/test*.txt; do \
+			if [ -f "$$f" ]; then \
+				echo "Validating $$f..."; \
+				$(UTILS_DIR)/bin/verify_test_data.sh "$$f" || exit 1; \
+			fi; \
+		done; \
+	else \
+		echo "ERROR: $(DATA_DIR)/inputs directory not found"; \
+		exit 1; \
+	fi
+	@echo "Test data validation passed"
+
+# Run verification (artifact check + test matrix)
+verify: static dynamic deploy-utils validate-data build-cpp
+
+# Build C++ library if not present (skip if unsupported)
+# Produces .lib_built marker so make tracks the dependency
+build-cpp: .lib_built
+
+.lib_built:
+	@if [ -f ../UNSUPPORTED.md ]; then echo "C++ unsupported on this platform — skipping C++ build"; else \
+		if [ ! -f ../lib/libswtr_ringbuffer.a ]; then echo "Building C++ library..."; make -C .. all; fi; \
+	fi
+	@mkdir -p $(LOGS_DIR) $(REPORTS_DIR)
+	@touch $@
+	@if [ -f ../UNSUPPORTED.md ]; then \
+		echo "=== Artifact Verification ==="; \
+		echo "C++ unsupported — library checks skipped (see ../UNSUPPORTED.md)"; \
+		echo ""; \
+	else \
+		echo "=== Artifact Verification ==="; \
+		file -L $(STATIC_LIB) | grep -q "current ar archive" && echo "Static library: OK" || (echo "Static library: FAIL"; exit 1); \
+		file -L $(SHARED_LIB) | grep -q "shared object" && echo "Shared library: OK" || (echo "Shared library: FAIL"; exit 1); \
+		readelf -d $(SHARED_LIB) | grep -q "SONAME.*libswtr_ringbuffer.so" && echo "SONAME: OK" || (echo "SONAME: FAIL"; exit 1); \
+		size $(SHARED_LIB) | tail -1 | awk '{total=$$1+$$2+$$3; print "Binary size: " total " bytes (text=" $$1 ", data=" $$2 ", bss=" $$3 ")"}'; \
+		echo ""; \
+	fi
+	@echo "=== Audit Trail ==="
+	@$(CXX) -v > $(REPORTS_DIR)/compiler_version.txt 2>&1 || true
+	@ld -v >> $(REPORTS_DIR)/compiler_version.txt 2>&1 || true
+	@echo "Compiler and linker versions captured"
+	@echo ""
+	@if [ -f ../UNSUPPORTED.md ]; then \
+		echo "C++ unsupported on this platform — test matrix skipped (see ../UNSUPPORTED.md)"; \
+	else \
+		TEST_STATIC=$(TEST_STATIC) DATA_DIR=$(DATA_DIR) LOGS_DIR=$(LOGS_DIR) REPORTS_DIR=$(REPORTS_DIR) UTILS_DIR=$(UTILS_DIR) CXX=$(CXX) OS_NAME=ArchLinux $(UTILS_DIR)/bin/run_test_matrix.sh; \
+	fi
+
+# Container image build (called by host script)
+CONTAINER_IMAGE = ringbuffer_archlinux_test
+DOCKERFILE = containers/archlinux/Dockerfile
+
+container:
+	@mkdir -p logs
+	@if ! $(CONTAINER_CMD) image ls --quiet 2>/dev/null | grep -q $(CONTAINER_IMAGE); then \
+		echo "Building container image: $(CONTAINER_IMAGE)"; \
+		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) ../..; \
+	else \
+		echo "Image $(CONTAINER_IMAGE) already exists."; \
+	fi
+
+container-clean:
+	@echo "Removing container image..."; \
+	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
 
 clean:
-	@$(RM) -r $(BIN_DIR)/* $(LOG_DIR)/*
-	@$(RM) *.o $(BIN_DIR)/*.o *~ #*#
+	@$(RM) $(BIN_DIR) 2>/dev/null || true
+	@rm -f $(LOGS_DIR)/*.log $(LOGS_DIR)/*.exit $(LOGS_DIR)/*.time 2>/dev/null || true
+	@rm -f $(REPORTS_DIR)/regression_report.md $(REPORTS_DIR)/compiler_version.txt 2>/dev/null || true
+	@rm -rf $(REPORTS_DIR)/cpp/per_os 2>/dev/null || true
 
 dist-clean: clean
-	@$(RM) -r $(LOG_DIR) $(REPORT_DIR)
+	@$(RM) $(LOGS_DIR) 2>/dev/null || true
+	@$(RM) $(REPORTS_DIR) 2>/dev/null || true

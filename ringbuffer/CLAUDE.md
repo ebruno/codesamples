@@ -10,6 +10,21 @@ The correct workflow:
 
 If you find yourself about to edit CLAUDE.md, STOP — go to `.bionic` instead.
 
+## ⚠️ MANDATORY: Read Entire .bionic File
+**Always read the ENTIRE `.bionic` file at session start. Use this exact pattern:**
+
+```python
+# Step 1: Read first 200KB (covers any reasonable file size)
+first = read_file_chars(path=".bionic", start_char=0, chars_to_read=200000)
+# Step 2: If result ends with a read_file_chars hint, read the rest
+if first ends_with "read_file_chars":
+    second = read_file_chars(path=".bionic", start_char=200000, chars_to_read=200000)
+```
+
+- **NEVER** use `read_file_lines` with the default 500-line limit — this truncates critical rules (SSH transfer, FreeBSD shell, Arch Linux CXX override, etc.) that live past line 500.
+- If you find yourself about to use `read_file_lines` on `.bionic`, STOP — use `read_file_chars` instead.
+- This rule is self-referential: if you are reading this, you have already read the entire file.
+
 # Ringbuffer Project — Session Startup Instructions
 
 ## 1. Project Structure Quick Reference
@@ -670,6 +685,14 @@ cd src/common/python && make all        # Builds inside container via Makefile
 - **Build and test Dockerfiles are identical** — same content, no cross-inheritance.
 - **Containers inherit ONLY from base OS image** (`fedora:44`, `debian:13`, `ubuntu:24.04`, raspios base) — NEVER from each other.
 - **Deprecated**: Old per-language Dockerfiles at `src/common/python/containers/` and `src/common/java/containers/` have been removed.
+
+### Arch Linux Container Image Pinning
+- **Arch Linux is a rolling release** — it has no `VERSION_ID` in `/etc/os-release`. Always identify by `ID=arch` alone.
+- **Container tag strategy: datestamp-based.** Pin to a specific date 3 months in the past for reproducible builds. Never use `latest` or unversioned tags like `base`.
+- **Example:** If today is 2026-08-21, use `FROM archlinux:2026.05.01`.
+- **How to determine the date:** Calculate 3 months back from today, format as `YYYY.MM.DD`. Check Docker Hub for the exact datestamp tag that exists (Arch publishes daily snapshots).
+- **macOS hosts:** `archlinux:base` and datestamp tags are amd64-only. macOS scripts must skip Arch Linux containers with a logged message (already handled by the "Linux-hosts-only" rule).
+- **Linux hosts:** Use `podman` with the pinned datestamp tag.
 
 ### Container Commands (macOS)
 - **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
