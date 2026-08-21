@@ -2,52 +2,36 @@
   "language": "python",
   "version": "1.0.0-1",
   "python_version": "3.14.6",
-  "os_results": {
-    "raspios": {
-      "route": "container",
-      "image": "ringbuffer_python_raspios:latest",
-      "python_version": "3.11.2",
-      "status": "PASS",
-      "timestamp": "2026-08-15T14:30:00-07:00"
-    },
+  "build_status": {
     "macos": {
       "route": "native",
-      "image": "N/A",
-      "python_version": "3.14.6",
       "status": "PASS",
-      "timestamp": "2026-08-20T02:29:31.523204+00:00"
+      "timestamp": "2026-08-20T16:11:38-0700"
     },
-    "archlinux": {
-      "route": "native",
-      "python_version": "3.14.7",
-      "status": "PASS",
-      "timestamp": "2026-08-18T08:56:42-0700",
-      "notes": "C++ shared library built successfully. Concurrent (7/7) + Pure Python (7/7) all passed."
-    },
-    "fedora": {
+    "raspios": {
       "route": "container",
-      "image": "ringbuffer_python_fedora:latest",
-      "python_version": "3.14+",
       "status": "PASS",
-      "timestamp": "2026-08-20T02:33:53.710334+00:00",
-      "notes": "Pure Python only \u2014 C++ source not available in container"
+      "timestamp": "2026-08-20T17:23:08-0700"
     }
   },
   "artifacts": {
-    "module": "swtr_ringbuffer.py",
-    "test_script": "test_ringbuffer.py"
+    "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_concurrent.py",
+    "pure_python_module": "swtr_ringbuffer_pure.py",
+    "test_script_concurrent": "test_ringbuffer.py",
+    "test_script_pure": "test_ringbuffer_pure.py"
   },
   "sha256": {
-    "version_mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
-    "base_py": "b36d62e49c63eb44dba2518f28d4169ba573664eb14909b51e20bda3179d8974",
-    "swtr_ringbuffer_hp_py": "5eca4d297dbc210e231fdedb491c6b924bca299194a7397b2de2b791f77f74dd",
-    "swtr_ringbuffer_pure_py": "0ffedbd302bcf7f4879d947ff792d989814344f94cf1496b0c27e29e4b9f43e5",
-    "test_ringbuffer_py": "a385ed71ee0d27003b49ba9c267f08fe70b255fd5b778effa4dc0105bedd721e",
-    "test_ringbuffer_pure_py": "c0f5679243247372ee770eef3f5b6179ebaf0c6c827c977c0cc92e2256d2887e"
-  },
-  "notes": [
-    "Version string changed from 'High Performance' to 'Concurrent' (2026-08-17)",
-    "Crossover analysis: Pure Python faster at all sizes >= 293K (5k lines)",
-    "Arch Linux: C++ shared library built natively on remote system (GCC 16.2.1, -flto)"
-  ]
+    "version_mk": "829f1bb41d5b81c73316302ef4003747bc9d3ddda8f7f477078d3d6a8b7adec6",
+    "version.py": "7956fcef096568ed2098abac279c329b40e7023ad6ef34ab08ca63430a157fdd",
+    "benchmark.py": "e17b6daebba38a356104418f5e7eb040cdc7178a4d85626c4ebd8037d3e553fe",
+    "__init__.py": "5a48c7ca9cf72f403749fa575b2f8849a8d58ef10cd582d8b802fd775d8e71fa",
+    "test_ringbuffer_pure.py": "c0f5679243247372ee770eef3f5b6179ebaf0c6c827c977c0cc92e2256d2887e",
+    "swtr_ringbuffer.py": "275ee8df7f8fcdd05e40a2598d03b07410934b5eb700542004ccf14e4da5ec31",
+    "test_ringbuffer.py": "a385ed71ee0d27003b49ba9c267f08fe70b255fd5b778effa4dc0105bedd721e",
+    "base.py": "b36d62e49c63eb44dba2518f28d4169ba573664eb14909b51e20bda3179d8974",
+    "swtr_ringbuffer_pure.py": "0ffedbd302bcf7f4879d947ff792d989814344f94cf1496b0c27e29e4b9f43e5",
+    "swtr_ringbuffer/__init__.py": "8a6d89a3f26ed26a92beb565960ff6b04ba956c7749d9e36a513f7d9dd757108",
+    "swtr_ringbuffer/swtr_ringbuffer_concurrent.py": "a892178c52d851d219b1bfac81816d4b5b0c54340105369b15d208422059ba6c",
+    "swtr_ringbuffer/generate_large_test.py": "1b51ddad92c969ec07f9a587a26b8134abfbbba43cc407e69566a02606883217"
+  }
 }

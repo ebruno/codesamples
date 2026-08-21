@@ -17,32 +17,65 @@ If you find yourself about to edit CLAUDE.md, STOP — go to `.bionic` instead.
 ```
 ringbuffer/
 ├── prompts/                          # All workflow and spec documents (read-only reference)
-│   ├── common/                       # Shared workflows (language-agnostic)
+│   ├── common/                       # Shared workflows, specs, and utilities
 │   │   ├── implement_functional.md   # Functional code generation workflow
 │   │   ├── implement_build.md        # Build environment creation workflow
 │   │   ├── implement_regression.md   # Test infrastructure setup workflow
+│   │   ├── implement_new_os.md       # Interactive OS scaffolding wizard
 │   │   ├── run_regression.md         # Test execution workflow
-│   │   └── verify_build.md           # Build verification workflow
-│   ├── common/<lang>/                # Language-specific specs (shared across all OSes)
-│   │   ├── build.md                  # Build specification
-│   │   └── functional.md             # Functional implementation spec
-│   ├── common/cpp/                   # C++-specific specs (shared)
-│   │   ├── build.md                  # Build specification
-│   │   ├── functional.md             # Functional implementation spec
-│   │   └── testing.md                # Testing specification
-│   ├── common/cpp/utils/bin/         # Shared utility scripts
-│   │   ├── generate_test_data.*      # Test data generation (4 shell variants)
-│   │   ├── generate_junit_report.*   # JUnit XML report generation
-│   │   ├── verify_test_data.*        # Test data validation
-│   │   ├── verify_binary_symmetry.*  # Cross-platform source comparison
-│   │   └── lint_prompts.*            # Prompt directory validation
-│   ├── <os>/cpp/                     # Per-platform documents (fedora, debian, ubuntu, macos)
-│   │   ├── create_functional.md      # PRIMARY document for functional impl.
-│   │   ├── create_build.md           # PRIMARY document for build creation
-│   │   ├── create_regression.md      # PRIMARY document for test infra setup
-│   │   ├── functional.md             # Platform-specific functional requirements
-│   │   ├── build.md                  # Platform-specific build requirements
-│   │   └── testing.md                # Platform-specific test requirements
+│   │   ├── verify_build.md           # Build verification workflow
+│   │   ├── health_check.md           # Project health diagnostics
+│   │   ├── conditional_compilation_rule.md  # Conditional compilation guidelines
+│   │   ├── session_hints.md          # Shared hints (container rules, host-target compat, spec precedence)
+│   │   ├── CHANGELOG.md              # Prompt modification changelog
+│   │   ├── CHANGELOG_TEMPLATE.md     # Template for changelog entries
+│   │   ├── generate_toplevel_readme.md  # README generation spec (synced with README.md)
+│   │   ├── add_language.md           # `add <lang> to <os>` dispatcher prompt
+│   │   ├── templates/                # OS configuration JSON templates
+│   │   │   ├── template_fedora.json  # Fedora platform template
+│   │   │   └── template_debian.json  # Debian platform template
+│   │   ├── testing/                  # Test infrastructure specs
+│   │   │   ├── create_scripts.md     # Test script creation workflow
+│   │   │   └── patterns/             # Testing pattern docs (zigzag, etc.)
+│   │   ├── linkedin/                 # LinkedIn post generation
+│   │   │   ├── generate_post.py      # Post generation script
+│   │   │   └── projects/ringbuffer.json  # Project metadata for posts
+│   │   ├── <lang>/                   # Language-specific specs (shared across all OSes)
+│   │   │   ├── build.md              # Build specification
+│   │   │   └── functional.md         # Functional implementation spec
+│   │   ├── <lang>/session_hints.md   # Language-specific shared hints (c/, cpp/)
+│   │   ├── cpp/                      # C++-specific specs (shared)
+│   │   │   ├── build.md              # Build specification
+│   │   │   ├── functional.md         # Functional implementation spec
+│   │   │   ├── testing.md            # Testing specification
+│   │   │   └── utils/bin/            # C++ utility scripts (4 shell variants each)
+│   │   │       ├── generate_test_data.*      # Test data generation
+│   │   │       ├── generate_junit_report.*   # JUnit XML report generation
+│   │   │       ├── verify_test_data.*        # Test data validation
+│   │   │       ├── verify_binary_symmetry.*  # Cross-platform source comparison
+│   │   │       └── lint_prompts.*            # Prompt directory validation
+│   │   ├── appendices/               # Platform analysis documents
+│   │   │   ├── macos-platform-analysis.md
+│   │   │   ├── fedora-platform-analysis.md
+│   │   │   ├── debian-platform-analysis.md
+│   │   │   ├── ubuntu-platform-analysis.md
+│   │   │   ├── archlinux-platform-analysis.md
+│   │   │   ├── raspios-platform-analysis.md
+│   │   │   ├── freebsd-platform-analysis.md
+│   │   │   ├── cpp-cross-compiler-compatibility.md
+│   │   │   ├── freebsd14_java_verification.md
+│   │   │   └── freebsd14_python_verification.md
+│   │   ├── <os>/cpp/                 # Per-platform documents (fedora, debian, ubuntu, macos)
+│   │   │   ├── create_functional.md      # PRIMARY document for functional impl.
+│   │   │   ├── update_functional.md      # Update existing functional implementation
+│   │   │   ├── create_build.md           # PRIMARY document for build creation
+│   │   │   ├── update_build.md           # Update existing build configuration
+│   │   │   ├── create_testing.md         # PRIMARY document for test infra setup
+│   │   │   ├── update_testing.md         # Update existing test infrastructure
+│   │   │   ├── create_regression.md      # PRIMARY document for regression infra setup
+│   │   │   ├── functional.md             # Platform-specific functional requirements
+│   │   │   ├── build.md                  # Platform-specific build requirements
+│   │   │   └── testing.md                # Platform-specific test requirements
 │   ├── <os>/<lang>/                  # Per-OS placeholder prompts (build.md, functional.md, testing.md)
 │   │   # Contains non-zero placeholder text pointing to common specs
 │   │   # (except C/C++ which have full platform-specific specs, FreeBSD 15 is zero-length)
@@ -52,12 +85,20 @@ ringbuffer/
 │   │   ├── *.hpp / *.cpp             # Source files
 │   │   ├── Makefile                  # Build configuration
 │   │   ├── version.mk                # Library version (NOT OS version)
-│   │   ├── containers/               # Dockerfiles (Linux only; macOS has none)
+│   │   ├── LICENSE                   # Project license file (present in all OS dirs)
+│   │   ├── containers/               # DEPRECATED — Dockerfiles consolidated to src/<os>/containers/
 │   │   ├── tests/                    # Test infrastructure
 │   │   ├── logs/                     # Build and execution logs (build.log)
 │   │   ├── reports/                  # Build and verification reports
 │   │   ├── lib/                      # Built libraries (.a, .so/.dylib)
-│   │   └── specs/                    # Copied spec files for reference
+│   │   ├── specs/                    # Copied spec files for reference
+│   │   ├── build/                    # Build output artifacts (fedora, debian, ubuntu, raspios)
+│   │   ├── src/                      # Nested source (fedora, ubuntu — for container builds)
+│   │   ├── tasks/                    # Task tracking (raspios)
+│   │   └── tmp/                      # Temporary files (raspios)
+│   ├── <os>/containers/              # Unified Dockerfiles per OS (build + test)
+│   │   ├── build/Dockerfile          # Full toolset for all languages (C/C++, Java, Python)
+│   │   └── test/Dockerfile           # Identical to build — no cross-inheritance
 │   ├── common/java/                  # Common Java source (identical across all OSes)
 │   │   ├── pom.xml                   # Maven build configuration
 │   │   └── swtr/                    # Java source packages
@@ -69,6 +110,16 @@ ringbuffer/
 ├── doc/                            # Documentation and generated assets
 │   └── README.pdf                  # Rendered PDF of README.md
 ├── docs/                           # GitLab Pages documentation (zero-length .required_directory)
+├── reports/                        # Per-language build/regression reports (java/, python/, cpp/)
+│   ├── java/                       # Java build and regression reports
+│   │   ├── build_verify.md         # Build verification report
+│   │   └── regression.md           # Regression test report
+│   ├── python/                     # Python build and regression reports
+│   │   ├── build_verify.md         # Build verification report
+│   │   └── regression.md           # Regression test report
+│   └── cpp/                        # C++ build and regression reports
+│       ├── build_verify.md         # Build verification report
+│       └── per_os/                 # Per-OS reports
 ├── animated_graphics/              # Animated graphics artifacts
 │   ├── bin/                        # Scripts for generating animated graphics
 │   │   └── generate_pipeline_animation.py
@@ -82,6 +133,8 @@ ringbuffer/
 - `prompts/` — **Read-only reference.** Never modify generated files here.
 - `src/<os>/cpp/` — **Write target.** All generated code, Makefiles, and artifacts go here.
 - `src/<os>/cpp/tests/` — **Managed exclusively by testing workflows.** Build-only prompts must treat this as read-only.
+- `src/<os>/cpp/LICENSE` — **License file.** Present in all OS directories; do not remove or modify.
+- `reports/` — **Per-language reports.** Build and regression reports for Java, Python, C++, etc. Regenerated on every run.
 - `animated_graphics/` — **Animated graphics.** Artifacts (GIFs) go here; scripts in `animated_graphics/bin/`.
 - `utils/bin/` — **Utility scripts.** Store general-purpose utility scripts here (e.g., gif_to_mp4.sh).
 - `images/` — **Image assets.** Store gif, mp4, png files here.
@@ -94,11 +147,18 @@ ringbuffer/
 | `implement_*` | Creates infrastructure from scratch | `implement_build.md`, `implement_functional.md` |
 | `run_*` | Executes on already-set-up infrastructure | `run_regression.md` |
 | `verify_*` | Validates existing artifacts | `verify_build.md` |
+| `update_*` | Updates existing implementation (build, functional, testing) | `update_build.md`, `update_functional.md`, `update_testing.md` |
 
 **Primary documents** (per-OS) are named `create_<phase>.md`:
 - `create_functional.md` — PRIMARY for functional implementation
 - `create_build.md` — PRIMARY for build environment creation
-- `create_regression.md` — PRIMARY for test infrastructure setup
+- `create_testing.md` — PRIMARY for test infrastructure setup (parallel to create_regression)
+- `create_regression.md` — PRIMARY for regression test execution infrastructure
+
+**Update documents** (per-OS, C++ only) are named `update_<phase>.md`:
+- `update_functional.md` — Update existing functional implementation
+- `update_build.md` — Update existing build configuration
+- `update_testing.md` — Update existing test infrastructure
 
 ## 3. Prompt Execution Pattern
 
@@ -107,6 +167,7 @@ Every workflow follows this pattern:
 2. **Platform-specific primary document** (`create_*.md`) is the authoritative execution guide
 3. **Common spec** (`common/cpp/*.md`) provides technical requirements
 4. **Platform spec** (`<os>/cpp/*.md`) provides platform-specific overrides
+5. **Shared hints** (`common/session_hints.md` or `<lang>/session_hints.md`) provide cross-cutting rules (container commands, host-target compatibility, spec precedence) — always check these before duplicating content
 
 When a common workflow says "execute `create_*.md` as the PRIMARY document," it means:
 - Read it for directives and immediate requirements
@@ -232,16 +293,16 @@ Every implementation must satisfy these requirements regardless of language:
 | C common specs | ✅ `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,247 bytes) created |
 | Python common specs | ✅ `prompts/common/python/functional.md` (22,797 bytes), `build.md` (7,028 bytes) created |
 | Rust common specs | ✅ `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) created |
-| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (22,801 bytes) created — Phase 2 complete |
-| Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). FreeBSD 14: Python, Java, C have placeholders; Go and Rust need placeholder files created. C/C++ per-OS prompts contain full platform-specific specs. |
+| `add <lang> to <os>` dispatcher prompt | ✅ `prompts/common/add_language.md` (23,258 bytes) created — Phase 2 complete |
+| Per-OS language directories | ✅ Placeholder files exist for all languages/OSes (macos, fedora, debian, ubuntu, archlinux, raspios) — `build.md`, `functional.md`, `testing.md` all contain non-zero placeholder text pointing to common specs. FreeBSD 15 remains zero-length only (excluded). All languages have placeholders on all OSes. C/C++ per-OS prompts contain full platform-specific specs including `create_functional.md`, `update_*` variants, and `create_testing.md`. |
 | `reference_linux` scaffolding | ✅ Complete — non-zero placeholder text exists for C, Go, Python, Rust (`build.md`, `functional.md`, `testing.md`). |
 
 ### Implementation Phases
 
 #### Phase 1: Complete Common Specs ✅ COMPLETE
 All common spec files have been created:
-1. **C**: `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,088 bytes) — C23 primary, C17/C11 fallback. Platform-sensitive (follows C++ pattern with per-OS overrides).
-2. **Python**: `prompts/common/python/functional.md` (20,789 bytes), `build.md` (5,571 bytes) — Python 3.14 primary, fallback to 3.10/3.12/3.13. Pure Python (no C-extension wrapping), uses `ctypes` to load shared library.
+1. **C**: `prompts/common/c/functional.md` (21,810 bytes), `build.md` (10,247 bytes) — C23 primary, C17/C11 fallback. Platform-sensitive (follows C++ pattern with per-OS overrides).
+2. **Python**: `prompts/common/python/functional.md` (22,797 bytes), `build.md` (7,028 bytes) — Python 3.14 primary, fallback to 3.10/3.12/3.13. Pure Python (no C-extension wrapping), uses `ctypes` to load shared library.
 3. **Rust**: `prompts/common/rust/functional.md` (23,398 bytes), `build.md` (6,141 bytes) — Rust 1.84.0 primary, 1.56.0 fallback. Platform-insensitive (Unix family covers macOS + Linux).
 
 Each common spec defines:
@@ -254,7 +315,7 @@ Each common spec defines:
 - Version reporting requirements in functional.log and build.log
 
 #### Phase 2: Finalize Dispatcher Prompt ✅ COMPLETE
-Created `prompts/common/add_language.md` (22,050 bytes) — the unified entry point for `add <lang> to <os>`:
+Created `prompts/common/add_language.md` (23,258 bytes) — the unified entry point for `add <lang> to <os>`:
 - Validates language (`c`, `cpp`, `python`, `java`, `go`, `rust`) and OS (`macos`, `fedora`, `debian`, `ubuntu`) inputs
 - Classifies language as platform-sensitive (`c`, `cpp`) or platform-insensitive (`python`, `java`, `go`, `rust`)
 - Routes to appropriate workflow: common spec + per-OS overrides vs. single common spec
@@ -348,18 +409,11 @@ Generate scripts that read `version.mk` and produce language-specific version fi
 2. Run `lint_prompts.sh` to validate prompt structure
 3. Update project README with multi-language support documentation
 4. Generate PDF documentation with `pandoc`
-5. Create `reference_linux` scaffolding for C, Python, Rust (non-zero placeholder files)
+5. ~~Create `reference_linux` scaffolding~~ — **Already complete** (non-zero placeholder files exist for C, Go, Python, Rust)
 6. Clarify utility scripts scope — determine if `prompts/common/cpp/utils/bin/` scripts are language-agnostic or C++-specific
 
 ##### Phase 4 Sub-Steps
-**4.A — Reference Linux Scaffolding**
-Create non-zero placeholder `build.md`, `functional.md`, `testing.md` files in:
-- `prompts/reference_linux/c/`
-- `prompts/reference_linux/go/`
-- `prompts/reference_linux/python/`
-- `prompts/reference_linux/rust/`
-
-Each file contains placeholder text pointing to the common spec for that language, with a note that this directory is a canonical reference point for cross-platform verification and should not be used as a generation target.
+**4.A — Reference Linux Scaffolding** — **Already complete.** Non-zero placeholder files exist in `prompts/reference_linux/c/`, `go/`, `python/`, and `rust/`.
 
 **4.B — Utility Scripts Scope Review**
 The existing utility scripts in `prompts/common/cpp/utils/bin/` are:
@@ -465,7 +519,8 @@ Do NOT use `export CXX=clang++` before `make` — that does not work because the
 When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
 - **C++ source files**: Copy the target-host-specific C++ directory (e.g., `src/archlinux/cpp/` for the archlinux remote). These files are per-OS — only copy the directory matching the target OS.
 - **Python source files**: Copy `src/common/python/` (the common Python implementation).
-- **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"` and `ssh <host> "rm -rf <dest>/src/common/python/*"` before the transfer.
+- **Java source files**: Copy `src/common/java/` (the common Java implementation).
+- **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"`, `ssh <host> "rm -rf <dest>/src/common/python/*"`, and `ssh <host> "rm -rf <dest>/src/common/java/*"` before the transfer.
 - **Transfer**: Use `scp -r` or `rsync -avz` to copy the cleaned directories from the host to the remote.
 - **Verify**: After transfer, confirm file counts and sizes match between host and remote.
 
@@ -540,10 +595,27 @@ Every language follows the same two-step pattern:
 8. **Version vs OS version:** `version.mk` contains the Ringbuffer library version (e.g., 1.0.0), NOT the OS version.
 9. **Script deployment path:** From `tests/`, common utility scripts are at `../../../../prompts/common/cpp/utils/bin/`.
 10. **FreeBSD 14 RPATH limitation:** FreeBSD 14's `ld-elf.so.1` does NOT support `$ORIGIN` in RUNPATH — the dynamic linker strips it to empty at runtime. **Dynamic library testing is not possible on FreeBSD 14.** Use static library only (via `make verify` target). See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for details.
+11. **Container naming is unified per OS, not per language:** There are exactly 2 containers per OS: `ringbuffer_<os>_build` (for verify_build) and `ringbuffer_<os>_test` (for run_regression). Never use per-language container names like `ringbuffer_python_fedora` or `ringbuffer_java_debian_test`. The Makefile variables are `OS_BUILD_IMAGES` and `OS_TEST_IMAGES`.
+12. **Dockerfiles are at `src/<os>/containers/`, not in language directories:** The unified Dockerfile for each OS lives at `src/<os>/containers/build/Dockerfile` and `src/<os>/containers/test/Dockerfile`. Old paths like `src/common/python/containers/fedora/build/Dockerfile` no longer exist.
+13. **Build and test Dockerfiles are identical:** Both install the full toolset for all languages. There is no inheritance between them — each inherits only from the base OS image.
+14. **`make container` in language Makefiles builds both build and test images:** The `container-build-%` target builds `ringbuffer_<os>_build`, and `container-test-%` depends on it to build `ringbuffer_<os>_test`. Both use the same Dockerfile path (`../../$(OS_$*_DIR)/containers/build/Dockerfile` or `test/Dockerfile`).
+
+### Container Naming Convention
+- **Build containers**: `ringbuffer_<os>_build` — used only by `verify_build`. Contains full toolset for all languages (C/C++, Java, Python).
+- **Test containers**: `ringbuffer_<os>_test` — used only by `run_regression`. Identical content to build container.
+- **OS names**: `debian`, `fedora`, `ubuntu`, `raspios` (macOS is native-only, no containers).
+- **Example**: `ringbuffer_fedora_build`, `ringbuffer_debian_test`, `ringbuffer_ubuntu_build`.
+
+### Container Dockerfile Location
+- **Unified location**: `src/<os>/containers/build/Dockerfile` and `src/<os>/containers/test/Dockerfile`
+- **One Dockerfile per OS** — each installs tools for ALL supported languages (C/C++, Java, Python).
+- **Build and test Dockerfiles are identical** — same content, no cross-inheritance.
+- **Containers inherit ONLY from base OS image** (`fedora:44`, `debian:13`, `ubuntu:24.04`, raspios base) — NEVER from each other.
+- **Deprecated**: Old per-language Dockerfiles at `src/common/python/containers/` and `src/common/java/containers/` have been removed.
 
 ### Container Commands (macOS)
 - **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
-- **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_debian_build:latest ...`, NOT `container run localhost/ringbuffer_debian_build:latest ...`.
+- **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_fedora_build:latest ...`, NOT `container run localhost/ringbuffer_fedora_build:latest ...`.
 - **Debian Makefile LTO_FLAG:** The Debian container's g++ does not support `-flto=thin`. Use `-flto` instead. The Makefile's LTO_FLAG logic must reflect this.
 
 ### Prompt Changelog Discipline

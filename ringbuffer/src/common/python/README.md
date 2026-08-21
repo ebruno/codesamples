@@ -59,7 +59,7 @@ python3 -c "import swtr_ringbuffer"         # Import verification
 | Artifact | Path | Description |
 |----------|------|-------------|
 | Version module | `version.py` | Generated from `version.mk` via `version.sh` |
-| Concurrent module | `swtr_ringbuffer/swtr_ringbuffer_hp.py` | ctypes binding to C++ shared library |
+| Concurrent module | `swtr_ringbuffer/swtr_ringbuffer_concurrent.py` | ctypes binding to C++ shared library |
 | Pure Python module | `swtr_ringbuffer_pure.py` | Standalone pure Python implementation |
 | Auto-select entry point | `swtr_ringbuffer/__init__.py` | Tries Concurrent first, falls back to Pure Python |
 | Backward-compat shim | `swtr_ringbuffer.py` | Re-exports from package for legacy imports |
@@ -74,7 +74,7 @@ src/common/python/
 ├── base.py                          # RingBufferABC (38 abstract methods)
 ├── swtr_ringbuffer/                 # Package with auto-selection
 │   ├── __init__.py                  # Auto-select: Concurrent → Pure Python
-│   └── swtr_ringbuffer_hp.py        # Concurrent implementation (ctypes)
+│   └── swtr_ringbuffer_concurrent.py  # Concurrent implementation (ctypes)
 ├── swtr_ringbuffer_pure.py          # Pure Python implementation
 ├── swtr_ringbuffer.py               # Backward-compat shim (re-exports from package)
 ├── version.py                       # Library version constants
@@ -82,7 +82,7 @@ src/common/python/
 ```
 
 - **RingBufferABC** (`base.py`): Abstract base class defining 38 methods all implementations must satisfy
-- **SwtrRingBufferHP** (`swtr_ringbuffer/swtr_ringbuffer_hp.py`): Concurrent implementation using ctypes FFI to C++ shared library
+- **SwtrRingBufferConcurrent** (`swtr_ringbuffer/swtr_ringbuffer_concurrent.py`): Concurrent implementation using ctypes FFI to C++ shared library
 - **SwtrRingBufferPure** (`swtr_ringbuffer_pure.py`): Pure Python implementation with full ABC parity
 - **Auto-selection** (`swtr_ringbuffer/__init__.py`): Tries Concurrent first, falls back to Pure Python with warning
 

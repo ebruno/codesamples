@@ -27,7 +27,7 @@ Refer to the following document for all shared requirements, flags, and process:
     - Build & Docs: `cmake`, `cmake-data`, `cmake-doc`, `dh-cmake`, `debhelper`, `devscripts`, `doxygen`.
 
     - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`.
-- **Container Path**: Use `src/ubuntu/cpp/containers/Dockerfile`.
+- **Container Path**: Use `ubuntu/containers/build/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
 ## Container Lifecycle Automation
@@ -47,7 +47,7 @@ The `container` target must perform the following logic:
     - **Linux (Debian, Fedora, Ubuntu, etc.)**: Use the `podman` command.
 2. **Image State Management**:
     - **Check Existence**: Verify if the image `ringbuffer_ubuntu_build` already exists.
-    - **Create**: If the image does not exist, create it using the `Dockerfile` located at `src/ubuntu/cpp/containers/Dockerfile`.
+    - **Create**: If the image does not exist, create it using the `Dockerfile` located at `ubuntu/containers/build/Dockerfile`.
     - **Update**: If the image exists, rebuild/update it to ensure it is in sync with the current `Dockerfile` specification.
 3. **Image Cleanup**:
     - A separate `Makefile` target (e.g., `container-clean`) MUST be implemented to remove the `ringbuffer_ubuntu_build` image from the host system.

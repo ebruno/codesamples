@@ -43,7 +43,7 @@ Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (
 **macOS Compatibility**: Raspberry Pi OS containers are arm64-only. On Apple Silicon Macs, this works natively — no skip logic needed. On x86_64 hosts (Intel Macs, x86 Linux), use `--platform linux/arm64` with podman.
 
 **Environment Initialization**:
-After creating the build configuration and ensuring the Dockerfile at `src/raspios/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
+After creating the build configuration and ensuring the Dockerfile at `raspios/containers/build/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
 1. The host OS is correctly detected.
 2. On Apple Silicon Macs, the build image (`ringbuffer_raspios_build`) is successfully created or updated natively.
 3. On x86_64 hosts, the build image is created with `--platform linux/arm64`.
@@ -78,7 +78,7 @@ Once implementation is complete, generate a summary report at `src/raspios/cpp/r
 
 ## Artifacts Created
 - **Makefile**: `src/raspios/cpp/Makefile`
-- **Dockerfile**: `src/raspios/cpp/containers/Dockerfile`
+- **Dockerfile**: `raspios/containers/build/Dockerfile`
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
 - **Library Artifacts**: [List of `.a` and `.so` files in `lib/`]
 - **Logs**: `build.log` created and updated.

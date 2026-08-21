@@ -55,7 +55,8 @@ VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).so
 
 .PHONY: test  all static shared clean dist-clean verify test-all
 
-all: static shared
+# Always clean first for repeatability in verify_build
+all: clean static shared
 
 static: $(LIB_DIR) $(VERSIONED_STATIC)
 	@cd $(LIB_DIR) && ln -sf libswtr_ringbuffer-$(VERSION).a libswtr_ringbuffer.a

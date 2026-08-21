@@ -1296,7 +1296,7 @@ Different OS families use different versioning strategies. This affects containe
 
 #### 4. Container Configuration — Dockerfile Structure
 
-If the OS supports containerized builds, you need a Dockerfile at `src/<os>/cpp/containers/Dockerfile`. The following patterns are established.
+If the OS supports containerized builds, you need a Dockerfile at `<os>/containers/build/Dockerfile`. The following patterns are established.
 
 ##### 4a. Linux Distro Dockerfile (Fedora/Debian/Ubuntu pattern)
 
@@ -1422,7 +1422,7 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
 ## Containerized Build Environment (if applicable):
 - **Base Image**: `<image>:<tag>`
 - **Toolchain Installation**: Use `<package_manager> -S/--install` to install required packages
-- **Container Path**: `src/<os>/cpp/containers/Dockerfile`
+- **Container Path**: `<os>/containers/build/Dockerfile`
 
 ## macOS Skip Logic (if applicable):
 <If the OS has no arm64 container image, document the macOS skip behavior here>
@@ -1474,7 +1474,7 @@ When adding a new OS, follow this checklist:
 5. **Write `testing.md`** — Document platform-specific test considerations
 6. **Create `create_functional.md`, `create_build.md`, `create_regression.md`** — Reference common specs + platform-specific files
 7. **Create update prompts** (`update_functional.md`, `update_build.md`, `update_testing.md`)
-8. **If containerized:** Create Dockerfile at `src/<os>/cpp/containers/Dockerfile` with appropriate base image and package installation
+8. **If containerized:** Create Dockerfile at `<os>/containers/build/Dockerfile` with appropriate base image and package installation
 9. **If containerized:** Ensure macOS compatibility (skip logic for Linux-hosts-only, native support for arm64)
 10. **Build/Test Pattern** — Every new OS/language MUST include:
     - `<os>/<lang>/Makefile all` — Build target (creates artifacts + symlinks, **never** runs tests)
@@ -1595,22 +1595,36 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | **macOS** | C++ | v1.0.0 | clang++ 21.0.0, g++ 16.1.0 |
 | | Java | v1.0.0 | javac 26.x (JDK 26) |
 | | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
 | **Debian** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
 | **Fedora** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
 | **Ubuntu** | C++ | v1.0.0 | g++ 13.x (clang++ unsupported — see Known Issues) |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
 | **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
 | **ArchLinux** | C++ | v1.0.0[^2] | g++ 16.2.1, clang++ 22.1.8 |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
 | **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x (Pure Python only — Concurrent skipped, RPATH limitation) |
+| | Go | v1.0.0 | placeholder (scaffolding complete, implementation pending) |
+| | Rust | v1.0.0 | placeholder (scaffolding complete, implementation pending) |
 | **FreeBSD 15** | C++ | TBS | — |
 
 [^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
@@ -1651,7 +1665,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 - **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
 
 **Development Methodology:**
-- Prompt-driven development with 217 prompt files across 8 OSes × 6 languages (common specs)
+- Prompt-driven development with hundreds of prompt files across 8 OSes × 6 languages (common specs)
 - Session isolation by design — each prompt file is self-contained for LLM-agent reliability
 - Incremental regeneration via `.gen_state.json` delta detection (3-phase sync: Functional → Build → Regression)
 - Two verification scripts integrated into the build workflow as mandatory gates
@@ -1673,13 +1687,14 @@ Loaded template 'Fedora' — all fields populated with defaults.
 | State tracking | ✅ Operational | `.gen_state.json` on all 6 active platforms |
 | Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
 | Java regression | ✅ Passed | 18 assertions, 0 failures across all 4 OSes (macOS native + debian/fedora/ubuntu containers) |
+| Go/Rust scaffolding | ✅ Complete | Placeholder prompts exist for all OSes (macos, fedora, debian, ubuntu, archlinux, raspios); common specs created |
 | Changelog suggestions | ✅ Operational | Post-commit hook analyzes prompt diffs and suggests entries |
 
 ## Where We're Going
 
 ### Near-Term (Next Iterations)
 
-- **Additional languages** — C, Go, and Rust scaffolding is in place. The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (zero-length placeholders, `.required_directory` markers) is already present.
+- **Additional languages** — Go and Rust scaffolding is complete across all OSes (macos, fedora, debian, ubuntu, archlinux, raspios). C scaffolding is in place with common specs; per-OS overrides are placeholders (unlike C++ which has full platform-specific specs). The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (placeholder prompts, `.required_directory` markers) is already present.
 - **Additional patterns** — The test data pattern system supports adding new patterns beyond zigzag (e.g., sequential, random). Each new pattern requires a single spec file in `prompts/common/testing/patterns/` and running `create_scripts.md`.
 - **Enhanced CI/CD** — The automated verification scripts (`verify_binary_symmetry.sh`, `lint_prompts.sh`) are ready for CI integration. They can be added as pre-commit hooks or GitHub Actions to enforce quality gates before any code is committed.
 - **LLM Knowledge Package** — Versioned knowledge packages for C++, Java, and Python are in development. Distributed via Ollama Modelfile (system prompt) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) for details.

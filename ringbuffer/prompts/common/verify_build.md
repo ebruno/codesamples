@@ -8,6 +8,38 @@ Verify that all implemented languages build successfully across supported operat
 - `run_regression` → `tests/Makefile verify` (test matrix T001-T007)
 - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for details.
 
+**GOLDEN RULES — READ BEFORE EXECUTING:**
+
+1. **NEVER modify source code during verification.** `verify_build` and `run_regression` are detect-only workflows. They must NEVER modify:
+   - Source code files (`.cpp`, `.hpp`, `.java`, `.py`, etc.)
+   - Build configuration files (`Makefile`, `pom.xml`, `go.mod`, `Cargo.toml`)
+   - Dockerfiles or container configurations
+   
+   If a build fails, the agent must:
+   - Record the full error in the build log and report
+   - Mark the OS/language combination as **UNSUPPORTED** with a reason file at `src/<os>/<lang>/UNSUPPORTED.md`
+   - Move on to the next OS/language — do NOT attempt fixes
+
+2. **Detect, don't fix.** The role of `verify_build` and `run_regression` is to identify problems, not solve them.
+   - If a compiler version is too old → flag as unsupported, document the minimum required version
+   - If a header file is missing → flag as unsupported, document what's needed
+   - If a build target fails → record the error, mark as unsupported, continue
+   
+   Source code changes require explicit user permission at the start of the session.
+
+3. **No silent workarounds.** Do NOT:
+   - Change compiler flags to work around missing features
+   - Replace `g++` with `clang++` (or vice versa) to avoid errors
+   - Modify include paths or preprocessor defines
+   - Skip tests silently
+   
+   Every failure must be reported, not hidden.
+
+4. **Unsupported OS/Language Documentation.** When an OS/language combination cannot build or test:
+   - Create `src/<os>/<lang>/UNSUPPORTED.md` explaining why
+   - Include: detected toolchain version, required minimum version, specific error
+   - Update the consolidated report with `UNSUPPORTED` status and link to the reason file
+
 **Process:**
 1. **Target and Mode Selection**:
    - **Host-OS Auto-Detection**: At the start of every run, detect the host OS:
@@ -219,8 +251,7 @@ Verify that all implemented languages build successfully across supported operat
           1. Runs Maven to compile and package (`mvn clean compile package`)
           2. Creates JAR symlink: `lib/ringbuffer.jar` → `target/ringbuffer-<version>.jar`
         - **Container**: Run in a container matching the target OS:
-          - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/java/containers/<os>/Dockerfile | sed 's/^FROM //')`
-          - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+          - Build the per-OS build image first: `cd src/common/java && $(CONTAINER_CMD) build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .`
           - **Per-platform pom.xml override**: If a platform-specific `pom.xml` exists at `src/<os>/java/pom.xml`, mount it to override the common pom.xml. This is required when the platform's JDK version differs from the common spec (e.g., raspios has JDK 17, but common pom.xml uses `<release>25</release>`).
           ```bash
           # macOS host targeting Linux distro:
@@ -262,15 +293,23 @@ Verify that all implemented languages build successfully across supported operat
           1. Builds the C++ shared library from `src/<os>/cpp/` (target-host-specific) via parent Makefile.
           2. Creates symlink: `lib/libswtr_ringbuffer.so` → `<os>/cpp/lib/libswtr_ringbuffer-<version>.so`
         - **Container**: Run in a container matching the target OS:
-          - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
-          - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+          - Build the per-OS build image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .`
+          - **Volume mounts**: The Python Makefile.linux uses relative paths (`../../<os>/cpp`) to find C++ source. Inside the container, these resolve to `/<os>/cpp` and `/common/cpp`. Mount both:
           ```bash
           # macOS host targeting Linux distro:
-          cd src/common/python && container build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-          container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && make all"
+          cd src/common/python && container build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .
+          container run --rm \
+            -v $(pwd)/src/common/python:/app \
+            -v $(pwd)/src/<os>/cpp:/<os>/cpp \
+            -v $(pwd)/src/common/cpp:/common/cpp \
+            ringbuffer_<os>_build sh -c "cd /app && make all"
           # Linux host targeting another Linux distro:
-          cd src/common/python && podman build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-          podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app && make all"
+          cd src/common/python && podman build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .
+          podman run --rm \
+            -v $(pwd)/src/common/python:/app \
+            -v $(pwd)/src/<os>/cpp:/<os>/cpp \
+            -v $(pwd)/src/common/cpp:/common/cpp \
+            ringbuffer_<os>_build sh -c "cd /app && make all"
           ```
      4. **Post-Build Verification**:
         - Verify the C++ shared library exists in `src/<os>/cpp/lib/`
@@ -283,8 +322,7 @@ Verify that all implemented languages build successfully across supported operat
    **0.3 C/C++ Verification** (from `src/<os>/cpp/`):
    - Navigate to `src/<os>/cpp/`.
    - **Container Image Resolution** (Linux targets on non-matching host only):
-     - Resolve the image name from the per-OS Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
-     - Build the image if it does not already exist: `container build -t ringbuffer_<os>_build:latest -f src/<os>/cpp/containers/Dockerfile .`
+     - Build the image if it does not already exist: `container build -t ringbuffer_<os>_build:latest -f ../containers/build/Dockerfile .`
      - Use `ringbuffer_<os>_build:latest` as `<container_image>` in subsequent commands.
    - **Build Execution**: If using a container, wrap the build command with the appropriate runtime:
      - **macOS host**: `container run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make test`
@@ -377,7 +415,7 @@ Verify that all implemented languages build successfully across supported operat
      - **C++ Library Build**: [SUCCESS / SKIPPED — reason] (checked via `.cpp_build_failed` marker)
 
      ## Concurrent (ctypes) Test Results
-     **Implementation:** `swtr_ringbuffer/swtr_ringbuffer_hp.py` — ctypes binding to C++ shared library
+     **Implementation:** `swtr_ringbuffer/swtr_ringbuffer_concurrent.py` — ctypes binding to C++ shared library
      **Entry Point:** `from swtr_ringbuffer import SwtrRingBuffer` (auto-selects Concurrent when available)
 
      | Test | Description | Result |
@@ -438,7 +476,7 @@ Verify that all implemented languages build successfully across supported operat
          "<os>": {"route": "native|container", "status": "PASS|FAIL", "timestamp": "<ISO timestamp>"}
        },
        "artifacts": {
-         "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_hp.py",
+         "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_concurrent.py",
          "pure_python_module": "swtr_ringbuffer_pure.py",
          "test_script_concurrent": "test_ringbuffer.py",
          "test_script_pure": "test_ringbuffer_pure.py"
@@ -446,7 +484,7 @@ Verify that all implemented languages build successfully across supported operat
        "sha256": {
          "version_mk": "<hash>",
          "base_py": "<hash>",
-         "swtr_ringbuffer_hp_py": "<hash>",
+         "swtr_ringbuffer_concurrent_py": "<hash>",
          "swtr_ringbuffer_pure_py": "<hash>",
          "test_ringbuffer_py": "<hash>",
          "test_ringbuffer_pure_py": "<hash>"

@@ -3,9 +3,9 @@
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
 
-# Container image names
-PYTHON_BUILD_IMAGES  := ringbuffer_python_debian ringbuffer_python_fedora ringbuffer_python_ubuntu ringbuffer_python_raspios
-PYTHON_TEST_IMAGES   := ringbuffer_python_debian_test ringbuffer_python_fedora_test ringbuffer_python_ubuntu_test ringbuffer_python_raspios_test
+# Container image names (unified OS-level, shared across all languages)
+OS_BUILD_IMAGES  := ringbuffer_debian_build ringbuffer_fedora_build ringbuffer_ubuntu_build ringbuffer_raspios_build
+OS_TEST_IMAGES   := ringbuffer_debian_test ringbuffer_fedora_test ringbuffer_ubuntu_test ringbuffer_raspios_test
 
 # OS -> uppercase mapping (no shell calls needed)
 OS_DEBIAN_UC    := DEBIAN
@@ -19,6 +19,12 @@ OS_ubuntu_UC    := UBUNTU
 OS_fedora_UC    := FEDORA
 OS_raspios_UC   := RASPIOS
 
+# Lowercase OS -> directory name mapping (for Dockerfile paths)
+OS_debian_DIR   := debian
+OS_ubuntu_DIR   := ubuntu
+OS_fedora_DIR   := fedora
+OS_raspios_DIR  := raspios
+
 container: container-build-debian container-test-debian\
            container-build-fedora container-test-fedora\
            container-build-ubuntu container-test-ubuntu\
@@ -28,36 +34,36 @@ container-build-%:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if [ ! -f containers/$*/build/Dockerfile ]; then\
+	@if [ ! -f ../../$(OS_$*_DIR)/containers/build/Dockerfile ]; then\
 		echo "No build Dockerfile for $*"; exit 1;\
 	fi
-	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q "ringbuffer_python_$*"; then\
-		echo "Building ringbuffer_python_$* ...";\
+	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q "ringbuffer_$*_build"; then\
+		echo "Building ringbuffer_$*_build ...";\
 		timeout 600 $(CONTAINER_CMD) build\
-			-t ringbuffer_python_$*\
-			-f containers/$*/build/Dockerfile .;\
+			-t ringbuffer_$*_build\
+			-f ../../$(OS_$*_DIR)/containers/build/Dockerfile .;\
 	else\
-		echo "ringbuffer_python_$* already exists. Skipping.";\
+		echo "ringbuffer_$*_build already exists. Skipping.";\
 	fi
 
 container-test-%: container-build-%
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if [ ! -f containers/$*/test/Dockerfile ]; then\
+	@if [ ! -f ../../$(OS_$*_DIR)/containers/test/Dockerfile ]; then\
 		echo "No test Dockerfile for $*"; exit 1;\
 	fi
-	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q "ringbuffer_python_$*_test"; then\
-		echo "Building ringbuffer_python_$*_test ...";\
+	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q "ringbuffer_$*_test"; then\
+		echo "Building ringbuffer_$*_test ...";\
 		timeout 600 $(CONTAINER_CMD) build\
-			-t ringbuffer_python_$*_test\
-			-f containers/$*/test/Dockerfile .;\
+			-t ringbuffer_$*_test\
+			-f ../../$(OS_$*_DIR)/containers/test/Dockerfile .;\
 	else\
-		echo "ringbuffer_python_$*_test already exists. Skipping.";\
+		echo "ringbuffer_$*_test already exists. Skipping.";\
 	fi
 
 container-clean:
-	@for img in $(PYTHON_BUILD_IMAGES) $(PYTHON_TEST_IMAGES); do\
+	@for img in $(OS_BUILD_IMAGES) $(OS_TEST_IMAGES); do\
 		echo "Removing $$img";\
 		$(CONTAINER_CMD) image rm -f $$img 2>/dev/null || true;\
 	done
@@ -69,12 +75,17 @@ UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
   CPP_SRC_DIR := ../../macos/cpp
 else
-  # Detect Linux distro from /etc/os-release
+  # Detect Linux distro from /etc/os-release (raspios reports ID=debian)
   DISTRO_ID := $(shell grep '^ID=' /etc/os-release 2>/dev/null | cut -d= -f2 || echo "")
   ifeq ($(DISTRO_ID),ubuntu)
     CPP_SRC_DIR := ../../ubuntu/cpp
   else ifeq ($(DISTRO_ID),debian)
-    CPP_SRC_DIR := ../../debian/cpp
+    # raspios is based on Debian but reports ID=debian; check for rpi-issue
+    ifneq ($(wildcard /etc/rpi-issue),)
+      CPP_SRC_DIR := ../../raspios/cpp
+    else
+      CPP_SRC_DIR := ../../debian/cpp
+    endif
   else ifeq ($(DISTRO_ID),fedora)
     CPP_SRC_DIR := ../../fedora/cpp
   else ifeq ($(DISTRO_ID),raspios)
@@ -90,15 +101,28 @@ else
 endif
 
 # Build the C++ shared library and create symlinks (verify_build entry point)
-all: build
+# Note: CPP_SRC_DIR is relative to src/common/python/, but symlink target is resolved from lib/ subdirectory
+# So we need one extra ../ to account for the lib/ directory depth
+all: clean build
 	@mkdir -p lib
-	@if [ -f ../../$(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so ]; then \
-		LIB=$$(ls ../../$(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so | head -1); \
-		ln -sf "$$(basename $$LIB)" lib/libswtr_ringbuffer.so; \
-		echo "Created symlink: lib/libswtr_ringbuffer.so -> $$LIB"; \
+	@if [ "$(UNAME_S)" = "Darwin" ]; then \
+		if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.dylib ]; then \
+			LIB=$$(ls $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.dylib | head -1); \
+			ln -sf ../$(CPP_SRC_DIR)/lib/"$$(basename $$LIB)" lib/libswtr_ringbuffer.dylib; \
+			echo "Created symlink: lib/libswtr_ringbuffer.dylib -> $$LIB"; \
+		else \
+			echo "WARNING: C++ shared library not found in $(CPP_SRC_DIR)/lib/"; \
+			touch .cpp_build_failed; \
+		fi; \
 	else \
-		echo "WARNING: C++ shared library not found in $(CPP_SRC_DIR)/lib/"; \
-	touch .cpp_build_failed; \
+		if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so ]; then \
+			LIB=$$(ls $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so | head -1); \
+			ln -sf ../$(CPP_SRC_DIR)/lib/"$$(basename $$LIB)" lib/libswtr_ringbuffer.so; \
+			echo "Created symlink: lib/libswtr_ringbuffer.so -> $$LIB"; \
+		else \
+			echo "WARNING: C++ shared library not found in $(CPP_SRC_DIR)/lib/"; \
+			touch .cpp_build_failed; \
+		fi; \
 	fi
 
 # Build the C++ shared library - always rebuilds even if library exists
@@ -217,7 +241,7 @@ clean:
 	fi
 
 # Full cleanup: build artifacts + container images
-# Note: reports are managed at top-level reports/python/per_os/
+# Note: reports are managed at reports/python/per_os/
 # Per-platform runs clean only their own report files before regenerating
 dist-clean: clean container-clean
 	@rm -rf logs 2>/dev/null || true

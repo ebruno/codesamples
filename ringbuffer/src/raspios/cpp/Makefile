@@ -52,7 +52,7 @@ JOBS ?= 1
 
 # Container Configuration
 CONTAINER_IMAGE = ringbuffer_raspios_build
-DOCKERFILE = containers/Dockerfile
+DOCKERFILE = ../containers/build/Dockerfile
 
 # Detect Container Runtime and Host OS
 UNAME_S := $(shell uname -s)
@@ -66,7 +66,7 @@ endif
 
 # When host is not raspios (e.g. macOS), auto-build inside container
 ifeq ($(IN_CONTAINER),1)
-    all: $(STATIC_LIB) $(SHARED_LIB)
+    all: clean $(STATIC_LIB) $(SHARED_LIB)
 else ifeq ($(UNAME_S),Darwin)
     all: container
 	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $$(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make all
@@ -74,7 +74,7 @@ else ifneq ($(HOST_DISTRO),raspios)
     all: container
 	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $$(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make all
 else
-    all: $(STATIC_LIB) $(SHARED_LIB)
+    all: clean $(STATIC_LIB) $(SHARED_LIB)
 endif
 
 .PHONY: test  all static shared clean dist-clean container container-clean lint format test-all

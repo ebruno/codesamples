@@ -116,8 +116,8 @@ Create the build environment for the Ringbuffer library by strictly following th
 
           After resolving the issue, re-run the build or test workflow.
           ```
-      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the Dockerfile exists at `src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
-      - **Create & Validate Container** (Linux targets only): If `target != macos` and the Dockerfile does not exist (build phase), create a minimal Dockerfile in `src/<os>/cpp/containers/Dockerfile` using the resolved image as the base image tag (e.g., `FROM fedora:44`). Attempt to pull or build the container image using the platform-appropriate runtime:
+      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the Dockerfile exists at `../<os>/containers/build/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
+      - **Create & Validate Container** (Linux targets only): If `target != macos` and the Dockerfile does not exist (build phase), create a minimal Dockerfile in `../<os>/containers/build/Dockerfile` using the resolved image as the base image tag (e.g., `FROM fedora:44`). Attempt to pull or build the container image using the platform-appropriate runtime:
         - **macOS host**: use `container` to pull/build the image.
         - **Linux host**: use `podman` to pull/build the image.
 
@@ -188,7 +188,7 @@ Create the build environment for the Ringbuffer library by strictly following th
            Error output:
            <full error output>
 
-           Recommendation: Investigate manually. Check `cpp/logs/build.log` and `src/<os>/cpp/containers/Dockerfile`.
+           Recommendation: Investigate manually. Check `cpp/logs/build.log` and `../<os>/containers/build/Dockerfile`.
            ```
 
    3. **Library Build**:
@@ -268,7 +268,7 @@ Create the build environment for the Ringbuffer library by strictly following th
    - **Toolchain Check**: Verify `mvn` is available: `command -v mvn`. If not found, STOP and report that Maven must be installed.
    - **pom.xml Creation**: If `pom.xml` does not exist, create it following `prompts/common/java/build.md` specifications (group ID: `com.swtr`, artifact ID: `ringbuffer`, packaging: `jar`).
    - **Dockerfile Package Validation** (Linux targets only):
-     - For each target OS, check the per-OS Dockerfile at `src/common/java/containers/<os>/Dockerfile` and verify it contains:
+     - For each target OS, check the per-OS Dockerfile at `../../<os>/containers/build/Dockerfile` and verify it contains:
        - `java-25-openjdk` (Fedora) or `openjdk-25-jdk` (Debian/Ubuntu) — the latest JDK 25 package
        - `maven` installation step (latest available in repos)
      - If the JDK package is missing, add it to the Dockerfile RUN command:
@@ -297,7 +297,7 @@ Create the build environment for the Ringbuffer library by strictly following th
      - BSD make (FreeBSD 14+): Use `src/<os>/python/Makefile`
    - **Version Check**: Verify Python version meets minimum requirements (3.10+): `python3 --version`. If below 3.10, STOP and report: `ERROR: Detected Python version <detected_version> is below minimum supported 3.10. Cannot proceed.`
    - **Dockerfile Package Validation** (Linux targets only):
-     - For each target OS, check the per-OS Dockerfile at `src/common/python/containers/<os>/Dockerfile` and verify it contains:
+     - For each target OS, check the per-OS Dockerfile at `../../<os>/containers/build/Dockerfile` and verify it contains:
        - `python3` — latest available Python 3.x in each distro's repos (Fedora: latest stable; Debian/Ubuntu: default python3 which is the distro's latest)
        - `python3-pip` — Python package manager
      - If Python is missing, add it to the Dockerfile RUN command:
@@ -349,7 +349,7 @@ Once implementation is complete, generate a summary report at `src/<os>/reports/
 
 ## Artifacts Created
 - **Makefile**: `src/<os>/cpp/Makefile`
-- **Dockerfile** (Linux targets only): `src/<os>/cpp/containers/Dockerfile`
+- **Dockerfile** (Linux targets only): `../<os>/containers/build/Dockerfile`
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
 - **Library Artifacts**: [List of `.a` and `.so` or `.dylib` files in `lib/`]
 - **Logs**: `build.log` created and updated.

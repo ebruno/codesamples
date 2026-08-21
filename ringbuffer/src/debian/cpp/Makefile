@@ -52,7 +52,7 @@ JOBS ?= 1
 
 # Container Configuration
 CONTAINER_IMAGE = ringbuffer_debian_build
-DOCKERFILE = containers/Dockerfile
+DOCKERFILE = ../containers/build/Dockerfile
 
 # Detect Container Runtime and Host OS
 UNAME_S := $(shell uname -s)
@@ -67,12 +67,12 @@ endif
 # This conditional logic ensures cross-OS builds use containers automatically
 ifeq ($(UNAME_S),Darwin)
     all: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/src/debian/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/debian/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),debian)
     all: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/src/debian/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/debian/cpp $(CONTAINER_IMAGE) make all
 else
-    all: $(STATIC_LIB) $(SHARED_LIB)
+    all: clean $(STATIC_LIB) $(SHARED_LIB)
 endif
 
 .PHONY: test  all static shared clean dist-clean container container-clean lint format test-all

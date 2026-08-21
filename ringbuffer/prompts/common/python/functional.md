@@ -51,8 +51,8 @@ The Python implementation provides **two versions** that both satisfy the same R
 - Uses `ctypes` FFI to load the C++ shared object (`libswtr_ringbuffer.so` or `.dylib`)
 - Provides thread-safe concurrent readers/writers via the C++ implementation
 - Best for: small inputs (< 1KB), stress tests, concurrent workloads
-- Implementation file: `swtr_ringbuffer/swtr_ringbuffer_hp.py`
-- Class name: `SwtrRingBufferHP` (inherits from RingBufferABC)
+- Implementation file: `swtr_ringbuffer/swtr_ringbuffer_concurrent.py`
+- Class name: `SwtrRingBufferConcurrent` (inherits from RingBufferABC)
 
 ### Version 2: Pure Python
 - No external dependencies — pure Python implementation
@@ -340,8 +340,8 @@ DEFAULT_BUFFER_SIZE = 4096
 MIN_BUFFER_SIZE = 1
 ```
 
-## SwtrRingBufferHP Implementation Class (Concurrent)
-The Concurrent implementation class MUST be named `SwtrRingBufferHP` and implement the `RingBuffer` abstract base class.
+## SwtrRingBufferConcurrent Implementation Class (Concurrent)
+The Concurrent implementation class MUST be named `SwtrRingBufferConcurrent` and implement the `RingBuffer` abstract base class.
 
 ## SwtrRingBufferPure Implementation Class (Pure Python)
 The Pure Python implementation class MUST be named `SwtrRingBufferPure` and implement the `RingBuffer` abstract base class.
@@ -477,7 +477,7 @@ src/common/python/
 ├── base.py                          # RingBufferABC (38 abstract methods)
 ├── swtr_ringbuffer/                 # Package with auto-selection
 │   ├── __init__.py                  # Auto-select: Concurrent → Pure Python
-│   └── swtr_ringbuffer_hp.py        # SwtrRingBufferHP (Concurrent, ctypes)
+│   └── swtr_ringbuffer_concurrent.py  # SwtrRingBufferConcurrent (Concurrent, ctypes)
 ├── swtr_ringbuffer_pure.py          # SwtrRingBufferPure (Pure Python)
 ├── swtr_ringbuffer.py               # Backward-compat shim (re-exports from package)
 └── version.py                       # Library version constants
@@ -485,7 +485,7 @@ src/common/python/
 
 **Package-based Python convention**: The implementation uses a package structure for the Concurrent version and a top-level module for Pure Python:
 - `base.py`: Enum definitions (`BufferStatus`, `ChecksumAlgorithm`, `LogLevel`), type aliases (`TransformFn`, `ErrorHandler`), constants, and the `RingBufferABC` abstract base class (38 methods)
-- `swtr_ringbuffer/swtr_ringbuffer_hp.py`: `SwtrRingBufferHP` concrete implementation (Concurrent, ctypes FFI)
+- `swtr_ringbuffer/swtr_ringbuffer_concurrent.py`: `SwtrRingBufferConcurrent` concrete implementation (Concurrent, ctypes FFI)
 - `swtr_ringbuffer_pure.py`: `SwtrRingBufferPure` concrete implementation (Pure Python, no dependencies)
 - `swtr_ringbuffer/__init__.py`: Auto-selection logic (tries Concurrent first, falls back to Pure Python)
 - `swtr_ringbuffer.py`: Backward-compat shim that re-exports from the package for legacy imports

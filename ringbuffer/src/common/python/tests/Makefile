@@ -19,6 +19,7 @@ all:
 # Deploy utility scripts for report generation
 deploy_utils:
 	@mkdir -p $(UTILS_BIN_DIR)
+	@test -f ../../prompts/common/cpp/utils/bin/generate_junit_report.sh && cp ../../prompts/common/cpp/utils/bin/generate_junit_report.sh $(UTILS_BIN_DIR)/ && echo "Deployed generate_junit_report.sh" || true
 
 # Single entry point for verify_build and run_regression
 # `make test` delegates to `verify` — matches C/C++ pattern

@@ -1,56 +1,33 @@
 {
   "language": "java",
-  "version": "1.0.0-1",
-  "java_version": "26.0.2 (macos native), 25.x (containers), 25 (archlinux)",
+  "version": "1.0-0-1",
+  "java_version": "17 (raspios)",
   "maven_version": "3.9.16",
-  "os_results": {
+  "build_status": {
     "macos": {
       "route": "native",
-      "image": "N/A",
       "status": "PASS",
-      "timestamp": "2026-08-14T16:51:52-07:00"
+      "timestamp": "2026-08-20T16:16:19-0700"
     },
-    "debian": {
+    "raspios": {
       "route": "container",
-      "image": "debian:13",
       "status": "PASS",
-      "timestamp": "2026-08-14T23:52:43Z"
-    },
-    "fedora": {
-      "route": "container",
-      "image": "fedora:44",
-      "status": "PASS",
-      "timestamp": "2026-08-14T23:52:58Z"
-    },
-    "ubuntu": {
-      "route": "container",
-      "image": "ubuntu:24.04",
-      "status": "PASS",
-      "timestamp": "2026-08-14T23:53:18Z"
-    },
-    "archlinux": {
-      "route": "native",
-      "image": "N/A",
-      "status": "PASS",
-      "timestamp": "2026-08-17T20:57:44Z",
-      "jdk_version": "25.0.4",
-      "maven_version": "3.9.16",
-      "compiler_release": "25",
-      "test_results": {
-        "total": 18,
-        "passed": 18,
-        "failed": 0,
-        "errors": 0,
-        "skipped": 0
-      }
+      "timestamp": "2026-08-20T17:13:09-0700"
     }
   },
   "artifacts": {
-    "jar": "target/ringbuffer-1.0.0-1.jar",
-    "test_reports": "target/surefire-reports/"
+    "jar": "target/ringbuffer-1.0.0-1.jar"
   },
   "sha256": {
-    "pom_xml": "a98be8540da3914872a53d690247a41c322c60f4d43f31aec95b5b0846c5bfee",
-    "version_mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a"
+    "pom_xml": "a7b6b9e3ee561fb09c94e3de9d895839c16abf46ddc35afb55b1baf14f3dba5f",
+    "swtr/SwtrRingBuffer.java": "a20326acc92d4912972ed13d9c9d75ebb56af94dcc6245d999e00cee2e560c5b",
+    "swtr/TransformFunction.java": "a8ac47eead22c617cee5553142105a016ef6af0aa131c6a27196c8b9ab473777",
+    "swtr/BufferStatus.java": "70c45ae6bd72f66bf85ac9db1f5cf503583a5ab8c1713d781931582af8428a79",
+    "swtr/BufferSlot.java": "94e2a8519c059861702834550479aadd9b5f08bbd34dce4f539cbb9efbdd5b60",
+    "swtr/LogLevel.java": "2918e6607ed6737205cdcc1c84e9c70c02f5637d387256d7443b907083911860",
+    "swtr/ErrorHandler.java": "9db51b66289ff7b467b3f2ceb7fb5ee89ac528494e719535f5b1faf682e41644",
+    "swtr/RingBuffer.java": "446909e93c6295134ff81567f34868ec2e66322f682ec9c26f5ea29c32850331",
+    "swtr/ChecksumAlgorithm.java": "a667378013a54999f927e921c8feef69c57bb9ee4b3bb82e183ed5ad8cca66f1",
+    "swtr/test/TestRingbuffer.java": "11f56517a61728fadb551f2189b25e5b3b5d4a43f69ef5029fbb2120ef96551d"
   }
 }

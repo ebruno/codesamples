@@ -36,7 +36,7 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
     - Build & Docs: `cmake`, `doxygen`
     - LLVM/Clang: `clang`
     - Utilities: `patchelf`, `strace`, `python3`
-- **Container Path**: Use `src/archlinux/cpp/containers/Dockerfile`.
+- **Container Path**: Use `archlinux/containers/build/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
 **Host-Target Compatibility** and **Container Runtime Pre-flight**: See `prompts/common/cpp/build.md` for the authoritative host-target and container runtime directives.
@@ -71,11 +71,11 @@ The `container` target MUST satisfy these five conditions:
 4. [ ] **Cleanup**: Provide a `container-clean` target that removes the image.
 
 The `container` target must perform the following logic:
-- On **Linux hosts**: Build the Arch Linux container image using `podman build` from `src/archlinux/cpp/containers/Dockerfile`. The container image is named `ringbuffer_archlinux_build` and uses the Arch Linux base image with datestamp tag (e.g., `archlinux:2026.05.31`).
+- On **Linux hosts**: Build the Arch Linux container image using `podman build` from `archlinux/containers/build/Dockerfile`. The container image is named `ringbuffer_archlinux_build` and uses the Arch Linux base image with datestamp tag (e.g., `archlinux:2026.05.31`).
 - On **macOS hosts**: Skip container build with a logged message (see macOS Skip Logic above).
 
 ### Dockerfile Requirements
-The `Dockerfile` at `src/archlinux/cpp/containers/Dockerfile` MUST:
+The `Dockerfile` at `archlinux/containers/build/Dockerfile` MUST:
 1. Use an Arch Linux base image with a datestamp tag (e.g., `FROM archlinux:2026.05.31`)
 2. Install build dependencies via `pacman -S --noconfirm` (not `dnf` or `apt-get`)
 3. Set `WORKDIR /app` to align with the host volume mounts and execution workflow

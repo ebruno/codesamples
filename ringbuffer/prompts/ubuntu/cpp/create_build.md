@@ -27,7 +27,7 @@ Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (
 **macOS Service Pre-Check**: When generating the `container:` target in the Makefile, include a macOS service pre-check before any container commands. If `UNAME_S` is Darwin, check if the Apple Container daemon is running with `$(CONTAINER_CMD) system status`. If not running, start it with `$(CONTAINER_CMD) system start` before proceeding. This ensures `make container` works when invoked directly from a macOS host where the daemon may not be running.
 
 **Environment Initialization**:
-After creating the build configuration and ensuring the Dockerfile at `src/ubuntu/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
+After creating the build configuration and ensuring the Dockerfile at `ubuntu/containers/build/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
 1. The host OS is correctly detected.
 2. The build image (`ringbuffer_ubuntu_build`) is successfully created or updated.
 3. The container environment is fully operational and ready for subsequent compilation steps.
@@ -62,7 +62,7 @@ Once implementation is complete, generate a summary report at `src/ubuntu/cpp/re
 
 ## Artifacts Created
 - **Makefile**: `src/ubuntu/cpp/Makefile`
-- **Dockerfile**: `src/ubuntu/cpp/containers/Dockerfile`
+- **Dockerfile**: `ubuntu/containers/build/Dockerfile`
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
 - **Library Artifacts**: [List of `.a` and `.so` files in `lib/`]
 - **Logs**: `build.log` created and updated.

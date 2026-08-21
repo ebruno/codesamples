@@ -65,7 +65,7 @@ Implement the C++ Ringbuffer library by strictly following the specifications de
         - If the Dockerfile exists, verify that the resolved Target Version matches its base image tag. If it does not match, log an error and stop processing — the requested version conflicts with the existing container configuration.
       - If the target IS `macos`, log: `[timestamp] Dockerfile validation skipped — macOS is native-only.` and proceed.
       - **Create & Validate Container (Linux targets only)**: If the target `<os>` is NOT `macos`:
-        - If the Dockerfile does not exist (functional phase), create a minimal Dockerfile in `src/<os>/cpp/containers/Dockerfile` using the resolved version as the base image tag (e.g., `FROM fedora:<version>`). Attempt to pull or build the container image using the platform-appropriate runtime:
+        - If the Dockerfile does not exist (functional phase), create a minimal Dockerfile in `../<os>/containers/build/Dockerfile` using the resolved version as the base image tag (e.g., `FROM fedora:<version>`). Attempt to pull or build the container image using the platform-appropriate runtime:
           - **macOS host**: use `container` to pull/build the image.
           - **Linux host**: use `podman` to pull/build the image.
 

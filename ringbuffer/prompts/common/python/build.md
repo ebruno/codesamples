@@ -48,7 +48,7 @@ src/common/python/
 ├── base.py                          # RingBufferABC (38 abstract methods)
 ├── swtr_ringbuffer/                 # Package with auto-selection
 │   ├── __init__.py                  # Auto-select: Concurrent → Pure Python
-│   └── swtr_ringbuffer_hp.py        # Concurrent implementation (ctypes)
+│   └── swtr_ringbuffer_concurrent.py  # Concurrent implementation (ctypes)
 ├── swtr_ringbuffer_pure.py          # Pure Python implementation
 ├── swtr_ringbuffer.py               # Backward-compat shim (re-exports from package)
 ├── version.py                       # Library version constants
@@ -99,7 +99,7 @@ Example log entries:
 [2026-08-14 10:30:00 -0700] Build started for target macos
 [2026-08-14 10:30:01 -0700] Syntax check passed for all .py files
 [2026-08-14 10:30:01 -0700] Concurrent module import successful (version: "Concurrent")
-[2026-08-14 10:30:01 -0700] SwtrRingBufferHP instantiation successful
+[2026-08-14 10:30:01 -0700] SwtrRingBufferConcurrent instantiation successful
 [2026-08-14 10:30:01 -0700] Pure Python module import successful
 [2026-08-14 10:30:01 -0700] SwtrRingBufferPure instantiation successful
 ```

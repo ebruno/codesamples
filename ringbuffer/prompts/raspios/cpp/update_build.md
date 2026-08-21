@@ -11,7 +11,7 @@ Please update the build system for the Ringbuffer on Raspberry Pi OS.
 **Immediate Requirements:**
 - **Logging:** Every update step MUST be recorded in `src/raspios/cpp/logs/build.log`.
 - **Configuration**: Update the build configuration (Makefile) in `src/raspios/cpp/`.
-- **Dockerfile**: Update the Dockerfile at `src/raspios/cpp/containers/Dockerfile` if package requirements have changed.
+- **Dockerfile**: Update the Dockerfile at `raspios/containers/build/Dockerfile` if package requirements have changed.
 - **Specs**: Update `specs/build.md`, `specs/testing_requirements.md` if the prompt specs have changed.
 - **State Tracking**: Update `.gen_state.json` with new SHA-256 hashes of all modified artifacts.
 

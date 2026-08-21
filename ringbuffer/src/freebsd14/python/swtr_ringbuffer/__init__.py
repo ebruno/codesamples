@@ -14,7 +14,7 @@ If the C++ shared library is not found, a warning is printed to stderr
 and Pure Python is used as fallback.
 
 To explicitly choose an implementation:
-    from swtr_ringbuffer.swtr_ringbuffer_hp import SwtrRingBufferHP  # Concurrent
+    from swtr_ringbuffer.swtr_ringbuffer_concurrent import SwtrRingBufferConcurrent  # Concurrent
     from swtr_ringbuffer_pure import SwtrRingBufferPure  # Pure Python (top-level)
 """
 
@@ -23,7 +23,7 @@ import os
 
 # Try Concurrent (ctypes) first
 try:
-    from .swtr_ringbuffer_hp import SwtrRingBufferHP as _SwtrRingBuffer
+    from .swtr_ringbuffer_concurrent import SwtrRingBufferConcurrent as _SwtrRingBuffer
     _version = "Concurrent"
 except (ImportError, OSError) as e:
     # Fall back to Pure Python (import from top-level module)

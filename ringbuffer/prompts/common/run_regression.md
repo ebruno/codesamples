@@ -8,6 +8,38 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 - `run_regression` → `tests/Makefile verify` (test matrix T001-T007)
 - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for details.
 
+**GOLDEN RULES — READ BEFORE EXECUTING:**
+
+1. **NEVER modify source code during verification.** `verify_build` and `run_regression` are detect-only workflows. They must NEVER modify:
+   - Source code files (`.cpp`, `.hpp`, `.java`, `.py`, etc.)
+   - Build configuration files (`Makefile`, `pom.xml`, `go.mod`, `Cargo.toml`)
+   - Dockerfiles or container configurations
+   
+   If a build fails, the agent must:
+   - Record the full error in the build log and report
+   - Mark the OS/language combination as **UNSUPPORTED** with a reason file at `src/<os>/<lang>/UNSUPPORTED.md`
+   - Move on to the next OS/language — do NOT attempt fixes
+
+2. **Detect, don't fix.** The role of `verify_build` and `run_regression` is to identify problems, not solve them.
+   - If a compiler version is too old → flag as unsupported, document the minimum required version
+   - If a header file is missing → flag as unsupported, document what's needed
+   - If a build target fails → record the error, mark as unsupported, continue
+   
+   Source code changes require explicit user permission at the start of the session.
+
+3. **No silent workarounds.** Do NOT:
+   - Change compiler flags to work around missing features
+   - Replace `g++` with `clang++` (or vice versa) to avoid errors
+   - Modify include paths or preprocessor defines
+   - Skip tests silently
+   
+   Every failure must be reported, not hidden.
+
+4. **Unsupported OS/Language Documentation.** When an OS/language combination cannot build or test:
+   - Create `src/<os>/<lang>/UNSUPPORTED.md` explaining why
+   - Include: detected toolchain version, required minimum version, specific error
+   - Update the consolidated report with `UNSUPPORTED` status and link to the reason file
+
 **Prerequisite:** Infrastructure setup from `prompts/common/implement_regression.md` must be completed before proceeding. The `tests/` directory, test Makefile, Dockerfile, utility scripts, and test data must already exist.
 
 **Inputs:**
@@ -165,7 +197,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
           ```
       - **Navigate**: `cd src/<os>/cpp`
       - **Dockerfile/Image Validation (Linux targets only)**: If the target `<os>` is NOT `macos`:
-        - **Validate Existing Dockerfile**: If the build Dockerfile exists at `src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
+        - **Validate Existing Dockerfile**: If the build Dockerfile exists at `../<os>/containers/build/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration.
         - **Validate Test Dockerfile**: If `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
         - **Build Build Image**: Before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container` from the source directory. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`.
         - **Test Image Management**: Ensure the `ringbuffer_<os>_test` image exists. If it does not, navigate to `tests/` and execute `make container`. Verify that `ringbuffer_<os>_test` exists using `<runtime> images | grep ringbuffer_<os>_test`.
@@ -420,8 +452,8 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
        3. Compares output against expected results in `data/expected/`
        4. Generates JUnit XML and Markdown reports
      - **Container**: Run in a container matching the target OS:
-       - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 src/common/java/containers/<os>/Dockerfile | sed 's/^FROM //')`
-       - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+       - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 ../../<os>/containers/build/Dockerfile | sed 's/^FROM //')`
+       - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 ../<os>/containers/build/Dockerfile | sed 's/^FROM //')`
        - **Per-platform pom.xml override**: If a platform-specific `pom.xml` exists at `src/<os>/java/pom.xml`, mount it to override the common pom.xml. This is required when the platform's JDK version differs from the common spec (e.g., raspios has JDK 17, but common pom.xml uses `<release>25</release>`).
        ```bash
        # macOS host targeting Linux distro:
@@ -556,15 +588,14 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
        4. Runs Pure Python harness (T001-T007) using `test_ringbuffer_pure.py`.
        5. Generates JUnit XML and Markdown reports.
      - **Container**: Run in a container matching the target OS:
-       - Build the per-OS Python container image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .`
-       - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 src/<os>/cpp/containers/Dockerfile | sed 's/^FROM //')`
+       - Build the per-OS test image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_<os>_test -f ../../<os>/containers/test/Dockerfile .`
        ```bash
        # macOS host targeting Linux distro:
-       cd src/common/python && container build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app/tests && make test"
+       cd src/common/python && container build -t ringbuffer_<os>_test -f ../../<os>/containers/test/Dockerfile .
+       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_<os>_test sh -c "cd /app/tests && make test"
        # Linux host targeting another Linux distro:
-       cd src/common/python && podman build -t ringbuffer_python_<os> -f containers/<os>/build/Dockerfile .
-       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_python_<os> sh -c "cd /app/tests && make test"
+       cd src/common/python && podman build -t ringbuffer_<os>_test -f ../../<os>/containers/test/Dockerfile .
+       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_<os>_test sh -c "cd /app/tests && make test"
        ```
   4. **Verification Steps**:
      - Navigate to `src/common/python/tests/`.
@@ -594,7 +625,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
         }
       },
       "artifacts": {
-        "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_hp.py",
+        "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_concurrent.py",
         "pure_python_module": "swtr_ringbuffer_pure.py",
         "test_script_concurrent": "test_ringbuffer.py",
         "test_script_pure": "test_ringbuffer_pure.py"
@@ -602,7 +633,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       "sha256": {
         "version_mk": "<hash>",
         "base_py": "<hash>",
-        "swtr_ringbuffer_hp_py": "<hash>",
+        "swtr_ringbuffer_concurrent_py": "<hash>",
         "swtr_ringbuffer_pure_py": "<hash>",
         "test_ringbuffer_py": "<hash>",
         "test_ringbuffer_pure_py": "<hash>"
@@ -653,7 +684,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
     - `path/to/file`: [Brief explanation of the fix]
 
     ## Concurrent (ctypes) Test Results
-    **Implementation:** `swtr_ringbuffer/swtr_ringbuffer_hp.py` — ctypes binding to C++ shared library for concurrent I/O
+    **Implementation:** `swtr_ringbuffer/swtr_ringbuffer_concurrent.py` — ctypes binding to C++ shared library for concurrent I/O
     **Entry Point:** `from swtr_ringbuffer import SwtrRingBuffer` (auto-selects Concurrent when available)
 
     | Test | Description | Result | Notes |
@@ -695,7 +726,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
   **Python Self-Audit** (after report generation):
   - Verify the following and log results:
-    - **Concurrent Module**: `swtr_ringbuffer/swtr_ringbuffer_hp.py` exists and is non-empty.
+    - **Concurrent Module**: `swtr_ringbuffer/swtr_ringbuffer_concurrent.py` exists and is non-empty.
     - **Pure Python Module**: `swtr_ringbuffer_pure.py` exists and is non-empty.
     - **Concurrent Test Script**: `test_ringbuffer.py` exists, is executable (or readable by python3), and exits 0.
     - **Pure Python Test Script**: `test_ringbuffer_pure.py` exists, is executable (or readable by python3), and exits 0.

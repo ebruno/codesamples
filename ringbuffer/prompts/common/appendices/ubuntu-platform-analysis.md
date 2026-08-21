@@ -278,7 +278,7 @@ endif
 
 ```bash
 # Build an Ubuntu container image from macOS host
-container build -t ringbuffer_ubuntu_build:latest     --file src/ubuntu/cpp/containers/Dockerfile.ubuntu     .
+container build -t ringbuffer_ubuntu_build:latest     --file ubuntu/containers/build/Dockerfile.ubuntu     .
 
 # Run a build inside the container from macOS host
 container run --rm -v $(pwd):/workspace ringbuffer_ubuntu_build:latest     make all

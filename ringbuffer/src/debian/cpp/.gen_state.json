@@ -1,109 +1,40 @@
 {
-  "platform": "debian",
   "language": "cpp",
-  "prompts_used": {
-    "common/cpp/functional.md": "a7ffd574b0ef04c94bb36820b4b144b3d2db53799edb8281a34885450e3e3aec",
-    "debian/cpp/functional.md": "9f97f5033f9b73495afa732f4c1fd8d165b31f72445dcde8be2c22b8f12a74fd"
-  },
-  "spec_hashes": {
-    "Makefile": "a0a89431ba984194ed5b695906add7fee38b8ef8d41a7cc04d1834233f5d5b5a",
-    "containers/Dockerfile": "b4f5ffea603904e0621f734b48708eaf0143b748ab1028cf647fc9d91584646d",
-    "specs/build.md": "e48c03fa6b717adb4d49a72609b62e634294b96531126ea6a62ded302510cfcb",
-    "specs/testing_requirements.md": "6fa55065f814f929ccc0c22a985b9a9c26c05c8f30c37e01b35a138ee4a1161d",
-    "specs/artifacts.md": "682816773cd93622e4827c4a75653fa6886e46e122c27923b4123032348bb047",
-    "common/cpp/build.md": "1c64df9ec5a80a088ad0286c8149f40d2712eec123fb07f12d1ca3152d6637d1",
-    "debian/cpp/build.md": "14782a380dc8ab8852d25ba1e6b2f56add678bf0635e660c7a7900bdfce5899d",
-    "common/cpp/testing.md": "3f3842aae80dafb42072e7fa04d366a0cff47d38d22c4112c5472cdf15c31213",
-    "debian/cpp/testing.md": "8120e3a715067267366391b50ea3738ebd1927f3e436e765114e3d792ce02432"
-  },
-  "generated_files": {
-    ".gen_state.json": "PLACEHOLDER",
-    "Makefile": "215b7f832a6e37677ea5618840dc514d1efe5fa017fd69001fd6f1d6be590752",
-    "containers/Dockerfile": "b4f5ffea603904e0621f734b48708eaf0143b748ab1028cf647fc9d91584646d",
-    "specs/build.md": "e48c03fa6b717adb4d49a72609b62e634294b96531126ea6a62ded302510cfcb",
-    "specs/testing_requirements.md": "6fa55065f814f929ccc0c22a985b9a9c26c05c8f30c37e01b35a138ee4a1161d",
-    "specs/artifacts.md": "01c7b41c47b550dbe527bc83a7f76c2126580ecd469254ee8abcd1b488714139",
-    "Accessors_ChecksumAlg.cpp": "cda567c9f96adff830b78ca548be8e00dbf15ce9feaf7df0df45a7855a82ef20",
-    "Accessors_ChecksumVal.cpp": "af1067656910afc5780589f05f11610771661fe01618a7fbf17b1f977b4b992d",
-    "Accessors_Size_Data.cpp": "f1c42c6b80db98f555b9214ecb75ceab65467cb1b60e9a46cf550e9394e829d2",
-    "Accessors_Size_Max.cpp": "c80a5b89b1cfdbaaa796ba3cb77d1630cdf35f375ef2dd29806839b77f14f405",
-    "Accessors_Size_Transformed.cpp": "133e34e82c43af7e933d9bc5fd5af5be1e5f5bd4bd61879cb1c43fa6c39c1073",
-    "Accessors_Status.cpp": "24a37e639a07dfd502cfd73588d480f8295564ed1420d5920b215ce6080c616b",
-    "ErrorOps.cpp": "3f7d24c6b67e222db677f08fd7c9f4b6a7669ed48e1678634dde17e4e0a337a9",
-    "LICENSE": "e31a1573ddc1c4175184d0004b116655493448b746fc25c69389f3450180ee7e",
-    "Lifecycle.cpp": "10788df98585c2c6dda60b5a9185bfdb639f7f95fff2f095cbadc780500efefa",
-    "LoggingOps_1.cpp": "046dc0f83d4220b7793e5ed3ca8e9891be2ee724f323f213a77fefa6ca59bc29",
-    "LoggingOps_2.cpp": "bb42c7318f8018634255b68f7d9013b089099f640b0e0f56aad2ce1a93ddb7b9",
-    "LoggingOps_3.cpp": "9de02b196e07e231ca1bb2ad74040601973248547fbd80d45272d5a9b5782c0c",
-    "LoggingOps_4.cpp": "a26e7b44ae54e883575dbfefae2cb852e98b24ff2d791de5df0798b3dc5ea654",
-    "LoggingOps_5.cpp": "a162cb32bc1486a44b0bb0d151c15451bebe0bc8e4c30ba45c55e101f1f7d6b0",
-    "LoggingOps_6.cpp": "7e4157984a58ed182aa05ea7048b07094f1309ed10a1244fee91f30d80a3092e",
-    "README.md": "e150ec17d6d8e234d8d365e55a4df4d153fa0c1fa710274df9114bb54851bcf7",
-    "ReadOps.cpp": "967b13dd4deb52dc96e34262564d8c4899529b315dbd650ff3f0690e205b5520",
-    "Threading.cpp": "5412e4574461fce9b4151faaeb5684f0618f5c001dec834a0a4d698247957db6",
-    "TransformOps.cpp": "ab3dce46787a272b14cee8fd9baeeb02393f84392b63b4d59ef5e69de59bd375",
-    "WriteOps.cpp": "4045dcedd2f3baac7f2a82968b1732168de2145370d142cc1cfb5c823f01cc4c",
-    "ringbuffer.hpp": "9bae114d96201e7e70c02b153e62580b39484b3e963624f5c15c6be70d8d7997",
-    "status.hpp": "c91cbda5df318cd50626e1fe1c14c1f20f70660beafa2b9dc9eea3fbde0f974f",
-    "swtr_ringbuffer_impl.hpp": "6b132f5cf97b18384fa3318f06efc460bcc023aac58cfb2b13629ad66338d97a",
-    "version.mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
-    "tests/Makefile": "d4db72aa8c98a3ade1d328b3589528bfa877e135742715ae76c6c2877fbea6b0",
-    "tests/containers/debian/Dockerfile": "9d49e8e5a902f4a0ca5c45e12bdd8fe07aa78ee11d0cbfe86a0108fa97e648b6",
-    "tests/src/test001.cpp": "e27a60a689db122c1deee813519f41a9dc263ada5239e6d7daf240428e461167",
-    "tests/utils/bin/verify_test_data.sh": "30493d4219034283659170a2604bf7662f86b0de9fc015cd4847c9a31ed9959a",
-    "tests/utils/bin/generate_junit_report.sh": "1b0c0c399ad8dffad18d1381bff381e40d481d2896b01370badc267adfc6a195",
-    "tests/utils/bin/generate_test_data.sh": "03f6da6cf5d170099d363a477906d62dcf7f7e5ab7929a7d8dd281c2902319e0"
-  },
-  "generation_timestamp": "2026-08-10T22:25:03-0700",
-  "spec_version": "post-fix",
-  "test_results": {
-    "execution_date": "2026-08-13T02:12:40+0000",
-    "total_time_ms": 180,
-    "tests_passed": 7,
-    "tests_failed": 0,
-    "results": {
-      "T001": {
-        "result": "PASS",
-        "time_ms": 3,
-        "exit_code": 0,
-        "description": "Exact match with input"
-      },
-      "T002": {
-        "result": "PASS",
-        "time_ms": 162,
-        "exit_code": 0,
-        "description": "Stress test (1 slot, 1 byte)"
-      },
-      "T003": {
-        "result": "PASS",
-        "time_ms": 10,
-        "exit_code": 0,
-        "description": "All chars uppercase"
-      },
-      "T004": {
-        "result": "PASS",
-        "time_ms": 1,
-        "exit_code": 0,
-        "description": "Input < 1 slot (fast EOF)"
-      },
-      "T005": {
-        "result": "PASS",
-        "time_ms": 1,
-        "exit_code": 1,
-        "description": "Pipeline stop (Fatal Error)"
-      },
-      "T006": {
-        "result": "PASS",
-        "time_ms": 2,
-        "exit_code": 0,
-        "description": "Pipeline continues (Non-fatal)"
-      },
-      "T007": {
-        "result": "PASS",
-        "time_ms": 1,
-        "exit_code": 0,
-        "description": "Bit-inverted output"
-      }
+  "version": "1.0.0-1",
+  "compiler_version": "g++ (Debian 13 container)",
+  "build_status": {
+    "debian": {
+      "route": "container",
+      "status": "PASS",
+      "timestamp": "2026-08-20T16:34:16-0700"
     }
+  },
+  "artifacts": {
+    "static_lib": "lib/libswtr_ringbuffer-1.0.0-1.a",
+    "shared_lib": "lib/libswtr_ringbuffer-1.0.0-1.so"
+  },
+  "sha256": {
+    "version_mk": "09c8afe21773dd3689baab599ad56e42f91246f45a5d0ab2c0e9bd9c5cb45d5a",
+    "LoggingOps_5.cpp": "a162cb32bc1486a44b0bb0d151c15451bebe0bc8e4c30ba45c55e101f1f7d6b0",
+    "Accessors_ChecksumVal.cpp": "af1067656910afc5780589f05f11610771661fe01618a7fbf17b1f977b4b992d",
+    "ringbuffer.hpp": "9bae114d96201e7e70c02b153e62580b39484b3e963624f5c15c6be70d8d7997",
+    "LoggingOps_4.cpp": "a26e7b44ae54e883575dbfefae2cb852e98b24ff2d791de5df0798b3dc5ea654",
+    "Accessors_ChecksumAlg.cpp": "cda567c9f96adff830b78ca548be8e00dbf15ce9feaf7df0df45a7855a82ef20",
+    "LoggingOps_6.cpp": "7e4157984a58ed182aa05ea7048b07094f1309ed10a1244fee91f30d80a3092e",
+    "Accessors_Size_Transformed.cpp": "133e34e82c43af7e933d9bc5fd5af5be1e5f5bd4bd61879cb1c43fa6c39c1073",
+    "LoggingOps_3.cpp": "9de02b196e07e231ca1bb2ad74040601973248547fbd80d45272d5a9b5782c0c",
+    "LoggingOps_2.cpp": "bb42c7318f8018634255b68f7d9013b089099f640b0e0f56aad2ce1a93ddb7b9",
+    "Accessors_Status.cpp": "24a37e639a07dfd502cfd73588d480f8295564ed1420d5920b215ce6080c616b",
+    "LoggingOps_1.cpp": "046dc0f83d4220b7793e5ed3ca8e9891be2ee724f323f213a77fefa6ca59bc29",
+    "ReadOps.cpp": "789860e893e7de8248d776fdbd772b2f25ce9179182dd30da5ac5f0b09731d4d",
+    "Accessors_Size_Data.cpp": "f1c42c6b80db98f555b9214ecb75ceab65467cb1b60e9a46cf550e9394e829d2",
+    "Lifecycle.cpp": "10788df98585c2c6dda60b5a9185bfdb639f7f95fff2f095cbadc780500efefa",
+    "TransformOps.cpp": "f7fb4abd41d4e0c3ace96abe45dea00da28ba62c87212f1e166c482e54d35441",
+    "status.hpp": "c91cbda5df318cd50626e1fe1c14c1f20f70660beafa2b9dc9eea3fbde0f974f",
+    "ErrorOps.cpp": "3f7d24c6b67e222db677f08fd7c9f4b6a7669ed48e1678634dde17e4e0a337a9",
+    "Accessors_Size_Max.cpp": "c80a5b89b1cfdbaaa796ba3cb77d1630cdf35f375ef2dd29806839b77f14f405",
+    "Threading.cpp": "383dee7a7addf4f827228726dcc551ea0196eca8302cf33db62f037cd8730076",
+    "swtr_ringbuffer_impl.hpp": "e4ca77e0d1924ccf4fa47d523c29db7c4c4158a0ea9978b3d17db2b965f68564",
+    "WriteOps.cpp": "6ce4807b860938c272bfc8b18d02ad4771ae558dccda94463f251aab4c39e41d"
   }
 }

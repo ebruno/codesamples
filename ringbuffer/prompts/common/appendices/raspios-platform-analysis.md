@@ -280,7 +280,7 @@ endif
 
 ```bash
 # Build a Raspios container image from macOS host
-container build -t ringbuffer_raspios_build:latest     --file src/raspios/cpp/containers/Dockerfile.raspios     .
+container build -t ringbuffer_raspios_build:latest     --file raspios/containers/build/Dockerfile.raspios     .
 
 # Run a build inside the container from macOS host
 container run --rm -v $(pwd):/workspace ringbuffer_raspios_build:latest     make all

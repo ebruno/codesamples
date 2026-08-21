@@ -110,7 +110,7 @@ Create the test environment for regression testing on a target platform. This co
           After resolving the issue, re-run the build or test workflow.
           ```
       - **Navigate**: `cd src/<os>/cpp`
-      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the build Dockerfile exists at `src/<os>/cpp/containers/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
+      - **Validate Existing Dockerfile** (Linux targets only): If `target != macos` and the build Dockerfile exists at `../<os>/containers/build/Dockerfile`, verify that the resolved Target Image matches its `FROM` base image tag. If it does not match, log an error and stop processing — the requested image conflicts with the existing container configuration. macOS targets skip this step (native-only platform).
       - **Validate Test Dockerfile** (Linux targets only): If `target != macos` and `tests/containers/<os>/Dockerfile` exists, verify its `FROM` base image matches the resolved Target Image. If it does not match, log an error and stop processing.
       - **Build Build Image** (Linux targets only): If `target != macos`, before creating the `_test` image, ensure the base `ringbuffer_<os>_build` image is present. Check if it already exists using `<runtime> images | grep ringbuffer_<os>_build`. If not found, execute `make container` from the source directory. Verify that `ringbuffer_<os>_build` exists using `<runtime> images | grep ringbuffer_<os>_build`. macOS targets skip this step (native-only platform).
       - **Step 0 Dockerfile Marker**: If a minimal test Dockerfile was created in this sub-step, create a marker file at `src/<os>/cpp/.dockerfile_created_by_step0` to signal that the Dockerfile already exists. `create_regression.md` (Step 1) MUST check for this marker and skip Dockerfile creation if it exists.
@@ -149,7 +149,7 @@ Create the test environment for regression testing on a target platform. This co
    - Navigate to `src/common/java/`.
    - **Test Source**: The test harness is `swtr/test/TestRingbuffer.java` — a self-contained JUnit 5-compatible test class with a `testAll()` method. It runs all 7 test scenarios (T001–T007) plus constructor validation and version constant checks. No separate `tests/` directory is needed for Java.
    - **Dockerfile Package Validation** (Linux targets only):
-     - For each target OS, check the per-OS Dockerfile at `src/common/java/containers/<os>/Dockerfile` and verify it contains:
+     - For each target OS, check the per-OS Dockerfile at `../../<os>/containers/build/Dockerfile` and verify it contains:
        - `java-25-openjdk` (Fedora) or `openjdk-25-jdk` (Debian/Ubuntu) — the latest JDK 25 package
        - `maven` (latest available in repos)
      - If missing, add to the Dockerfile RUN command:
@@ -179,7 +179,7 @@ Create the test environment for regression testing on a target platform. This co
      - BSD make (FreeBSD 14+): Use `src/<os>/python/Makefile`
    - **Test Source**: The test script is `test_ringbuffer.py` in the root of the Python source directory. It imports `swtr_ringbuffer`, instantiates `SwtrRingBuffer`, and runs all 7 test scenarios (T001–T007) using temp files for I/O. No separate `tests/` directory is needed for Python.
    - **Dockerfile Package Validation** (Linux targets only):
-     - For each target OS, check the per-OS Dockerfile at `src/common/python/containers/<os>/Dockerfile` and verify it contains:
+     - For each target OS, check the per-OS Dockerfile at `../../<os>/containers/build/Dockerfile` and verify it contains:
        - `python3` — latest available Python 3.x in each distro's repos (Fedora: latest stable; Debian/Ubuntu: default python3 which is the distro's latest)
        - `python3-pip` — Python package manager
      - If missing, add to the Dockerfile RUN command:

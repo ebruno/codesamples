@@ -271,7 +271,7 @@ endif
 ```bash
 # Build a Debian container image from macOS host
 container build -t ringbuffer_debian_build:latest \
-    --file src/debian/cpp/containers/Dockerfile.debian \
+    --file debian/containers/build/Dockerfile.debian \
     .
 
 # Run a build inside the container from macOS host

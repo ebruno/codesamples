@@ -29,7 +29,7 @@ Before creating the Dockerfile, check if `.dockerfile_created_by_step0` exists (
 **macOS Skip for Arch Linux**: Arch Linux container images are amd64-only. On Apple Silicon (M-series) Macs, there is no ARM64 Arch Linux container available. The `container` target MUST detect macOS and skip gracefully with a logged message (see `prompts/archlinux/cpp/build.md` for the exact skip logic).
 
 **Environment Initialization**:
-After creating the build configuration and ensuring the Dockerfile at `src/archlinux/cpp/containers/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
+After creating the build configuration and ensuring the Dockerfile at `archlinux/containers/build/Dockerfile` is in place, you MUST execute `make container` from the source directory. This step verifies that:
 1. The host OS is correctly detected.
 2. On Linux hosts, the build image (`ringbuffer_archlinux_build`) is successfully created or updated.
 3. On macOS hosts, the skip logic executes correctly with appropriate logging.
@@ -64,7 +64,7 @@ Once implementation is complete, generate a summary report at `src/archlinux/cpp
 
 ## Artifacts Created
 - **Makefile**: `src/archlinux/cpp/Makefile`
-- **Dockerfile**: `src/archlinux/cpp/containers/Dockerfile` (Linux hosts only)
+- **Dockerfile**: `archlinux/containers/build/Dockerfile` (Linux hosts only)
 - **Specs**: `specs/build.md`, `specs/testing_requirements.md`, `specs/artifacts.md`
 - **Library Artifacts**: [List of `.a` and `.so` files in `lib/`]
 - **Logs**: `build.log` created and updated.

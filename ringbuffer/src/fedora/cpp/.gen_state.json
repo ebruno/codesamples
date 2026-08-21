@@ -1,61 +1,40 @@
 {
-  "platform": "fedora",
-  "version": {
-    "MAJOR": 1,
-    "MINOR": 0,
-    "SUBVERSION": 0,
-    "BUILD_ID": 1
+  "language": "cpp",
+  "version": "1.0.0-1",
+  "compiler_version": "g++ (Fedora 44 container)",
+  "build_status": {
+    "fedora": {
+      "route": "container",
+      "status": "PASS",
+      "timestamp": "2026-08-20T16:29:10-0700"
+    }
   },
-  "spec_hashes": {
-    "Makefile": "883ccb7ef5af4349c921ae614bbb23d1fba32b9ef7491f50a6171fad9be6a562",
-    "containers/Dockerfile": "6727f9ca76c2d99593e9313a54fbbc04a42c6c2f2be15e3e116aab4205c35a44",
-    "specs/build.md": "8629893e8ba57aaba09685a3cfab45412353a7eee726ae493c85c422a619bc8e",
-    "specs/testing_requirements.md": "450d7572850c10c1b08ae4ca828e47edf2a7eff7fa744f03c462e20245534e8f",
-    "specs/artifacts.md": "d3c82025504fcd8783776b509cbcb8366e9a5607fc0363ba5bd9d9dcd3b81700",
-    "common/cpp/build.md": "1c64df9ec5a80a088ad0286c8149f40d2712eec123fb07f12d1ca3152d6637d1",
-    "fedora/cpp/build.md": "54a4e1e6d1bebfd4e95db466f6757bf902b7c77b46f9a2efdc729411a67f7f6b",
-    "tests/Makefile": "2eea8d1e2e9ef6fed9ca9206a45102ed70e37244d40ea80344a56b955977945d",
-    "tests/containers/fedora/Dockerfile": "9f62604aa2dd438f7f4184d062927c1bee591596afbb8d0d9baefdab99186fd7",
-    "tests/utils/bin/generate_junit_report.sh": "1b0c0c399ad8dffad18d1381bff381e40d481d2896b01370badc267adfc6a195",
-    "tests/utils/bin/generate_test_data.sh": "cfeb0d6773edcb69ef0a96c8d8aa5147f46e3e3bcb13430cd18116ef5891a306",
-    "tests/utils/bin/verify_test_data.sh": "aa8c4c7c3b6ebcd1a3bc4b54cd8accbffd1905f09f2cb0b31e87e3d6967cadcc",
-    "common/cpp/testing.md": "3f3842aae80dafb42072e7fa04d366a0cff47d38d22c4112c5472cdf15c31213",
-    "fedora/cpp/testing.md": "6a8ea0228ce3dcb4fd3ce074ff3ed8e368804271dc71c4aafb3f43cc181bfe11"
+  "artifacts": {
+    "static_lib": "lib/libswtr_ringbuffer-1.0.0-1.a",
+    "shared_lib": "lib/libswtr_ringbuffer-1.0.0-1.so"
   },
-  "file_fingerprints": {
-    "status.hpp": "c91cbda5df318cd50626e1fe1c14c1f20f70660beafa2b9dc9eea3fbde0f974f",
-    "ringbuffer.hpp": "9bae114d96201e7e70c02b153e62580b39484b3e963624f5c15c6be70d8d7997",
-    "swtr_ringbuffer_impl.hpp": "6b132f5cf97b18384fa3318f06efc460bcc023aac58cfb2b13629ad66338d97a",
-    "Lifecycle.cpp": "10788df98585c2c6dda60b5a9185bfdb639f7f95fff2f095cbadc780500efefa",
-    "ReadOps.cpp": "967b13dd4deb52dc96e34262564d8c4899529b315dbd650ff3f0690e205b5520",
-    "TransformOps.cpp": "ab3dce46787a272b14cee8fd9baeeb02393f84392b63b4d59ef5e69de59bd375",
-    "WriteOps.cpp": "4045dcedd2f3baac7f2a82968b1732168de2145370d142cc1cfb5c823f01cc4c",
-    "Threading.cpp": "5412e4574461fce9b4151faaeb5684f0618f5c001dec834a0a4d698247957db6",
-    "ErrorOps.cpp": "3f7d24c6b67e222db677f08fd7c9f4b6a7669ed48e1678634dde17e4e0a337a9",
-    "LoggingOps_1.cpp": "046dc0f83d4220b7793e5ed3ca8e9891be2ee724f323f213a77fefa6ca59bc29",
-    "LoggingOps_2.cpp": "bb42c7318f8018634255b68f7d9013b089099f640b0e0f56aad2ce1a93ddb7b9",
-    "LoggingOps_3.cpp": "9de02b196e07e231ca1bb2ad74040601973248547fbd80d45272d5a9b5782c0c",
-    "LoggingOps_4.cpp": "a26e7b44ae54e883575dbfefae2cb852e98b24ff2d791de5df0798b3dc5ea654",
+  "sha256": {
+    "version_mk": "b2dca3a82c1eb53b89312ad8ac920a888379053e57c2d11eca16521103496c2a",
     "LoggingOps_5.cpp": "a162cb32bc1486a44b0bb0d151c15451bebe0bc8e4c30ba45c55e101f1f7d6b0",
-    "LoggingOps_6.cpp": "7e4157984a58ed182aa05ea7048b07094f1309ed10a1244fee91f30d80a3092e",
-    "Accessors_Status.cpp": "24a37e639a07dfd502cfd73588d480f8295564ed1420d5920b215ce6080c616b",
-    "Accessors_ChecksumAlg.cpp": "cda567c9f96adff830b78ca548be8e00dbf15ce9feaf7df0df45a7855a82ef20",
     "Accessors_ChecksumVal.cpp": "af1067656910afc5780589f05f11610771661fe01618a7fbf17b1f977b4b992d",
-    "Accessors_Size_Max.cpp": "c80a5b89b1cfdbaaa796ba3cb77d1630cdf35f375ef2dd29806839b77f14f405",
-    "Accessors_Size_Data.cpp": "f1c42c6b80db98f555b9214ecb75ceab65467cb1b60e9a46cf550e9394e829d2",
+    "ringbuffer.hpp": "9bae114d96201e7e70c02b153e62580b39484b3e963624f5c15c6be70d8d7997",
+    "LoggingOps_4.cpp": "a26e7b44ae54e883575dbfefae2cb852e98b24ff2d791de5df0798b3dc5ea654",
+    "Accessors_ChecksumAlg.cpp": "cda567c9f96adff830b78ca548be8e00dbf15ce9feaf7df0df45a7855a82ef20",
+    "LoggingOps_6.cpp": "7e4157984a58ed182aa05ea7048b07094f1309ed10a1244fee91f30d80a3092e",
     "Accessors_Size_Transformed.cpp": "133e34e82c43af7e933d9bc5fd5af5be1e5f5bd4bd61879cb1c43fa6c39c1073",
-    "tests/src/test001.cpp": "e27a60a689db122c1deee813519f41a9dc263ada5239e6d7daf240428e461167"
-  },
-  "test_artifact_hashes": {
-    "tests/Makefile": "2eea8d1e2e9ef6fed9ca9206a45102ed70e37244d40ea80344a56b955977945d",
-    "tests/containers/fedora/Dockerfile": "9f62604aa2dd438f7f4184d062927c1bee591596afbb8d0d9baefdab99186fd7",
-    "tests/utils/bin/generate_junit_report.sh": "1b0c0c399ad8dffad18d1381bff381e40d481d2896b01370badc267adfc6a195",
-    "tests/utils/bin/generate_test_data.sh": "cfeb0d6773edcb69ef0a96c8d8aa5147f46e3e3bcb13430cd18116ef5891a306",
-    "tests/utils/bin/verify_test_data.sh": "aa8c4c7c3b6ebcd1a3bc4b54cd8accbffd1905f09f2cb0b31e87e3d6967cadcc",
-    "common/cpp/testing.md": "3f3842aae80dafb42072e7fa04d366a0cff47d38d22c4112c5472cdf15c31213",
-    "fedora/cpp/testing.md": "6a8ea0228ce3dcb4fd3ce074ff3ed8e368804271dc71c4aafb3f43cc181bfe11"
-  },
-  "regression_image": "fedora:44",
-  "generated_at": "2026-08-12T18:15:47-07:00",
-  "source_fidelity": "byte-identical to reference_linux (verified)"
+    "LoggingOps_3.cpp": "9de02b196e07e231ca1bb2ad74040601973248547fbd80d45272d5a9b5782c0c",
+    "LoggingOps_2.cpp": "bb42c7318f8018634255b68f7d9013b089099f640b0e0f56aad2ce1a93ddb7b9",
+    "Accessors_Status.cpp": "24a37e639a07dfd502cfd73588d480f8295564ed1420d5920b215ce6080c616b",
+    "LoggingOps_1.cpp": "046dc0f83d4220b7793e5ed3ca8e9891be2ee724f323f213a77fefa6ca59bc29",
+    "ReadOps.cpp": "789860e893e7de8248d776fdbd772b2f25ce9179182dd30da5ac5f0b09731d4d",
+    "Accessors_Size_Data.cpp": "f1c42c6b80db98f555b9214ecb75ceab65467cb1b60e9a46cf550e9394e829d2",
+    "Lifecycle.cpp": "10788df98585c2c6dda60b5a9185bfdb639f7f95fff2f095cbadc780500efefa",
+    "TransformOps.cpp": "f7fb4abd41d4e0c3ace96abe45dea00da28ba62c87212f1e166c482e54d35441",
+    "status.hpp": "c91cbda5df318cd50626e1fe1c14c1f20f70660beafa2b9dc9eea3fbde0f974f",
+    "ErrorOps.cpp": "3f7d24c6b67e222db677f08fd7c9f4b6a7669ed48e1678634dde17e4e0a337a9",
+    "Accessors_Size_Max.cpp": "c80a5b89b1cfdbaaa796ba3cb77d1630cdf35f375ef2dd29806839b77f14f405",
+    "Threading.cpp": "383dee7a7addf4f827228726dcc551ea0196eca8302cf33db62f037cd8730076",
+    "swtr_ringbuffer_impl.hpp": "e4ca77e0d1924ccf4fa47d523c29db7c4c4158a0ea9978b3d17db2b965f68564",
+    "WriteOps.cpp": "6ce4807b860938c272bfc8b18d02ad4771ae558dccda94463f251aab4c39e41d"
+  }
 }

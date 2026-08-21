@@ -32,7 +32,7 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
     - LLVM/Clang: `clang`, `clang-tidy`, `clang-format`.
     - Utilities: `procps`, `coreutils`, `findutils`, `which`, `file`, `patchelf`, `vim`, `strace`, `emacs-nox`, `python3`.
     - Java: `openjdk-21-jdk-headless`, `maven`.
-- **Container Path**: Use `src/raspios/cpp/containers/Dockerfile`.
+- **Container Path**: Use `raspios/containers/build/Dockerfile`.
 - **Cleanup**: The `Makefile` MUST implement a `clean` rule that removes the `build/` and `lib/` directories, all object files (`*.o`), and all backup files (`*~`, `#*#`).
 
 **Host-Target Compatibility**: Raspberry Pi OS is arm64-only. On Apple Silicon Macs, containers run natively (no cross-architecture emulation needed). On x86_64 hosts, use `--platform linux/arm64` with podman.
@@ -57,7 +57,7 @@ The `container` target must perform the following logic:
     - **Linux (Debian, Fedora, etc.)**: Use the `podman` command.
 2. **Image State Management**:
     - **Check Existence**: Verify if the image `ringbuffer_raspios_build` already exists.
-    - **Create**: If the image does not exist, create it using the `Dockerfile` located at `src/raspios/cpp/containers/Dockerfile`.
+    - **Create**: If the image does not exist, create it using the `Dockerfile` located at `raspios/containers/build/Dockerfile`.
     - **Update**: If the image exists, rebuild/update it to ensure it is in sync with the current `Dockerfile` specification.
 3. **Image Cleanup**:
     - A separate `Makefile` target (e.g., `container-clean`) MUST be implemented to remove the `ringbuffer_raspios_build` image from the host system.
@@ -91,7 +91,7 @@ If the `make container` target fails during image creation or update:
 
 1. **Report**: Display the full error output from the failed container build command.
 2. **Diagnose** using these common failure modes:
-   - **Dockerfile errors**: Syntax errors, missing base image, failed `RUN` commands. Check the Dockerfile at `src/<os>/cpp/containers/Dockerfile`.
+   - **Dockerfile errors**: Syntax errors, missing base image, failed `RUN` commands. Check the Dockerfile at `../<os>/containers/build/Dockerfile`.
    - **Package installation failures**: Package names may have changed in newer base images. Verify package availability with `apt-cache search <package>`.
    - **Network issues**: Base image pull failures. Retry or configure a mirror registry.
 3. **Fix and retry** at most **2 times**. If all retries fail, STOP and report the final error. Do NOT proceed to build or test steps.

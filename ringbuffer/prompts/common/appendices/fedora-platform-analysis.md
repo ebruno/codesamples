@@ -326,7 +326,7 @@ endif
 
 ```bash
 # Build a Fedora container image from macOS host
-container build -t ringbuffer_fedora_build:latest     --file src/fedora/cpp/containers/Dockerfile.fedora     .
+container build -t ringbuffer_fedora_build:latest     --file fedora/containers/build/Dockerfile.fedora     .
 
 # Run a build inside the container from macOS host
 container run --rm -v $(pwd):/workspace ringbuffer_fedora_build:latest     make all

@@ -38,9 +38,30 @@ LIB_NAME = libswtr_ringbuffer
 VERSIONED_STATIC = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).so
 
-.PHONY: test  all static shared clean dist-clean test-all
+.PHONY: test  all static shared clean dist-clean container container-clean test-all
 
-all: static shared
+# Container Configuration
+CONTAINER_IMAGE = ringbuffer_fedora_build
+DOCKERFILE = ../containers/build/Dockerfile
+
+# Detect Container Runtime and Host OS
+HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
+ifeq ($(UNAME_S),Darwin)
+    CONTAINER_CMD = container
+else
+    CONTAINER_CMD = podman
+endif
+
+# When host is not Fedora (e.g. macOS), auto-build inside container
+ifeq ($(UNAME_S),Darwin)
+    all: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
+else ifneq ($(HOST_DISTRO),fedora)
+    all: container
+	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
+else
+    all: clean static shared
+endif
 
 static: $(VERSIONED_STATIC)
 	@cd $(LIB_DIR) && ln -sf libswtr_ringbuffer-$(VERSION).a libswtr_ringbuffer.a
@@ -66,6 +87,26 @@ clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
 	@find . -name '*.o.tmp' -delete 2>/dev/null || true
 
-dist-clean: clean
+dist-clean: clean container-clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 	@$(RM) reports ../reports logs
+
+# Container Management
+container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then \
+		echo "ERROR: No container runtime found."; exit 1; \
+	fi
+	@if ! $(CONTAINER_CMD) image ls --quiet | grep -q "$(CONTAINER_IMAGE)"; then \
+		echo "Image $(CONTAINER_IMAGE) not found. Building..."; \
+		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) .; \
+	else \
+		echo "Image $(CONTAINER_IMAGE) already exists. Skipping build."; \
+	fi
+	@echo "Container environment ready."
+
+container-clean:
+	@if [ -z "$(CONTAINER_CMD)" ]; then \
+		echo "ERROR: No container runtime found."; exit 1; \
+	fi
+	@echo "Removing $(CONTAINER_IMAGE)..."
+	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true

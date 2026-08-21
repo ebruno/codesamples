@@ -25,12 +25,17 @@ build-cpp: check-makefile
 	@echo "=== Building C++ shared library from $(CPP_SRC_DIR) ===" >> $(LOG_FILE); cd $(CPP_SRC_DIR) && make all > $(BUILD_OUTPUT) 2>&1; BUILD_EXIT=$$?; cat $(BUILD_OUTPUT); if [ $$BUILD_EXIT -ne 0 ]; then echo "WARNING: C++ build failed (exit code $$BUILD_EXIT)" >> $(LOG_FILE); echo "C++ shared library not available - running Pure Python tests only"; touch .cpp_build_failed; exit 0; fi
 
 # Symlink shared library (single-line)
+# Note: CPP_SRC_DIR is relative to src/common/python/, but symlink target is resolved from lib/ subdirectory
+# So we need one extra ../ to account for the lib/ directory depth
 symlink: build-cpp
-	@rm -f .cpp_build_failed; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] C++ build succeeded" >> $(LOG_FILE); mkdir -p lib; if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib ]; then rm -f lib/libswtr_ringbuffer.dylib; ln -s $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib lib/libswtr_ringbuffer.dylib; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Symlinked libswtr_ringbuffer.dylib to lib/" >> $(LOG_FILE); fi
+	@rm -f .cpp_build_failed; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] C++ build succeeded" >> $(LOG_FILE); mkdir -p lib; if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib ]; then rm -f lib/libswtr_ringbuffer.dylib; ln -s ../$(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib lib/libswtr_ringbuffer.dylib; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Symlinked libswtr_ringbuffer.dylib to lib/" >> $(LOG_FILE); fi
 
-# Main build target
+# Main build target — always clean first for repeatability
 build: symlink
 	@echo "C++ build complete"
+
+# Clean + build — always starts from scratch for repeatability
+all: clean build
 
 # Syntax check (single-line)
 syntax-check:
