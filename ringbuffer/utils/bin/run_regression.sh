@@ -15,7 +15,7 @@ usage() {
     echo "  verify   — Run full regression test matrix (T001-T007) using ringbuffer_<os>_test"
     echo "  build    — Build library only using ringbuffer_<os>_build"
     echo ""
-    echo "Supported OS: macos, debian, fedora, ubuntu, raspios, archlinux"
+    echo "Supported OS: macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14"
     exit 1
 }
 
@@ -30,8 +30,8 @@ IMAGE_OVERRIDE="${3:-}"
 
 # Validate OS
 case "$TARGET_OS" in
-    macos|debian|fedora|ubuntu|raspios|archlinux) ;;
-    *) echo "ERROR: Unsupported OS '$TARGET_OS'. Supported: macos, debian, fedora, ubuntu, raspios, archlinux"; exit 1 ;;
+    macos|debian|fedora|ubuntu|raspios|archlinux|freebsd14) ;;
+    *) echo "ERROR: Unsupported OS '$TARGET_OS'. Supported: macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14"; exit 1 ;;
 esac
 
 # Validate action
@@ -375,6 +375,43 @@ run_container() {
     return $?
 }
 
+# SSH execution for FreeBSD 14 (remote host, /bin/sh wrapper)
+run_ssh() {
+    echo "=== SSH execution: $ACTION on $TARGET_OS ==="
+
+    local ssh_host="ebruno@10.10.41.244"
+    local remote_base="~/source_code/codesamples/ringbuffer"
+    local os_dir="$WORKSPACE/src/${TARGET_OS}/cpp"
+
+    if [ ! -d "$os_dir/tests" ]; then
+        echo "ERROR: $os_dir/tests does not exist."
+        exit 1
+    fi
+
+    # Step 1: Create tarball of needed files
+    local tarball="/tmp/ringbuffer_${TARGET_OS}.tar.gz"
+    echo "Creating tarball..."
+    tar -czf "$tarball" -C "$WORKSPACE/src" "${TARGET_OS}/cpp"
+
+    # Step 2: SSH to remote -> clean workspace (delete old files)
+    echo "Cleaning remote workspace..."
+    ssh "$ssh_host" "rm -rf ${remote_base}/src/${TARGET_OS}/cpp/*"
+
+    # Step 3: SCP tarball over -> unpack on remote
+    echo "Syncing files to remote..."
+    scp "$tarball" "${ssh_host}:${remote_base}/"
+    ssh "$ssh_host" "cd ${remote_base} && tar -xzf ringbuffer_${TARGET_OS}.tar.gz"
+    rm -f "$tarball"
+
+    # Step 4: Run make clean in parent dir, make clean in tests dir, then make verify
+    echo "Running regression on remote..."
+    ssh "$ssh_host" "/bin/sh -c 'cd ${remote_base}/src/${TARGET_OS}/cpp && make clean 2>&1'"
+    ssh "$ssh_host" "/bin/sh -c 'cd ${remote_base}/src/${TARGET_OS}/cpp/tests && make clean 2>&1'"
+    ssh "$ssh_host" "/bin/sh -c 'cd ${remote_base}/src/${TARGET_OS}/cpp/tests && make verify 2>&1'"
+
+    return $?
+}
+
 # Main execution
 echo "============================================="
 echo "Ringbuffer Regression Runner"
@@ -384,7 +421,9 @@ echo "  Action:     $ACTION"
 echo "  Container:  $CONTAINER_IMAGE"
 echo "============================================="
 
-if [ "$is_native" = true ]; then
+if [ "$TARGET_OS" = "freebsd14" ]; then
+    run_ssh
+elif [ "$is_native" = true ]; then
     run_native
 else
     run_container

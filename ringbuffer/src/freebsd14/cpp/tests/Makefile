@@ -15,15 +15,24 @@ LIB_DIR = ../lib
 LOG_DIR = logs
 REPORT_DIR = reports
 
-all: test001_staticlib test001_dynamiclib
+# Library build rules (static-only — FreeBSD 14 RPATH limitation)
+STATIC_LIB = ${LIB_DIR}/libswtr_ringbuffer.a
+
+${STATIC_LIB}: ../Makefile
+	@echo "Building C++ library..."
+	${MAKE} -C .. all
+
+.PHONY: build-cpp
+build-cpp:
+	@if [ -f ../UNSUPPORTED.md ]; then echo "C++ unsupported on this platform — skipping C++ build"; else \
+		if [ ! -f ${STATIC_LIB} ]; then echo "Building C++ library..."; make -C .. all; else echo "C++ library already present."; fi; \
+	fi
+
+all: test001_staticlib
 
 test001_staticlib: src/test001.cpp
 	@mkdir -p ${BIN_DIR}
 	${CXX} ${CXXFLAGS} src/test001.cpp ${LIB_DIR}/libswtr_ringbuffer.a -o ${BIN_DIR}/test001_staticlib
-
-test001_dynamiclib: src/test001.cpp
-	@mkdir -p ${BIN_DIR}
-	${CXX} ${CXXFLAGS} src/test001.cpp -L${LIB_DIR} ${LDFLAGS} -lswtr_ringbuffer -o ${BIN_DIR}/test001_dynamiclib
 
 deploy_utils:
 	@echo "Utils already present from tar extraction"
@@ -31,7 +40,7 @@ deploy_utils:
 container:
 	@echo "Container not used for FreeBSD native build"
 
-verify: deploy_utils all
+verify: build-cpp deploy-utils
 	@mkdir -p ${LOG_DIR} ${REPORT_DIR}
 	@echo "Compiler:" > ${REPORT_DIR}/compiler_version.txt
 	@clang++ -v >> ${REPORT_DIR}/compiler_version.txt 2>&1 || true

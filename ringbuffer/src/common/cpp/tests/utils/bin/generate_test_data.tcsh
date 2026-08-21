@@ -63,8 +63,10 @@ while ($n <= $lines)
         set prefix = "${n} "
     endif
     
+    set suffix = $(printf "%04d" $n)
+    
     if ($n == 1) then
-        set line = "${prefix}${template} ${prefix}"
+        set line = "${prefix}${template} ${suffix}"
     else
         # Calculate zig-zag position
         @ idx = $n - 2
@@ -80,7 +82,7 @@ while ($n <= $lines)
         # Replace character at position i with space (1-based index in Tcsh)
         set prefix_part = "${template:0,$((i-2))}"
         set suffix_part = "${template:$i,${#template}}"
-        set line = "${prefix}${prefix_part} ${suffix_part} ${prefix}"
+        set line = "${prefix}${prefix_part} ${suffix_part} ${suffix}"
     endif
     
     if ($output_file != "") then

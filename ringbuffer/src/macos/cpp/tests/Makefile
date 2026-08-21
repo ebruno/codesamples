@@ -25,6 +25,24 @@ endif
 DISTINCT_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
   $(if $(filter $(COMP),$(DISTINCT_COMPILERS)),,$(shell if [ -x "$(COMP)" ] && ! $(COMP) --version 2>/dev/null | grep -q "clang"; then echo "$(COMP)"; fi)))
 
+# Library build rules (invoked when library is missing)
+STATIC_LIB = $(LIB_DIR)/libswtr_ringbuffer.a
+SHARED_LIB = $(LIB_DIR)/libswtr_ringbuffer.dylib
+
+$(STATIC_LIB): ../Makefile
+	@echo "Building C++ library..."
+	$(MAKE) -C .. all
+
+$(SHARED_LIB): ../Makefile
+	@echo "Building C++ library..."
+	$(MAKE) -C .. all
+
+.PHONY: build-cpp
+build-cpp:
+	@if [ -f ../UNSUPPORTED.md ]; then echo "C++ unsupported on this platform — skipping C++ build"; else \
+		if [ ! -f $(STATIC_LIB) ]; then echo "Building C++ library..."; make -C .. all; else echo "C++ library already present."; fi; \
+	fi
+
 all: test001_staticlib test001_dynamiclib
 
 test001_staticlib: src/test001.cpp
@@ -42,7 +60,7 @@ deploy_utils:
 container:
 	@echo "Container not used for macOS native build"
 
-verify: deploy_utils all
+verify: build-cpp deploy-utils all
 	@mkdir -p $(LOG_DIR) $(REPORT_DIR)
 	@# Audit Trail: capture compiler and linker versions
 	@echo "Compiler:" > $(REPORT_DIR)/compiler_version.txt
