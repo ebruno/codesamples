@@ -45,7 +45,7 @@ sudo pacman -S --needed base-devel gcc clang make binutils
 | Unversioned symlink | `lib/libswtr_ringbuffer.so` | Convenience symlink to shared library |
 
 ## Container Support
-Arch Linux builds run natively on Linux hosts. On Apple Silicon Macs, containers are not available (Arch Linux container images are amd64-only):
+Arch Linux builds run natively on Linux hosts. On Apple Silicon Macs, containers are not available because Arch Linux does not provide an official, standard container image for ARM architectures (e.g., Apple Silicon, Raspberry Pi). The official archlinux Docker images are built exclusively for the x86_64 architecture.
 
 ```bash
 make container  # Outputs: "Container not used for Arch Linux native build"

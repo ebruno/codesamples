@@ -26,6 +26,31 @@ The correct workflow:
 
 **SELF-ENFORCING: If you edit this file, the very next action MUST be `cp .bionic CLAUDE.md`. Do not perform any other action between editing and copying. This rule has been violated multiple times — treat it as critical.**
 
+### .bionic → CLAUDE.md Sync — Pre-Flight Check (MANDATORY)
+
+**Before performing ANY action after editing `.bionic`, you MUST verify the sync has been completed:**
+
+1. **After editing `.bionic`**, before doing anything else (including responding to the user, running commands, or reading other files):
+   - Run `cp .bionic CLAUDE.md` (or `make sync-claude` if available)
+   - Verify the copy succeeded: `diff .bionic CLAUDE.md` should produce no output
+2. **If you catch yourself about to do anything else before syncing**, STOP — sync first.
+3. **If you discover `.bionic` was edited but `CLAUDE.md` is stale**, sync immediately and note the gap.
+
+**This check is mandatory — not optional.** The rule exists in `.bionic` but has been violated multiple times because the sync step was forgotten. Relying on memory alone has failed.
+
+**Example — Pre-Flight Check in Action:**
+```bash
+# ❌ BEFORE pre-flight check: edited .bionic but forgot to sync
+echo "New rule" >> .bionic
+# ... proceeds to do other work with stale CLAUDE.md ...
+
+# ✅ AFTER pre-flight check: sync immediately after edit
+echo "New rule" >> .bionic
+cp .bionic CLAUDE.md  # ← MUST be the very next action
+diff .bionic CLAUDE.md  # Verify no differences
+# ... now proceed with other work ...
+```
+
 ## ⚠️ MANDATORY: Read Entire .bionic File
 **Always read the ENTIRE `.bionic` file at session start. Use this exact pattern:**
 
@@ -636,6 +661,39 @@ Every language follows the same two-step pattern:
 - Am I in `run_regression`? → Must run `make verify`, NOT `make all`
 - If unsure, re-read the workflow header to confirm which mode you are in.
 
+### Build vs Test Workflow — Pre-Flight Check (MANDATORY)
+
+**Before running ANY `make` command in the build or test workflow, you MUST perform this pre-flight check:**
+
+1. **Identify which workflow mode** you are in:
+   - `verify_build` → Build only, no tests
+   - `run_regression` → Test matrix T001-T007 (includes build)
+2. **State the correct command** for your mode:
+   - `verify_build` → Must run `make all` (build only, no tests)
+   - `run_regression` → Must run `make verify` in the `tests/` directory (build + T001-T007)
+3. **Verify the command matches your mode** — if they don't match, STOP and re-read the workflow header
+4. **Verify you are in the correct directory**:
+   - `verify_build` → `<os>/<lang>/Makefile all`
+   - `run_regression` → `tests/Makefile verify`
+5. **If any violation is found**, STOP and re-read the workflow header to confirm which mode you are in
+
+**This check is mandatory — not optional.** Confusing `make all` with `make verify` has caused tests to run during build verification (masking real problems) and builds to be skipped during regression testing. The rule exists in `.bionic` but must be actively verified before each `make` command.
+
+**Example — Pre-Flight Check in Action:**
+```bash
+# ❌ BEFORE pre-flight check: running make verify during verify_build (wrong!)
+cd src/macos/cpp && make verify  # ← This runs tests during build verification
+
+# ✅ AFTER pre-flight check: verify_build → must use make all
+cd src/macos/cpp && make all  # ← Build only, no tests
+
+# ❌ BEFORE pre-flight check: running make all during run_regression (wrong!)
+cd src/macos/cpp/tests && make all  # ← This skips the test matrix
+
+# ✅ AFTER pre-flight check: run_regression → must use make verify
+cd src/macos/cpp/tests && make verify  # ← Build + T001-T007 test matrix
+```
+
 ### Standard Clean + Build Process (When C++ Is Used)
 
 For any language that depends on the C++ shared library (Python, and future languages with C bindings), the standard process before running `make all` in the language directory is:
@@ -717,6 +775,52 @@ The project includes two automated verification scripts in `prompts/common/cpp/u
 
 These scripts are referenced by `verify_build.md` and should be run as part of the build verification workflow.
 
+### Lint Script Update Discipline
+
+The lint scripts (`lint_prompts.sh`, `lint_prompts.zsh`) are the **single source of truth for prompt directory validation**. They should only be updated in these cases:
+
+1. **New required structure** — A new prompt file, directory, or convention has been added to the project (e.g., a new language spec, a new OS scaffold). The lint script must be updated to validate the new structure.
+
+2. **Removed/renamed structure** — A prompt file, directory, or convention has been removed or renamed. The lint script must be updated to stop checking for the old structure and check for the new one.
+
+3. **False positive bug** — The lint script incorrectly flags a valid structure as an error (e.g., it checks for `prompts/common/` but the actual path is `common/` relative to PROMPTS_ROOT). Fix the script, not the prompts.
+
+4. **New validation category** — A new type of check is needed (e.g., checking for duplicate step numbers, verifying report format compliance).
+
+**When NOT to update the lint script:**
+- **Do not add new entries to `EXCLUDED_PLATFORMS` or `PARTIAL_PLATFORMS`** just because a platform has expected non-standard content. Instead, evaluate whether the platform should be excluded/partial or whether its content needs fixing.
+- **Do not silence warnings** for platforms that should be passing checks (e.g., don't add `archlinux` to `EXCLUDED_PLATFORMS` just because it has non-zero content — fix the content or confirm exclusion is correct).
+- **Do not change `report_warning` to `report_pass`** (or vice versa) without confirming the underlying state is actually correct. The report level reflects whether a check result is acceptable, not convenience.
+
+**Procedure:**
+1. When the lint script reports an error or warning, first determine: is this a **real structural issue** (fix the prompts) or a **script bug** (fix the script)?
+2. If fixing the script, update all variants (`.sh`, `.zsh`) consistently.
+3. After any lint script change, re-run the full lint check and confirm **111/111 checks pass with 0 warnings and 0 errors** before considering the change complete.
+4. Record the change in `prompts/common/CHANGELOG.md` with rationale.
+
+**Automation Modes:**
+The lint script supports two automation modes for triage and self-validation:
+
+- **`--triage`** — Runs the full lint check but categorizes each result into one of four categories:
+  - `PASS` — Check passed, no action needed
+  - `REAL_ISSUE` — Real structural problem in prompts (fix the prompts)
+  - `SCRIPT_BUG` — Lint script incorrectly flags valid structure (fix the script)
+  - `LEGAL_STATE` — Expected state for excluded/partial platforms
+  
+  Usage: `./lint_prompts.sh <workspace_root> --triage`
+  
+  Output includes a summary grouped by category with rationale for each categorization.
+
+- **`--self-audit`** — Validates the lint script's own configuration:
+  - Every entry in `EXCLUDED_PLATFORMS` must have zero-length prompt files (or only exclusion messages)
+  - Every entry in `PARTIAL_PLATFORMS` must have non-zero content (otherwise it should be excluded or fixed)
+  - Every required file path in the check list must exist somewhere in the prompts tree (catches typos)
+  - No duplicate check definitions
+  
+  Usage: `./lint_prompts.sh <workspace_root> --self-audit`
+  
+  Exit 0: Script configuration is valid. Exit 1: Issues found in script configuration.
+
 ---
 
 **IMPORTANT: This .bionic file was auto-loaded at session startup. Please acknowledge and follow the instructions above.**
@@ -796,6 +900,39 @@ Step 4: shell_command → cat chunkA chunkB chunkC > target/path/file.md (host)
 - **Never prepend `localhost/`** to image names with the `container` CLI on macOS.
 - **Never use Docker references in macOS context** — even comparison phrases like "(equivalent to docker run)" can mislead agents into using `docker` instead of `container`.
 
+### Docker vs Container — Pre-Flight Check (MANDATORY)
+
+**Before writing or modifying ANY script that invokes a container runtime, you MUST perform this pre-flight check:**
+
+1. **Identify the target host OS** — Is it macOS, Linux (which distro?), or something else?
+2. **List every container command** you plan to use in the script (`docker`, `podman`, or `container`)
+3. **Verify each command against the host OS:**
+   - macOS → must use `container` only. If any `docker` or `podman` appears, STOP and replace.
+   - Linux → must use `podman` (preferred) or `docker`. If any `container` appears, STOP and replace.
+4. **Verify no `localhost/` prefix** on macOS — image names must be bare (e.g., `fedora:44`, NOT `localhost/fedora:44`)
+5. **Verify no Docker references in macOS context** — even comparison phrases like "(equivalent to docker run)" are forbidden
+6. **If any violation is found**, STOP and find the correct command for the target host OS
+
+**This check is mandatory — not optional.** Using the wrong container runtime breaks everything on macOS and wastes time debugging. The rule exists in `.bionic` but must be actively verified before each script write.
+
+**Example — Pre-Flight Check in Action:**
+```bash
+# ❌ BEFORE pre-flight check: uses docker on macOS (will fail)
+podman build -t ringbuffer_fedora_build .
+
+# ✅ AFTER pre-flight check: macOS host → use container CLI
+container image build -t ringbuffer_fedora_build .
+```
+
+**Example — Linux Host:**
+```bash
+# ❌ BEFORE pre-flight check: uses container on Linux (will fail)
+container run --rm ringbuffer_fedora_test make verify
+
+# ✅ AFTER pre-flight check: Linux host → use podman
+podman run --rm ringbuffer_fedora_test make verify
+```
+
 ### Shell Script Portability Rule — No Platform-Dependent External Tools in Bash/Zsh
 
 When creating or modifying shell scripts (`.sh`, `.zsh`), **do not use external tools whose behavior differs across platforms** — rely only on built-in shell features and universally available utilities. This applies to all scripts in the repository, including those in `prompts/`, `utils/bin/`, and any other script directories.
@@ -867,6 +1004,38 @@ count := $(shell grep -c "pattern" file.txt)   # grep is fine here
 count := $(shell read -ra fields <<< "$data")   # here-strings don't exist in /bin/sh
 ```
 
+### Shell Script Portability — Pre-Flight Check (MANDATORY)
+
+**Before writing or modifying ANY shell script (`.sh`, `.zsh`), you MUST perform this pre-flight check:**
+
+1. **List every external tool** you plan to use in the script (anything not a bash/zsh builtin)
+2. **Cross-reference against the forbidden list**: `awk`, `sed`, `grep`, `cut`, `tr`, `sort`, `uniq`, `find`, `xargs`
+3. **Replace each forbidden tool** with a bash/zsh builtin equivalent:
+   - `grep` → `case` pattern matching or `[[ "$var" == *pattern* ]]`
+   - `sed 's/old/new/'` → `${var//old/new}` parameter expansion
+   - `awk '{print $1}'` → read into array with `read -ra`
+   - `wc -l` → count lines using bash arithmetic or array length `${#array[@]}`
+   - `head -1` → read first line with `IFS= read -r first_line`
+   - `tail -1` → use array indexing `${array[-1]}`
+4. **If you cannot find a builtin equivalent**, document why in a comment and use the external tool with an exception note
+5. **Verify compliance** — if any forbidden tool remains in the script after this check, STOP and find a builtin replacement
+
+**This check is mandatory — not optional.** The rule exists in `.bionic` but must be actively verified before each script write. Relying on memory alone has led to violations.
+
+**Example — Pre-Flight Check in Action:**
+```bash
+# ❌ BEFORE pre-flight check: uses grep (forbidden)
+count=$(grep -c "pattern" file.txt)
+
+# ✅ AFTER pre-flight check: uses bash builtin
+count=0
+while IFS= read -r line; do
+    case "$line" in
+        *pattern*) count=$((count + 1)) ;;
+    esac
+done < file.txt
+```
+
 ### Shebang Line Rule — Use `env` for Portability
 
 All shell scripts MUST use a shebang line that invokes the interpreter via `env` rather than a hardcoded path:
@@ -916,5 +1085,37 @@ When you edit `README.md` directly (add a section, change content, restructure):
 4. Never commit a diagram that hasn't been validated with `mmdc`
 
 **This rule is self-referential: if you are reading this, you have already read it.**
+
+### Mermaid Diagram Validation — Pre-Flight Check (MANDATORY)
+
+**Before updating `README.md`, you MUST perform this pre-flight check:**
+
+1. **Load and read `rules/mermaid-validation.md`** — this file contains the critical syntax rules that prevent silent parse failures (blank diagrams in GitHub/GitLab)
+2. **Scan `README.md` for mermaid diagram blocks** — look for lines containing ```mermaid or `mermaid`
+3. **If any diagrams exist**, validate each one against the rules in `rules/mermaid-validation.md`:
+   - Parentheses in labels must be quoted: `["text (with parens)"]`
+   - At-signs in edge labels must be quoted: `-->|"ssh@host"| Node`
+   - No `direction` inside subgraphs (use only at top level)
+   - Node names must not start with reserved words (`SSH`, `A`, `B`)
+4. **If any diagram is being added or modified**, validate it with `mmdc` before including it in the README
+5. **If any violation is found**, STOP and fix the diagram syntax before proceeding
+6. **Never commit a diagram** that hasn't been validated with `mmdc`
+
+**This check is mandatory — not optional.** The rule exists in `.bionic` but has been violated multiple times because the mermaid validation file was not loaded before README edits. Relying on memory alone has led to broken diagrams in the README.
+
+**Example — Pre-Flight Check in Action:**
+```bash
+# ❌ BEFORE pre-flight check: edited README.md with mermaid diagram without loading validation rules
+echo '```mermaid' >> README.md
+echo 'graph TD; A[Start] --> B(End)' >> README.md  # Broken: unquoted parens, reserved node name
+# ... proceeds to commit broken diagram ...
+
+# ✅ AFTER pre-flight check: load rules first, then validate
+cat rules/mermaid-validation.md  # ← MUST be the first action before any README edit
+# ... validate diagram syntax against loaded rules ...
+echo '```mermaid' >> README.md
+echo 'graph TD; ["Start"] --> ["End (complete)"]' >> README.md  # Fixed: quoted labels, no reserved names
+mmdc -i README.md -o /tmp/validate.png  # ← Validate with mmdc before including
+```
 
 <!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md --># test hook

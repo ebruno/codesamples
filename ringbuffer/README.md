@@ -943,7 +943,7 @@ flowchart TD
 | **Fedora** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ with `-flto=thin`; dnf package manager |
 | **Debian** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ uses `-flto` (not `-flto=thin`); apt package manager |
 | **Ubuntu** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ with `-flto=thin`; apt package manager |
-| **Arch Linux** | `make all` (GNU make) | `make test` | N/A — SSH only | Multi-compiler Makefile (g++/clang++ auto-detect); amd64-only container |
+| **Arch Linux** | `make all` (GNU make) | `make test` | N/A — SSH only | Multi-compiler Makefile (g++/clang++ auto-detect); amd64-only container — no ARM64 variant available |
 | **Raspberry Pi OS** | `make all` (GNU make) | `make test` | `podman` or `container` | arm64 container image; apt package manager |
 | **FreeBSD 14** | `make all` (BSD make) | `make verify` | N/A — native only | Static library only; no RPATH/$ORIGIN support |
 
@@ -1116,7 +1116,7 @@ Every new OS must be classified by its **container support model** and **host ar
 | **Native-only** | Builds run directly on the host OS using native toolchains. No containers, no Dockerfiles. | None — never use containers | macOS |
 | **Containerized (amd64)** | Runs inside a container on Linux hosts. May or may not work on Apple Silicon depending on architecture. | `podman` on Linux hosts; `container` on macOS (if arm64 image available) | Fedora, Debian, Ubuntu |
 | **Containerized (arm64 native on Apple Silicon)** | Container image is arm64-only, which matches Apple Silicon natively. No emulation needed on M-series Macs. | `podman`/`container` with native arm64 — works on Apple Silicon without skip logic | Raspberry Pi OS |
-| **Linux-hosts-only** | Container image is amd64-only with no ARM64 variant available. Source code generation works everywhere; build/test requires a Linux host. | `podman` on Linux hosts only — macOS must skip gracefully with logging | Arch Linux |
+| **Linux-hosts-only** | Container image is amd64-only with no ARM64 variant available. Arch Linux does not provide an official, standard container image for ARM architectures (e.g., Apple Silicon, Raspberry Pi). The official archlinux Docker images are built exclusively for the x86_64 architecture. Source code generation works everywhere; build/test requires a Linux host. | `podman` on Linux hosts only — macOS must skip gracefully with logging | Arch Linux |
 | **Excluded** | Placeholder directories with zero-length spec files. No active development. | None | FreeBSD 15 only |
 
 **Decision flow for a new OS:**
@@ -1495,7 +1495,7 @@ When implementing a new OS, review these existing implementations as patterns:
 
 **Key characteristics:**
 - Rolling release with no `VERSION_ID` — identified by `ID=arch`
-- Container images are **amd64-only** with no ARM64 variant
+- Container images are **amd64-only** with no ARM64 variant — Arch Linux does not provide an official, standard container image for ARM architectures (e.g., Apple Silicon, Raspberry Pi). The official archlinux Docker images are built exclusively for the x86_64 architecture.
 - macOS skip logic required: source generation works, build/test requires Linux host
 - Uses datestamp container tags: `archlinux:YYYY.MM.DD`
 - Uses `pacman` for package management
