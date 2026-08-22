@@ -1,5 +1,8 @@
 .PHONY: all clean dist-clean container container-clean build test
 
+# Target OS for cross-platform builds (set by verify_build: TARGET_OS=fedora, etc.)
+TARGET_OS ?=
+
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
 
@@ -101,29 +104,28 @@ else
 endif
 
 # Build the C++ shared library and create symlinks (verify_build entry point)
-# Note: CPP_SRC_DIR is relative to src/common/python/, but symlink target is resolved from lib/ subdirectory
-# So we need one extra ../ to account for the lib/ directory depth
-all: clean build
-	@mkdir -p lib
-	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-		if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.dylib ]; then \
-			LIB=$$(ls $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.dylib | head -1); \
-			ln -sf ../$(CPP_SRC_DIR)/lib/"$$(basename $$LIB)" lib/libswtr_ringbuffer.dylib; \
-			echo "Created symlink: lib/libswtr_ringbuffer.dylib -> $$LIB"; \
-		else \
-			echo "WARNING: C++ shared library not found in $(CPP_SRC_DIR)/lib/"; \
-			touch .cpp_build_failed; \
-		fi; \
-	else \
-		if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so ]; then \
-			LIB=$$(ls $(CPP_SRC_DIR)/lib/libswtr_ringbuffer-*.so | head -1); \
-			ln -sf ../$(CPP_SRC_DIR)/lib/"$$(basename $$LIB)" lib/libswtr_ringbuffer.so; \
-			echo "Created symlink: lib/libswtr_ringbuffer.so -> $$LIB"; \
-		else \
-			echo "WARNING: C++ shared library not found in $(CPP_SRC_DIR)/lib/"; \
-			touch .cpp_build_failed; \
-		fi; \
-	fi
+# Auto-container: if on macOS or non-matching host, run inside target OS container
+ifeq ($(TARGET_OS),)
+    all: clean build
+else ifeq ($(UNAME_S),Darwin)
+    all: container-build-$(TARGET_OS)
+	@$(CONTAINER_CMD) run --rm \
+		-v $(pwd)/src/common/python:/app \
+		-v $(pwd)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
+		-v $(pwd)/src/common/cpp:/common/cpp \
+		ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+else
+    HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
+    ifneq ($(HOST_DISTRO),$(TARGET_OS))
+        all: container-build-$(TARGET_OS)
+		@$(CONTAINER_CMD) run --rm \
+			-v $(pwd)/src/common/python:/app \
+			-v $(pwd)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
+			-v $(pwd)/src/common/cpp:/common/cpp \
+			ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+    else
+        all: clean build
+    endif
 
 # Build the C++ shared library - always rebuilds even if library exists
 # to ensure we have the latest build. If build fails, notes it and continues.

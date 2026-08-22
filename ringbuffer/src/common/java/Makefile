@@ -1,5 +1,8 @@
 .PHONY: all clean dist-clean container container-clean test
 
+# Target OS for cross-platform builds (set by verify_build: TARGET_OS=fedora, etc.)
+TARGET_OS ?=
+
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
 
@@ -89,17 +92,27 @@ clean:
 	fi
 
 # Always clean first for repeatability in verify_build
-all: clean
-	@echo "Building Java project..."
-	mvn compile package -q
-	@mkdir -p lib
-	@JAR=$$(find target -maxdepth 1 -name 'ringbuffer-*.jar' ! -name '*-sources.jar' ! -name 'original-*' | head -1); \
-	if [ -n "$$JAR" ]; then \
-		ln -sf "$$(basename $$JAR)" lib/ringbuffer.jar; \
-		echo "Created symlink: lib/ringbuffer.jar -> $$JAR"; \
-	else \
-		echo "ERROR: JAR not found in target/"; exit 1; \
-	fi
+# Auto-container: if on macOS or non-matching host, run inside target OS container
+ifeq ($(TARGET_OS),)
+    all: clean
+else ifeq ($(UNAME_S),Darwin)
+    all: container-build-$(TARGET_OS)
+	@$(CONTAINER_CMD) run --rm \
+		-v $(pwd)/src/common/java:/app \
+		-v $(pwd)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
+		ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+else
+    HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
+    ifneq ($(HOST_DISTRO),$(TARGET_OS))
+        all: container-build-$(TARGET_OS)
+		@$(CONTAINER_CMD) run --rm \
+			-v $(pwd)/src/common/java:/app \
+			-v $(pwd)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
+			ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+    else
+        all: clean
+    endif
+endif
 
 # Run full build + tests via Maven
 test: clean

@@ -268,40 +268,28 @@ Verify that all implemented languages build successfully across supported operat
    - **Determine target OSes to verify**:
      - If a specific OS was requested → only that OS.
      - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
+   - **Routing Decision** (per-OS build path):
+     - **macOS**: Native-only — no containers. Run `make all` directly on the host.
+     - **Linux distros (fedora, debian, ubuntu, raspios)**: Container-based — use `container` on macOS host or `podman` on Linux host.
    - For each target OS:
-     1. **Routing Decision**: Apply the routing table from Step 1.
-        - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
-        - If target matches host → run natively.
-        - Otherwise → use container with the appropriate runtime (`container` on macOS host, `podman` on Linux host).
-     2. **Container Pre-flight Check** (Linux targets only):
-        - macOS host: `command -v container` — if not found, STOP.
-        - Linux host: `command -v podman` — if not found, STOP.
-     3. **Execute Build** (verify_build uses `make all` — build only, no tests):
-        - **Native**: Navigate to `src/common/java/`, then run `make all`. The Makefile automatically:
-          1. Runs Maven to compile and package (`mvn clean compile package`)
-          2. Creates JAR symlink: `lib/ringbuffer.jar` → `target/ringbuffer-<version>.jar`
-        - **Container**: Run in a container matching the target OS:
-          - Build the per-OS build image first: `cd src/common/java && $(CONTAINER_CMD) build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .`
-          - **Per-platform pom.xml override**: If a platform-specific `pom.xml` exists at `src/<os>/java/pom.xml`, mount it to override the common pom.xml. This is required when the platform's JDK version differs from the common spec (e.g., raspios has JDK 17, but common pom.xml uses `<release>25</release>`).
-          ```bash
-          # macOS host targeting Linux distro:
-          if [ -f src/<os>/java/pom.xml ]; then
-              container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && make all"
-          else
-              container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && make all"
-          fi
-          # Linux host targeting another Linux distro:
-          if [ -f src/<os>/java/pom.xml ]; then
-              podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && make all"
-          else
-              podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && make all"
-          fi
-          ```
-     4. **Post-Build Verification**:
+     1. **macOS Build Path** (native):
+        ```bash
+        cd src/common/java && make all
+        # The Makefile runs Maven to compile and package, creates JAR symlink.
+        ```
+     2. **Linux Container Build Path** (fedora, debian, ubuntu, raspios):
+        - The Makefile in `src/common/java/` handles container build and execution automatically.
+        ```bash
+        cd src/common/java && make all TARGET_OS=<os>
+        # The Makefile detects macOS host, uses ringbuffer_<os>_build image,
+        # mounts workspace root and per-platform pom.xml override if present,
+        # and runs make all inside the target OS container.
+        ```
+     3. **Post-Build Verification**:
         - Verify the JAR artifact exists: `target/ringbuffer-<version>.jar`
         - Verify the symlink exists: `lib/ringbuffer.jar` → `target/ringbuffer-<version>.jar`
         - If any check fails, STOP and report the error.
-     5. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java verification on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
+     4. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java verification on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
    ---
 
@@ -310,58 +298,108 @@ Verify that all implemented languages build successfully across supported operat
    - **Determine target OSes to verify**:
      - If a specific OS was requested → only that OS.
      - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14) using the routing table.
+   - **Routing Decision** (per-OS build path):
+     - **macOS**: Native-only — no containers. Run `make all` directly on the host.
+     - **Linux distros (fedora, debian, ubuntu, raspios)**: Container-based — use `container` on macOS host or `podman` on Linux host.
+     - **FreeBSD 14**: Native-only via SSH remote — use `ssh freebsd-runner`.
+     - **Arch Linux**: Native-only via SSH remote — use `ssh archlinux-runner`.
    - For each target OS:
-     1. **Routing Decision**: Apply the routing table from Step 1.
-        - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
-        - If target matches host → run natively.
-        - Otherwise → use container with the appropriate runtime (`container` on macOS host, `podman` on Linux host).
-     2. **Container Pre-flight Check** (Linux targets only):
-        - macOS host: `command -v container` — if not found, STOP.
-        - Linux host: `command -v podman` — if not found, STOP.
-     3. **Execute Build** (verify_build uses `make all` — build only, no tests):
-        - **Native**: Navigate to `src/common/python/`, then run `make all`. The Makefile automatically:
-          1. Builds the C++ shared library from `src/<os>/cpp/` (target-host-specific) via parent Makefile.
-          2. Creates symlink: `lib/libswtr_ringbuffer.so` → `<os>/cpp/lib/libswtr_ringbuffer-<version>.so`
-        - **Container**: Run in a container matching the target OS:
-          - Build the per-OS build image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .`
-          - **Volume mounts**: The Python Makefile.linux uses relative paths (`../../<os>/cpp`) to find C++ source. Inside the container, these resolve to `/<os>/cpp` and `/common/cpp`. Mount both:
-          ```bash
-          # macOS host targeting Linux distro:
-          cd src/common/python && container build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .
-          container run --rm \
-            -v $(pwd)/src/common/python:/app \
-            -v $(pwd)/src/<os>/cpp:/<os>/cpp \
-            -v $(pwd)/src/common/cpp:/common/cpp \
-            ringbuffer_<os>_build sh -c "cd /app && make all"
-          # Linux host targeting another Linux distro:
-          cd src/common/python && podman build -t ringbuffer_<os>_build -f ../../<os>/containers/build/Dockerfile .
-          podman run --rm \
-            -v $(pwd)/src/common/python:/app \
-            -v $(pwd)/src/<os>/cpp:/<os>/cpp \
-            -v $(pwd)/src/common/cpp:/common/cpp \
-            ringbuffer_<os>_build sh -c "cd /app && make all"
-          ```
-     4. **Post-Build Verification**:
+     1. **macOS Build Path** (native):
+        ```bash
+        cd src/macos/cpp && make clean          # Remove stale C++ library
+        cd src/common/python && make clean      # Remove stale Python artifacts
+        cd src/common/python && make all        # Build C++ lib, create symlinks
+        ```
+     2. **Linux Container Build Path** (fedora, debian, ubuntu, raspios):
+        - The Makefile in `src/common/python/` handles container build and execution automatically.
+        ```bash
+        cd src/common/python && make all TARGET_OS=<os>
+        # The Makefile detects macOS host, uses ringbuffer_<os>_build image,
+        # mounts workspace root and common/cpp for symlink resolution,
+        # and runs make all inside the target OS container.
+        ```
+     3. **FreeBSD 14 SSH Build Path**:
+        - Pre-flight: `command -v ssh`
+        ```bash
+        # SCP source to remote host
+        ssh ebruno@10.10.41.244 "mkdir -p /tmp/ringbuffer_build"
+        scp -r src/common/python/ src/freebsd14/cpp/ ebruno@10.10.41.244:/tmp/ringbuffer_build/
+        # Build on remote
+        ssh ebruno@10.10.41.244 "cd /tmp/ringbuffer_build/python && make clean && make all"
+        # SCP results back
+        scp -r ebruno@10.10.41.244:/tmp/ringbuffer_build/python/lib/ src/freebsd14/cpp/lib/
+        scp -r ebruno@10.10.41.244:/tmp/ringbuffer_build/python/swtr_ringbuffer/ src/common/python/swtr_ringbuffer/
+        ssh ebruno@10.10.41.244 "rm -rf /tmp/ringbuffer_build"
+        ```
+     4. **Arch Linux SSH Build Path**:
+        - Pre-flight: `command -v ssh`
+        ```bash
+        # SCP source to remote host
+        ssh ebruno@10.10.41.227 "mkdir -p /tmp/ringbuffer_build"
+        scp -r src/common/python/ src/archlinux/cpp/ ebruno@10.10.41.227:/tmp/ringbuffer_build/
+        # Build on remote
+        ssh ebruno@10.10.41.227 "cd /tmp/ringbuffer_build/python && make clean && make all"
+        # SCP results back
+        scp -r ebruno@10.10.41.227:/tmp/ringbuffer_build/python/lib/ src/archlinux/cpp/lib/
+        scp -r ebruno@10.10.41.227:/tmp/ringbuffer_build/python/swtr_ringbuffer/ src/common/python/swtr_ringbuffer/
+        ssh ebruno@10.10.41.227 "rm -rf /tmp/ringbuffer_build"
+        ```
+     5. **Common Post-Build Verification** (all OSes):
         - Verify the C++ shared library exists in `src/<os>/cpp/lib/`
         - Verify the symlink exists: `lib/libswtr_ringbuffer.so` → versioned library
+        - Per-OS binary format check:
+          - **macOS**: `file lib/libswtr_ringbuffer.dylib` should show "Mach-O"
+          - **Linux/FreeBSD/Arch**: `file lib/libswtr_ringbuffer.so` should show "ELF 64-bit"
+        - Verify Python import works: `python3 -c "from swtr_ringbuffer import SwtrRingBuffer"`
         - If any check fails, STOP and report the error.
-     5. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python verification on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
+     6. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python verification on <target_os>: ROUTE=<native|container|ssh> STATUS=<PASS/FAIL>`.
 
    ---
 
    **0.3 C/C++ Verification** (from `src/<os>/cpp/`):
    - Navigate to `src/<os>/cpp/`.
-   - **Container Image Resolution** (Linux targets on non-matching host only):
-     - Build the image if it does not already exist: `container build -t ringbuffer_<os>_build:latest -f ../containers/build/Dockerfile .`
-     - Use `ringbuffer_<os>_build:latest` as `<container_image>` in subsequent commands.
-   - **Build Execution**: If using a container, wrap the build command with the appropriate runtime:
-     - **macOS host**: `container run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make test`
-     - **Linux host**: `podman run --rm -v $(pwd):/app ringbuffer_<os>_build:latest make test`
-     - If native execution is permitted (host matches target), run `make test` directly.
-     - The Makefile's `test` target automatically:
-       1. Builds the library (`all` target — static + shared)
-       2. Runs tests/verify in the `tests/` subdirectory
-     - If `make test` fails, log the error and STOP processing for this platform.
+   - **Routing Decision** (per-OS build path):
+     - **macOS**: Native-only — no containers. Run `make all` directly on the host.
+     - **Linux distros (fedora, debian, ubuntu, raspios)**: Container-based — use `container` on macOS host or `podman` on Linux host.
+     - **FreeBSD 14**: Native-only via SSH remote — use `ssh freebsd-runner`.
+     - **Arch Linux**: Native-only via SSH remote — use `ssh archlinux-runner`.
+   - For each target OS:
+     1. **macOS Build Path** (native):
+        ```bash
+        cd src/macos/cpp && make clean          # Remove stale C++ library artifacts
+        cd src/macos/cpp && make all            # Build static + shared libraries
+        ```
+     2. **Linux Container Build Path** (fedora, debian, ubuntu, raspios):
+        - The Makefile in `src/<os>/cpp/` handles container build and execution automatically.
+        ```bash
+        cd src/<os>/cpp && make all
+        # The Makefile detects macOS host, builds container image if needed,
+        # mounts workspace root at /app/ringbuffer, and runs make all inside the target OS container.
+        ```
+     3. **FreeBSD 14 SSH Build Path**:
+        - Pre-flight: `command -v ssh`
+        ```bash
+        # SCP source to remote host
+        ssh ebruno@10.10.41.244 "mkdir -p /tmp/ringbuffer_build"
+        scp -r src/freebsd14/cpp/ ebruno@10.10.41.244:/tmp/ringbuffer_build/
+        # Build on remote
+        ssh ebruno@10.10.41.244 "cd /tmp/ringbuffer_build/cpp && make clean && make all"
+        # SCP results back
+        scp -r ebruno@10.10.41.244:/tmp/ringbuffer_build/cpp/lib/ src/freebsd14/cpp/lib/
+        ssh ebruno@10.10.41.244 "rm -rf /tmp/ringbuffer_build"
+        ```
+     4. **Arch Linux SSH Build Path**:
+        - Pre-flight: `command -v ssh`
+        ```bash
+        # SCP source to remote host
+        ssh ebruno@10.10.41.227 "mkdir -p /tmp/ringbuffer_build"
+        scp -r src/archlinux/cpp/ ebruno@10.10.41.227:/tmp/ringbuffer_build/
+        # Build on remote
+        ssh ebruno@10.10.41.227 "cd /tmp/ringbuffer_build/cpp && make clean && make all"
+        # SCP results back
+        scp -r ebruno@10.10.41.227:/tmp/ringbuffer_build/cpp/lib/ src/archlinux/cpp/lib/
+        ssh ebruno@10.10.41.227 "rm -rf /tmp/ringbuffer_build"
+        ```
    - **Post-Build Verification** (performed by `tests/Makefile verify`):
      - Verify the library was built: Check that `lib/libswtr_ringbuffer.a` (static) and/or `lib/libswtr_ringbuffer.so` / `.dylib` (shared) exist.
      - Verify binary format:
@@ -433,51 +471,28 @@ Verify that all implemented languages build successfully across supported operat
      ## Notes
      - Any additional notes about the build process.
      ```
-   - For Python: Generate a build verification report at `reports/python/per_os/<os>_build_verify.md` and JUnit XML at `reports/python/per_os/<os>_regression_report_junit.xml` with the following format:
+   - For Python: Generate a build verification report at `reports/python/per_os/<os>_build_verify.md` with the following format:
      ```markdown
      # Build Verification Report — Python
      **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
      **Host OS:** <host_os>
      **Python Version:** <detected_version>
+     **Build Route:** <native|container|ssh>
 
      ## Build Status
-     - **make test**: [PASS/FAIL]
-     - **C++ Library Build**: [SUCCESS / SKIPPED — reason] (checked via `.cpp_build_failed` marker)
+     - **C++ Shared Library**: [PASS/FAIL]
+     - **Python Module Build**: [PASS/FAIL]
+     - **Symlink Verification**: [PASS/FAIL]
+     - **Binary Format Check**: [PASS/FAIL]
+     - **Python Import Test**: [PASS/FAIL]
 
-     ## Concurrent (ctypes) Test Results
-     **Implementation:** `swtr_ringbuffer/swtr_ringbuffer_concurrent.py` — ctypes binding to C++ shared library
-     **Entry Point:** `from swtr_ringbuffer import SwtrRingBuffer` (auto-selects Concurrent when available)
-
-     | Test | Description | Result |
-     |------|-------------|--------|
-     | T001 | Default (identity transform) | [PASS/FAIL] |
-     | T002 | Stress test (1 slot, 1-byte buffer) | [PASS/FAIL] |
-     | T003 | Uppercase transform | [PASS/FAIL] |
-     | T004 | Small input, fast EOF | [PASS/FAIL] |
-     | T005 | Fatal error mode | [PASS/FAIL] |
-     | T006 | Non-fatal error mode | [PASS/FAIL] |
-     | T007 | XOR transform (bit-inverted) | [PASS/FAIL] |
-
-     **Overall:** [X]/7 tests passed. Concurrent (ctypes) selected as default via auto-import.
-
-     ## Pure Python Test Results
-     **Implementation:** `swtr_ringbuffer_pure.py` — pure Python, no C++ dependency
-     **Entry Point:** `from swtr_ringbuffer_pure import SwtrRingBufferPure`
-
-     | Test | Description | Result |
-     |------|-------------|--------|
-     | T001 | Default (identity transform) | [PASS/FAIL] |
-     | T002 | Stress test (1 slot, 1-byte buffer) | [PASS/FAIL] |
-     | T003 | Uppercase transform | [PASS/FAIL] |
-     | T004 | Small input, fast EOF | [PASS/FAIL] |
-     | T005 | Fatal error mode | [PASS/FAIL] |
-     | T006 | Non-fatal error mode | [PASS/FAIL] |
-     | T007 | XOR transform (bit-inverted) | [PASS/FAIL] |
-
-     **Overall:** [X]/7 tests passed. Pure Python provides full feature parity with Concurrent version.
+     ## Artifacts
+     - `src/<os>/cpp/lib/libswtr_ringbuffer.so` / `.dylib`: <size> bytes
+     - `src/common/python/lib/libswtr_ringbuffer.so` → symlink to versioned library
+     - `src/common/python/swtr_ringbuffer/`: Python module directory
 
      ## Notes
-     - Any additional notes about the build process (e.g., C++ library not available, performance benchmark results).
+     - Any additional notes about the build process (e.g., C++ library not available, container runtime used).
      ```
 
    **2. State Tracking** (Java and Python only):

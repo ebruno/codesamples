@@ -228,15 +228,12 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
    2. **Consolidated Build and Verification**:
       - **Timeout Limit**: Maximum of 600,000 ms (10 minutes) for the entire Step 2 pipeline (build + verify combined).
-      - **Execute (Split Pipeline)**:
-        - Use `JOBS` (e.g., 4 or 8) to enable parallel compilation.
-        - **Step 1: Build Library and Tests**:
-          - **Native**: `make clean && make -j$(JOBS) && if [ -d tests ]; then cd tests && make clean && make -j$(JOBS); else echo 'ERROR: Tests directory missing.'; exit 1; fi`
-            - Note: `make clean` removes existing library artifacts (`build/`, `lib/`). This is intentional to ensure a fresh build.
-          - **Container**: `<runtime> run --rm -m <memory_limit> -v $(pwd):/app ringbuffer_<os>_test sh -c "cd /app && make clean && make -j$(JOBS) && if [ -d tests ]; then cd tests && make clean && make -j$(JOBS); else echo 'ERROR: Tests directory missing.'; exit 1; fi"`, where `<runtime>` is `container` on macOS or `podman` on Linux.
-        - **Step 2: Run Verification**:
-          - **Native**: `cd tests && make verify`
-          - **Container**: `<runtime> run --rm -m <memory_limit> -v $(pwd):/app ringbuffer_<os>_test sh -c "cd /app/tests && make verify"`, where `<runtime>` is `container` on macOS or `podman` on Linux.
+      - **Execute**:
+        ```bash
+        cd src/<os>/cpp && make clean          # Remove stale C++ library artifacts
+        cd src/<os>/cpp/tests && make clean     # Remove stale test binaries
+        cd src/<os>/cpp/tests && make verify    # Build + run T001-T007 test matrix
+        ```
       - **Timing Requirements**:
         - **Start Time**: The report `Start Time` MUST be captured at the exact moment the `make verify` target is invoked in the `tests/Makefile`.
         - **End Time**: The report `End Time` MUST be captured immediately after the final test scenario (T007) in the test matrix has completed its execution.
@@ -477,33 +474,14 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
   3. **Execute Tests**:
-     - **Native**: Navigate to `src/common/java/`, then run `cd tests && make test`. The Makefile automatically:
-       1. Builds the Java project (`mvn clean compile package`)
-       2. Runs all 7 test scenarios (T001-T007) using `TestRingbuffer` class
-       3. Compares output against expected results in `data/expected/`
-       4. Generates JUnit XML and Markdown reports
-     - **Container**: Run in a container matching the target OS:
-       - First, resolve the image from the per-OS Dockerfile: `IMAGE=$(head -1 ../../<os>/containers/build/Dockerfile | sed 's/^FROM //')`
-       - If no per-OS Dockerfile exists, fall back to the C/C++ Dockerfile: `IMAGE=$(head -1 ../<os>/containers/build/Dockerfile | sed 's/^FROM //')`
-       - **Per-platform pom.xml override**: If a platform-specific `pom.xml` exists at `src/<os>/java/pom.xml`, mount it to override the common pom.xml. This is required when the platform's JDK version differs from the common spec (e.g., raspios has JDK 17, but common pom.xml uses `<release>25</release>`).
-       ```bash
-       # macOS host targeting Linux distro:
-       if [ -f src/<os>/java/pom.xml ]; then
-           container run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && cd tests && make test"
-       else
-           container run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && cd tests && make test"
-       fi
-       # Linux host targeting another Linux distro:
-       if [ -f src/<os>/java/pom.xml ]; then
-           podman run --rm -v $(pwd)/src/common/java:/app -v $(pwd)/src/<os>/java/pom.xml:/app/pom.xml $IMAGE sh -c "cd /app && cd tests && make test"
-       else
-           podman run --rm -v $(pwd)/src/common/java:/app $IMAGE sh -c "cd /app && cd tests && make test"
-       fi
-       ```
+     ```bash
+     cd src/common/java && make clean          # Remove stale Java build artifacts
+     cd src/common/java/tests && make clean    # Remove stale test binaries
+     cd src/common/java/tests && make verify   # Build + run T001-T007 test matrix
+     ```
   4. **Verification Steps**:
      - Navigate to `src/common/java/tests/`.
-     - Run `make test` with timeout `${JAVA_BUILD_TIMEOUT_MS}` ms. Verify exit code 0.
-     - The Makefile handles: build, test execution, output comparison, and report generation.
+     - Run `make verify`. The Makefile handles: build, test execution, output comparison, and report generation.
      - Verify JUnit XML exists in `reports/java/per_os/<os>_regression_report_junit.xml`.
   5. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
@@ -612,25 +590,14 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
   3. **Execute Tests**:
-     - **Native**: Navigate to `src/common/python/tests/`, then run `make test`. The Makefile automatically:
-       1. Builds the C++ shared library from `src/<os>/cpp/` (target-host-specific) via parent Makefile.
-       2. If the C++ build fails, gracefully falls back to Pure Python tests only.
-       3. Runs Concurrent harness (T001-T007) using `test_ringbuffer.py`.
-       4. Runs Pure Python harness (T001-T007) using `test_ringbuffer_pure.py`.
-       5. Generates JUnit XML and Markdown reports.
-     - **Container**: Run in a container matching the target OS:
-       - Build the per-OS test image first: `cd src/common/python && $(CONTAINER_CMD) build -t ringbuffer_<os>_test -f ../../<os>/containers/test/Dockerfile .`
-       ```bash
-       # macOS host targeting Linux distro:
-       cd src/common/python && container build -t ringbuffer_<os>_test -f ../../<os>/containers/test/Dockerfile .
-       container run --rm -v $(pwd)/src/common/python:/app ringbuffer_<os>_test sh -c "cd /app/tests && make test"
-       # Linux host targeting another Linux distro:
-       cd src/common/python && podman build -t ringbuffer_<os>_test -f ../../<os>/containers/test/Dockerfile .
-       podman run --rm -v $(pwd)/src/common/python:/app ringbuffer_<os>_test sh -c "cd /app/tests && make test"
-       ```
+     ```bash
+     cd src/common/python && make clean          # Remove stale Python build artifacts
+     cd src/common/python/tests && make clean    # Remove stale test binaries
+     cd src/common/python/tests && make verify   # Build + run T001-T007 test matrix
+     ```
   4. **Verification Steps**:
      - Navigate to `src/common/python/tests/`.
-     - Run `make test`. The Makefile handles: build, test execution (Concurrent + Pure Python), and report generation.
+     - Run `make verify`. The Makefile handles: build, test execution (Concurrent + Pure Python), and report generation.
      - **FreeBSD 14 exception**: Concurrent tests are SKIPPED on FreeBSD 14 due to RPATH limitation (`ld-elf.so.1` strips `$ORIGIN` from RUNPATH at runtime — dynamic library testing is not possible). Only Pure Python tests are run.
      - Verify JUnit XML exists in `reports/python/per_os/<os>_regression_report_junit.xml`.
   6. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL> (Concurrent + Pure Python)`. If performance comparison was skipped, include the skip reason.
