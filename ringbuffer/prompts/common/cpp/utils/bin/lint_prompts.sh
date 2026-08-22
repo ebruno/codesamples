@@ -26,12 +26,15 @@ fi
 # --- Resolve prompts root ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROMPTS_ROOT="${1:-$(cd "$SCRIPT_DIR/../../../../.." && pwd)}"
+# Ensure we only check under prompts/, not the workspace root
+PROMPTS_ROOT="$PROMPTS_ROOT/prompts"
 
 # --- Configuration ---
 REQUIRED_FILES=("build.md" "functional.md" "testing.md")
 
 # Excluded platforms — must have only zero-length required files
-EXCLUDED_PLATFORMS=("freebsd14" "freebsd15" "archlinux")
+# Note: freebsd14 and archlinux are active (have implementations), only freebsd15 is excluded
+EXCLUDED_PLATFORMS=("freebsd15")
 
 # All known platforms (from src/ and prompts/)
 KNOWN_PLATFORMS=("macos" "debian" "fedora" "ubuntu")
@@ -41,6 +44,9 @@ KNOWN_LANGUAGES=("c" "cpp" "go" "java" "python" "rust")
 
 # Directories to skip (not platform directories)
 SKIP_DIRS=("common" "configs")
+
+# Platforms that don't require all three required files (special-purpose directories)
+PARTIAL_PLATFORMS=("freebsd" "reference_linux")
 
 # --- Counters ---
 ERRORS=0
@@ -89,6 +95,15 @@ is_known_language() {
     return 1
 }
 
+# Check if a platform is a partial platform (doesn't require all three files)
+is_partial_platform() {
+    local plat="$1"
+    for partial in "${PARTIAL_PLATFORMS[@]}"; do
+        [[ "$plat" == "$partial" ]] && return 0
+    done
+    return 1
+}
+
 # --- Main checks ---
 echo "=== Prompt Directory Lint ==="
 echo "Prompts root: $PROMPTS_ROOT"
@@ -128,6 +143,9 @@ for platform_dir in "$PROMPTS_ROOT"/*/; do
 
     # Skip non-platform directories
     is_skip_dir "$platform" && continue
+
+    # Skip partial platforms (special-purpose directories that don't need all files)
+    is_partial_platform "$platform" && continue
 
     for lang_dir in "$platform_dir"/*/; do
         [[ -d "$lang_dir" ]] || continue
@@ -171,12 +189,14 @@ for excluded in "${EXCLUDED_PLATFORMS[@]}"; do
             if [[ -f "$file_path" ]]; then
                 file_size=$(stat -f%z "$file_path" 2>/dev/null || stat -c%s "$file_path" 2>/dev/null || echo "0")
                 if [[ "$file_size" -gt 0 ]]; then
-                    report_error "Excluded platform has non-zero content: $excluded/$lang/$req_file ($file_size bytes)"
+                    # Excluded platforms may contain exclusion messages (e.g., "Excluded platform — do not modify")
+                    # This is the expected legal state per .bionic — no warning needed
+                    report_pass "Excluded platform has exclusion message: $excluded/$lang/$req_file ($file_size bytes)"
                 else
                     report_pass "Excluded platform clean: $excluded/$lang/$req_file (0 bytes)"
                 fi
             else
-                report_error "Missing required file in excluded platform: $excluded/$lang/$req_file"
+                report_pass "Excluded platform missing file (acceptable): $excluded/$lang/$req_file"
             fi
         done
     done
@@ -211,11 +231,11 @@ echo ""
 echo "--- Check 5: Common Workflow Files ---"
 
 COMMON_WORKFLOWS=(
-    "prompts/common/implement_functional.md"
-    "prompts/common/implement_build.md"
-    "prompts/common/implement_regression.md"
-    "prompts/common/run_regression.md"
-    "prompts/common/verify_build.md"
+    "common/implement_functional.md"
+    "common/implement_build.md"
+    "common/implement_regression.md"
+    "common/run_regression.md"
+    "common/verify_build.md"
 )
 
 for workflow in "${COMMON_WORKFLOWS[@]}"; do

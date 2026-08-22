@@ -11,7 +11,7 @@ echo "============================================="
 echo "Tool Availability Check (Linux)"
 echo "============================================="
 
-tools=(clang clang++ gcc g++ make bmake cmake ffmpeg ffprobe pandoc mmdc glab gh)
+tools=(clang clang++ gcc g++ make bmake tcsh cmake ffmpeg ffprobe pandoc mmdc glab gh)
 
 # Default install commands (apt-based, overridden per distro below)
 install_cmds=(
@@ -21,6 +21,7 @@ install_cmds=(
     ""
     "sudo apt-get install -y make"
     "sudo apt-get install -y bmake"
+    "sudo apt-get install -y tcsh"
     "sudo apt-get install -y cmake"
     "sudo apt-get install -y ffmpeg"
     ""
@@ -46,6 +47,7 @@ case "$os_id" in
             ""
             "sudo dnf install -y make"
             "sudo dnf install -y bmake mk-files"
+            "sudo dnf install -y tcsh"
             "sudo dnf install -y cmake"
             "sudo dnf install -y ffmpeg"
             ""
@@ -63,6 +65,7 @@ case "$os_id" in
             ""
             "sudo apt-get install -y make"
             "sudo apt-get install -y bmake"
+            "sudo apt-get install -y tcsh"
             "sudo apt-get install -y cmake"
             "sudo apt-get install -y ffmpeg"
             ""
@@ -73,6 +76,7 @@ case "$os_id" in
         )
         ;;
     arch)
+        # Arch Linux: amd64 supported, arm64 not supported
         install_cmds=(
             ""
             ""
@@ -80,6 +84,7 @@ case "$os_id" in
             ""
             "sudo pacman -S make"
             "sudo pacman -S bmake mk-files"
+            "sudo pacman -S tcsh"
             "sudo pacman -S cmake"
             "sudo pacman -S ffmpeg"
             ""

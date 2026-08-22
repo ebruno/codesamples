@@ -12,7 +12,7 @@ echo "============================================="
 echo "Tool Availability Check (macOS)"
 echo "============================================="
 
-tools=(clang clang++ gcc g++ make bmake cmake ffmpeg ffprobe pandoc mmdc glab gh)
+tools=(clang clang++ gcc g++ make bmake tcsh cmake ffmpeg ffprobe pandoc mmdc glab gh)
 
 install_cmds=(
     ""
@@ -21,6 +21,7 @@ install_cmds=(
     ""
     "brew install make"
     "brew install bmake"
+    "brew install tcsh"
     "brew install cmake"
     "brew install ffmpeg"
     ""
