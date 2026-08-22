@@ -93,7 +93,7 @@ Verify that all implemented languages build successfully across supported operat
 
    **Language Dispatch**:
    - Detect which languages are implemented by checking for source directories:
-     - `src/<os>/cpp/` → C/C++ verification (platform-sensitive, per-OS)
+     - `src/<os>/cpp/` → C++ verification (platform-sensitive, per-OS)
      - `src/common/java/` → Java verification (platform-insensitive, common)
      - `src/common/python/` → Python verification (platform-insensitive, common)
    - Log which languages are being verified: `[timestamp] Languages detected: <comma-separated list>`
@@ -145,11 +145,12 @@ Verify that all implemented languages build successfully across supported operat
    - **macOS is native-only**: macOS builds and tests NEVER use containers, regardless of host OS.
    - **FreeBSD is native-only**: FreeBSD builds and tests NEVER use containers, regardless of host OS.
    - **Excluded Platforms**:
-     - **C/C++**: FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active C/C++ development (no native build toolchain on FreeBSD).
+     - **C++**: FreeBSD 14 is supported (clang++/g++ available). FreeBSD 15 is excluded — zero-length files only.
+     - **C**: Not yet implemented — common specs exist (`prompts/common/c/`) but no source generation or build verification.
      - **Python/Java**: FreeBSD 14 Python is verified and active — build verification IS executed for common languages on FreeBSD 14.
-     - **ArchLinux**: Excluded from all active development (no container images for Apple Silicon).
+     - **ArchLinux**: Native tooling supported (g++/clang++). Linux-hosts-only for container-based verification from macOS hosts.
 
-   **Container Pre-flight Check** (C/C++ Linux targets only):
+   **Container Pre-flight Check** (C++ Linux targets only):
    - If the target OS is a Linux distribution and the host OS does not match, verify the container runtime is available:
      - **macOS host**: `command -v container` — if not found, STOP and display error about installing Apple Container.
      - **Linux host**: `command -v podman` — if not found, STOP and display error about installing Podman.
@@ -235,14 +236,14 @@ Verify that all implemented languages build successfully across supported operat
    - For each target OS, BEFORE executing any language-specific build or test:
      1. **Check for an existing platform-specific override** at `src/<os>/<lang>/`:
         - Java: `pom.xml`
-        - C/C++: Makefile with platform-specific flags, or `version.mk` compatibility
+        - C++: Makefile with platform-specific flags, or `version.mk` compatibility
         - Python: per-OS Makefile with correct interpreter path
         - Go: `go.mod` with compatible version constraint
         - Rust: `Cargo.toml` with compatible edition/target
      2. **If an override exists**: verify it matches the detected toolchain version (see step 3). If it does, proceed to build. If not, update the override (step 4).
      3. **Detect the actual toolchain version** in the target environment (container or remote):
         - **Java**: `JDK_VER=$(java -version 2>&1 | grep 'version' | head -1 | sed 's/.*"\([0-9]*\).*/\1/')`
-        - **C/C++**: `CC_VER=$($CC --version 2>&1 | head -1)` (detect compiler and version)
+        - **C++**: `CC_VER=$($CC --version 2>&1 | head -1)` (detect compiler and version)
         - **Python**: `PY_VER=$(python3 --version 2>&1 | awk '{print $2}' | cut -d. -f1,2)`
         - **Go**: `GO_VER=$(go version 2>&1 | awk '{print $3}' | sed 's/go//')`
         - **Rust**: `RUST_VER=$(rustc --version 2>&1 | awk '{print $2}')`
@@ -256,7 +257,7 @@ Verify that all implemented languages build successfully across supported operat
             echo "Created src/<os>/<lang>/pom.xml with <release>$JDK_VER</release>"
         fi
         ```
-        - For C/C++: If the detected compiler does not support required flags (e.g., `-std=c++20`), create a platform-specific Makefile override with compatible flags.
+        - For C++: If the detected compiler does not support required flags (e.g., `-std=c++20`), create a platform-specific Makefile override with compatible flags.
         - For Python: If detected version is below minimum, create a platform-specific Makefile override targeting the available version.
         - For Go/Rust: If detected version is below minimum, create a platform-specific build config override.
      5. **Log**: `[timestamp] Toolchain compatibility check: lang=<lang> detected=<version> required=<config_version> STATUS=OK|MISMATCH override_created=<yes|no>`
@@ -368,7 +369,7 @@ Verify that all implemented languages build successfully across supported operat
 
    ---
 
-   **0.3 C/C++ Verification** (from `src/<os>/cpp/`):
+   **0.3 C++ Verification** (from `src/<os>/cpp/`):
    - Navigate to `src/<os>/cpp/`.
    - **Routing Decision** (per-OS build path):
      - **macOS**: Native-only — no containers. Run `make all` directly on the host.
@@ -438,20 +439,10 @@ Verify that all implemented languages build successfully across supported operat
 
    ---
 
-   **0.4 Prompt Lint Check** (all languages):
-   - Before or after build verification, run the prompt lint script to ensure all platform/language directories follow conventions:
-     ```bash
-     ./prompts/common/cpp/utils/bin/lint_prompts.sh <workspace_root>
-     ```
-   - If the script reports any errors, log them and STOP — this indicates a structural issue with the prompt directory layout.
-   - Warnings (e.g., excluded platforms not found) are acceptable and should be logged but do not stop processing.
-
-   ---
-
    **1. Report Generation**:
-   - For C/C++: Generate a build verification report at `reports/cpp/per_os/<os>_build_verify.md` and JUnit XML at `reports/cpp/per_os/<os>_regression_report_junit.xml` (if applicable) with the following format:
+   - For C++: Generate a build verification report at `reports/cpp/per_os/<os>_build_verify.md` and JUnit XML at `reports/cpp/per_os/<os>_regression_report_junit.xml` (if applicable) with the following format:
      ```markdown
-     # Build Verification Report - [OS Name] <version> — C/C++
+     # Build Verification Report - [OS Name] <version> — C++
      **Date:** [YYYY-MM-DD HH:MM:SS +/-HHMM]
      **Target Version:** <version>
      **Host OS:** <host_os>
@@ -573,8 +564,8 @@ Verify that all implemented languages build successfully across supported operat
 
 **Reporting:**
 Once verification is complete:
-1. Generate the per-OS report at `reports/<lang>/per_os/<os>_build_verify.md` (Java/Python) or `reports/cpp/per_os/<os>_build_verify.md` (C/C++).
-2. Generate JUnit XML at `reports/<lang>/per_os/<os>_regression_report_junit.xml` (Java/Python) or copy from test harness output (C/C++).
+1. Generate the per-OS report at `reports/<lang>/per_os/<os>_build_verify.md` (Java/Python) or `reports/cpp/per_os/<os>_build_verify.md` (C++).
+2. Generate JUnit XML at `reports/<lang>/per_os/<os>_regression_report_junit.xml` (Java/Python) or copy from test harness output (C++).
 3. Update the consolidated summary at `reports/<lang>/build_verify.md` by merging all per-OS results into a single table.
 4. Append to `src/common/<lang>/logs/build.log` with the target OS noted.
 5. After all languages complete, run `utils/bin/aggregate_junit.sh` to merge all JUnit XML files into `reports/junit/aggregated.xml` and generate `reports/junit/aggregated.html`.

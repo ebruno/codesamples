@@ -94,7 +94,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      - Linux host → use `podman`
    - **macOS is native-only**: macOS builds and tests NEVER use containers, regardless of host OS.
    - **FreeBSD is native-only**: FreeBSD builds and tests NEVER use containers, regardless of host OS.
-   - **Entry Point** (C/C++ only): When targeting a specific C/C++ OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
+   - **Entry Point** (C++ only): When targeting a specific C++ OS, first check if `prompts/<os>/cpp/create_regression.md` exists.
      - **If it exists**: Consult it for image resolution and platform-specific directives.
      - **If it does not exist**: Proceed with only `prompts/common/cpp/testing.md` as the specification. Skip platform-specific directives and log: `[timestamp] create_regression.md not found for <os> — proceeding with common spec only.`
 
@@ -102,17 +102,17 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
    After target selection, determine which language(s) to process and dispatch accordingly:
 
    **Common Languages (Java, Python)** — source lives in `src/common/<lang>/`, identical across all OSes:
-   - **Skip Steps 0–7** (these are C/C++-specific). Go directly to the language-specific section below.
+   - **Skip Steps 0–7** (these are C++-specific). Go directly to the language-specific section below.
    - For each target OS, apply routing (native if host matches; container otherwise).
    - Each common language manages its own `.gen_state.json` in `src/common/<lang>/`.
 
-   **C/C++** — source lives in `src/<os>/cpp/`, per-OS implementation:
+   **C++** — source lives in `src/<os>/cpp/`, per-OS implementation:
    - Proceed to Steps 0–7 below.
 
 ---
 
-### C/C++ Execution Steps (Steps 0–7)
-*These steps apply ONLY to C/C++. Common languages skip directly to their own sections below.*
+### C++ Execution Steps (Steps 0–7)
+*These steps apply ONLY to C++. Common languages skip directly to their own sections below.*
 
    0. **Environment Setup**:
       - **Timeout Configuration**: All timeout values are defined as variables for easy adjustment:
@@ -461,14 +461,14 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 - For each target OS, BEFORE executing any language-specific build or test:
   1. **Check for an existing platform-specific override** at `src/<os>/<lang>/`:
      - Java: `pom.xml`
-     - C/C++: Makefile with platform-specific flags, or `version.mk` compatibility
+     - C++: Makefile with platform-specific flags, or `version.mk` compatibility
      - Python: per-OS Makefile with correct interpreter path
      - Go: `go.mod` with compatible version constraint
      - Rust: `Cargo.toml` with compatible edition/target
   2. **If an override exists**: verify it matches the detected toolchain version (see step 3). If it does, proceed to build. If not, update the override (step 4).
   3. **Detect the actual toolchain version** in the target environment (container or remote):
      - **Java**: `JDK_VER=$(java -version 2>&1 | grep 'version' | head -1 | sed 's/.*"\([0-9]*\).*/\1/')`
-     - **C/C++**: `CC_VER=$($CC --version 2>&1 | head -1)` (detect compiler and version)
+     - **C++**: `CC_VER=$($CC --version 2>&1 | head -1)` (detect compiler and version)
      - **Python**: `PY_VER=$(python3 --version 2>&1 | awk '{print $2}' | cut -d. -f1,2)`
      - **Go**: `GO_VER=$(go version 2>&1 | awk '{print $3}' | sed 's/go//')`
      - **Rust**: `RUST_VER=$(rustc --version 2>&1 | awk '{print $2}')`
@@ -482,7 +482,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
          echo "Created src/<os>/<lang>/pom.xml with <release>$JDK_VER</release>"
      fi
      ```
-     - For C/C++: If the detected compiler does not support required flags (e.g., `-std=c++20`), create a platform-specific Makefile override with compatible flags.
+     - For C++: If the detected compiler does not support required flags (e.g., `-std=c++20`), create a platform-specific Makefile override with compatible flags.
      - For Python: If detected version is below minimum, create a platform-specific Makefile override targeting the available version.
      - For Go/Rust: If detected version is below minimum, create a platform-specific build config override.
   5. **Log**: `[timestamp] Toolchain compatibility check: lang=<lang> detected=<version> required=<config_version> STATUS=OK|MISMATCH override_created=<yes|no>`
@@ -502,7 +502,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   2. **Container Pre-flight Check** (Linux targets only):
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
-  2. **FreeBSD 14 SSH Build Path**:
+  3. **FreeBSD 14 SSH Build Path**:
      ```bash
      ssh <freebsd_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
@@ -512,7 +512,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
      ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
      ```
-  3. **Arch Linux SSH Build Path**:
+  4. **Arch Linux SSH Build Path**:
      ```bash
      ssh <archlinux_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
@@ -521,17 +521,17 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      ssh <archlinux_host> "cd ~/ringbuffer/src/common/java && make clean"
      ssh <archlinux_host> "cd ~/ringbuffer/src/common/java/tests && make clean && make verify"
      ```
-  4. **Execute Tests**:
+  5. **Execute Tests**:
      ```bash
      cd src/common/java && make clean          # Remove stale Java build artifacts
      cd src/common/java/tests && make clean    # Remove stale test binaries
      cd src/common/java/tests && make verify   # Build + run T001-T007 test matrix
      ```
-  4. **Verification Steps**:
+  6. **Verification Steps**:
      - Navigate to `src/common/java/tests/`.
      - Run `make verify`. The Makefile handles: build, test execution, output comparison, and report generation.
      - Verify JUnit XML exists in `reports/java/per_os/<os>_regression_report_junit.xml`.
-  5. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
+  7. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
   **Java State Tracking** (after all target OSes complete):
   - Read existing `.gen_state.json` from `src/common/java/` if it exists (created by `verify_build.md`). Preserve all existing fields.
@@ -641,7 +641,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   2. **Container Pre-flight Check** (Linux targets only):
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
-  2. **FreeBSD 14 SSH Build Path**:
+  3. **FreeBSD 14 SSH Build Path**:
      ```bash
      ssh <freebsd_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
@@ -651,7 +651,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
      ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
      ```
-  3. **Arch Linux SSH Build Path**:
+  4. **Arch Linux SSH Build Path**:
      ```bash
      ssh <archlinux_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
@@ -661,18 +661,18 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      ssh <archlinux_host> "cd ~/ringbuffer/src/common/python && make clean"
      ssh <archlinux_host> "cd ~/ringbuffer/src/common/python/tests && make clean && make verify"
      ```
-  4. **Execute Tests**:
+  5. **Execute Tests**:
      ```bash
      cd src/common/python && make clean          # Remove stale Python build artifacts
      cd src/common/python/tests && make clean    # Remove stale test binaries
      cd src/common/python/tests && make verify   # Build + run T001-T007 test matrix
      ```
-  4. **Verification Steps**:
+  6. **Verification Steps**:
      - Navigate to `src/common/python/tests/`.
      - Run `make verify`. The Makefile handles: build, test execution (Concurrent + Pure Python), and report generation.
      - **FreeBSD 14 exception**: Concurrent tests are SKIPPED on FreeBSD 14 due to RPATH limitation (`ld-elf.so.1` strips `$ORIGIN` from RUNPATH at runtime — dynamic library testing is not possible). Only Pure Python tests are run.
      - Verify JUnit XML exists in `reports/python/per_os/<os>_regression_report_junit.xml`.
-  6. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL> (Concurrent + Pure Python)`. If performance comparison was skipped, include the skip reason.
+  7. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python tests on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL> (Concurrent + Pure Python)`. If performance comparison was skipped, include the skip reason.
 
   **Python State Tracking** (after all target OSes complete):
   - Read existing `.gen_state.json` from `src/common/python/` if it exists (created by `verify_build.md`). Preserve all existing fields.
@@ -821,7 +821,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 2. Use `prompts/common/cpp/testing.md` as the primary testing specification.
 
 **Reporting:**
-The report generated in Step 4 (C/C++) or the language-specific section (Java/Python) serves as the final summary.
+The report generated in Step 4 (C++) or the language-specific section (Java/Python) serves as the final summary.
 
 **Tooling and Recovery:**
 - **Invalid Filenames**: If you encounter files or directories with trailing characters after valid extensions (e.g., `` ErrorOps.cpp`} ``, use a Python script with `os.scandir` to identify and recursively remove them using `os.remove()` or `shutil.rmtree()`.
@@ -843,11 +843,12 @@ You MUST NOT:
 - The `tests/` directory is managed exclusively by this regression test workflow.
 
 **Excluded Platforms:**
-- **C/C++**: FreeBSD 14, FreeBSD 15, and ArchLinux are excluded from active C/C++ development (no native build toolchain on FreeBSD).
+- **C++**: FreeBSD 14 is supported (clang++/g++ available). FreeBSD 15 is excluded — zero-length files only.
+- **C**: Not yet implemented — common specs exist (`prompts/common/c/`) but no source generation or test execution.
 - **Python/Java**: FreeBSD 14 Python is verified and active — regression testing IS executed for common languages on FreeBSD 14.
-- **ArchLinux**: Excluded from all active development (no container images for Apple Silicon).
-- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/` **for C/C++**.
-- For **C/C++**: The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files. If these directories contain any non-zero C/C++ prompt files, remove them.
+- **ArchLinux**: Native tooling supported (g++/clang++). Linux-hosts-only for container-based verification from macOS hosts.
+- Do not modify, add content to, or create new files in `prompts/freebsd14/`, `prompts/freebsd15/`, or `prompts/archlinux/` **for C++**.
+- For **C++**: The only files that should exist in these directories are zero-length `build.md`, `functional.md`, and `testing.md` files. If these directories contain any non-zero C++ prompt files, remove them.
 - For **Python/Java**: Per-OS `testing.md` files may contain placeholder text (e.g., "Python is platform-insensitive — use common spec"). This is allowed and recommended to prevent zero-length file confusion.
 
 If the user wants to set up test infrastructure from scratch, they should use `prompts/common/implement_regression.md` instead.
