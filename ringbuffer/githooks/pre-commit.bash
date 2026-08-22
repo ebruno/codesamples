@@ -151,5 +151,34 @@ if [ ${#missing_in_prompt[@]} -gt 0 ] || [ ${#missing_in_readme[@]} -gt 0 ]; the
     echo ""
 fi
 
+# ── Rule 3: .bionic → CLAUDE.md sync (HARD BLOCK) ────────────────────
+BIONIC_STAGED=0
+CLAUDE_STAGED=0
+while IFS= read -r f; do
+    nf=$(normalize_path "$f")
+    case "$nf" in
+        .bionic) BIONIC_STAGED=1 ;;
+        CLAUDE.md) CLAUDE_STAGED=1 ;;
+    esac
+done <<< "$STAGED_FILES"
+
+if [ "$BIONIC_STAGED" -gt 0 ]; then
+    # Compare staged versions of .bionic and CLAUDE.md
+    BIONIC_HASH=$(git show :ringbuffer/.bionic 2>/dev/null | md5sum)
+    CLAUDE_HASH=$(git show :ringbuffer/CLAUDE.md 2>/dev/null | md5sum)
+    
+    if [ "$BIONIC_HASH" != "$CLAUDE_HASH" ]; then
+        echo ""
+        echo -e "${RED}✗ BLOCKED: .bionic was modified but CLAUDE.md is not in sync.${NC}"
+        echo ""
+        echo "  .bionic is the source of truth. CLAUDE.md must always match."
+        echo ""
+        echo "  Run: make sync-claude"
+        echo "  Then re-stage CLAUDE.md and retry the commit."
+        echo ""
+        exit 1
+    fi
+fi
+
 # ── Done ───────────────────────────────────────────────────────────────
 exit 0

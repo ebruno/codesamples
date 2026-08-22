@@ -40,13 +40,16 @@ chmod +x .git/hooks/post-commit
 
 ## How the Pre-Commit Hook Works
 
-The pre-commit hook enforces two rules:
+The pre-commit hook enforces three rules:
 
 ### Rule 1: Both-or-None (Hard Block)
 If `README.md` is staged but `prompts/common/generate_toplevel_readme.md` is not (or vice versa), the commit is **blocked**. This ensures the prompt always describes what the README actually contains.
 
 ### Rule 2: Section Alignment (Warning)
 If both files are staged, the hook compares their section headers (`##` and `###`). If sections exist in one file but not the other, a **warning** is printed — the commit still proceeds. This catches drift before it compounds.
+
+### Rule 3: .bionic → CLAUDE.md Sync (Hard Block)
+If `.bionic` is staged, `CLAUDE.md` must be in sync (identical content). This ensures the LM Studio Bionic agent always has the latest rules. Run `make sync-claude` to fix.
 
 ## How the Post-Commit Hook Works
 
@@ -86,6 +89,7 @@ ls -la .git/hooks/pre-commit
 
 ### Pre-commit hook blocks a commit I want to make?
 - **If the README change is real**: Also stage `prompts/common/generate_toplevel_readme.md` and retry.
+- **If `.bionic` was modified but CLAUDE.md is out of sync**: Run `make sync-claude`, then re-stage `CLAUDE.md` and retry.
 - **If the README change was accidental**: Revert it, or use `git commit --no-verify` (bypasses all hooks — use sparingly).
 
 ### Post-commit hook not running?

@@ -1,4 +1,4 @@
-.PHONY: clean dist-clean sync-claude dist-clean-containers
+.PHONY: clean dist-clean sync-claude dist-clean-containers _auto_sync_claude install-hooks
 
 # Discover all OS directories that have a Makefile
 OS_DIRS := $(wildcard src/*/cpp/Makefile)
@@ -68,5 +68,24 @@ dist-clean-containers:
 	done
 
 # Sync .bionic → CLAUDE.md (keep LM Studio Bionic and Claude Code in sync)
+# AUTOMATIC: Every make target depends on _auto_sync_claude, which ensures
+# CLAUDE.md is always in sync with .bionic. This prevents the agent from
+# forgetting to run `make sync-claude` after editing .bionic.
 sync-claude:
 	@cp .bionic CLAUDE.md
+
+# Automatic sync — every make target depends on this to ensure .bionic → CLAUDE.md
+_auto_sync_claude: .bionic
+	@cp .bionic CLAUDE.md
+
+clean: _auto_sync_claude
+dist-clean: clean
+dist-clean-containers: _auto_sync_claude
+install-hooks:
+	@echo "Installing githooks..."
+	@cp githooks/pre-commit .git/hooks/pre-commit
+	@cp githooks/pre-commit.bash .git/hooks/pre-commit.bash
+	@cp githooks/pre-commit.zsh .git/hooks/pre-commit.zsh
+	@chmod +x .git/hooks/pre-commit .git/hooks/pre-commit.bash .git/hooks/pre-commit.zsh
+	@cp githooks/post-commit .git/hooks/post-commit 2>/dev/null && chmod +x .git/hooks/post-commit || true
+	@echo "Git hooks installed."
