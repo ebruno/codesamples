@@ -846,4 +846,4 @@ When you edit `README.md` directly (add a section, change content, restructure):
 3. If a new section appears in the README that isn't described in the prompt, add it
 4. If a section is removed from the README, remove it from the prompt
 
-<!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md -->
+<!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md --># test hook
