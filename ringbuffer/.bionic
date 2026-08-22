@@ -18,9 +18,13 @@ SESSION STARTUP: This file was auto-loaded. Please report this to the user immed
 
 The correct workflow:
 1. Edit `.bionic` (source of truth)
-2. Copy to CLAUDE.md: `cp .bionic CLAUDE.md` (or run `make sync-claude`)
+2. **IMMEDIATELY** copy to CLAUDE.md: `cp .bionic CLAUDE.md` (or run `make sync-claude`)
 
-If you find yourself about to edit CLAUDE.md, STOP — go to `.bionic` instead.
+**MANDATORY: Every time you edit `.bionic`, you MUST copy it to `CLAUDE.md` before doing anything else.** This is not optional. If you edit `.bionic` and forget to copy, the session will be working from stale rules.
+
+**If you find yourself about to edit CLAUDE.md, STOP — go to `.bionic` instead.**
+
+**SELF-ENFORCING: If you edit this file, the very next action MUST be `cp .bionic CLAUDE.md`. Do not perform any other action between editing and copying. This rule has been violated multiple times — treat it as critical.**
 
 ## ⚠️ MANDATORY: Read Entire .bionic File
 **Always read the ENTIRE `.bionic` file at session start. Use this exact pattern:**
@@ -588,6 +592,14 @@ The Python implementation uses different Makefile syntax for GNU make and BSD ma
 - **Common source**: Both use the same Python source files from `src/common/python/` (swtr_ringbuffer_pure.py, test scripts, base types)
 - **Per-platform overrides**: FreeBSD 14 has `src/freebsd14/python/` with its own Makefile and copies of common source. FreeBSD 15 will use the same structure.
 - **Makefile selection**: The agent must select the correct Makefile based on the target OS family (GNU vs BSD).
+
+### Workflow Execution Discipline
+- **When asked to use `verify_build.md` or `run_regression.md`, you MUST follow them exactly with no exceptions.**
+- **NEVER skip steps, shortcut the workflow, or execute only a subset of the specified actions.**
+- **NEVER assume you know what is needed and bypass the workflow document.** Every step in the workflow must be executed in order.
+- **If a workflow says to run `lint_prompts.sh`, run it. If it says to generate a report, generate it. If it says to update `.gen_state.json`, do it.**
+- **The workflow documents are the single source of truth for execution order and completeness. If you find yourself about to skip a step, STOP — go back and re-read the workflow.**
+- This rule is self-referential: if you are reading this, you have already read it.
 
 ### Git Discipline
 - **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
