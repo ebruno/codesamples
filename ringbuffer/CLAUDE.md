@@ -515,29 +515,55 @@ FreeBSD 14 C++ is implemented and verified (static library only). Its prompt dir
 When building or running regression tests on a remote system via SSH, **always** follow this sequence:
 
 1. **Make changes locally.** All source edits happen in the workspace on the local machine (git-tracked, reviewable).
-2. **Create a tarball** of the files needed for build or regression test:
+2. **SSH to remote → delete everything:** 
    ```bash
-   tar -czf /tmp/ringbuffer_<target>.tar.gz src/<os>/cpp/ prompts/common/cpp/
+   ssh <host> "rm -rf ~/ringbuffer"
    ```
-3. **SSH to remote → clean workspace** (delete old files):
+3. **Create a tarball of the ENTIRE ringbuffer directory from the parent:**
    ```bash
-   ssh <host> "rm -rf ~/source_code/codesamples/ringbuffer/src/<os>/cpp/*"
+   tar -czf /tmp/ringbuffer_<os>.tar.gz -C .. ringbuffer
    ```
-4. **SCP tarball over → unpack on remote**:
+4. **SCP tarball over → unpack on remote at ~/ringbuffer:**
    ```bash
-   scp /tmp/ringbuffer_<target>.tar.gz <host>:~/source_code/codesamples/ringbuffer/
-   ssh <host> "cd ~/source_code/codesamples/ringbuffer && tar -xzf ringbuffer_<target>.tar.gz"
+   scp /tmp/ringbuffer_<os>.tar.gz <host>:~/
+   ssh <host> "cd ~ ; tar -xzf ringbuffer_<os>.tar.gz"
    ```
-5. **Run build/test remotely**:
-   ```bash
-   ssh <host> "cd ~/source_code/codesamples/ringbuffer/src/<os>/cpp && make all"
-   ```
+5. **Run build/test remotely:**
+   - For `verify_build`: `ssh <host> "cd ~/ringbuffer/src/<os>/cpp && make clean && make all"`
+   - For `run_regression`: `ssh <host> "cd ~/ringbuffer/src/<os>/cpp && make clean; cd src/<os>/cpp/tests && make clean && make verify"`
+   - For Python: build C++ lib first, then run Python tests
+   - FreeBSD 14 uses `/bin/sh` or `tcsh` as the shell for make commands (Makefile default)
 
 **Rules:**
 - **Never edit files directly on the remote.** All changes start locally.
-- **Always clean before unpacking** to avoid stale files from previous builds.
+- **Always delete everything on remote before copying** — this emulates a clean git checkout and prevents stale files from previous builds.
+- **Use `tar -czf /tmp/ringbuffer_<os>.tar.gz -C .. ringbuffer`** to create the tarball from the parent directory, preserving the `ringbuffer/` top-level path inside the archive.
 - **Use tarball + SCP** (not `scp -r` of individual files) for reliable, atomic transfers.
 - **Verify after transfer** — confirm file counts and sizes match between local tarball contents and remote unpacked files.
+- **FreeBSD 14:** Default shell is `tcsh`. All inline SSH commands must be tcsh-compliant (use `;` not `&&`, avoid `$()`, avoid `2>&1`). For build/test commands, use a tcsh script: `tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os>`.
+- **Arch Linux:** Default shell is `bash`. Inline `&&` commands are safe.
+
+**SSH Host Configuration (User-Provided):**
+The following SSH hosts must be provided by the user before any remote operations. If not provided, STOP and ask the user for them:
+- **`<freebsd_host>`** — FreeBSD 14 SSH host (e.g., `<user>@<IP address|FQDN>`)
+- **`<archlinux_host>`** — Arch Linux SSH host (e.g., `<user>@<IP address|FQDN>`)
+
+All SSH commands in `verify_build.md` and `run_regression.md` use these placeholders — never hardcode IP addresses or usernames.
+
+### Pre-Modification Re-Read Rule (verify_build.md and run_regression.md)
+
+Before modifying `prompts/common/verify_build.md` or `prompts/common/run_regression.md`, you MUST re-read the Build Verification Workflow section of `.bionic` to ensure all changes comply with the source-of-truth rules.
+
+**Procedure:**
+1. Read `.bionic` section "Build vs Test Workflow Pattern (All Languages)" — confirms `verify_build → make all`, `run_regression → tests/Makefile verify`
+2. Read `.bionic` section "Remote Build/Testing Workflow (Enforced)" — confirms SSH clean + copy pattern
+3. Read `.bionic` section "Shell Script Portability Rule" — confirms tcsh compliance for FreeBSD 14
+4. Read `.bionic` section "Container naming is unified per OS" — confirms `ringbuffer_<os>_build` and `ringbuffer_<os>_test` naming
+5. Verify your planned changes against all of the above before writing any edits
+
+**If you find yourself about to modify these files without re-reading `.bionic`, STOP — go read it first.**
+
+This rule is self-referential: if you are reading this, you have already read it.
 
 ### Python Makefiles by Family (GNU vs BSD)
 The Python implementation uses different Makefile syntax for GNU make and BSD make systems:

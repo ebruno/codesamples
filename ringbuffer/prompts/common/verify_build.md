@@ -263,6 +263,14 @@ Verify that all implemented languages build successfully across supported operat
      6. **This gate must pass for every language/platform combination** before any build or test command is executed.
      7. **Key principle**: Check for overrides first, create them if missing (with correct version baked in), then proceed on the **first try**. No STOP/re-execute loop needed.
 
+   **0.4 Prompt Lint Check** (all languages):
+   - Before or after build verification, run the prompt lint script to ensure all platform/language directories follow conventions:
+     ```bash
+     ./prompts/common/cpp/utils/bin/lint_prompts.sh <workspace_root>
+     ```
+   - If the script reports any errors, log them and STOP — this indicates a structural issue with the prompt directory layout.
+   - Warnings (e.g., excluded platforms not found) are acceptable and should be logged but do not stop processing.
+
    **0.1 Java Verification** (from `src/common/java/`):
    - Java is a **common language** — source lives in `src/common/java/` but must be verified on each supported OS.
    - **Determine target OSes to verify**:
@@ -285,10 +293,10 @@ Verify that all implemented languages build successfully across supported operat
         # mounts workspace root and per-platform pom.xml override if present,
         # and runs make all inside the target OS container.
         ```
-     3. **Post-Build Verification**:
+     3. **Post-Build Verification** (all OSes, unified step):
         - Verify the JAR artifact exists: `target/ringbuffer-<version>.jar`
         - Verify the symlink exists: `lib/ringbuffer.jar` → `target/ringbuffer-<version>.jar`
-        - If any check fails, STOP and report the error.
+        - Verify JAR is non-empty: `test -s target/ringbuffer-<version>.jar`
      4. **Log**: Append results to `src/common/java/logs/build.log` with the target OS noted: `[timestamp] Java verification on <target_os>: ROUTE=<native|container> STATUS=<PASS/FAIL>`.
 
    ---
@@ -320,38 +328,42 @@ Verify that all implemented languages build successfully across supported operat
         ```
      3. **FreeBSD 14 SSH Build Path**:
         - Pre-flight: `command -v ssh`
+        - **Host Requirement:** `<freebsd_host>` must be provided by the user. If not provided, STOP and ask: "Please provide the FreeBSD 14 SSH host (e.g., `<user>@<IP address|FQDN>`)."
         ```bash
-        # SCP source to remote host
-        ssh ebruno@10.10.41.244 "mkdir -p /tmp/ringbuffer_build"
-        scp -r src/common/python/ src/freebsd14/cpp/ ebruno@10.10.41.244:/tmp/ringbuffer_build/
-        # Build on remote
-        ssh ebruno@10.10.41.244 "cd /tmp/ringbuffer_build/python && make clean && make all"
-        # SCP results back
-        scp -r ebruno@10.10.41.244:/tmp/ringbuffer_build/python/lib/ src/freebsd14/cpp/lib/
-        scp -r ebruno@10.10.41.244:/tmp/ringbuffer_build/python/swtr_ringbuffer/ src/common/python/swtr_ringbuffer/
-        ssh ebruno@10.10.41.244 "rm -rf /tmp/ringbuffer_build"
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <freebsd_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (tcsh-compatible: semicolon, not &&)
+        tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
+        ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
+        # Build C++ lib first (Python depends on it), then Python — FreeBSD 14 uses tcsh script
+        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
         ```
      4. **Arch Linux SSH Build Path**:
         - Pre-flight: `command -v ssh`
+        - **Host Requirement:** `<archlinux_host>` must be provided by the user. If not provided, STOP and ask: "Please provide the Arch Linux SSH host (e.g., `<user>@<IP address|FQDN>`)."
         ```bash
-        # SCP source to remote host
-        ssh ebruno@10.10.41.227 "mkdir -p /tmp/ringbuffer_build"
-        scp -r src/common/python/ src/archlinux/cpp/ ebruno@10.10.41.227:/tmp/ringbuffer_build/
-        # Build on remote
-        ssh ebruno@10.10.41.227 "cd /tmp/ringbuffer_build/python && make clean && make all"
-        # SCP results back
-        scp -r ebruno@10.10.41.227:/tmp/ringbuffer_build/python/lib/ src/archlinux/cpp/lib/
-        scp -r ebruno@10.10.41.227:/tmp/ringbuffer_build/python/swtr_ringbuffer/ src/common/python/swtr_ringbuffer/
-        ssh ebruno@10.10.41.227 "rm -rf /tmp/ringbuffer_build"
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <archlinux_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (Arch Linux uses bash, && is safe)
+        tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_archlinux.tar.gz <archlinux_host>:~/
+        ssh <archlinux_host> "cd ~ && tar -xzf ringbuffer_archlinux.tar.gz"
+        # Build C++ lib first (Python depends on it), then Python (Arch Linux default shell is bash)
+        ssh <archlinux_host> "cd ~/ringbuffer/src/archlinux/cpp && make clean && make all"
+        ssh <archlinux_host> "cd ~/ringbuffer/src/common/python && make clean && make all"
         ```
-     5. **Common Post-Build Verification** (all OSes):
+     5. **Post-Build Verification** (all OSes, unified step):
         - Verify the C++ shared library exists in `src/<os>/cpp/lib/`
-        - Verify the symlink exists: `lib/libswtr_ringbuffer.so` → versioned library
         - Per-OS binary format check:
           - **macOS**: `file lib/libswtr_ringbuffer.dylib` should show "Mach-O"
           - **Linux/FreeBSD/Arch**: `file lib/libswtr_ringbuffer.so` should show "ELF 64-bit"
+        - Verify symlink exists: `lib/libswtr_ringbuffer.so` → versioned library
         - Verify Python import works: `python3 -c "from swtr_ringbuffer import SwtrRingBuffer"`
-        - If any check fails, STOP and report the error.
      6. **Log**: Append results to `src/common/python/logs/build.log` with the target OS noted: `[timestamp] Python verification on <target_os>: ROUTE=<native|container|ssh> STATUS=<PASS/FAIL>`.
 
    ---
@@ -378,27 +390,33 @@ Verify that all implemented languages build successfully across supported operat
         ```
      3. **FreeBSD 14 SSH Build Path**:
         - Pre-flight: `command -v ssh`
+        - **Host Requirement:** `<freebsd_host>` must be provided by the user. If not provided, STOP and ask: "Please provide the FreeBSD 14 SSH host (e.g., `<user>@<IP address|FQDN>`)."
         ```bash
-        # SCP source to remote host
-        ssh ebruno@10.10.41.244 "mkdir -p /tmp/ringbuffer_build"
-        scp -r src/freebsd14/cpp/ ebruno@10.10.41.244:/tmp/ringbuffer_build/
-        # Build on remote
-        ssh ebruno@10.10.41.244 "cd /tmp/ringbuffer_build/cpp && make clean && make all"
-        # SCP results back
-        scp -r ebruno@10.10.41.244:/tmp/ringbuffer_build/cpp/lib/ src/freebsd14/cpp/lib/
-        ssh ebruno@10.10.41.244 "rm -rf /tmp/ringbuffer_build"
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <freebsd_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (tcsh-compatible: semicolon, not &&)
+        tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
+        ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
+        # Build on remote — FreeBSD 14 default shell is tcsh, use tcsh script
+        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
         ```
      4. **Arch Linux SSH Build Path**:
         - Pre-flight: `command -v ssh`
+        - **Host Requirement:** `<archlinux_host>` must be provided by the user. If not provided, STOP and ask: "Please provide the Arch Linux SSH host (e.g., `<user>@<IP address|FQDN>`)."
         ```bash
-        # SCP source to remote host
-        ssh ebruno@10.10.41.227 "mkdir -p /tmp/ringbuffer_build"
-        scp -r src/archlinux/cpp/ ebruno@10.10.41.227:/tmp/ringbuffer_build/
-        # Build on remote
-        ssh ebruno@10.10.41.227 "cd /tmp/ringbuffer_build/cpp && make clean && make all"
-        # SCP results back
-        scp -r ebruno@10.10.41.227:/tmp/ringbuffer_build/cpp/lib/ src/archlinux/cpp/lib/
-        ssh ebruno@10.10.41.227 "rm -rf /tmp/ringbuffer_build"
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <archlinux_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (Arch Linux uses bash, && is safe)
+        tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_archlinux.tar.gz <archlinux_host>:~/
+        ssh <archlinux_host> "cd ~ && tar -xzf ringbuffer_archlinux.tar.gz"
+        # Build on remote (Arch Linux default shell is bash)
+        ssh <archlinux_host> "cd ~/ringbuffer/src/archlinux/cpp && make clean && make all"
         ```
    - **Post-Build Verification** (performed by `tests/Makefile verify`):
      - Verify the library was built: Check that `lib/libswtr_ringbuffer.a` (static) and/or `lib/libswtr_ringbuffer.so` / `.dylib` (shared) exist.
@@ -508,7 +526,14 @@ Verify that all implemented languages build successfully across supported operat
          "<os>": {"route": "native|container", "status": "PASS|FAIL", "timestamp": "<ISO timestamp>"}
        },
        "artifacts": {"jar": "target/ringbuffer-<version>.jar"},
-       "sha256": {"pom_xml": "<hash>", "version_mk": "<hash>"}
+       "sha256": {
+         "pom_xml": "<hash>",
+         "version_mk": "<hash>",
+         "Dockerfile_build": "<hash of src/<os>/containers/build/Dockerfile>",
+         "Dockerfile_test": "<hash of src/<os>/containers/test/Dockerfile>",
+         "generate_junit_report": "<hash of prompts/common/cpp/utils/bin/generate_junit_report.sh>",
+         "verify_test_data": "<hash of prompts/common/cpp/utils/bin/verify_test_data.sh>"
+       }
      }
      ```
    - **Python**: Create or update `.gen_state.json` in `src/common/python/` containing:
@@ -532,7 +557,11 @@ Verify that all implemented languages build successfully across supported operat
          "swtr_ringbuffer_concurrent_py": "<hash>",
          "swtr_ringbuffer_pure_py": "<hash>",
          "test_ringbuffer_py": "<hash>",
-         "test_ringbuffer_pure_py": "<hash>"
+         "test_ringbuffer_pure_py": "<hash>",
+         "Dockerfile_build": "<hash of src/<os>/containers/build/Dockerfile>",
+         "Dockerfile_test": "<hash of src/<os>/containers/test/Dockerfile>",
+         "generate_junit_report": "<hash of prompts/common/cpp/utils/bin/generate_junit_report.sh>",
+         "verify_test_data": "<hash of prompts/common/cpp/utils/bin/verify_test_data.sh>"
        }
      }
      ```

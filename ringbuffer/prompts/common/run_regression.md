@@ -212,6 +212,35 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
         - If any required artifact is missing, STOP and report: `[timestamp] Infrastructure incomplete — <missing artifact> not found. Run implement_regression.md first.`
       - **Log Initialization**: If `logs/build.log` does not exist, create it with the start timestamp and routing decision.
 
+      - **FreeBSD 14 SSH Test Path**:
+        ```bash
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <freebsd_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (tcsh-compatible: semicolon, not &&)
+        tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
+        ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
+        # Build and test on remote — FreeBSD 14 uses tcsh script for make commands
+        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+        ```
+
+      - **Arch Linux SSH Test Path**:
+        ```bash
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <archlinux_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (Arch Linux uses bash, && is safe)
+        tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_archlinux.tar.gz <archlinux_host>:~/
+        ssh <archlinux_host> "cd ~ && tar -xzf ringbuffer_archlinux.tar.gz"
+        # Build and test on remote (Arch Linux default shell is bash)
+        ssh <archlinux_host> "cd ~/ringbuffer/src/archlinux/cpp && make clean"
+        ssh <archlinux_host> "cd ~/ringbuffer/src/archlinux/cpp/tests && make clean && make verify"
+        ```
+
    1. **Infrastructure Verification**:
       - If the target `<os>` is `macos`, skip cross-platform verification and log: `[timestamp] Cross-platform verification skipped — macOS is native-only with different binary format (Mach-O).` Proceed to Step 2.
       - If the target `<os>` is NOT `macos`, verify that the test Makefile and Dockerfile conform to cross-platform symmetry requirements:
@@ -473,7 +502,26 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   2. **Container Pre-flight Check** (Linux targets only):
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
-  3. **Execute Tests**:
+  2. **FreeBSD 14 SSH Build Path**:
+     ```bash
+     ssh <freebsd_host> "rm -rf ~/ringbuffer"
+     tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
+     scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
+     ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
+     scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
+     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+     ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+     ```
+  3. **Arch Linux SSH Build Path**:
+     ```bash
+     ssh <archlinux_host> "rm -rf ~/ringbuffer"
+     tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
+     scp /tmp/ringbuffer_archlinux.tar.gz <archlinux_host>:~/
+     ssh <archlinux_host> "cd ~ && tar -xzf ringbuffer_archlinux.tar.gz"
+     ssh <archlinux_host> "cd ~/ringbuffer/src/common/java && make clean"
+     ssh <archlinux_host> "cd ~/ringbuffer/src/common/java/tests && make clean && make verify"
+     ```
+  4. **Execute Tests**:
      ```bash
      cd src/common/java && make clean          # Remove stale Java build artifacts
      cd src/common/java/tests && make clean    # Remove stale test binaries
@@ -512,11 +560,15 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
       },
       "sha256": {
         "pom_xml": "<hash>",
-        "version_mk": "<hash>"
+        "version_mk": "<hash>",
+        "Dockerfile_build": "<hash of src/<os>/containers/build/Dockerfile>",
+        "Dockerfile_test": "<hash of src/<os>/containers/test/Dockerfile>",
+        "generate_junit_report": "<hash of prompts/common/cpp/utils/bin/generate_junit_report.sh>",
+        "verify_test_data": "<hash of prompts/common/cpp/utils/bin/verify_test_data.sh>"
       }
     }
     ```
-  - Compute SHA-256 hashes of `pom.xml` and `version.mk`.
+  - Compute SHA-256 hashes of `pom.xml`, `version.mk`, Dockerfiles, and utility scripts.
 
   - **Per-Platform Cleanup**: Before generating reports, remove only this platform's existing report files to avoid stale data:
     ```bash
@@ -589,7 +641,27 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
   2. **Container Pre-flight Check** (Linux targets only):
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
-  3. **Execute Tests**:
+  2. **FreeBSD 14 SSH Build Path**:
+     ```bash
+     ssh <freebsd_host> "rm -rf ~/ringbuffer"
+     tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
+     scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
+     ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
+     scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
+     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+     ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+     ```
+  3. **Arch Linux SSH Build Path**:
+     ```bash
+     ssh <archlinux_host> "rm -rf ~/ringbuffer"
+     tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
+     scp /tmp/ringbuffer_archlinux.tar.gz <archlinux_host>:~/
+     ssh <archlinux_host> "cd ~ && tar -xzf ringbuffer_archlinux.tar.gz"
+     ssh <archlinux_host> "cd ~/ringbuffer/src/archlinux/cpp && make clean"
+     ssh <archlinux_host> "cd ~/ringbuffer/src/common/python && make clean"
+     ssh <archlinux_host> "cd ~/ringbuffer/src/common/python/tests && make clean && make verify"
+     ```
+  4. **Execute Tests**:
      ```bash
      cd src/common/python && make clean          # Remove stale Python build artifacts
      cd src/common/python/tests && make clean    # Remove stale test binaries
@@ -634,11 +706,15 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
         "swtr_ringbuffer_concurrent_py": "<hash>",
         "swtr_ringbuffer_pure_py": "<hash>",
         "test_ringbuffer_py": "<hash>",
-        "test_ringbuffer_pure_py": "<hash>"
+        "test_ringbuffer_pure_py": "<hash>",
+        "Dockerfile_build": "<hash of src/<os>/containers/build/Dockerfile>",
+        "Dockerfile_test": "<hash of src/<os>/containers/test/Dockerfile>",
+        "generate_junit_report": "<hash of prompts/common/cpp/utils/bin/generate_junit_report.sh>",
+        "verify_test_data": "<hash of prompts/common/cpp/utils/bin/verify_test_data.sh>"
       }
     }
     ```
-  - Compute SHA-256 hashes of `version.mk`, both test modules, and both test scripts.
+  - Compute SHA-256 hashes of `version.mk`, both test modules, Dockerfiles, and utility scripts.
 
   - **Per-Platform Cleanup**: Before generating reports, remove only this platform's existing report files to avoid stale data:
     ```bash
