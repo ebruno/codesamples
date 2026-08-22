@@ -1,3 +1,16 @@
+# ⚠️ MANDATORY SESSION RULE: Read .bionic with read_file_chars — NEVER read_file_lines
+#
+# At session start, ALWAYS use this exact pattern to read THIS file:
+#
+#   first = read_file_chars(path=".bionic", start_char=0, chars_to_read=200000)
+#   if first ends_with "read_file_chars":
+#       second = read_file_chars(path=".bionic", start_char=200000, chars_to_read=200000)
+#
+# NEVER use read_file_lines (default 500-line limit truncates critical rules).
+# If you find yourself about to use read_file_lines on .bionic, STOP — use
+# read_file_chars instead. This rule is self-referential: if you are reading
+# this, you have already read the entire file.
+#
 ## Rule Loading Directive
 
 This file uses modular rule files. Context-specific sections are extracted to `rules/*.md`.
