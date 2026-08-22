@@ -47,3 +47,6 @@ target/
 # Interactive session state (new_os_setup workflow)
 .ringbuffer_sessions/
 **/.gen_state.json
+
+# Local SSH host config (user-provided, never commit)
+config/ssh_hosts.json

@@ -1,8 +1,37 @@
 ### SSH Remote Transfer Rule (All Platforms)
 When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
-- **C++ source files**: Copy the target-host-specific C++ directory (e.g., `src/archlinux/cpp/` for the archlinux remote). These files are per-OS — only copy the directory matching the target OS.
-- **Python source files**: Copy `src/common/python/` (the common Python implementation).
-- **Java source files**: Copy `src/common/java/` (the common Java implementation).
-- **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"`, `ssh <host> "rm -rf <dest>/src/common/python/*"`, and `ssh <host> "rm -rf <dest>/src/common/java/*"` before the transfer.
-- **Transfer**: Use `scp -r` or `rsync -avz` to copy the cleaned directories from the host to the remote.
-- **Verify**: After transfer, confirm file counts and sizes match between host and remote.
+
+1. **SSH to remote → delete everything:**
+   ```bash
+   ssh <host> "rm -rf ~/ringbuffer"
+   ```
+
+2. **Create a tarball of the ENTIRE ringbuffer directory from the parent:**
+   ```bash
+   tar -czf /tmp/ringbuffer_<os>.tar.gz -C .. ringbuffer
+   ```
+
+3. **SCP tarball over → unpack on remote at ~/ringbuffer:**
+   ```bash
+   scp /tmp/ringbuffer_<os>.tar.gz <host>:~/
+   ssh <host> "cd ~ ; tar -xzf ringbuffer_<os>.tar.gz"
+   ```
+
+4. **Run build/test remotely:**
+   - FreeBSD 14: use tcsh script (`tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os>`)
+   - Arch Linux: inline bash commands with `&&`
+
+**Rules:**
+- **Never edit files directly on the remote.** All changes start locally.
+- **Always delete everything on remote before copying** — this emulates a clean git checkout and prevents stale files from previous builds.
+- **Use `tar -czf /tmp/ringbuffer_<os>.tar.gz -C .. ringbuffer`** to create the tarball from the parent directory, preserving the `ringbuffer/` top-level path inside the archive.
+- **All inline SSH commands must be tcsh-compliant** (use `;` not `&&`, avoid `$()`, avoid `2>&1`).
+- **FreeBSD 14:** Default shell is tcsh — use `tcsh /tmp/run_freebsd_ssh.tcsh` script for build/test commands.
+- **Arch Linux:** Default shell is bash — inline `&&` commands are safe.
+
+**SSH Host Configuration (User-Provided):**
+The following SSH hosts are resolved from `config/ssh_hosts.json` at runtime. If the file does not exist, STOP and ask the user to create it:
+- **`<freebsd_host>`** — FreeBSD 14 SSH host (resolved from `config/ssh_hosts.json.freebsd_host`)
+- **`<archlinux_host>`** — Arch Linux SSH host (resolved from `config/ssh_hosts.json.archlinux_host`)
+
+All SSH commands in `verify_build.md` and `run_regression.md` use these placeholders — the agent resolves them from the config file at runtime. Never hardcode IP addresses or usernames in prompts or scripts.

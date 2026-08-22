@@ -550,6 +550,22 @@ The following SSH hosts must be provided by the user before any remote operation
 
 All SSH commands in `verify_build.md` and `run_regression.md` use these placeholders — never hardcode IP addresses or usernames.
 
+### SSH Host Resolution Rule (Session-Only)
+
+SSH host placeholders (`<freebsd_host>`, `<archlinux_host>`) in prompts and scripts must NEVER be replaced with actual values. The agent MUST resolve them at runtime from a local config file.
+
+**Procedure:**
+1. When an SSH operation is needed, check for `config/ssh_hosts.json` in the workspace root.
+2. If it exists, read the JSON and extract only the value for the target being processed:
+   - For FreeBSD 14 → read `freebsd_host` key only
+   - For Arch Linux → read `archlinux_host` key only
+3. If the config file does NOT exist, or the required key is empty: STOP and ask the user to provide it.
+4. If the user provides SSH info verbally (e.g., "use `<user>@<IP address|FQDN>` for Arch Linux"), acknowledge it and create/update `config/ssh_hosts.json` with the value.
+5. Use the resolved values ONLY for the current session — never write them back to prompts, scripts, or any tracked files.
+6. The config file is gitignored and must never be committed.
+
+**This rule is self-referential: if you are reading this, you have already read it.**
+
 ### Pre-Modification Re-Read Rule (verify_build.md and run_regression.md)
 
 Before modifying `prompts/common/verify_build.md` or `prompts/common/run_regression.md`, you MUST re-read the Build Verification Workflow section of `.bionic` to ensure all changes comply with the source-of-truth rules.
@@ -871,5 +887,22 @@ When you edit `README.md` directly (add a section, change content, restructure):
 2. The prompt should describe what the README *actually has*, not what it *should have*
 3. If a new section appears in the README that isn't described in the prompt, add it
 4. If a section is removed from the README, remove it from the prompt
+5. **Before updating `README.md`**, load and read `rules/mermaid-validation.md` — if the README contains any mermaid diagrams, validate that all diagram syntax follows the rules in that file (quoted parentheses, quoted at-signs, no `direction` inside subgraphs, etc.)
+
+### Mermaid Diagram Validation Rule (README Updates)
+
+**Before updating `README.md`**, you MUST load and read `rules/mermaid-validation.md`. This rule contains critical mermaid syntax validation rules that prevent silent parse failures (blank diagrams in GitHub/GitLab).
+
+**Procedure:**
+1. Read `rules/mermaid-validation.md` before making any changes to `README.md`
+2. If the README contains mermaid diagrams, validate that all diagram syntax follows the rules:
+   - Parentheses in labels must be quoted: `["text (with parens)"]`
+   - At-signs in edge labels must be quoted: `-->|"ssh@host"| Node`
+   - No `direction` inside subgraphs (use only at top level)
+   - Node names must not start with reserved words (`SSH`, `A`, `B`)
+3. If any diagram is being added or modified, validate it with `mmdc` before including it in the README
+4. Never commit a diagram that hasn't been validated with `mmdc`
+
+**This rule is self-referential: if you are reading this, you have already read it.**
 
 <!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md --># test hook
