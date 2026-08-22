@@ -1,0 +1,17 @@
+**Critical tcsh Syntax Rules (Learned 2026-08-21):**
+- **`then` must be on its own line or followed by `;`:** `if ( cond ) then\naction` or `if ( cond ) then; action`. Never `if ( cond ) then action` on one line — produces "Improper then" error.
+- **`endif` closes the most recent unmatched `if`:** Each nested if must have its own endif. Do not put multiple one-line if/then/endif on separate lines without proper nesting — the final endif will close the wrong block.
+- **`while` uses `end`, NOT `then/endif`:** `while ( expr ) ... end`
+- **`shift` only shifts by 1**, not by N like bash: need `shift; shift` for "shift 2"
+- **`switch` case labels are glob patterns**, not quoted strings: use `case -l:` not `case "-l":`
+- **Inside foreach, tcsh switch case labels are glob patterns** — use `if/else` instead of `switch/case` for numeric comparisons
+- **Arithmetic uses `@` operator**, not `$((...))` bash syntax: `@ x = $a + $b`, NOT `set x = $(($a + $b))`
+- **String comparison needs quotes:** `$test_num == "001"` not `$test_num == 001` (tcsh treats `001` as variable name)
+- **`==` in tcsh expressions does string comparison**, not numeric
+- **tcsh `case` labels must be at column 0** (no leading spaces)
+- **tcsh `while` and `end` must appear alone on their input lines**
+- **`-n` test checks if value is a non-zero NUMBER**, NOT if string is non-empty. Use `$#var > 0` to check for non-empty strings.
+- **`${var//pattern/replacement}` is a bash-ism**, NOT supported in tcsh. Use external tools (sed) for string replacement — this is allowed per the .bionic tcsh exception rule.
+- **`<<<` (here-string) is a bash-ism**, NOT available in tcsh. Use `echo "$var" | sed ...` instead.
+- **Backtick command substitution** (`set var = \`cmd\``) can cause "Missing '}'" false positives in `tcsh -n` syntax check, but works correctly when run from a file. Always test tcsh scripts as files, not with `-c`.
+- **When running tcsh scripts via SSH on FreeBSD**, always use `tcsh /path/to/script.tcsh` — never inline tcsh code via SSH `-c`.

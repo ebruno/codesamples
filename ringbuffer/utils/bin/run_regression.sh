@@ -375,41 +375,45 @@ run_container() {
     return $?
 }
 
-# SSH execution for FreeBSD 14 (remote host, /bin/sh wrapper)
+# SSH execution for FreeBSD 14 (remote host, tcsh script)
 run_ssh() {
     echo "=== SSH execution: $ACTION on $TARGET_OS ==="
 
     local ssh_host="ebruno@10.10.41.244"
-    local remote_base="~/source_code/codesamples/ringbuffer"
-    local os_dir="$WORKSPACE/src/${TARGET_OS}/cpp"
+    local tarball="/tmp/ringbuffer.tar.gz"
 
-    if [ ! -d "$os_dir/tests" ]; then
-        echo "ERROR: $os_dir/tests does not exist."
-        exit 1
-    fi
-
-    # Step 1: Create tarball of needed files
-    local tarball="/tmp/ringbuffer_${TARGET_OS}.tar.gz"
+    # Step 1: Create tarball from workspace root (includes run_regression.tcsh)
     echo "Creating tarball..."
-    tar -czf "$tarball" -C "$WORKSPACE/src" "${TARGET_OS}/cpp"
+    tar -czf "$tarball" -C "$WORKSPACE/.." ringbuffer/
 
-    # Step 2: SSH to remote -> clean workspace (delete old files)
-    echo "Cleaning remote workspace..."
-    ssh "$ssh_host" "rm -rf ${remote_base}/src/${TARGET_OS}/cpp/*"
-
-    # Step 3: SCP tarball over -> unpack on remote
+    # Step 2: SCP to remote home directory
     echo "Syncing files to remote..."
-    scp "$tarball" "${ssh_host}:${remote_base}/"
-    ssh "$ssh_host" "cd ${remote_base} && tar -xzf ringbuffer_${TARGET_OS}.tar.gz"
-    rm -f "$tarball"
+    scp "$tarball" "${ssh_host}:~/ringbuffer.tar.gz"
 
-    # Step 4: Run make clean in parent dir, make clean in tests dir, then make verify
+    # Step 3: SSH delete on remote (clean slate)
+    echo "Cleaning remote workspace..."
+    ssh "$ssh_host" 'rm -rf ~/ringbuffer'
+
+    # Step 4: SSH verify deleted
+    ssh "$ssh_host" 'ls ~/ringbuffer 2>&1' || true
+
+    # Step 5: SSH unpack on remote
+    echo "Unpacking on remote..."
+    ssh "$ssh_host" 'cd ~ && tar -xzf ringbuffer.tar.gz && rm -f ringbuffer.tar.gz'
+
+    # Step 6: SSH run tcsh script on remote (FreeBSD default shell)
     echo "Running regression on remote..."
-    ssh "$ssh_host" "/bin/sh -c 'cd ${remote_base}/src/${TARGET_OS}/cpp && make clean 2>&1'"
-    ssh "$ssh_host" "/bin/sh -c 'cd ${remote_base}/src/${TARGET_OS}/cpp/tests && make clean 2>&1'"
-    ssh "$ssh_host" "/bin/sh -c 'cd ${remote_base}/src/${TARGET_OS}/cpp/tests && make verify 2>&1'"
+    ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_regression.tcsh freebsd14 verify'
+    local rc=$?
 
-    return $?
+    # Step 7: SCP results back from remote
+    echo "Copying results back..."
+    ssh "$ssh_host" 'mkdir -p ~/ringbuffer/src/freebsd14/cpp/reports ~/ringbuffer/src/freebsd14/cpp/logs'
+    scp -r "${ssh_host}:~/ringbuffer/src/freebsd14/cpp/reports/" "$WORKSPACE/src/freebsd14/cpp/reports/"
+    scp -r "${ssh_host}:~/ringbuffer/src/freebsd14/cpp/logs/" "$WORKSPACE/src/freebsd14/cpp/logs/"
+
+    rm -f "$tarball"
+    return $rc
 }
 
 # Main execution

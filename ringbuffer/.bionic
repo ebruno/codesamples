@@ -1,3 +1,15 @@
+## Rule Loading Directive
+
+This file uses modular rule files. Context-specific sections are extracted to `rules/*.md`.
+When a context keyword is active, the corresponding rule files are loaded automatically.
+
+**How rules work:**
+1. The `.bionic_rules_manifest.txt` file maps context keywords to rule files
+2. When processing a task, identify the active context(s) from the manifest
+3. Load each rule file specified for that context before proceeding
+4. Rule files contain platform-specific, shell-specific, or workflow-specific rules
+
+**To regenerate rule files:** Run `utils/bin/sync-bionic-rules.sh` (Linux) or `.zsh` (macOS).
 SESSION STARTUP: This file was auto-loaded. Please report this to the user immediately.
 
 ## ⚠️ SYNC RULE: .bionic is the source of truth — CLAUDE.md is a read-only copy
@@ -206,20 +218,7 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 
 **Linux distro testing on macOS host:** When running regression tests for Linux distributions (Fedora, Debian, Ubuntu, Raspberry Pi OS) from a macOS host, tests MUST run inside the target OS container — never natively on macOS. The `container` command (Apple Container) is used to execute `make verify` inside the `ringbuffer_<os>_test` container. The library is built in a separate `_build` container and the test directory (with Makefile, data, utils) is mounted into the `_test` container. This ensures `readelf`, `g++`, and other Linux-specific tools are available during verification.
 
-**macOS Shell & Make — Critical for Local Builds:**
-- **Default shell is zsh** (since macOS Catalina 10.15), NOT bash. Scripts should use `#!/usr/bin/env zsh` or `#!/usr/bin/env bash`.
-- **`make` on macOS is BSD make** (not GNU make). Same syntax constraints as FreeBSD: `${VAR}`, `.include`, explicit file lists — no `$(wildcard)`, no `ifeq/else`.
-- **GNU make must be installed via Homebrew** as `gmake`. Do NOT assume `make` is GNU make on macOS.
-- **Homebrew paths differ by CPU architecture:**
-  - Apple Silicon (M1/M2/M3): `/opt/homebrew/bin/`
-  - Intel: `/usr/local/bin/`
-- **`date` on macOS is BSD date** — supports `%z` for timezone offset (same as FreeBSD). Use `date '+%Y-%m-%d %H:%M:%S %z'`.
-- **No `lipo`/`otool` equivalent on FreeBSD** — use `readelf`, `file`, `nm` instead.
-- **Universal binaries:** macOS supports fat/universal binaries (`lipo -create`) combining arm64 + x86_64. FreeBSD and Linux do not.
-- **Makefile recipe shell:** `make` on macOS invokes `/bin/sh -c` for recipes. On macOS, `/bin/sh` is a compatibility shim that invokes `zsh` in POSIX mode. Bash builtins (arrays, `<<<`, `[[ ]]`) are **not available** in Makefile recipes on macOS — same restriction as Linux.
-
-## 5. Language Standards and Classification
-
+<!-- RULES-LOAD: macos -> rules/macos-containers.md -->
 ### Language Version Requirements
 | Language | Primary Version | Fallback Versions (priority order) | Minimum Supported |
 |----------|-----------------|-----------------------------------|-------------------|
@@ -508,56 +507,10 @@ FreeBSD 15 is excluded from active development. Its prompt directories contain e
 
 FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain placeholder text pointing to `prompts/freebsd/cpp/` (generic FreeBSD 14.x/15.x spec) and `prompts/common/cpp/` (common specs). Python, Java, C, Go, and Rust per-OS prompt directories contain non-zero placeholder text pointing to common specs — this is allowed and recommended to prevent zero-length file confusion.
 
-**FreeBSD 14 Shell & Make — Critical for Remote Builds:**
-- **Default shell is tcsh** (`/bin/tcsh`), NOT bash or sh. This affects how SSH commands are interpreted.
-- **`make` on FreeBSD uses tcsh** for recipe execution (not bash/sh). Shell redirects like `2>&1`, `> file`, `|` may not work as expected in interactive SSH sessions.
-- **When running commands via SSH on FreeBSD 14, wrap shell redirects in `bash -c "..."`:**
-  ```bash
-  ssh ebruno@10.10.41.244 'bash -c "cd ~/ringbuffer/src/freebsd14/cpp && make all 2>&1"'
-  ```
-- **`gmake` is NOT installed** on FreeBSD 14. Only BSD make is available — all Makefiles MUST use BSD syntax (`${VAR}`, `.include`, `.if/.endif`, explicit file lists — no `$(wildcard)`, no `ifeq/else`).
-- **`version.mk` on FreeBSD must use `${VAR}` syntax**, not GNU `$(VAR)`, because it is included by BSD make.
-- **Available shells on FreeBSD 14:** tcsh (default), bash (`/usr/local/bin/bash`), sh (`/bin/sh`). zsh is NOT installed.
-- **Makefile recipe shell:** `make` on FreeBSD invokes `/bin/sh -c` for recipes. On FreeBSD 14, `/bin/sh` is the BSD `sh` (not bash). Bash builtins (arrays, `<<<`, `[[ ]]`) are **not available** in Makefile recipes on FreeBSD.
-- See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for full shell availability details.
-- **macOS local testing of FreeBSD Makefiles:** macOS ships with GNU make 3.81, not BSD make. To test FreeBSD Makefiles locally on macOS, you MUST use `bmake` (BSD make installed via Homebrew). Never use `make` or `gmake` for FreeBSD Makefile testing on macOS — GNU make syntax is incompatible and will produce misleading errors. If `bmake` is not found, report an error: `ERROR: bmake (BSD make) is required for testing FreeBSD Makefiles locally. Install with: brew install bmake`.
-
-**Critical tcsh Syntax Rules (Learned 2026-08-21):**
-- **`then` must be on its own line or followed by `;`:** `if ( cond ) then\naction` or `if ( cond ) then; action`. Never `if ( cond ) then action` on one line — produces "Improper then" error.
-- **`endif` closes the most recent unmatched `if`:** Each nested if must have its own endif. Do not put multiple one-line if/then/endif on separate lines without proper nesting — the final endif will close the wrong block.
-- **`while` uses `end`, NOT `then/endif`:** `while ( expr ) ... end`
-- **`shift` only shifts by 1**, not by N like bash: need `shift; shift` for "shift 2"
-- **`switch` case labels are glob patterns**, not quoted strings: use `case -l:` not `case "-l":`
-- **Inside foreach, tcsh switch case labels are glob patterns** — use `if/else` instead of `switch/case` for numeric comparisons
-- **Arithmetic uses `@` operator**, not `$((...))` bash syntax: `@ x = $a + $b`, NOT `set x = $(($a + $b))`
-- **String comparison needs quotes:** `$test_num == "001"` not `$test_num == 001` (tcsh treats `001` as variable name)
-- **`==` in tcsh expressions does string comparison**, not numeric
-- **tcsh `case` labels must be at column 0** (no leading spaces)
-- **tcsh `while` and `end` must appear alone on their input lines**
-- **`-n` test checks if value is a non-zero NUMBER**, NOT if string is non-empty. Use `$#var > 0` to check for non-empty strings.
-- **`${var//pattern/replacement}` is a bash-ism**, NOT supported in tcsh. Use external tools (sed) for string replacement — this is allowed per the .bionic tcsh exception rule.
-- **`<<<` (here-string) is a bash-ism**, NOT available in tcsh. Use `echo "$var" | sed ...` instead.
-- **Backtick command substitution** (`set var = \`cmd\``) can cause "Missing '}'" false positives in `tcsh -n` syntax check, but works correctly when run from a file. Always test tcsh scripts as files, not with `-c`.
-- **When running tcsh scripts via SSH on FreeBSD**, always use `tcsh /path/to/script.tcsh` — never inline tcsh code via SSH `-c`.
-
-### Arch Linux (Linux-Hosts-Only)
-Arch Linux C++ is fully implemented in `prompts/archlinux/cpp/` (9 files, ~32KB). Source code is byte-identical to macOS. Build and test require a Linux host (`ebruno@10.10.41.227`) via SSH; both g++ and clang++ are supported with auto-detection in the Makefile. Arch Linux container images are amd64-only, so on macOS scripts skip gracefully with a logged message.
-
-**CXX override pattern:** The Arch Linux Makefile uses `CXX ?= $(firstword $(AVAILABLE_COMPILERS))` — the `?=` means it respects an already-set CXX. To build with clang++ (default is g++, first alphabetically), use:
-```bash
-make CXX=clang++ all    # ✅ Works — command-line override respected
-```
-Do NOT use `export CXX=clang++` before `make` — that does not work because the Makefile's auto-detection runs unconditionally with `:=`. The `?=` fix (applied 2026-08-19) allows command-line override but not environment variable override from the calling shell.
-
-### SSH Remote Transfer Rule (All Platforms)
-When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
-- **C++ source files**: Copy the target-host-specific C++ directory (e.g., `src/archlinux/cpp/` for the archlinux remote). These files are per-OS — only copy the directory matching the target OS.
-- **Python source files**: Copy `src/common/python/` (the common Python implementation).
-- **Java source files**: Copy `src/common/java/` (the common Java implementation).
-- **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"`, `ssh <host> "rm -rf <dest>/src/common/python/*"`, and `ssh <host> "rm -rf <dest>/src/common/java/*"` before the transfer.
-- **Transfer**: Use `scp -r` or `rsync -avz` to copy the cleaned directories from the host to the remote.
-- **Verify**: After transfer, confirm file counts and sizes match between host and remote.
-
+<!-- RULES-LOAD: freebsd14 -> rules/freebsd-shell.md -->
+<!-- RULES-LOAD: freebsd14 -> rules/tcsh-syntax.md -->
+<!-- RULES-LOAD: archlinux -> rules/archlinux-containers.md -->
+<!-- RULES-LOAD: ssh-transfer -> rules/ssh-transfer.md -->
 ### Remote Build/Testing Workflow (Enforced)
 When building or running regression tests on a remote system via SSH, **always** follow this sequence:
 
@@ -669,55 +622,11 @@ cd src/common/python && make all        # Builds inside container via Makefile
 13. **Build and test Dockerfiles are identical:** Both install the full toolset for all languages. There is no inheritance between them — each inherits only from the base OS image.
 14. **`make container` in language Makefiles builds both build and test images:** The `container-build-%` target builds `ringbuffer_<os>_build`, and `container-test-%` depends on it to build `ringbuffer_<os>_test`. Both use the same Dockerfile path (`../../$(OS_$*_DIR)/containers/build/Dockerfile` or `test/Dockerfile`).
 
-### Makefile & Shell Script Testing — Always Use OS Containers
-
-**Golden Rule:** Never test OS-specific Makefiles or shell scripts on the macOS host. Always run them inside the target OS container where `/bin/sh` matches the target platform's shell.
-
-**Why:** Debian, Ubuntu, and Raspios use **Dash** (`/bin/sh` → `dash`), which is strict POSIX — no bashisms like `[[ ]]`, arrays, `${var,,}`, or process substitution. Fedora uses Bash. Testing on macOS (zsh) masks these differences entirely.
-
-**Rule:**
-- **`make -n` syntax check**: Run inside `ringbuffer_<os>_build` container: `container run --rm -v $(pwd):/app/ringbuffer/<os>/cpp -w /app/ringbuffer/<os>/cpp ringbuffer_<os>_build make -n <target>`
-- **Actual test execution**: Run inside `ringbuffer_<os>_build` container (same image, simpler for now): `container run --rm -v $(pwd)/../../..:/app/ringbuffer -w /app/ringbuffer/<os>/cpp/tests ringbuffer_<os>_build make verify`
-- **After any Makefile change**: Always run `make -n` inside the container first to verify syntax before running actual builds
-- **Container build**: If the image doesn't exist, build it first with `make container` from the OS directory
-
-**OS Container Mapping:**
-| OS | Build Container | Shell (`/bin/sh`) | Notes |
-|----|-----------------|--------------------|-------|
-| Debian | `ringbuffer_debian_build` | Dash | Strict POSIX — no bashisms |
-| Fedora | `ringbuffer_fedora_build` | Bash | Supports bashisms |
-| Ubuntu | `ringbuffer_ubuntu_build` | Dash | Strict POSIX — no bashisms |
-| Raspios | `ringbuffer_raspios_build` | Dash | Strict POSIX — no bashisms |
-| Arch Linux | `ringbuffer_archlinux_build` | Bash | amd64-only — macOS skip (see platform analysis) |
-
-**Fallback for macOS skip cases:** When the target OS has no arm64 container image (e.g., Arch Linux amd64-only on Apple Silicon), consult the platform analysis doc for the closest equivalent. If no container is available, `make -n` on host is best-effort only — it cannot catch `/bin/sh` differences.
-
-### Container Naming Convention
-- **Build containers**: `ringbuffer_<os>_build` — used only by `verify_build`. Contains full toolset for all languages (C/C++, Java, Python).
-- **Test containers**: `ringbuffer_<os>_test` — used only by `run_regression`. Identical content to build container.
-- **OS names**: `debian`, `fedora`, `ubuntu`, `raspios` (macOS is native-only, no containers).
-- **Example**: `ringbuffer_fedora_build`, `ringbuffer_debian_test`, `ringbuffer_ubuntu_build`.
-
-### Container Dockerfile Location
-- **Unified location**: `src/<os>/containers/build/Dockerfile` and `src/<os>/containers/test/Dockerfile`
-- **One Dockerfile per OS** — each installs tools for ALL supported languages (C/C++, Java, Python).
-- **Build and test Dockerfiles are identical** — same content, no cross-inheritance.
-- **Containers inherit ONLY from base OS image** (`fedora:44`, `debian:13`, `ubuntu:24.04`, raspios base) — NEVER from each other.
-- **Deprecated**: Old per-language Dockerfiles at `src/common/python/containers/` and `src/common/java/containers/` have been removed.
-
-### Arch Linux Container Image Pinning
-- **Arch Linux is a rolling release** — it has no `VERSION_ID` in `/etc/os-release`. Always identify by `ID=arch` alone.
-- **Container tag strategy: datestamp-based.** Pin to a specific date 3 months in the past for reproducible builds. Never use `latest` or unversioned tags like `base`.
-- **Example:** If today is 2026-08-21, use `FROM archlinux:2026.05.01`.
-- **How to determine the date:** Calculate 3 months back from today, format as `YYYY.MM.DD`. Check Docker Hub for the exact datestamp tag that exists (Arch publishes daily snapshots).
-- **macOS hosts:** `archlinux:base` and datestamp tags are amd64-only. macOS scripts must skip Arch Linux containers with a logged message (already handled by the "Linux-hosts-only" rule).
-- **Linux hosts:** Use `podman` with the pinned datestamp tag.
-
-### Container Commands (macOS)
-- **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
-- **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_fedora_build:latest ...`, NOT `container run localhost/ringbuffer_fedora_build:latest ...`.
-- **Debian Makefile LTO_FLAG:** The Debian container's g++ does not support `-flto=thin`. Use `-flto` instead. The Makefile's LTO_FLAG logic must reflect this.
-
+<!-- RULES-LOAD: container -> rules/container-rules.md -->
+<!-- RULES-LOAD: container -> rules/container-naming.md -->
+<!-- RULES-LOAD: container -> rules/container-dockerfile.md -->
+<!-- RULES-LOAD: archlinux -> rules/archlinux-pinning.md -->
+<!-- RULES-LOAD: macos -> rules/container-commands-macos.md -->
 ### Prompt Changelog Discipline
 When modifying any prompt file that affects generated code, record the change in `prompts/common/CHANGELOG.md` using this format:
 ```markdown
@@ -734,29 +643,7 @@ Before adding repeated content (container runtime rules, host-target compatibili
 2. If it does, add a relative link instead of duplicating the text.
 3. If it doesn't, add it to `prompts/common/session_hints.md` first, then reference it from the platform-specific prompt.
 
-### Mermaid Diagram Validation
-
-When adding or updating any mermaid diagram in the README (or any markdown file), **validate that it renders before committing**. Mermaid has strict syntax rules — parentheses `()`, at-signs `@`, and multi-line labels all cause silent parse failures that produce blank diagrams in GitHub/GitLab.
-
-**Common syntax pitfalls:**
-- **Parentheses in labels**: Must be quoted — use `["text (with parens)"]` not `[Text (with parens)]`
-- **At-signs in edge labels**: Must be quoted — use `-->|"ssh@host"| Node` not `-->|ssh@host| Node`
-- **Multi-line labels**: Use `<br>` for line breaks, but single-line labels are safer and render more consistently
-- **`direction` inside subgraphs**: Forbidden — causes Safari/GitLab rendering failures. Use only at the top level (`flowchart LR`)
-- **Node names starting with reserved words**: Avoid `SSH`, `A`, `B` as node IDs — use descriptive names like `SshRemote`, `BuildStep`
-
-**Validation command:**
-```bash
-# Render a diagram to PNG and check for errors (exit 0 = success)
-mmdc -i diagram.mmd -o /tmp/diagram.png -b white
-```
-
-**Workflow:**
-1. Write the mermaid diagram in a standalone `.mmd` file (not inline in markdown)
-2. Run `mmdc -i diagram.mmd -o /tmp/diagram.png -b white` to validate
-3. If it renders successfully, copy the diagram into the markdown file
-4. Never commit a diagram that hasn't been validated with `mmdc`
-
+<!-- RULES-LOAD: readme-update -> rules/mermaid-validation.md -->
 ### Verification Scripts
 The project includes two automated verification scripts in `prompts/common/cpp/utils/bin/`:
 
@@ -959,34 +846,4 @@ When you edit `README.md` directly (add a section, change content, restructure):
 3. If a new section appears in the README that isn't described in the prompt, add it
 4. If a section is removed from the README, remove it from the prompt
 
-### FreeBSD 14 SSH Execution — tcsh Script Rule (Permanent)
-
-**FreeBSD 14 default shell is `tcsh`, NOT bash or sh.** This has critical implications for SSH execution:
-
-- **NEVER use `bash -c` on FreeBSD 14** — bash is forbidden per the .bionic rules
-- **NEVER use `2>&1` redirects in tcsh** — produces "Ambiguous output redirect" error
-- **NEVER use double-quoted `*` globs in tcsh** — tcsh expands them before running, causing "No match" errors
-- **Always use single quotes around paths with `*`** to prevent glob expansion: `'${path}/'*`
-
-**Correct workflow for FreeBSD 14 SSH execution:**
-
-1. **Create a local tcsh script** at `utils/bin/run_freebsd_ssh.tcsh` that runs ON THE REMOTE host
-2. **The tcsh script handles all remote operations:**
-   - Clean workspace: `/bin/rm -rf '${os_dir}/'*` (single quotes prevent glob expansion)
-   - Extract tarball: `/bin/tar -xzf ringbuffer_${TARGET_OS}.tar.gz`
-   - Run make: `/usr/bin/make clean` and `/usr/bin/make verify`
-3. **From the host script (run_regression.sh/zsh):**
-   - Step 1: Create tarball of source code
-   - Step 2: SCP both the tarball AND the tcsh script to remote (`/tmp/run_freebsd_ssh.tcsh`)
-   - Step 3: SSH to remote and run `tcsh /tmp/run_freebsd_ssh.tcsh '${remote_base}' '${TARGET_OS}'`
-   - Step 4: Clean up remote temp files (`rm -f /tmp/run_freebsd_ssh.tcsh`)
-
-**Key tcsh syntax rules:**
-- Use `set var = "value"` for variable assignment
-- Use `${var}` for variable expansion (no `$var` without braces in paths)
-- Use `if ( condition ) then ... endif` for conditionals
-- Use `$status` to capture exit codes
-- Use single quotes around any path containing `*`: `'${path}/'*`
-- No `2>&1` — use separate stderr capture if needed
-
-**This rule is permanent.** Any future FreeBSD 14 SSH work MUST use the tcsh script approach — never inline bash or sh commands via SSH.
+<!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md -->
