@@ -379,16 +379,6 @@ flowchart LR
     ReadThread -->|slots: data + status| TransformThread
     TransformThread -->|slots: transformed data| WriteThread
 
-    classDef read fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef transform fill:#fff3e0,stroke:#ef6c00,stroke-width:3px
-    classDef write fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
-    classDef idle fill:#f5f5f5,stroke:#757575,stroke-width:2px
-    classDef active fill:#fff9c4,stroke:#f9a825,stroke-width:2px
-    class R1,W3 idle
-    class R2,T2,W2 active
-    class ReadThread read
-    class TransformThread transform
-    class WriteThread write
 ```
 
 **Key points:**
@@ -793,47 +783,25 @@ Build verification confirms that source code compiles and produces correct artif
 
 ```mermaid
 flowchart TD
-    Start([Start: verify_build]) --> Scope[Parse scope: OS + Language]
-    Scope --> Mode{Execution mode?}
-    
-    Mode -->|native| Native[Resolve native toolchain: clang++/g++]
-    Mode -->|container| Container[Resolve container image: podman/container CLI]
-    Mode -->|"ssh@host"| SshRemote[Prepare tarball: src/ + prompts/]
-    
-    Native --> PreCheck[Pre-flight checks: toolchain version, disk space]
-    Container --> PreCheck
-    SshRemote --> SCP[SCP tarball to remote host]
-    SCP --> RemoteClean[Remote: rm -rf old files]
-    RemoteClean --> RemoteUnpack[Remote: tar -xzf]
-    RemoteUnpack --> PreCheck
-    
-    PreCheck --> Build[Execute: make all]
+    Start([Start: verify_build]) --> Build[Execute make all]
     Build --> Artifacts{Artifacts exist?}
-    
-    Artifacts -->|No| FailBuild[FAIL: Build error - check build.log]
-    Artifacts -->|Yes| Symmetry["Binary symmetry: verify_binary_symmetry.sh (Linux only)"]
-    Symmetry --> Lint[Prompt linting: lint_prompts.sh]
-    
-    Symmetry -->|Fail| FailSym[FAIL: Source drift - rebuild affected platforms]
-    Lint -->|Fail| FailLint[FAIL: Structural issue - fix prompt layout]
-    
+
+    Artifacts -->|No| FailBuild[FAIL: Build error]
+    Artifacts -->|Yes| Checks{Run checks?}
+
+    Checks -->|No| Report[Generate build.log]
+    Checks -->|Yes| Symmetry["Binary symmetry (Linux)"]
+    Symmetry --> Lint[Prompt linting]
+
+    Symmetry -->|Fail| FailSym[FAIL: Source drift]
+    Lint -->|Fail| FailLint[FAIL: Structural issue]
+
     FailBuild --> EndFail([End: FAIL])
     FailSym --> EndFail
     FailLint --> EndFail
-    
-    Lint --> Report[Generate build.log: compiler version, artifact sizes]
+
+    Lint --> Report
     Report --> EndOK([End: PASS])
-    
-    classDef startend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    classDef process fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-    classDef fail fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef ssh fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    class Start,EndOK startend
-    class Scope,Native,Container,PreCheck,Build,Artifacts,Symmetry,Lint,Report process
-    class Mode,SSH decision
-    class SCP,RemoteClean,RemoteUnpack ssh
-    class FailBuild,FailSym,FailLint,EndFail fail
 ```
 
 ##### run_regression Workflow
@@ -865,16 +833,6 @@ flowchart TD
     Markdown --> Summary[Summary: pass/fail counts, per-test timing]
     Summary --> EndOK([End: PASS])
 
-    classDef startend fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef process fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-    classDef fail fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef test fill:#fce4ec,stroke:#c62828,stroke-width:2px
-    class Start,EndOK startend
-    class BuildTest,HarnessOK,JUnit,Markdown,Summary process
-    class TLoop,Results decision
-    class FailHarness,FailTests,EndFail fail
-    class RunTests,NextTest,CollectResult test
 ```
 
 ##### Execution Mode Decision Flowchart
@@ -882,44 +840,30 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Select target]) --> Host{Host OS?}
-    
+
     Host -->|macOS| MacCheck{Target OS?}
-    MacCheck -->|macos| Native[Native build: clang++, make]
-    MacCheck -->|fedora/debian/ubuntu| Container{Container runtime?}
-    Container -->|container CLI| AppleCont[Apple Container: omit localhost/ prefix]
-    Container -->|podman available| PodmanCont[podman: full src/ mount]
-    Container -->|neither| Skip[SKIP: Log message, no container runtime]
-    
+    MacCheck -->|macos| Native[Native build]
+    MacCheck -->|fedora/debian/ubuntu| Container{Container?}
+    Container -->|yes| PodmanCont[podman/container]
+    Container -->|no| Skip[SKIP: No runtime]
+
     Host -->|Linux| LinuxCheck{Target OS?}
-    LinuxCheck -->|macos| SkipMac[SKIP: macOS is native-only, cannot containerize]
+    LinuxCheck -->|macos| SkipMac[SKIP: macOS native-only]
     LinuxCheck -->|fedora/debian/ubuntu/arch| PodmanCont
-    LinuxCheck -->|archlinux| SshCheck{Remote host? archlinux/ssh@host}
-    
+    LinuxCheck -->|archlinux| SshCheck{Remote host?}
+    SshCheck -->|Yes| SshRemote[SSH remote]
+    SshCheck -->|No| SkipArch[SKIP: No host configured]
+
     Host -->|FreeBSD| FBSDCheck{Target OS?}
     FBSDCheck -->|freebsd14| Native
     FBSDCheck -->|other| SkipMac
-    
-    SshCheck -->|Yes| SshRemote[SSH remote: key-based auth only, tarball transfer]
-    SshCheck -->|No| SkipArch[SKIP: No remote host configured for archlinux]
-    
+
     Native --> End([Execute])
-    AppleCont --> End
     PodmanCont --> End
     SshRemote --> End
     Skip --> EndSkip([End: Skipped])
     SkipMac --> EndSkip
     SkipArch --> EndSkip
-    
-    classDef startend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    classDef process fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-    classDef skip fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px
-    classDef ssh fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    class Start,End,EndSkip startend
-    class Native,AppleCont,PodmanCont,SshRemote process
-    class Host,MacCheck,Container,LinuxCheck,SshCheck decision
-    class Skip,SkipMac,SkipArch skip
-    class SshRemote ssh
 ```
 
 ##### Platform-Specific Notes
