@@ -534,7 +534,7 @@ All platform source code MUST be generated **independently** from the common spe
 ### Excluded Platforms
 FreeBSD 15 is excluded from active development. Its prompt directories contain explicit exclusion messages (`build.md`, `functional.md`, `testing.md` all state: "Excluded platform — do not modify"). If any non-zero content exists beyond these exclusion messages, remove it.
 
-FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain placeholder text pointing to `prompts/freebsd/cpp/` (generic FreeBSD 14.x/15.x spec) and `prompts/common/cpp/` (common specs). Python, Java, C, Go, and Rust per-OS prompt directories contain non-zero placeholder text pointing to common specs — this is allowed and recommended to prevent zero-length file confusion.
+FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain placeholder text pointing to `prompts/freebsd/cpp/` (generic FreeBSD 14.x/15.x spec) and `prompts/common/cpp/` (common specs). Java is implemented on FreeBSD 14 — BSD make override at `src/freebsd14/java/Makefile`, source from `src/common/java/`. Python is implemented on FreeBSD 14 — Pure Python only (Concurrent skipped due to RPATH limitation). C, Go, and Rust per-OS prompt directories contain non-zero placeholder text pointing to common specs — this is allowed and recommended to prevent zero-length file confusion.
 
 <!-- RULES-LOAD: freebsd14 -> rules/freebsd-shell.md -->
 <!-- RULES-LOAD: freebsd14 -> rules/tcsh-syntax.md -->

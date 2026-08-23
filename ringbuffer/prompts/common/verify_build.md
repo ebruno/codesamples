@@ -307,7 +307,7 @@ Verify that all implemented languages build successfully across supported operat
         # SCP and unpack on remote at ~/ringbuffer
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
-        # Build Java on remote — FreeBSD 14 uses tcsh script
+        # Build Java on remote — FreeBSD 14 uses BSD make override at src/freebsd14/java/
         scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
         ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 java-build"
         ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"

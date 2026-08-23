@@ -1,7 +1,10 @@
 # BSD Make-compatible Makefile for FreeBSD 14 Python regression testing
 # Uses BSD make syntax (no $(shell), no ifeq/else)
 
-.PHONY: clean dist-clean build test syntax-check
+.PHONY: all clean dist-clean build test syntax-check
+
+# all is an alias for build (verify_build calls make all)
+all: build
 
 # FreeBSD 14 C++ source directory
 CPP_SRC_DIR := ../../freebsd14/cpp
