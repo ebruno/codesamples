@@ -276,10 +276,12 @@ Verify that all implemented languages build successfully across supported operat
    - Java is a **common language** — source lives in `src/common/java/` but must be verified on each supported OS.
    - **Determine target OSes to verify**:
      - If a specific OS was requested → only that OS.
-     - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
+     - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14) using the routing table.
    - **Routing Decision** (per-OS build path):
      - **macOS**: Native-only — no containers. Run `make all` directly on the host.
      - **Linux distros (fedora, debian, ubuntu, raspios)**: Container-based — use `container` on macOS host or `podman` on Linux host.
+     - **FreeBSD 14**: Native-only via SSH remote — use `ssh freebsd-runner`.
+     - **Arch Linux**: Native-only via SSH remote — use `ssh archlinux-runner`.
    - For each target OS:
      1. **macOS Build Path** (native):
         ```bash
@@ -294,7 +296,37 @@ Verify that all implemented languages build successfully across supported operat
         # mounts workspace root and per-platform pom.xml override if present,
         # and runs make all inside the target OS container.
         ```
-     3. **Post-Build Verification** (all OSes, unified step):
+     3. **FreeBSD 14 SSH Build Path**:
+        - Pre-flight: `command -v ssh`
+        - **Host Requirement:** `<freebsd_host>` must be provided by the user. If not provided, STOP and ask: "Please provide the FreeBSD 14 SSH host (e.g., `<user>@<IP address|FQDN>`)."
+        ```bash
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <freebsd_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (tcsh-compatible: semicolon, not &&)
+        tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
+        ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
+        # Build Java on remote — FreeBSD 14 uses tcsh script
+        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 java-build"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+        ```
+     4. **Arch Linux SSH Build Path**:
+        - Pre-flight: `command -v ssh`
+        - **Host Requirement:** `<archlinux_host>` must be provided by the user. If not provided, STOP and ask: "Please provide the Arch Linux SSH host (e.g., `<user>@<IP address|FQDN>`)."
+        ```bash
+        # Clean everything on remote (emulates clean git checkout)
+        ssh <archlinux_host> "rm -rf ~/ringbuffer"
+        # Create tarball of entire ringbuffer from parent dir (Arch Linux uses bash, && is safe)
+        tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
+        # SCP and unpack on remote at ~/ringbuffer
+        scp /tmp/ringbuffer_archlinux.tar.gz <archlinux_host>:~/
+        ssh <archlinux_host> "cd ~ && tar -xzf ringbuffer_archlinux.tar.gz"
+        # Build Java on remote (Arch Linux default shell is bash)
+        ssh <archlinux_host> "cd ~/ringbuffer/src/common/java && make clean && make all"
+        ```
+     5. **Post-Build Verification** (all OSes, unified step):
         - Verify the JAR artifact exists: `target/ringbuffer-<version>.jar`
         - Verify the symlink exists: `lib/ringbuffer.jar` → `target/ringbuffer-<version>.jar`
         - Verify JAR is non-empty: `test -s target/ringbuffer-<version>.jar`
