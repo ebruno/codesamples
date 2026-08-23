@@ -90,6 +90,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
 - **Library-First API Design**: The Ringbuffer is designed as a reusable library, not an application. All public APIs — including the ~20 slot-level accessor methods on `RingBuffer` (e.g., `get_data_buffer_size()`, `set_transformed_data_buffer_size()`, `get_slot_status()`) — are intentional design choices providing maximum flexibility to library consumers for debugging, monitoring, and testing. Granular slot state visibility is a feature, not a leaky abstraction.
 - **Core Principle — Library-First Flexibility**: Consumer flexibility > API simplicity. No hidden abstractions — consumers should be able to observe and control state at any granularity without wrapper code. Opt-in complexity: basic usage is simple (construct, set transform, start), but advanced usage must not require extending the library. The abstract class interface is a stable public API contract.
+- **Portable Shell Scripts (Core Feature)**: All shell scripts use only bash/zsh builtins — `awk`, `sed`, `grep` and other external tools are forbidden to ensure identical behavior across macOS (BSD), Linux (GNU), and FreeBSD. See [LLM Challenges — Portable Shell Scripts](#portable-shell-scripts-core-feature) for details on the rule, its rationale, and workarounds.
 
 ## Core Features
 - **Shared Behavioral Contract (All Languages)**: Every implementation must satisfy these requirements regardless of language:
@@ -547,6 +548,8 @@ src/macos/cpp/lib/
 These are build artifacts (gitignored) and serve a different purpose: allowing consumers to link against `libswtr_ringbuffer.a` without knowing the exact version string. They are created by each OS's `Makefile all` target and regenerated on every build.
 
 ## Project Policies
+
+> **Portable Shell Scripts (Core Feature):** This project's most impactful rule — forbidding `awk`, `sed`, `grep` and other external tools in favor of bash/zsh builtins — eliminates an entire class of cross-platform bugs. See [LLM Challenges — Portable Shell Scripts](#portable-shell-scripts-core-feature) for the full story on why this rule exists, how it works, and what problems it solved.
 
 ### Shell Script Portability
 
@@ -1682,6 +1685,97 @@ Loaded template 'Fedora' — all fields populated with defaults.
 - **Cross-platform verification suite** — Automated comparison of behavior across all language/platform combinations, not just source-level binary symmetry.
 - **Plugin ecosystem** — The transform function abstraction (`std::function<void(std::vector<uint8_t>&, size_t&)>`) is designed to support a plugin model where users can register custom transforms without modifying the library.
 
+## LLM Challenges
+
+This project was built entirely through prompt-driven LLM development. The most persistent and costly issues came from platform-specific shell and build system quirks that are easy for an LLM to get wrong because they contradict the patterns it has seen thousands of times in training data.
+
+### Portable Shell Scripts (Core Feature)
+
+**The Problem:** Across every platform we target — macOS, Linux distros, FreeBSD — the same family of utilities (`grep`, `sed`, `awk`, `find`) behave differently. An LLM will confidently generate code that works on its training data distribution (Linux/GNU) but fails silently or catastrophically elsewhere. This isn't a niche issue — it affects every script in the project, from Makefiles to test harnesses to deployment automation.
+
+**The Rule (enforced in `.bionic`):** Shell scripts must use only bash/zsh builtins and universally available utilities. Forbidden external tools: `awk`, `sed`, `grep`, `cut`, `tr`, `sort`, `uniq`, `find`, `xargs`.
+
+**How it works in practice:**
+- **`grep` → `case` pattern matching or `[[ "$var" == *pattern* ]]`**
+- **`sed 's/old/new/'` → `${var//old/new}` parameter expansion**
+- **`awk '{print $1}'` → `read -ra fields <<< "$data"`**
+- **`wc -l` → `${#array[@]}` or bash arithmetic**
+
+**Why it matters:** This single rule eliminates an entire class of cross-platform bugs. Instead of maintaining separate script variants for macOS vs Linux, one portable script works everywhere. It also makes LLM-generated code more reliable — the model doesn't need to know which platform it's targeting because the forbidden tools are never used.
+
+**Exception:** Makefile recipes run under `/bin/sh`, which lacks bash builtins like arrays and `[[ ]]`. In that context, external tools are permitted (but bash-specific features remain forbidden).
+
+### BSD Makefiles vs GNU Make
+
+**The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
+
+| Feature | GNU Make (Linux) | BSD Make (macOS, FreeBSD) |
+|---------|-----------------|---------------------------|
+| Variable reference | `$(VAR)` or `${VAR}` | `${VAR}` only |
+| Shell command | `$(shell echo hello)` | Not supported — use `${.OBJDIR}` or external tools |
+| Conditional syntax | `ifeq`, `ifdef` | Not supported — use `.if`, `.elif`, `.else` |
+| Built-in defaults | `make` runs `/bin/sh -c` recipes | `make` may use different built-in rules |
+| Tab requirement | Required | Required (same) |
+
+**How we solved it:**
+- **Installed `bmake` on macOS host:** We installed BSD make (`pkg install bmake`) directly on the development Mac so we can write, test, and debug Makefiles natively without needing a container or remote host. This eliminated the guesswork — we can run `make -n` and see real errors instead of hoping the LLM got it right.
+- **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
+- **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
+- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
+
+**Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. Installing `bmake` locally was the turning point — it let us iterate on Makefiles interactively instead of through trial-and-error LLM prompts.
+
+### macOS Toolchain Quirks: sed, awk, zsh
+
+**The Problem:** macOS ships with BSD-derived versions of common utilities and uses `zsh` as the default shell (since Catalina). Each has subtle differences from their GNU/Linux counterparts:
+
+| Tool | macOS (BSD) | Linux (GNU) | Gotcha |
+|------|-------------|-------------|--------|
+| `sed` | BSD sed | GNU sed | `-i` requires backup suffix: `sed -i '' 's/x/y/'` vs Linux's `sed -i 's/x/y/'` |
+| `awk` | BSD awk (old nawk) | gawk | No `gsub` with array, limited regex features, no `PROCINFO` |
+| `zsh` | Default shell (since Catalina) | bash | Different array syntax, different globbing (`**` vs `find`), different parameter expansion |
+
+**How we solved it:**
+- **Shell Script Portability Rule (`.bionic`):** Scripts use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely. This sidesteps all `sed`/`awk` differences.
+- **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
+- **zsh compatibility:** Scripts use `#!/usr/bin/env bash` shebangs explicitly — never relying on the default shell. Where zsh-specific features are needed, they're documented and isolated.
+- **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
+
+**Cost:** These bugs were insidious because they only manifested when scripts ran on a different platform. A `sed -i` command that worked perfectly in development (macOS) would silently corrupt files on Linux by treating the pattern as a backup suffix. The portability rule was the definitive fix — it eliminated the need for platform-specific script variants entirely.
+
+### tcsh Scripts for FreeBSD 14
+
+**The Problem:** FreeBSD 14's default shell is `tcsh`, not bash or zsh. tcsh has extremely limited scripting capabilities compared to POSIX shells:
+
+| Feature | bash/zsh | tcsh |
+|---------|----------|------|
+| Arithmetic expansion | `$((a + b))` | `@ x = $a + $b` |
+| Error handling | `set -e` | Not supported |
+| Redirections | `2>&1` | Not supported — use `grep ---` pattern |
+| Here-strings | `<<< "text"` | Not supported |
+| Arrays | `${arr[@]}` | `$arr[*]` (no quoting support) |
+| Control flow | `if [[ ... ]]; then` | `if ( $cond ) then` (then on own line) |
+
+**How we solved it:**
+- **Installed `tcsh` on macOS host:** We installed tcsh (`pkg install tcsh`) directly on the development Mac so we can write, test, and debug FreeBSD scripts locally. This eliminated the round-trip latency of SSHing into a remote FreeBSD box for every syntax error.
+- **tcsh reference scripts:** We built a reusable tcsh script library in `rules/tcsh-syntax.md` and supporting scripts that serve as a reference for all FreeBSD 14 operations. These cover the common patterns — SSH execution, tarball unpacking, make invocation, test running — so each new script doesn't start from scratch. The reference is loaded via `.bionic` pre-flight checks before any tcsh script generation, ensuring compliance.
+- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
+- **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
+- **`tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
+
+**Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. Installing `tcsh` locally was a game-changer — it let us iterate interactively instead of through slow SSH round-trips. The reusable tcsh reference library then prevented the same mistakes from recurring across sessions and scripts.
+
+### Key Takeaway
+
+The common thread across all these challenges is **platform divergence in tools that appear identical**. An LLM trained on the vast majority of Linux/GNU examples will confidently generate incorrect macOS/BSD or FreeBSD/tcsh code because the surface syntax looks right — it's only at execution time that the differences matter. The solution is always:
+
+1. **Install target tools on the host** — `bmake` and `tcsh` on macOS let us iterate interactively instead of through slow LLM round-trips
+2. **Shell Script Portability Rule** — forbid `awk`, `sed`, `grep` and use bash/zsh builtins instead; this single rule eliminates an entire class of cross-platform bugs
+3. **Explicit per-platform templates** — never assume one syntax works everywhere
+4. **Reusable reference libraries** — tcsh scripts and rules that persist across sessions, loaded via pre-flight checks
+5. **Container-based testing** — always verify inside the target platform, never on the host
+6. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
+
 ## Known Issues
 
 - **LM Studio shell ENOENT after session compaction:** After a long session hits its first compaction, `shell_command` calls fail with `spawn ... ENOENT`. This is a bug in LM Studio Bionic — the scratchpad directory isn't materialized until a sandboxed Python or file-delivery call creates it. **Workaround:** run a trivial sandboxed Python call first, then retry the shell command. See `.bionic` Common Pitfalls #1 for details. **Remove this note once LM Studio fixes the bug.**
@@ -1690,7 +1784,89 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 | Appendix | Description |
 |----------|-------------|
+| [Arch Linux Platform Analysis](prompts/common/appendices/archlinux-platform-analysis.md) | System info, toolchain versions (g++, clang++), package manager, container considerations |
 | [C++ Cross-Compiler Compatibility](prompts/common/appendices/cpp-cross-compiler-compatibility.md) | Detailed analysis of clang++ ↔ g++ ABI compatibility, standard library behavior across macOS/Linux/Windows, and C++ version caveats |
+| [Debian Platform Analysis](prompts/common/appendices/debian-platform-analysis.md) | System info, Dash shell behavior, g++ 14.x toolchain, container configuration |
+| [Fedora Platform Analysis](prompts/common/appendices/fedora-platform-analysis.md) | System info, Bash shell behavior, g++ 14.x toolchain, container configuration |
+| [FreeBSD Platform Analysis](prompts/common/appendices/freebsd-platform-analysis.md) | FreeBSD 14 system info, tcsh shell, clang++ toolchain, RPATH limitations |
+| [FreeBSD 14 Java Verification](prompts/common/appendices/freebsd14_java_verification.md) | Build and classload test results for Java on FreeBSD 14 |
+| [FreeBSD 14 Python Verification](prompts/common/appendices/freebsd14_python_verification.md) | Syntax check, import verification, and instantiation results for Python on FreeBSD 14 |
+| [macOS Platform Analysis](prompts/common/appendices/macos-platform-analysis.md) | System info, zsh shell behavior, clang++ toolchain, universal binary configuration |
+| [Raspberry Pi OS Platform Analysis](prompts/common/appendices/raspios-platform-analysis.md) | System info, Dash shell behavior, g++ 12.x arm64 toolchain, container configuration |
+| [Ubuntu Platform Analysis](prompts/common/appendices/ubuntu-platform-analysis.md) | System info, Dash shell behavior, g++ 13.x toolchain, clang++ header mismatch issue |
+
+## LLM Challenges
+
+This project was built entirely through prompt-driven LLM development. The most persistent and costly issues came from platform-specific shell and build system quirks that are easy for an LLM to get wrong because they contradict the patterns it has seen thousands of times in training data.
+
+### BSD Makefiles vs GNU Make
+
+**The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
+
+| Feature | GNU Make (Linux) | BSD Make (macOS, FreeBSD) |
+|---------|-----------------|---------------------------|
+| Variable reference | `$(VAR)` or `${VAR}` | `${VAR}` only |
+| Shell command | `$(shell echo hello)` | Not supported — use `${.OBJDIR}` or external tools |
+| Conditional syntax | `ifeq`, `ifdef` | Not supported — use `.if`, `.elif`, `.else` |
+| Built-in defaults | `make` runs `/bin/sh -c` recipes | `make` may use different built-in rules |
+| Tab requirement | Required | Required (same) |
+
+**How we solved it:**
+- **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
+- **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
+- **Explicit `make` detection:** Build scripts check which `make` is available and select the correct syntax variant.
+- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
+
+**Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. The fix required generating separate Makefile templates per OS family.
+
+### tcsh Scripts for FreeBSD 14
+
+**The Problem:** FreeBSD 14's default shell is `tcsh`, not bash or zsh. tcsh has extremely limited scripting capabilities compared to POSIX shells:
+
+| Feature | bash/zsh | tcsh |
+|---------|----------|------|
+| Arithmetic expansion | `$((a + b))` | `@ x = $a + $b` |
+| Error handling | `set -e` | Not supported |
+| Redirections | `2>&1` | Not supported — use `grep ---` pattern |
+| Here-strings | `<<< "text"` | Not supported |
+| Arrays | `${arr[@]}` | `$arr[*]` (no quoting support) |
+| Control flow | `if [[ ... ]]; then` | `if ( $cond ) then` (then on own line) |
+
+**How we solved it:**
+- **tcsh script templates:** We created dedicated `.tcsh` scripts for FreeBSD 14 operations, following strict syntax rules loaded from `rules/tcsh-syntax.md`.
+- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
+- **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
+- **`tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
+
+**Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. The `then` keyword must be on its own line (or preceded by `;`), `$((...))` arithmetic is forbidden, and `2>&1` redirection doesn't work. Each tcsh script required multiple iterations to get right.
+
+### Shell Portability: GNU vs BSD Utilities
+
+**The Problem:** macOS ships with BSD implementations of common utilities (`grep`, `sed`, `awk`), while Linux uses GNU implementations. The behavioral differences are subtle and cause silent failures:
+
+| Utility | macOS (BSD) | Linux (GNU) |
+|---------|-------------|-------------|
+| `grep -c` | Counts matching lines | Same, but `-P` (Perl regex) not available |
+| `sed -i` | Requires backup suffix: `sed -i '' 's/x/y/'` | In-place edit without suffix |
+| `awk` | BSD awk — limited features | gawk — full feature set |
+| `find -exec` | `-exec ... \;` required | GNU find supports `+` for batching |
+
+**How we solved it:**
+- **Shell Script Portability Rule (`.bionic`):** Scripts must use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely.
+- **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
+- **Makefile recipe exception:** Makefile recipes run under `/bin/sh`, so external tools are permitted there (but bash builtins like `[[ ]]` and arrays are not).
+- **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
+
+**Cost:** These bugs were insidious because they only manifested when scripts ran on a different platform. A script that worked perfectly in development (macOS) would fail silently or incorrectly on Linux containers.
+
+### Key Takeaway
+
+The common thread across all these challenges is **platform divergence in tools that appear identical**. An LLM trained on the vast majority of Linux/GNU examples will confidently generate incorrect macOS/BSD or FreeBSD/tcsh code because the surface syntax looks right — it's only at execution time that the differences matter. The solution is always:
+
+1. **Explicit per-platform templates** — never assume one syntax works everywhere
+2. **Pre-flight validation rules** — load platform-specific rule files before generating code
+3. **Container-based testing** — always verify inside the target platform, never on the host
+4. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
 
 ## License
 This project is licensed under the **BSD 3-Clause License**.
