@@ -569,7 +569,7 @@ When building or running regression tests on a remote system via SSH, **always**
 - **Use `tar -czf /tmp/ringbuffer_<os>.tar.gz -C .. ringbuffer`** to create the tarball from the parent directory, preserving the `ringbuffer/` top-level path inside the archive.
 - **Use tarball + SCP** (not `scp -r` of individual files) for reliable, atomic transfers.
 - **Verify after transfer** — confirm file counts and sizes match between local tarball contents and remote unpacked files.
-- **FreeBSD 14:** Default shell is `tcsh`. All inline SSH commands must be tcsh-compliant (use `;` not `&&`, avoid `$()`, avoid `2>&1`). For build/test commands, use a tcsh script: `tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os>`.
+- **FreeBSD 14:** Default shell is `tcsh`. All inline SSH commands must be tcsh-compliant (use `;` not `&&`, avoid `$()`, avoid `2>&1`). For build/test commands, use a tcsh script: `tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os> <mode>` where `<mode>` is one of: `cpp`, `test-cpp`, `python-build`, `python-test`, `java-build`, `java-test`.
 - **Arch Linux:** Default shell is `bash`. Inline `&&` commands are safe.
 
 **SSH Host Configuration (User-Provided):**
@@ -1035,6 +1035,45 @@ while IFS= read -r line; do
     esac
 done < file.txt
 ```
+
+### tcsh Script Creation — Pre-Flight Check (MANDATORY)
+
+**Before creating or modifying ANY `.tcsh` script, you MUST perform this pre-flight check:**
+
+1. **Load `rules/tcsh-syntax.md`** — read the entire file before writing any tcsh code
+2. **Cross-reference every line of your script** against the rules in that file:
+   - Control Flow (then/endif, while/end, functions, switch/case)
+   - Variables and Arrays (@ arithmetic, no leading underscore, no quoted arrays, foreach quoting)
+   - Redirects and I/O (no 2>&1, no here-strings)
+   - External Tools and Patterns (grep ---, glob no match)
+   - Script Structure and Testing (shebang env, no set -e, temp file testing)
+3. **If any rule is violated**, STOP and fix it before proceeding
+4. **Verify compliance** — if the script contains any forbidden pattern, STOP and find a tcsh-compatible alternative
+
+**This check is mandatory — not optional.** The rules exist in `rules/tcsh-syntax.md` but have been violated multiple times because the file was not loaded before tcsh script creation. Relying on memory alone has led to broken scripts.
+
+**Example — Pre-Flight Check in Action:**
+```tcsh
+# ❌ BEFORE pre-flight check: wrote tcsh script without loading rules
+#!/bin/tcsh              # ← Violation: hardcoded path, should be env tcsh
+set -e                   # ← Violation: set -e not supported
+@ x = $(($a + $b))      # ← Violation: no $((...)), use @ x = $a + $b
+if ( $cond ) then echo "yes"  # ← Violation: then must be on own line or followed by ;
+# ... proceeds to create broken script ...
+
+# ✅ AFTER pre-flight check: loaded rules, verified compliance
+cat rules/tcsh-syntax.md  # ← MUST be the first action before any tcsh script work
+# ... verify each line against loaded rules ...
+#!/usr/bin/env tcsh       # ← Fixed: portable shebang
+# no set -e               # ← Fixed: removed unsupported directive
+@ x = $a + $b            # ← Fixed: use @ operator
+if ( $cond ) then         # ← Fixed: then on own line
+  echo "yes"
+endif                     # ← Fixed: proper endif
+# ... now create the script ...
+```
+
+**This rule is self-referential: if you are reading this, you have already read it.**
 
 ### Shebang Line Rule — Use `env` for Portability
 

@@ -338,9 +338,9 @@ Verify that all implemented languages build successfully across supported operat
         # SCP and unpack on remote at ~/ringbuffer
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
-        # Build C++ lib first (Python depends on it), then Python — FreeBSD 14 uses tcsh script
+        # Build Python — FreeBSD 14 uses tcsh script
         scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 python-build"
         ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
         ```
      4. **Arch Linux SSH Build Path**:
@@ -400,9 +400,9 @@ Verify that all implemented languages build successfully across supported operat
         # SCP and unpack on remote at ~/ringbuffer
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
-        # Build on remote — FreeBSD 14 default shell is tcsh, use tcsh script
+        # Build C++ on remote — FreeBSD 14 uses tcsh script
         scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 cpp"
         ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
         ```
      4. **Arch Linux SSH Build Path**:

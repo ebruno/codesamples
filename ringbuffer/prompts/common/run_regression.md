@@ -221,9 +221,9 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
         # SCP and unpack on remote at ~/ringbuffer
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
-        # Build and test on remote — FreeBSD 14 uses tcsh script for make commands
+        # Test C++ on remote — FreeBSD 14 uses tcsh script
         scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 test-cpp"
         ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
         ```
 
@@ -509,7 +509,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
      ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
      scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 java-build"
      ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
      ```
   4. **Arch Linux SSH Build Path**:
@@ -648,7 +648,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
      ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
      scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14"
+     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 python-test"
      ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
      ```
   4. **Arch Linux SSH Build Path**:

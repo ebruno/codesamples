@@ -17,7 +17,7 @@
 3. **From the host script (run_regression.sh/zsh):**
    - Step 1: Create tarball of source code
    - Step 2: SCP both the tarball AND the tcsh script to remote (`/tmp/run_freebsd_ssh.tcsh`)
-   - Step 3: SSH to remote and run `tcsh /tmp/run_freebsd_ssh.tcsh '${remote_base}' '${TARGET_OS}'`
+   - Step 3: SSH to remote and run `tcsh /tmp/run_freebsd_ssh.tcsh '${remote_base}' '${TARGET_OS}' '<mode>'` where `<mode>` is one of: `cpp`, `test-cpp`, `python-build`, `python-test`, `java-build`, `java-test`
    - Step 4: Clean up remote temp files (`rm -f /tmp/run_freebsd_ssh.tcsh`)
 
 **Key tcsh syntax rules:**
