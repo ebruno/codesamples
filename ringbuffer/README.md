@@ -785,6 +785,7 @@ Every workflow supports three execution modes, selected by the target:
 - Remote host must have the target toolchain installed (g++, clang++, etc.)
 - Source files transferred via tarball + SCP before workflow execution
 - All changes start locally; never edit directly on the remote
+- **Clean checkout emulation via tarball:** When using SSH to test an operating system and language, the entire ringbuffer project is placed in a tarball with the top directory being `ringbuffer`. This tarball is copied via SCP to the login user's home directory on the remote host. Any existing `ringbuffer` directory is completely removed before the tarball is unpacked, emulating a clean git checkout.
 
 ##### verify_build Workflow
 
@@ -839,53 +840,39 @@ flowchart TD
 
 Regression testing executes the full T001–T007 test matrix and validates output against expected results. It runs `tests/Makefile verify`.
 
+> **Execution mode selection** is covered by the [Execution Mode Decision Flowchart](#execution-mode-decision-flowchart) above. All modes (native, container, SSH remote) converge to the same test execution flow below.
+
 ```mermaid
 flowchart TD
-    Start([Start: run_regression]) --> Scope[Parse scope: OS + Language]
-    Scope --> Mode{Execution mode?}
-    
-    Mode -->|native| Native[Resolve native toolchain]
-    Mode -->|container| Container[Resolve container image: full src/ mount required]
-    Mode -->|"ssh@host"| SshRemote[Prepare tarball: src/ + prompts/]
-    
-    Native --> PreCheck[Pre-flight checks: toolchain, test data exists]
-    Container --> PreCheck
-    SshRemote --> SCP[SCP tarball to remote host]
-    SCP --> RemoteClean[Remote: rm -rf old files]
-    RemoteClean --> RemoteUnpack[Remote: tar -xzf]
-    RemoteUnpack --> PreCheck
-    
-    PreCheck --> BuildTest["Build test harness: make all (in tests/)"]
+    Start([Start: run_regression]) --> BuildTest["Build test harness: make all (in tests/)"]
     BuildTest --> HarnessOK{test001 binary exists?}
-    
+
     HarnessOK -->|No| FailHarness[FAIL: Test harness build error]
     HarnessOK -->|Yes| RunTests[Execute T001-T007: for each test in order]
-    
+
     RunTests --> TLoop{All tests complete?}
     TLoop -->|No| NextTest[Run next test]
     NextTest --> CollectResult[Collect result: exit code, stdout diff]
     CollectResult --> TLoop
-    
+
     TLoop -->|Yes| Results{All tests passed?}
-    
+
     Results -->|No| FailTests[FAIL: Test failure - check output vs expected]
     Results -->|Yes| JUnit[Generate JUnit XML: regression_report_junit.xml]
-    
+
     FailTests --> EndFail([End: FAIL])
     JUnit --> Markdown[Generate Markdown report: regression_report.md]
     Markdown --> Summary[Summary: pass/fail counts, per-test timing]
     Summary --> EndOK([End: PASS])
-    
+
     classDef startend fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     classDef process fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
     classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     classDef fail fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef ssh fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef test fill:#fce4ec,stroke:#c62828,stroke-width:2px
     class Start,EndOK startend
-    class Scope,Native,Container,PreCheck,BuildTest,HarnessOK,JUnit,Markdown,Summary process
-    class Mode,TLoop,Results decision
-    class SCP,RemoteClean,RemoteUnpack ssh
+    class BuildTest,HarnessOK,JUnit,Markdown,Summary process
+    class TLoop,Results decision
     class FailHarness,FailTests,EndFail fail
     class RunTests,NextTest,CollectResult test
 ```
@@ -1681,7 +1668,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 ## Where We Are At
 
-### Current Status (as of 2026-08-20)
+### Current Status (as of 2026-08-22)
 
 **Implementation:**
 - **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, Raspberry Pi OS, Arch Linux, and FreeBSD 14 — all at v1.0.0
