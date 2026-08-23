@@ -626,6 +626,31 @@ The Python implementation uses different Makefile syntax for GNU make and BSD ma
 - **The workflow documents are the single source of truth for execution order and completeness. If you find yourself about to skip a step, STOP — go back and re-read the workflow.**
 - This rule is self-referential: if you are reading this, you have already read it.
 
+### Pre-Action Checklist (MANDATORY — Enforces Workflow Discipline)
+
+**Before executing ANY command, script, or workflow step, you MUST state all three items below. If you cannot state all three, STOP and re-read the workflow document.**
+
+1. **Source Document** — Name the exact file and section you're following (e.g., "Following `prompts/common/run_regression.md`, Step 5: Python Test Execution")
+2. **Exact Command** — Quote the command verbatim from the document (e.g., `make -C src/common/python/tests verify`)
+3. **No Unsolicited Actions** — Explicitly confirm: "No manual checks, no container status verification, no bypassing the Makefile"
+
+**Example — Correct:**
+```
+Source: prompts/common/run_regression.md, Step 5 (Python Test Execution)
+Command: make -C src/common/python/tests verify
+No unsolicited actions: Confirmed — Makefile handles container detection and execution
+Executing...
+```
+
+**Example — Violation (what has happened repeatedly):**
+```
+Checked container system status  ← NOT in workflow document
+Ran container image list         ← NOT in workflow document
+Executed container run directly  ← Makefile handles this
+```
+
+**This rule is self-referential: if you are reading this, you have already read it.**
+
 ### Git Discipline
 - **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
 - **NEVER commit reports, logs, or build artifacts.** These are regenerated on every run. The `.gitignore` covers them.

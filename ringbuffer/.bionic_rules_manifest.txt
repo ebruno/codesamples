@@ -30,3 +30,6 @@ container ssh-transfer -> rules/container-rules.md, rules/container-naming.md, r
 
 # README updates (mermaid diagram validation)
 readme-update -> rules/mermaid-validation.md
+
+# verify_build / run_regression workflow execution (build + test discipline)
+verify-build -> rules/verify-build-workflow.md
