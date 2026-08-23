@@ -497,6 +497,25 @@ Ringbuffer is designed as a library, not an application. Every API design decisi
 
 ## 7. Operational Discipline
 
+### Makefiles Are the CI/CD Contract (All OS, All Languages)
+
+**This is not optional.** At some point this project will run in a CI/CD pipeline with zero LLM support. The Makefiles are the contract — they must be self-contained, idempotent, and handle everything without human or agent intervention. This applies to **every Makefile in the project**, regardless of OS, language, or platform.
+
+**What this means:**
+- **Makefiles own the logic** — container detection, image building, test execution, report generation. The agent never bypasses a Makefile with ad-hoc shell commands.
+- **No manual pre-checks** — CI/CD won't have an LLM to "check container status first" or "verify the image exists." The Makefile must handle all of that.
+- **Fail fast with clear errors** — if a dependency is missing, the Makefile should fail with a helpful message, not a cryptic error.
+- **Idempotent** — `make verify` produces the same result every time. No state leakage between runs.
+- **Never mask Makefile bugs** — if a command fails, do NOT work around it with manual steps. Fix the Makefile so it works correctly on its own.
+
+**Agent discipline:**
+- When a Makefile target fails, **do not** manually run the underlying commands to "get past" the failure. The Makefile is wrong — fix it.
+- When asked to build or test, **always** use `make <target>` — never run the equivalent shell commands directly.
+- If you find yourself about to bypass a Makefile step, **STOP** — that's exactly what CI/CD will do too.
+- Treat every Makefile failure as a bug in the Makefile, not a problem to work around.
+
+**This rule is self-referential: if you are reading this, you have already read it.**
+
 ### Read-Before-Write
 Always read a file before modifying it. If a write fails due to concurrent modification, re-read and retry once.
 
@@ -605,8 +624,6 @@ The Python implementation uses different Makefile syntax for GNU make and BSD ma
 - **Common source**: Both use the same Python source files from `src/common/python/` (swtr_ringbuffer_pure.py, test scripts, base types)
 - **Per-platform overrides**: FreeBSD 14 has `src/freebsd14/python/` with its own Makefile and copies of common source. FreeBSD 15 will use the same structure.
 - **Makefile selection**: The agent must select the correct Makefile based on the target OS family (GNU vs BSD).
-
-
 
 ### Git Discipline
 - **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
