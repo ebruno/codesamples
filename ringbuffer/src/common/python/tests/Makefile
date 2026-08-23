@@ -17,11 +17,14 @@ all:
 	fi
 
 # Deploy utility scripts for report generation
-# Path: from tests/ → ../../../../prompts/common/cpp/utils/bin/
+# Python-specific versions are in prompts/common/python/utils/bin/
+# In containers, prompts is mounted at /prompts
+PROMPTS_PYTHON_UTILS = ../../../../prompts/common/python/utils/bin
+CONTAINER_PROMPTS_PYTHON = /prompts/common/python/utils/bin
 deploy_utils:
 	@mkdir -p $(UTILS_BIN_DIR)
-	@test -f ../../../../prompts/common/cpp/utils/bin/generate_junit_report.sh && cp ../../../../prompts/common/cpp/utils/bin/generate_junit_report.sh $(UTILS_BIN_DIR)/ && echo "Deployed generate_junit_report.sh" || true
-	@test -f ../../../../prompts/common/cpp/utils/bin/generate_junit_report.tcsh && cp ../../../../prompts/common/cpp/utils/bin/generate_junit_report.tcsh $(UTILS_BIN_DIR)/ && echo "Deployed generate_junit_report.tcsh" || true
+	@if [ -f $(CONTAINER_PROMPTS_PYTHON)/generate_junit_report.sh ]; then cp $(CONTAINER_PROMPTS_PYTHON)/generate_junit_report.sh $(UTILS_BIN_DIR)/ && echo "Deployed generate_junit_report.sh"; elif [ -f $(PROMPTS_PYTHON_UTILS)/generate_junit_report.sh ]; then cp $(PROMPTS_PYTHON_UTILS)/generate_junit_report.sh $(UTILS_BIN_DIR)/ && echo "Deployed generate_junit_report.sh"; else echo "WARNING: generate_junit_report.sh not found"; fi
+	@if [ -f $(CONTAINER_PROMPTS_PYTHON)/generate_junit_report.tcsh ]; then cp $(CONTAINER_PROMPTS_PYTHON)/generate_junit_report.tcsh $(UTILS_BIN_DIR)/ && echo "Deployed generate_junit_report.tcsh"; elif [ -f $(PROMPTS_PYTHON_UTILS)/generate_junit_report.tcsh ]; then cp $(PROMPTS_PYTHON_UTILS)/generate_junit_report.tcsh $(UTILS_BIN_DIR)/ && echo "Deployed generate_junit_report.tcsh"; else echo "WARNING: generate_junit_report.tcsh not found"; fi
 
 # Single entry point for verify_build and run_regression
 # `make test` delegates to `verify` — matches C/C++ pattern

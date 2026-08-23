@@ -1,221 +1,202 @@
 #!/usr/bin/env tcsh
-# generate_junit_report.tcsh - Generate JUnit XML report from test logs and exit codes
-# Usage: tcsh generate_junit_report.tcsh [-l logs_dir] [-o output_file] [-h]
-#
-# Reads test log files (t001.log through t007.log) and companion exit code
-# files (T001.exit through T007.exit) to determine pass/fail status.
-# Also reads per-test timing files (T001.time through T007.time).
+# generate_junit_report.tcsh - Generate JUnit XML report for Python regression tests
+# FreeBSD 14 only (tcsh 6.22.04)
+# Handles both Concurrent and Pure Python harness results
+# Log file naming: t001_concurrent.log, T001_concurrent.exit, t001_pure.log, T001_pure.exit
+# Usage: generate_junit_report.tcsh [-l logs_dir] [-o output_file]
 
-# Defaults
 set logs_dir = "logs"
-set output_file = "reports/regression_report_junit.xml"
+set output_file = "reports/python/per_os/python_regression_report_junit.xml"
 
-# Parse options using switch (tcsh idiom)
-# NOTE: tcsh shift only shifts by 1, not by N like bash
-while ( $#argv > 0 )
-switch ( $1 )
-case -l:
-if ( $#argv > 1 ) then
-set logs_dir = $2
-shift
-shift
-else
-echo "ERROR: -l requires an argument" >&2
-exit 1
-endif
-breaksw
-case -o:
-if ( $#argv > 1 ) then
-set output_file = $2
-shift
-shift
-else
-echo "ERROR: -o requires an argument" >&2
-exit 1
-endif
-breaksw
-case -h:
-echo "Usage: tcsh generate_junit_report.tcsh [-l logs_dir] [-o output_file]"
-echo "  -l logs_dir   Directory containing test log files (default: logs)"
-echo "  -o output_file Output JUnit XML file path (default: reports/regression_report_junit.xml)"
-echo "  -h            Display this help"
-exit 0
-default:
-echo "Usage: tcsh generate_junit_report.tcsh [-l logs_dir] [-o output_file]" >&2
-exit 1
-endsw
-end
+# Parse options (tcsh has no getopts, use goto/labels)
+set parse_done = 0
+parse_loop:
+    if ( $#argv < 1 ) goto parse_end
+    set opt = "$argv[1]"
+    switch ( $opt )
+        case "-l":
+            set logs_dir = "$argv[2]"
+            shift argv; shift argv
+            breaksw
+        case "-o":
+            set output_file = "$argv[2]"
+            shift argv; shift argv
+            breaksw
+        case "-h":
+            echo "Usage: generate_junit_report.tcsh [-l logs_dir] [-o output_file]"
+            echo "  -l logs_dir   Directory containing test log files (default: logs)"
+            echo "  -o output_file Output JUnit XML file path"
+            exit 0
+        default:
+            set parse_done = 1
+    endsw
+    if ( ! $parse_done ) goto parse_loop
+parse_end:
 
 # Ensure output directory exists
 set output_dir = `dirname "$output_file"`
-mkdir -p "$output_dir"
+if ( ! -d "$output_dir" ) then
+    mkdir -p "$output_dir"
+endif
 
-# Test descriptions (authoritative mapping)
-set test_desc_001 = "Exact match with input"
-set test_desc_002 = "Stress test (1 slot, 1 byte)"
-set test_desc_003 = "All chars uppercase"
-set test_desc_004 = "Input < 1 slot (fast EOF)"
-set test_desc_005 = "Pipeline stop (Fatal Error)"
-set test_desc_006 = "Pipeline continues (Non-fatal)"
-set test_desc_007 = "Bit-inverted output"
-
-# Expected exit codes per test (authoritative mapping)
-set expected_001 = 0
-set expected_002 = 0
-set expected_003 = 0
-set expected_004 = 0
-set expected_005 = 1
-set expected_006 = 0
-set expected_007 = 0
-
-# Start XML document (attributes populated at end)
+# Counters
 set total_tests = 0
 set total_failures = 0
-set total_errors = 0
 set total_time_ms = 0
 
-# Write test results to temp file (header written after loop with actual values)
-printf '' > "${output_file}.results"
+# Expected exit codes per test (T005 expects 1, all others expect 0)
+set test_expected_exit = ( 0 0 0 0 1 0 0 )
 
-# Process each test in order T001 through T007
-foreach test_num ( 001 002 003 004 005 006 007 )
-set test_id = "T${test_num}"
+# Harness types to check (order matters for report ordering)
+set harnesses = ( concurrent pure )
 
-# Get test description (use if/else — tcsh switch case labels are glob patterns)
-if ( $test_num == "001" ) then
-set description = "$test_desc_001"
-else if ( $test_num == "002" ) then
-set description = "$test_desc_002"
-else if ( $test_num == "003" ) then
-set description = "$test_desc_003"
-else if ( $test_num == "004" ) then
-set description = "$test_desc_004"
-else if ( $test_num == "005" ) then
-set description = "$test_desc_005"
-else if ( $test_num == "006" ) then
-set description = "$test_desc_006"
-else if ( $test_num == "007" ) then
-set description = "$test_desc_007"
-else
-set description = "Unknown test case"
-endif
+# Create XML template files using unquoted heredocs
+# NOTE: tcsh does NOT support quoted heredoc markers (<< 'EOF' fails)
+cat > /tmp/junit_template.xml << TMPL
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="__NAME__" tests="__TOTAL_TESTS__" failures="__TOTAL_FAILURES__" errors="0" time="__TOTAL_TIME__">
+</testsuites>
+TMPL
 
-# Skip if no log file exists for this test
-set log_file = "${logs_dir}/t${test_num}.log"
-if ( ! -f "$log_file" ) then
-continue
-endif
+cat > /tmp/junit_testcase_pass.xml << TMPL
+  <testcase name="__TESTCASE_NAME__" classname="ringbuffer.python.__HARNESS__" time="__TIME_STR__">
+  </testcase>
+TMPL
 
-# Determine exit code (companion .exit file takes precedence)
-# Check both uppercase T001.exit and lowercase t001.exit (Makefile uses lowercase)
-set exit_code = 0
-set exit_code_file = "${logs_dir}/${test_id}.exit"
-if ( ! -f "$exit_code_file" ) then
-set exit_code_file = "${logs_dir}/${test_id:l}.exit"
-endif
-if ( -f "$exit_code_file" ) then
-set exit_code = `cat "$exit_code_file"`
-endif
+cat > /tmp/junit_testcase_fail.xml << TMPL
+  <testcase name="__TESTCASE_NAME__" classname="ringbuffer.python.__HARNESS__" time="__TIME_STR__">
+    <failure message="Expected exit code __EXPECTED__, got __ACTUAL__" type="AssertionError">
+__ERROR_OUTPUT__
+    </failure>
+  </testcase>
+TMPL
 
-# Get execution time in milliseconds (companion .time file)
-# Check both uppercase and lowercase
-set exec_time_ms = 0
-set time_file = "${logs_dir}/${test_id}.time"
-if ( ! -f "$time_file" ) then
-set time_file = "${logs_dir}/${test_id:l}.time"
-endif
-if ( -f "$time_file" ) then
-set exec_time_ms = `cat "$time_file"`
-endif
+# Process each harness type, then each test number
+foreach harness ( $harnesses )
+    # Check if any log files exist for this harness
+    set has_logs = 0
+    foreach test_num ( 001 002 003 004 005 006 007 )
+        if ( -f "${logs_dir}/t${test_num}_${harness}.log" ) then
+            set has_logs = 1
+            break
+        endif
+    end
 
-# Convert to seconds for JUnit (with millisecond precision) — tcsh @ operator
-@ exec_time_sec_s = $exec_time_ms / 1000
-@ exec_time_sec_ms = $exec_time_ms % 1000
-set exec_time_sec = `printf "%d.%03d" $exec_time_sec_s $exec_time_sec_ms`
-@ total_time_ms = $total_time_ms + $exec_time_ms
+    # Skip harness if no logs found (e.g., concurrent skipped on FreeBSD 14)
+    if ( ! $has_logs ) then
+        continue
+    endif
 
-# Determine pass/fail based on expected exit code (use if/else — tcsh switch case labels are glob patterns)
-if ( $test_num == "001" ) then
-set expected = $expected_001
-else if ( $test_num == "002" ) then
-set expected = $expected_002
-else if ( $test_num == "003" ) then
-set expected = $expected_003
-else if ( $test_num == "004" ) then
-set expected = $expected_004
-else if ( $test_num == "005" ) then
-set expected = $expected_005
-else if ( $test_num == "006" ) then
-set expected = $expected_006
-else if ( $test_num == "007" ) then
-set expected = $expected_007
-else
-set expected = 0
-endif
+    foreach test_num ( 001 002 003 004 005 006 007 )
+        # tcsh arrays are 1-indexed; test_num "001"→idx=1 maps to first element
+        @ idx = $test_num
 
-if ( "$exit_code" == "$expected" ) then
-# Test passed - write to results temp file
-printf '  <testcase name="%s" classname="ringbuffer.test" time="%s">\n' "$test_id" "$exec_time_sec" >> "${output_file}.results"
-printf '  </testcase>\n' >> "${output_file}.results"
-else
-# Test failed - capture error output from log (tcsh builtins, no grep/head)
-set error_output = "Unknown failure"
-# Read first 5 lines using sed (allowed in Makefile recipes)
-set line1 = `sed -n '1p' "$log_file"`
-set line2 = `sed -n '2p' "$log_file"`
-set line3 = `sed -n '3p' "$log_file"`
-set line4 = `sed -n '4p' "$log_file"`
-set line5 = `sed -n '5p' "$log_file"`
+        set test_id = "T${test_num}"
+        set log_file = "${logs_dir}/t${test_num}_${harness}.log"
 
-# Build error output from non-empty lines (use $#var > 0 for length check)
-if ( $#line1 > 0 ) then
-set error_output = "$line1"
-endif
-if ( $#line2 > 0 ) then
-set error_output = "${error_output} ${line2}"
-endif
-if ( $#line3 > 0 ) then
-set error_output = "${error_output} ${line3}"
-endif
-if ( $#line4 > 0 ) then
-set error_output = "${error_output} ${line4}"
-endif
-if ( $#line5 > 0 ) then
-set error_output = "${error_output} ${line5}"
-endif
+        # Skip if no log file for this test
+        if ( ! -f "$log_file" ) then
+            continue
+        endif
 
-# Escape XML special characters in error output
-# NOTE: tcsh lacks native string replacement; using sed (allowed per .bionic tcsh exception)
-set escaped_output = "$error_output"
-echo "$escaped_output" | sed "s/\&/\\&amp;/g" > /tmp/_esc.tmp
-mv /tmp/_esc.tmp "$escaped_output"
-echo "$escaped_output" | sed "s/</\\&lt;/g" > /tmp/_esc.tmp
-mv /tmp/_esc.tmp "$escaped_output"
-echo "$escaped_output" | sed "s/>/\\&gt;/g" > /tmp/_esc.tmp
-mv /tmp/_esc.tmp "$escaped_output"
+        @ total_tests++
 
-printf '  <testcase name="%s" classname="ringbuffer.test" time="%s">\n' "$test_id" "$exec_time_sec" >> "${output_file}.results"
-printf '    <failure message="Test %s failed (exit code: %s)">%s</failure>\n' "$test_id" "$exit_code" "$escaped_output" >> "${output_file}.results"
-printf '  </testcase>\n' >> "${output_file}.results"
-@ total_failures++
-endif
+        # Determine pass/fail based on expected exit code
+        set expected_exit = $test_expected_exit[$idx]
 
-@ total_tests++
+        # Build test case name with harness suffix
+        set testcase_name = "${test_id}_${harness}"
+
+        # Determine exit code (companion .exit file takes precedence)
+        set exit_code_file = "${logs_dir}/${test_id}_${harness}.exit"
+        if ( -f "$exit_code_file" ) then
+            set exit_code = `cat "$exit_code_file"`
+        else
+            # Fallback: check log for error patterns (tcsh exception: external tools allowed)
+            set exit_code = 0
+            if ( -f "$log_file" ) then
+                set err_check = `awk '/ERROR:|FAIL/{print "yes"; exit}' "$log_file"`
+                if ( "$err_check" == "yes" ) then
+                    set exit_code = 1
+                endif
+            endif
+        endif
+
+        # Get execution time in milliseconds (companion .time file)
+        set exec_time_ms = 0
+        set time_file = "${logs_dir}/${test_id}_${harness}.time"
+        if ( -f "$time_file" ) then
+            set exec_time_ms = `cat "$time_file"`
+        endif
+
+        # Convert to seconds for JUnit (with millisecond precision)
+        # NOTE: ${var:03d} is tcsh 6.24+ only; FreeBSD 14 has tcsh 6.22 — use printf
+        @ exec_time_sec_int = $exec_time_ms / 1000
+        @ exec_time_ms_frac = $exec_time_ms % 1000
+        set time_str = `printf "%d.%03d" $exec_time_sec_int $exec_time_ms_frac`
+
+        if ( $exit_code == $expected_exit ) then
+            # Test passed — read template, replace placeholders with sed, append to output
+            cat /tmp/junit_testcase_pass.xml | \
+                sed "s/__TESTCASE_NAME__/$testcase_name/g" | \
+                sed "s/__HARNESS__/$harness/g" | \
+                sed "s/__TIME_STR__/$time_str/g" >> "$output_file"
+        else
+            # Test failed
+            @ total_failures++
+
+            # Write error output to temp file (preserves newlines — avoids tcsh multi-line string issue)
+            # NOTE: tcsh does NOT support literal newlines inside double-quoted strings
+            set err_file = "/tmp/junit_err_$$.txt"
+            rm -f "$err_file"
+
+            # Extract error lines from log file using awk (tcsh exception: external tools allowed)
+            # Find first ERROR line, capture it and next 4 lines
+            if ( -f "$log_file" ) then
+                awk '/ERROR:/{found=1; count=0} found && count<5{print; count++}' "$log_file" > "$err_file"
+                if ( ! -s "$err_file" ) then
+                    echo "No error output captured" > "$err_file"
+                endif
+            else
+                echo "No error output captured" > "$err_file"
+            endif
+
+            # Escape XML special characters in the temp file using sed (tcsh exception)
+            # NOTE: & in sed replacement refers to matched text — must escape as \&
+            cat "$err_file" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' > /tmp/junit_err_escaped_$$.txt
+
+            # Use awk to replace __ERROR_OUTPUT__ in template (preserves newlines from temp file)
+            # Pass escaped error file path via -v to avoid $$ expansion issues in single quotes
+            awk -v errfile="/tmp/junit_err_escaped_$$.txt" 'BEGIN{err_n=0; while((getline line < errfile)>0) {if(err_n==0) err=line; else err=err"\n"line; err_n++}} /__ERROR_OUTPUT__/{print err; next} {print}' /tmp/junit_testcase_fail.xml | \
+                sed "s/__TESTCASE_NAME__/$testcase_name/g" | \
+                sed "s/__HARNESS__/$harness/g" | \
+                sed "s/__TIME_STR__/$time_str/g" | \
+                sed "s/__EXPECTED__/$expected_exit/g" | \
+                sed "s/__ACTUAL__/$exit_code/g" >> "$output_file"
+
+            rm -f /tmp/junit_err_$$.txt /tmp/junit_err_escaped_$$.txt
+        endif
+
+        @ total_time_ms += $exec_time_ms
+    end
 end
 
-# Close XML document with summary attributes
-@ total_time_sec_s = $total_time_ms / 1000
-@ total_time_sec_ms = $total_time_ms % 1000
-set total_time_sec = `printf "%d.%03d" $total_time_sec_s $total_time_sec_ms`
+# Copy template to output, then replace totals using sed (FreeBSD: sed -i without empty string)
+cp /tmp/junit_template.xml "$output_file"
 
-# Write final XML with actual values (no sed/awk needed)
-printf '<?xml version="1.0" encoding="UTF-8"?>\n' > "$output_file"
-printf '<testsuites name="Ringbuffer Test Suite" tests="%s" failures="%s" errors="%s" time="%s">\n' "$total_tests" "$total_failures" "$total_errors" "$total_time_sec" >> "$output_file"
-cat "${output_file}.results" >> "$output_file"
-rm -f "${output_file}.results"
+# Calculate total time in seconds
+@ total_time_sec_int = $total_time_ms / 1000
+@ total_time_ms_frac = $total_time_ms % 1000
+set total_time_str = `printf "%d.%03d" $total_time_sec_int $total_time_ms_frac`
 
-printf '  <system-out>Total execution time: %sms</system-out>\n' "$total_time_ms" >> "$output_file"
-printf '</testsuites>\n' >> "$output_file"
+# Replace placeholders with actual totals using sed (FreeBSD: requires '' after -i)
+sed -i '' "s/__NAME__/Python Regression/g" "$output_file"
+sed -i '' "s/__TOTAL_TESTS__/$total_tests/g" "$output_file"
+sed -i '' "s/__TOTAL_FAILURES__/$total_failures/g" "$output_file"
+sed -i '' "s/__TOTAL_TIME__/$total_time_str/g" "$output_file"
+
+# Clean up temp files
+rm -f /tmp/junit_template.xml /tmp/junit_testcase_pass.xml /tmp/junit_testcase_fail.xml
 
 echo "JUnit report generated: $output_file"
-echo "Total tests: $total_tests, Failures: $total_failures, Total time: ${total_time_ms}ms"
+echo "Total tests: $total_tests, Failures: $total_failures, Total time: ${total_time_str}s"

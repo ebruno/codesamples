@@ -113,6 +113,7 @@ else ifeq ($(UNAME_S),Darwin)
 		-v $(pwd)/src/common/python:/app \
 		-v $(pwd)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
 		-v $(pwd)/src/common/cpp:/common/cpp \
+		-v $(pwd)/prompts:/prompts \
 		ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
 else
     HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
@@ -122,10 +123,12 @@ else
 			-v $(pwd)/src/common/python:/app \
 			-v $(pwd)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
 			-v $(pwd)/src/common/cpp:/common/cpp \
+			-v $(pwd)/prompts:/prompts \
 			ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
     else
         all: clean build
     endif
+endif
 
 # Build the C++ shared library - always rebuilds even if library exists
 # to ensure we have the latest build. If build fails, notes it and continues.
