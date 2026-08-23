@@ -63,7 +63,7 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **Speed**: Development cycles are dramatically shorter than traditional manual coding, with immediate build-and-run feedback.
 
 ## Key Specifications
-- **Multi-OS Support**: Seamless deployment across various Linux distributions and macOS.
+- **Multi-OS Support**: Seamless deployment across macOS, Linux distributions (Fedora, Debian, Ubuntu, Raspberry Pi OS), Arch Linux, and FreeBSD 14.
 - **Language Standards and Classification**:
   - C: C23 primary, C17/C11 fallback
   - C++: C++20 primary, C++17 fallback
@@ -90,7 +90,8 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
 - **Library-First API Design**: The Ringbuffer is designed as a reusable library, not an application. All public APIs — including the ~20 slot-level accessor methods on `RingBuffer` (e.g., `get_data_buffer_size()`, `set_transformed_data_buffer_size()`, `get_slot_status()`) — are intentional design choices providing maximum flexibility to library consumers for debugging, monitoring, and testing. Granular slot state visibility is a feature, not a leaky abstraction.
 - **Core Principle — Library-First Flexibility**: Consumer flexibility > API simplicity. No hidden abstractions — consumers should be able to observe and control state at any granularity without wrapper code. Opt-in complexity: basic usage is simple (construct, set transform, start), but advanced usage must not require extending the library. The abstract class interface is a stable public API contract.
-- **Portable Shell Scripts (Core Feature)**: All shell scripts use only bash/zsh builtins — `awk`, `sed`, `grep` and other external tools are forbidden to ensure identical behavior across macOS (BSD), Linux (GNU), and FreeBSD. We only use the default shell for each platform (**zsh on macOS**, **bash on Linux**, **tcsh on FreeBSD**). See [LLM Challenges — Portable Shell Scripts](#portable-shell-scripts-core-feature) for details on the rule, its rationale, and workarounds.
+- **Portable Shell Scripts (Core Feature)**: All shell scripts use only bash/zsh builtins — `awk`, `sed`, `grep` and other external tools are forbidden to ensure identical behavior across macOS (BSD), Linux (GNU), and FreeBSD. See [LLM Challenges — Portable Shell Scripts](#portable-shell-scripts-core-feature) for details on the rule, its rationale, and workarounds.
+  - **Default shells per platform**: We only use the default shell for each target — **zsh on macOS**, **bash on Linux**, and **tcsh on FreeBSD**. This ensures best compatibility with each OS's toolchain, package manager, and system utilities.
 
 ## Core Features
 - **Shared Behavioral Contract (All Languages)**: Every implementation must satisfy these requirements regardless of language:
