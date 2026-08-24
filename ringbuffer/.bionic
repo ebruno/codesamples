@@ -803,9 +803,21 @@ When creating or modifying shell scripts (`.sh`, `.zsh`), **do not use external 
 - **`find`, `xargs`** — flag syntax and behavior differ between GNU and BSD implementations
 - **Any other utility not provided by the shell itself** whose behavior is not guaranteed to be identical across macOS (BSD) and Linux (GNU)
 
-**What is permitted:**
+**Permitted CLI tools (explicit allowlist):**
+The following external tools are explicitly permitted in bash/zsh scripts because their behavior is consistent across macOS (BSD) and Linux (GNU):
+- **`jq`** — JSON parsing, reading `config/toolchains.json` and other JSON config files
+- **`date`** — timestamp generation (already used throughout the project)
+- **`cat`** — file concatenation and display
+- **`mkdir -p`** — directory creation
+- **`rm -rf`** — recursive removal
+- **`cp`** — file copying
+- **`mv`** — file moving/renaming
+- **`chmod`** — permission changes
+
+All other external tools are forbidden unless an exception is documented with a comment explaining why no builtin equivalent exists.
+
+**What is permitted (shell builtins only):**
 - **Shell builtins**: `echo`, `printf`, `test`/`[`, `[[`, `read`, `export`, `source`, `local`, `declare`, arrays, parameter expansion (`${var//pattern/replacement}`, `${#array[@]}`, `${file%.txt}`, etc.), arithmetic expansion `$((...))`, globbing
-- **Standard POSIX utilities with guaranteed identical behavior**: `date` (already used throughout the project for timestamps), `cat`, `mkdir -p`, `rm -rf`, `cp`, `mv`, `chmod`
 - **`echo` and `printf`**: Use `printf` preferentially (more portable than `echo` across shells)
 
 **Rationale:**
@@ -886,6 +898,163 @@ while IFS= read -r line; do
     esac
 done < file.txt
 ```
+
+### Script and Makefile Syntax Verification — Pre-Flight Check (MANDATORY)
+
+**Before committing or using ANY shell script or Makefile, you MUST verify syntax and workflow correctness.** This is not optional — silent failures in scripts and Makefiles cause cascading bugs that are expensive to debug later.
+
+**What must be checked:**
+- **All shell scripts** (`.zsh`, `.sh`, `.tcsh`) → run `<shell> -n` for syntax and logic verification
+- **BSD Makefiles** (FreeBSD targets) → run `bmake -n` for syntax and workflow verification
+- **GNU Makefiles** (macOS, Linux targets) → run `make -n` for syntax and workflow verification
+
+**Procedure:**
+1. **List every script/Makefile** you created or modified in the current task
+2. **Run syntax check on each:**
+   - Shell scripts: `<shell> -n <script>` (use `zsh -n`, `bash -n`, or `tcsh -n` depending on the script's shebang)
+   - BSD Makefiles: `bmake -n -f <Makefile>` (in the directory containing the Makefile)
+   - GNU Makefiles: `make -n -f <Makefile>` (in the directory containing the Makefile)
+3. **If any check fails**, STOP and fix the script/Makefile — do not proceed
+4. **If any check produces unexpected output**, review it carefully — `-n` (dry-run) reveals the full execution plan, not just syntax errors
+5. **Verify compliance** — if any script or Makefile was modified without a passing syntax check, STOP and run it
+
+**This check is mandatory — not optional.** The rule exists in `.bionic` but has been violated because the syntax check step was skipped. Relying on memory alone has led to broken scripts and Makefiles in production.
+
+**Example — Pre-Flight Check in Action:**
+```bash
+# ❌ BEFORE pre-flight check: wrote scripts without syntax checking
+cat > utils/bin/run_test.zsh << 'EOF'
+#!/usr/bin/env zsh
+# ... script content ...
+EOF
+chmod +x utils/bin/run_test.zsh
+# ... proceeds to use broken script ...
+
+# ✅ AFTER pre-flight check: verified syntax before using
+cat > utils/bin/run_test.zsh << 'EOF'
+#!/usr/bin/env zsh
+# ... script content ...
+EOF
+chmod +x utils/bin/run_test.zsh
+zsh -n utils/bin/run_test.zsh   # ← MUST pass with exit code 0
+bmake -n -f src/freebsd14/cpp/Makefile   # ← BSD Makefile check
+make -n -f src/macos/cpp/Makefile         # ← GNU Makefile check
+# ... only proceed if all checks pass ...
+```
+
+**Shell-to-script mapping:**
+| Script extension | Shebang | Syntax check command |
+|------------------|---------|---------------------|
+| `.zsh` | `#!/usr/bin/env zsh` | `zsh -n <script>` |
+| `.sh` | `#!/usr/bin/env bash` or `#!/usr/bin/env sh` | `bash -n <script>` |
+| `.tcsh` | `#!/usr/bin/env tcsh` | `tcsh -n <script>` |
+
+**Makefile-to-platform mapping:**
+| Target platform | Make type | Syntax check command |
+|-----------------|-----------|---------------------|
+| FreeBSD 14/15 | BSD Make (`bmake`) | `bmake -n -f <Makefile>` |
+| macOS | GNU Make (`make`) | `make -n -f <Makefile>` |
+| Linux distros | GNU Make (`make`) | `make -n -f <Makefile>` |
+
+**This rule is self-referential: if you are reading this, you have already read it.**
+
+### Host OS Check — Mandatory for All Shell Scripts (MANDATORY)
+
+**Every shell script (`.zsh`, `.sh`) MUST include a host OS check at the top of its execution flow.** This prevents scripts from running on unsupported platforms and failing silently or causing data corruption.
+
+**What must be checked:**
+- **All `.zsh` scripts** → verify host is macOS (`uname -s = Darwin`) or bypass with `-N`
+- **All `.sh` scripts** → verify host is Linux (`uname -s = Linux`) or bypass with `-N`
+- **All `.tcsh` scripts** → verify host is FreeBSD (`uname -s = FreeBSD`) or bypass with `-N`
+
+**Procedure:**
+1. **Every script MUST define a `BYPASS_OS_CHECK` flag** (default: `false`) that can be set via `-N` argument
+2. **Run the check early** — before any work is done, after argument parsing but before main logic
+3. **If the check fails and bypass is not set**, print an error message with the detected OS name and exit 1
+4. **If bypass is set**, log that the check was bypassed but continue execution (unsafe — for testing only)
+
+**This check is mandatory — not optional.** The rule exists in `.bionic` but has been violated because scripts were written without host OS checks. Relying on memory alone has led to scripts running on wrong platforms.
+
+**Example — Pre-Flight Check in Action:**
+```bash
+# ❌ BEFORE pre-flight check: no host OS check
+#!/usr/bin/env bash
+set -euo pipefail
+# ... script does Linux-specific work ...
+# Will fail silently or corrupt data if run on macOS
+
+# ✅ AFTER pre-flight check: host OS check included
+#!/usr/bin/env bash
+set -euo pipefail
+BYPASS_OS_CHECK=false
+while getopts ":N" opt; do
+    case $opt in
+        N) BYPASS_OS_CHECK=true ;;
+        *) echo "ERROR: Unknown option -$OPTARG"; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+if [ "$BYPASS_OS_CHECK" = false ]; then
+    local_host_os=$(uname -s)
+    if [ "$local_host_os" != "Linux" ]; then
+        echo "ERROR: Running unsupported operating system ${local_host_os}; script requires Linux."
+        exit 1
+    fi
+fi
+# ... rest of script ...
+```
+
+**Host OS check template by shell:**
+| Shell | Expected host | Check command | Error message |
+|-------|--------------|---------------|---------------|
+| `.zsh` (macOS) | macOS (`Darwin`) | `uname -s = Darwin` | "Running unsupported operating system <os>; script requires macOS." |
+| `.sh` (Linux) | Linux (`Linux`) | `uname -s = Linux` | "Running unsupported operating system <os>; script requires Linux." |
+| `.tcsh` (FreeBSD) | FreeBSD (`FreeBSD`) | `uname -s = FreeBSD` | "Running unsupported operating system <os>; script requires FreeBSD." |
+
+**This rule is self-referential: if you are reading this, you have already read it.**
+
+### Cross-Platform Script Execution (MANDATORY)
+
+**When the host OS does not match the script's target shell, you may execute the script if the required shell is available on the host.** This allows running `.sh` scripts on macOS and `.zsh` scripts on Linux distros.
+
+**Rules:**
+- **macOS host + bash 5.x or higher available**: You may run `.sh` scripts using `bash`.
+- **Linux host + zsh 5.x or higher available**: You may run `.zsh` scripts using `zsh`.
+- **Version check required**: Before running a cross-platform script, verify the shell version meets the minimum requirement (bash 5.x or zsh 5.x).
+- **Creation/modification**: Always run `<shell> -n <script>` before committing or using a script (covered by the Script and Makefile Syntax Verification rule).
+- **Execution**: When a user requests to run a script cross-platform, first run `<shell> -n <script>` as a safety check. If it passes, then execute with `<shell> -N <script>`.
+- **User request required**: Cross-platform execution only happens when the user explicitly asks to run a script. You do not automatically invoke cross-platform shells during `run_regression.md` or `verify_build.md` workflows — those use the native shell.
+
+**Procedure:**
+1. **User requests**: "run script.sh" (or any command that invokes a `.sh` or `.zsh` script).
+2. **Check if native shell is available**: If the script's target shell (bash for `.sh`, zsh for `.zsh`) is available on the host, use it directly.
+3. **If native shell not available**, check for cross-platform alternative:
+   - macOS host → `bash --version` (must be 5.x or higher)
+   - Linux host → `zsh --version` (must be 5.x or higher)
+4. **Run syntax check**: `<shell> -n <script>` — if it fails, report errors and stop.
+5. **Run actual execution**: `<shell> -N <script>` — the `-N` flag bypasses the script's internal host OS check.
+6. **If cross-platform shell not available or version too low**, report that the script cannot be run on this host.
+
+**This rule is self-referential: if you are reading this, you have already read it.**
+
+### Shell Isolation Rule (MANDATORY)
+
+**Scripts may only call other scripts written for the same shell.** This prevents cross-shell invocation bugs caused by syntax differences between shells.
+
+**Rules:**
+- **zsh scripts (`.zsh`)** may only call other `.zsh` scripts. They must NOT invoke `.sh` or `.tcsh` scripts via `bash`, `zsh`, or any other shell.
+- **bash scripts (`.sh`)** may only call other `.sh` scripts. They must NOT invoke `.zsh` or `.tcsh` scripts via `bash`, `zsh`, or any other shell.
+- **Makefile recipes** are exempt from this rule since they execute under `/bin/sh -c` and cannot support bash/zsh builtins anyway.
+- **Cross-shell invocation is only allowed for syntax testing** (`<shell> -n <script>`) and **user-requested cross-platform execution** as described in the Cross-Platform Script Execution rule above.
+
+**Procedure:**
+1. **Before calling any script**, check its extension and the caller's shell type.
+2. **If they match** (zsh→zsh, bash→bash), proceed normally.
+3. **If they do not match**, STOP and either:
+   - Rewrite the called script in the caller's shell, or
+   - Ask the user for guidance on how to proceed.
+
+**This rule is self-referential: if you are reading this, you have already read it.**
 
 ### tcsh Script Creation — Pre-Flight Check (MANDATORY)
 

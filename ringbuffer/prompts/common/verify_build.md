@@ -3,6 +3,9 @@
 **Objective:** 
 Verify that all implemented languages build successfully across supported operating systems.
 
+**STEP 0 — LOAD BUILD WORKFLOW RULES (FIRST ACTION):**
+Before executing any step in this document, read and load `rules/verify-build-workflow.md`. This document defines the build verification workflow rules — Pre-Action Checklist, Build vs Test Workflow Pattern, Pre-Flight Check, Standard Clean + Build Process, and Verification Scripts. All execution in this document must comply with those rules.
+
 **Build/Test Pattern (MANDATORY):** Every language follows the same two-step pattern:
 - `verify_build` → `<os>/<lang>/Makefile all` (build only, no tests)
 - `run_regression` → `tests/Makefile verify` (test matrix T001-T007)

@@ -3,9 +3,14 @@
 **Objective:** 
 Execute the regression test matrix (T001–T007) on an already-set-up platform. This covers build, test execution, artifact verification, report generation, state tracking, and log finalization.
 
+**ENTRY POINT — READ FIRST:** All regression test execution MUST go through `utils/bin/run_regression.<sh|zsh|tcsh>` — never run `make verify` directly. The script handles container detection, compiler loops from the registry, and delegates to the Makefile.
+
+**STEP 0 — LOAD REGRESSION RUNNER SPEC (FIRST ACTION):**
+Before executing any step in this document, read and load `rules/regression-runner-spec.md`. This spec defines the contract for `run_regression.<sh|zsh|tcsh>` scripts — host/target detection, registry lookup, container management, compiler loop, and error handling. All execution in this document must comply with that spec.
+
 **Build/Test Pattern (MANDATORY):** Every language follows the same two-step pattern:
 - `verify_build` → `<os>/<lang>/Makefile all` (build only, no tests)
-- `run_regression` → `tests/Makefile verify` (test matrix T001-T007)
+- `run_regression` → `utils/bin/run_regression.<sh|zsh|tcsh> <os> verify` (test matrix T001-T007)
 - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for details.
 
 **GOLDEN RULES — READ BEFORE EXECUTING:**
@@ -261,7 +266,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
         ```bash
         cd src/<os>/cpp && make clean          # Remove stale C++ library artifacts
         cd src/<os>/cpp/tests && make clean     # Remove stale test binaries
-        cd src/<os>/cpp/tests && make verify    # Build + run T001-T007 test matrix
+        ./utils/bin/run_regression.<zsh|sh> <os> verify    # Build + run T001-T007 test matrix (zsh on macOS, sh on Linux)
         ```
       - **Timing Requirements**:
         - **Start Time**: The report `Start Time` MUST be captured at the exact moment the `make verify` target is invoked in the `tests/Makefile`.
@@ -427,13 +432,13 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 
 **CRITICAL — DO NOT CONFUSE:**
 - `verify_build` → **always** uses `make all` (build only, no tests)
-- `run_regression` → **always** uses `make verify` in the `tests/` directory (build + T001-T007)
+- `run_regression` → **always** uses `utils/bin/run_regression.<sh|zsh|tcsh> <os> verify` (build + T001-T007)
 - If you find yourself about to run `make verify` during `verify_build`, STOP — that is wrong.
 - If you find yourself about to run `make all` during `run_regression`, STOP — that is wrong.
 
 **SELF-CHECK BEFORE EXECUTING:**
 - Am I in `verify_build`? → Must run `make all`, NOT `make verify`
-- Am I in `run_regression`? → Must run `make verify`, NOT `make all`
+- Am I in `run_regression`? → Must run `utils/bin/run_regression.<sh|zsh|tcsh> <os> verify`, NOT raw `make verify`
 - If unsure, re-read the workflow header to confirm which mode you are in.
 
 **Standard Clean + Verify Process (When C++ Is Used)**
@@ -445,16 +450,14 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
 - **Why this matters:** If the C++ library was previously built for a different platform (e.g., ELF ARM64 inside a container), stale artifacts on the host will cause linker errors (e.g., `archive member not a mach-o file`). Cleaning both the C++ and language directories ensures no stale artifacts remain.
 - **Example — Python on macOS:**
   ```bash
-  cd src/macos/cpp && make clean          # Remove stale C++ library
-  cd src/common/python && make clean      # Remove stale Python artifacts
-  cd src/common/python/tests && make verify  # Build C++ lib, run tests
+  ./utils/bin/run_regression.<zsh|sh> -L python macos verify  # Script handles all cleanup (zsh on macOS, sh on Linux)
   ```
 - **Example — Python on Fedora (from macOS host):**
   ```bash
-  cd src/fedora/cpp && make clean         # Remove stale C++ library
-  cd src/common/python && make clean      # Remove stale Python artifacts
-  cd src/common/python/tests && make verify  # Runs inside container via Makefile
+  ./utils/bin/run_regression.<zsh|sh> -L python fedora verify  # Runs inside container via Makefile (zsh on macOS, sh on Linux)
   ```
+
+> **Note:** When using `run_regression.<zsh|sh>` (not raw `make verify`), the script handles all cleanup internally — including C++ library clean for dependent languages. Do not run manual `make clean` steps before invoking the script; doing so is redundant and may cause confusion about which directory to clean.
 
 **Universal Toolchain Compatibility Gate** (applies to ALL languages — runs BEFORE any build attempt):
 - This is a **blocking gate** for every language and platform — tests cannot proceed until toolchain versions match.
@@ -525,7 +528,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      ```bash
      cd src/common/java && make clean          # Remove stale Java build artifacts
      cd src/common/java/tests && make clean    # Remove stale test binaries
-     cd src/common/java/tests && make verify   # Build + run T001-T007 test matrix
+     ./utils/bin/run_regression.<zsh|sh> <os> verify   # Build + run T001-T007 test matrix (zsh on macOS, sh on Linux)
      ```
   6. **Verification Steps**:
      - Navigate to `src/common/java/tests/`.
@@ -665,7 +668,7 @@ Execute the regression test matrix (T001–T007) on an already-set-up platform. 
      ```bash
      cd src/common/python && make clean          # Remove stale Python build artifacts
      cd src/common/python/tests && make clean    # Remove stale test binaries
-     cd src/common/python/tests && make verify   # Build + run T001-T007 test matrix
+     ./utils/bin/run_regression.<zsh|sh> <os> verify   # Build + run T001-T007 test matrix (zsh on macOS, sh on Linux)
      ```
   6. **Verification Steps**:
      - Navigate to `src/common/python/tests/`.

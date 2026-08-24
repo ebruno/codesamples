@@ -1,0 +1,105 @@
+{
+  "cpp": {
+    "fedora": [
+      "g++",
+      "clang++"
+    ],
+    "debian": [
+      "g++",
+      "clang++"
+    ],
+    "ubuntu": [
+      "g++",
+      "clang++"
+    ],
+    "raspios": [
+      "g++",
+      "clang++"
+    ],
+    "archlinux": [
+      "g++",
+      "clang++"
+    ],
+    "macos": [
+      "clang++",
+      "g++"
+    ],
+    "freebsd14": [
+      "c++",
+      "clang++"
+    ]
+  },
+  "c": {
+    "fedora": [
+      "gcc",
+      "clang"
+    ],
+    "debian": [
+      "gcc",
+      "clang"
+    ],
+    "ubuntu": [
+      "gcc",
+      "clang"
+    ],
+    "raspios": [
+      "gcc",
+      "clang"
+    ],
+    "archlinux": [
+      "gcc",
+      "clang"
+    ],
+    "macos": [
+      "clang",
+      "gcc"
+    ],
+    "freebsd14": [
+      "cc",
+      "clang"
+    ]
+  },
+  "java": {
+    "fedora": [
+      "javac"
+    ],
+    "debian": [
+      "javac"
+    ],
+    "ubuntu": [
+      "javac"
+    ],
+    "raspios": [
+      "javac"
+    ],
+    "archlinux": [
+      "javac"
+    ],
+    "macos": [
+      "javac"
+    ]
+  },
+  "python": {
+    "fedora": [
+      "python3"
+    ],
+    "debian": [
+      "python3"
+    ],
+    "ubuntu": [
+      "python3"
+    ],
+    "raspios": [
+      "python3"
+    ],
+    "archlinux": [
+      "python3"
+    ],
+    "macos": [
+      "python3"
+    ],
+    "freebsd14": [
+      "python3"
+    ]
+  }
+}

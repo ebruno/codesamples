@@ -404,6 +404,28 @@ The following animation demonstrates the three-stage pipeline in action, showing
 
 > **Note:** This section documents the environment where the project was created. Development may occur on different hardware/OS configurations — see [Platform-Specific Notes](#platform-specific-notes) for build differences across platforms.
 
+## Required Tools
+
+The following tools are checked at session start by `utils/bin/check_tools.zsh` (macOS) and `utils/bin/check_tools.sh` (Linux). Core development requires the tools in the table below.
+
+| Tool | Type | Purpose |
+|------|------|---------|
+| `bmake` | Required | BSD Make — used for testing on non-FreeBSD platforms |
+| `clang` | Required | C compiler (macOS default) |
+| `clang++` | Required | C++ compiler (macOS default) |
+| `cmake` | Required | Build system — required for future language implementations |
+| `ffmpeg` | Required | Media processing — creates animated GIFs used in README |
+| `ffprobe` | Required | Media inspection — validates media assets used in README |
+| `g++` | Required | C++ compiler (Linux fallback, cross-platform) |
+| `gcc` | Required | C/C++ compiler (Linux fallback, cross-platform) |
+| `gh` | Optional | GitHub CLI — repository management workflows |
+| `glab` | Optional | GitLab CLI — repository management workflows |
+| `jq` | Required | JSON parsing — reads `config/toolchains.json` at runtime |
+| `make` | Required | GNU Make — build system for all languages |
+| `mmdc` | Required | Mermaid diagram renderer — validates diagrams before README commits |
+| `pandoc` | Required | Document conversion — generates README.pdf and other file types |
+| `tcsh` | Required | FreeBSD default shell — used for testing on non-FreeBSD platforms |
+
 ## Project Structure
 The project uses a **Deterministic File Mapping** strategy. Logic groups are mapped to specific filenames (e.g., `ReadOps.cpp`, `Threading.cpp`) with a strict constraint of **maximum 3 functions per file** to minimize git collisions and maximize modularity.
 
@@ -1782,6 +1804,29 @@ The common thread across all these challenges is **platform divergence in tools 
 ## Known Issues
 
 - **LM Studio shell ENOENT after session compaction:** After a long session hits its first compaction, `shell_command` calls fail with `spawn ... ENOENT`. This is a bug in LM Studio Bionic — the scratchpad directory isn't materialized until a sandboxed Python or file-delivery call creates it. **Workaround:** run a trivial sandboxed Python call first, then retry the shell command. See `.bionic` Common Pitfalls #1 for details. **Remove this note once LM Studio fixes the bug.**
+
+## TODO
+
+### Host-to-Target Routing Configuration
+
+**Goal:** Define a per-host configuration that declares which targets each host can reach and how — container, SSH, or native (host=target is always native).
+
+**Current state:** `config/host_targets.json` has been created as the single source of truth for routing decisions. It defines transport methods (native, container, ssh, skip) for every host→target combination.
+
+**Transport rules:**
+- **macOS → macOS**: native
+- **macOS → Linux distros**: container (primary), ssh (fallback)
+- **macOS → FreeBSD 14**: ssh
+- **Linux distro → itself**: native
+- **Linux distro → other Linux distros**: container (primary), ssh (fallback)
+- **Linux distro → FreeBSD 14**: ssh
+- **FreeBSD 14 → itself**: native only (no containers, no SSH to other targets)
+- **Any host → macOS**: skip (macOS is native-only, no remote access from Linux/FreeBSD)
+
+**What still needs to happen:**
+- Update `run_regression.sh/zsh/tcsh` to read `config/host_targets.json` instead of hardcoding routing decisions
+- The `run_regression.md` workflow doc should reference the config as the single source of truth for routing
+- This also feeds into CI/CD planning — a future pipeline runner will need the same routing table
 
 ## Appendices
 
