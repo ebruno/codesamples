@@ -11,7 +11,7 @@ echo "============================================="
 echo "Tool Availability Check (Linux)"
 echo "============================================="
 
-tools=(clang clang++ gcc g++ make bmake tcsh cmake ffmpeg ffprobe pandoc mmdc glab gh)
+tools=(clang clang++ gcc g++ make bmake tcsh cmake ffmpeg ffprobe pandoc mmdc glab gh jq)
 
 # Default install commands (apt-based, overridden per distro below)
 install_cmds=(
@@ -29,6 +29,7 @@ install_cmds=(
     "sudo apt-get install -y mermaid-cli"
     "sudo apt-get install -y glab"
     "sudo apt-get install -y gh"
+    "sudo apt-get install -y jq"
 )
 
 # Detect Linux distribution and override commands
@@ -55,6 +56,7 @@ case "$os_id" in
             "sudo dnf install -y mermaid-cli"
             "sudo dnf install -y glab"
             "sudo dnf install -y gh"
+            "sudo dnf install -y jq"
         )
         ;;
     debian|ubuntu|raspios)
@@ -92,6 +94,7 @@ case "$os_id" in
             "sudo npm install -g @mermaid-js/mermaid-cli"
             "sudo pacman -S glab"
             "sudo pacman -S gh"
+            "sudo pacman -S jq"
         )
         ;;
 esac

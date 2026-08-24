@@ -9,16 +9,16 @@
 
 **Correct workflow for FreeBSD 14 SSH execution:**
 
-1. **Create a local tcsh script** at `utils/bin/run_freebsd_ssh.tcsh` that runs ON THE REMOTE host
+1. **Create a local tcsh script** at `utils/bin/run_freebsd_native_or_ssh.tcsh` that runs ON THE REMOTE host
 2. **The tcsh script handles all remote operations:**
    - Clean workspace: `/bin/rm -rf '${os_dir}/'*` (single quotes prevent glob expansion)
    - Extract tarball: `/bin/tar -xzf ringbuffer_${TARGET_OS}.tar.gz`
    - Run make: `/usr/bin/make clean` and `/usr/bin/make verify`
 3. **From the host script (run_regression.sh/zsh):**
    - Step 1: Create tarball of source code
-   - Step 2: SCP both the tarball AND the tcsh script to remote (`/tmp/run_freebsd_ssh.tcsh`)
-   - Step 3: SSH to remote and run `tcsh /tmp/run_freebsd_ssh.tcsh '${remote_base}' '${TARGET_OS}' '<mode>'` where `<mode>` is one of: `cpp`, `test-cpp`, `python-build`, `python-test`, `java-build`, `java-test`
-   - Step 4: Clean up remote temp files (`rm -f /tmp/run_freebsd_ssh.tcsh`)
+   - Step 2: SCP both the tarball AND the tcsh script to remote (`/tmp/run_freebsd_native_or_ssh.tcsh`)
+   - Step 3: SSH to remote and run `tcsh /tmp/run_freebsd_native_or_ssh.tcsh '${remote_base}' '${TARGET_OS}' '<mode>'` where `<mode>` is one of: `cpp`, `test-cpp`, `python-build`, `python-test`, `java-build`, `java-test`
+   - Step 4: Clean up remote temp files (`rm -f /tmp/run_freebsd_native_or_ssh.tcsh`)
 
 **Key tcsh syntax rules:**
 - Use `set var = "value"` for variable assignment

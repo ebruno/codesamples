@@ -588,7 +588,7 @@ When building or running regression tests on a remote system via SSH, **always**
 - **Use `tar -czf /tmp/ringbuffer_<os>.tar.gz -C .. ringbuffer`** to create the tarball from the parent directory, preserving the `ringbuffer/` top-level path inside the archive.
 - **Use tarball + SCP** (not `scp -r` of individual files) for reliable, atomic transfers.
 - **Verify after transfer** — confirm file counts and sizes match between local tarball contents and remote unpacked files.
-- **FreeBSD 14:** Default shell is `tcsh`. All inline SSH commands must be tcsh-compliant (use `;` not `&&`, avoid `$()`, avoid `2>&1`). For build/test commands, use a tcsh script: `tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os> <mode>` where `<mode>` is one of: `cpp`, `test-cpp`, `python-build`, `python-test`, `java-build`, `java-test`.
+- **FreeBSD 14:** Default shell is `tcsh`. All inline SSH commands must be tcsh-compliant (use `;` not `&&`, avoid `$()`, avoid `2>&1`). For build/test commands, use a tcsh script: `tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>` where `<mode>` is one of: `cpp`, `test-cpp`, `python-build`, `python-test`, `java-build`, `java-test`.
 - **Arch Linux:** Default shell is `bash`. Inline `&&` commands are safe.
 
 **SSH Host Configuration (User-Provided):**

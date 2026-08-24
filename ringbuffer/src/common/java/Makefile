@@ -81,6 +81,46 @@ container-clean:
 		$(CONTAINER_CMD) image rm -f $$img 2>/dev/null || true; \
 	done
 
+# Start a persistent container for test execution (image stays)
+start_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Container ringbuffer_$(TARGET_OS)_test already running."; \
+	else\
+		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) run -d --name "ringbuffer_$(TARGET_OS)_test_running" \
+			-v $(pwd)/src/common/java:/app/ringbuffer/src/common/java \
+			-v $(pwd)/src/$(TARGET_OS)/java:/app/ringbuffer/src/$(TARGET_OS)/java \
+			-w /app/ringbuffer/src/common/java \
+			ringbuffer_$(TARGET_OS)_test;\
+	fi
+
+# Stop the persistent container (image stays, container remains on disk)
+stop_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Stopping container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	else\
+		echo "No running container found for ringbuffer_$(TARGET_OS)_test.";\
+	fi
+
+# Remove the persistent container (image stays)
+remove_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Removing container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	else\
+		echo "No container found for ringbuffer_$(TARGET_OS)_test.";\
+	fi
+
 # Clean build artifacts (Maven target directory)
 clean:
 	@echo "Cleaning Java build artifacts..."

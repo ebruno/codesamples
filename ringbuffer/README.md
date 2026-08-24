@@ -1786,7 +1786,7 @@ This project was built entirely through prompt-driven LLM development. The most 
 - **tcsh reference scripts:** We built a reusable tcsh script library in `rules/tcsh-syntax.md` and supporting scripts that serve as a reference for all FreeBSD 14 operations. These cover the common patterns — SSH execution, tarball unpacking, make invocation, test running — so each new script doesn't start from scratch. The reference is loaded via `.bionic` pre-flight checks before any tcsh script generation, ensuring compliance.
 - **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
 - **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
-- **`tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
+- **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
 
 **Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. Installing `tcsh` locally was a game-changer — it let us iterate interactively instead of through slow SSH round-trips. The reusable tcsh reference library then prevented the same mistakes from recurring across sessions and scripts.
 
@@ -1884,7 +1884,7 @@ This project was built entirely through prompt-driven LLM development. The most 
 - **tcsh script templates:** We created dedicated `.tcsh` scripts for FreeBSD 14 operations, following strict syntax rules loaded from `rules/tcsh-syntax.md`.
 - **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
 - **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
-- **`tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
+- **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
 
 **Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. The `then` keyword must be on its own line (or preceded by `;`), `$((...))` arithmetic is forbidden, and `2>&1` redirection doesn't work. Each tcsh script required multiple iterations to get right.
 

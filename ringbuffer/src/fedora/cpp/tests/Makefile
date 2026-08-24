@@ -1,5 +1,8 @@
 include ../version.mk
 
+# OS name for registry lookup
+OS_NAME = fedora
+
 # Compiler settings
 CXX = g++
 CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -I..
@@ -33,14 +36,24 @@ else
     CONTAINER_CMD = podman
 endif
 
-# Compiler auto-detection: Linux order is g++ first, then clang++
-ALL_COMPILERS := g++ clang++
+# Container name for exec-based workflow (single running instance)
+CONTAINER_NAME = ringbuffer_fedora_test_work
 
-# Filter to only distinct compilers (skip if same binary)
-DISTINCT_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
-  $(if $(filter $(COMP),$(DISTINCT_COMPILERS)),,$(shell if [ -x "$(COMP)" ] && ! $(COMP) --version 2>/dev/null | grep -q "clang"; then echo "$(COMP)"; fi)))
+# Container-aware execution: when host != target OS, run inside container
+ifeq ($(UNAME_S),Darwin)
+    # macOS host — execute all build/test steps inside the container
+    # Volume mount: ringbuffer root -> /app/ringbuffer
+    # Working dir inside container: /app/ringbuffer/src/fedora/cpp/tests
+    CONTAINER_RUN_OPTS = -v $(abspath ../../../../):/app/ringbuffer -w /app/ringbuffer/src/fedora/cpp/tests
+    CONTAINER_EXEC = $(CONTAINER_CMD) exec -i $(CONTAINER_NAME)
+else
+    # Linux host — run natively (no container needed for tests)
+    CONTAINER_RUN_OPTS =
+    CONTAINER_EXEC =
+endif
 
-.PHONY: all static dynamic clean dist-clean verify validate-data deploy-utils test-all
+# Compilers available in the Fedora container (g++ first, then clang++)
+.PHONY: all static dynamic clean dist-clean verify verify-single validate-data deploy-utils test-all
 
 all: static dynamic
 
@@ -83,8 +96,6 @@ test001_dynamiclib_$(1): $(SRC_DIR)/test001.cpp
 		-Wl,-rpath,$(abspath $(LIB_DIR))
 endef
 
-$(foreach COMP,$(DISTINCT_COMPILERS),$(eval $(call PER_COMPILER_TEST_TARGETS,$(COMP))))
-
 # Deploy authoritative utility scripts from prompts
 deploy-utils:
 	@echo "Deploying authoritative utility scripts..."
@@ -98,6 +109,24 @@ deploy-utils:
 	else \
 		echo "  Authoritative scripts directory not mounted in container — using existing scripts in $(UTILS_DIR)/bin/"; \
 	fi
+
+# Container lifecycle: single running instance for exec-based workflow
+container-start:
+	@mkdir -p logs
+	@if ! $(CONTAINER_CMD) image ls --quiet 2>/dev/null | grep -q $(CONTAINER_IMAGE); then \
+		echo "Building container image: $(CONTAINER_IMAGE)"; \
+		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) ../..; \
+	else \
+		echo "Image $(CONTAINER_IMAGE) already exists."; \
+	fi
+	@$(CONTAINER_CMD) rm -f $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "Starting container: $(CONTAINER_NAME)"
+	$(CONTAINER_CMD) run -d --name $(CONTAINER_NAME) $(CONTAINER_RUN_OPTS) $(CONTAINER_IMAGE) tail -f /dev/null
+
+container-stop:
+	@echo "Stopping container: $(CONTAINER_NAME)"
+	$(CONTAINER_CMD) stop $(CONTAINER_NAME) 2>/dev/null || true
+	$(CONTAINER_CMD) rm -f $(CONTAINER_NAME) 2>/dev/null || true
 
 # Validate test data
 validate-data:
@@ -115,13 +144,16 @@ validate-data:
 	fi
 	@echo "Test data validation passed"
 
-# Run verification (artifact check + test matrix)
-verify: static dynamic build-cpp validate-data deploy-utils
+# Top-level verify: clean + single-compiler verification (called by run_regression.sh)
+verify: verify-single CXX=$(CXX)
+# Single-compiler verification (runs natively — inside container or on Linux host)
+verify-single: static dynamic build-cpp validate-data deploy-utils
 
-# Build C++ library if not present (skip if unsupported)
+# Build C++ library (always rebuild with current CXX for multi-compiler support)
 build-cpp:
 	@if [ -f ../UNSUPPORTED.md ]; then echo "C++ unsupported on this platform — skipping C++ build"; else \
-		if [ ! -f ../lib/libswtr_ringbuffer.a ]; then echo "Building C++ library..."; make -C .. all; else echo "C++ library already present."; fi; \
+		echo "Building C++ library with $(CXX)..."; \
+		$(MAKE) -C .. all CXX=$(CXX); \
 	fi
 	@mkdir -p $(LOGS_DIR) $(REPORTS_DIR)
 	@if [ -f ../UNSUPPORTED.md ]; then \
@@ -164,7 +196,9 @@ container-clean:
 	@echo "Removing container image..."; \
 	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
 
+# Clean: remove all build artifacts including parent library (needed for multi-compiler)
 clean:
+	@$(MAKE) -C .. clean 2>/dev/null || true
 	@$(RM) $(BIN_DIR) 2>/dev/null || true
 	@rm -f $(LOGS_DIR)/*.log $(LOGS_DIR)/*.exit $(LOGS_DIR)/*.time 2>/dev/null || true
 	@rm -f $(REPORTS_DIR)/regression_report.md $(REPORTS_DIR)/compiler_version.txt 2>/dev/null || true

@@ -1,4 +1,4 @@
-.PHONY: all clean dist-clean container container-clean build test
+.PHONY: all clean dist-clean container start_container stop_container container-clean build test
 
 # Target OS for cross-platform builds (set by verify_build: TARGET_OS=fedora, etc.)
 TARGET_OS ?=
@@ -63,6 +63,53 @@ container-test-%: container-build-%
 			-f ../../$(OS_$*_DIR)/containers/test/Dockerfile .;\
 	else\
 		echo "ringbuffer_$*_test already exists. Skipping.";\
+	fi
+
+# ── Container lifecycle rules (start/stop persistent container) ────
+# These rules manage a persistent container for regression testing.
+# The image is built by `container` (above); start/stop manage the running instance.
+
+# Start a persistent container with workspace mounted
+# Depends on: container (ensures image exists)
+start_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@# Check if a container for this OS is already running
+	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Container ringbuffer_$(TARGET_OS)_test already running.";\
+	else\
+		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) run -d --name "ringbuffer_$(TARGET_OS)_test_running" \
+			-v $(pwd)/src/common/python:/app/ringbuffer/src/common/python \
+			-v $(pwd)/src/$(TARGET_OS)/cpp:/app/ringbuffer/src/$(TARGET_OS)/cpp \
+			-v $(pwd)/src/common/cpp:/app/ringbuffer/src/common/cpp \
+			-w /app/ringbuffer/src/common/python \
+			ringbuffer_$(TARGET_OS)_test;\
+	fi
+
+# Stop the persistent container (image stays, container remains on disk)
+stop_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Stopping container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	else\
+		echo "No running container found for ringbuffer_$(TARGET_OS)_test.";\
+	fi
+
+# Remove the persistent container (image stays)
+remove_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Removing container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	else\
+		echo "No container found for ringbuffer_$(TARGET_OS)_test.";\
 	fi
 
 container-clean:

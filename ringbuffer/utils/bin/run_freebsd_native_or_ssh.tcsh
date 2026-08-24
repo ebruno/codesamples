@@ -1,6 +1,6 @@
 #!/usr/bin/env tcsh
-# run_freebsd_ssh.tcsh — FreeBSD 14 SSH build/test runner
-# Usage: tcsh run_freebsd_ssh.tcsh <ringbuffer_path> <os_name> [mode]
+# run_freebsd_native_or_ssh.tcsh — FreeBSD 14 native and SSH build/test runner
+# Usage: tcsh run_freebsd_native_or_ssh.tcsh <ringbuffer_path> <os_name> [mode]
 #   mode: "cpp" (default, build), "test-cpp",
 #         "python-build", "python-test",
 #         "java-build", "java-test"

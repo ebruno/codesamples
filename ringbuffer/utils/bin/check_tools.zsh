@@ -12,7 +12,7 @@ echo "============================================="
 echo "Tool Availability Check (macOS)"
 echo "============================================="
 
-tools=(clang clang++ gcc g++ make bmake tcsh cmake ffmpeg ffprobe pandoc mmdc glab gh)
+tools=(clang clang++ gcc g++ make bmake tcsh cmake ffmpeg ffprobe pandoc mmdc glab gh jq)
 
 install_cmds=(
     ""
@@ -29,6 +29,7 @@ install_cmds=(
     "brew install mermaid-cli"
     "brew install glab"
     "brew install gh"
+    "brew install jq"
 )
 
 num_tools=${#tools[@]}

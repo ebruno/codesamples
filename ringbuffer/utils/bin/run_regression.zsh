@@ -1,25 +1,43 @@
 #!/usr/bin/env zsh
 # run_regression.zsh — Execute regression tests for a target OS inside its container
-# Usage: ./utils/bin/run_regression.zsh <os> verify|build [image_override]
-# macOS host version (zsh)
+# Usage: ./utils/bin/run_regression.zsh [-N] [-L <lang>] <os> verify|build [image_override]
+# macOS host version (zsh) — uses Apple Container runtime
 
 set -euo pipefail
 
 WORKSPACE="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT_NAME="run_regression.zsh"
+REGISTRY="${WORKSPACE}/config/toolchains.json"
 
 usage() {
-    echo "Usage: $0 <os> verify|build [image_override]"
+    echo "Usage: $0 [-N] [-L <lang>] <os> verify|build [image_override]"
+    echo ""
+    echo "Options:"
+    echo "  -N         Bypass host OS check (unsafe — script requires macOS)"
+    echo "  -L <lang>  Language: cpp (default), python, java, go, rust"
     echo ""
     echo "Actions:"
-    echo "  verify   — Run full regression test matrix (T001-T007) using ringbuffer_<os>_test"
-    echo "  build    — Build library only using ringbuffer_<os>_build"
+    echo "  verify   — Run full regression test matrix (T001-T007)"
+    echo "  build    — Build library only"
     echo ""
     echo "Supported OS: macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14"
     exit 1
 }
 
-# Parse arguments
+# ── Parse arguments (handle -N and -L flags) ───────────────────────
+BYPASS_OS_CHECK=false
+TARGET_LANG="cpp"  # Default language
+
+while getopts ":NL:" opt; do
+    case $opt in
+        N) BYPASS_OS_CHECK=true ;;
+        L) TARGET_LANG="$OPTARG" ;;
+        :) echo "ERROR: -$OPTARG requires an argument"; exit 1 ;;
+        *) usage ;;
+    esac
+done
+shift $((OPTIND - 1))
+
 if [ $# -lt 2 ]; then
     usage
 fi
@@ -28,410 +46,432 @@ TARGET_OS="$1"
 ACTION="$2"
 IMAGE_OVERRIDE="${3:-}"
 
-# Validate OS
+# ── Host OS check (macOS required) ────────────────────────────────
+if [ "$BYPASS_OS_CHECK" = false ]; then
+    local_host_os=$(uname -s)
+    if [ "$local_host_os" != "Darwin" ]; then
+        echo "ERROR: Running unsupported operating system ${local_host_os}; run_regression.zsh requires macOS."
+        exit 1
+    fi
+fi
+
+# ── Validate OS/action ────────────────────────────────────────────
 case "$TARGET_OS" in
     macos|debian|fedora|ubuntu|raspios|archlinux|freebsd14) ;;
-    *) echo "ERROR: Unsupported OS '$TARGET_OS'. Supported: macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14"; exit 1 ;;
+    *) echo "ERROR: Unsupported OS '$TARGET_OS'"; exit 1 ;;
 esac
 
-# Validate action
 case "$ACTION" in
     verify|build) ;;
     *) echo "ERROR: Unsupported action '$ACTION'. Use 'verify' or 'build'"; exit 1 ;;
 esac
 
-# Detect host OS (macOS only for this script)
+# ── Constants ──────────────────────────────────────────────────────
 HOST_OS="macos"
 CONTAINER_CMD="container"
 
-# Select container image based on action (not used for macOS)
 if [ "$ACTION" = "verify" ]; then
     CONTAINER_IMAGE="ringbuffer_${TARGET_OS}_test"
 else
     CONTAINER_IMAGE="ringbuffer_${TARGET_OS}_build"
 fi
 
-# Check Apple Container service status and start if needed
+# ── SSH hosts config path ──────────────────────────────────────────
+SSH_CONFIG="${WORKSPACE}/config/ssh_hosts.json"
+
+# ── Validate SSH host only for the target OS being processed ───────
+get_ssh_host() {
+    local os="$1"
+
+    if [ ! -f "$SSH_CONFIG" ]; then
+        echo "ERROR: SSH hosts config not found at $SSH_CONFIG" >&2
+        return 1
+    fi
+
+    case "$os" in
+        freebsd14)
+            local host
+            host=$(jq -r '.freebsd_host // empty' "$SSH_CONFIG" 2>/dev/null)
+            if [ -z "$host" ]; then
+                echo "ERROR: SSH host for freebsd14 not configured in $SSH_CONFIG" >&2
+                echo "  Add \"freebsd_host\": \"user@host\" to $SSH_CONFIG" >&2
+                return 1
+            fi
+            echo "$host"
+            ;;
+        archlinux)
+            local host
+            host=$(jq -r '.archlinux_host // empty' "$SSH_CONFIG" 2>/dev/null)
+            if [ -z "$host" ]; then
+                echo "ERROR: SSH host for archlinux not configured in $SSH_CONFIG" >&2
+                echo "  Add \"archlinux_host\": \"user@host\" to $SSH_CONFIG" >&2
+                return 1
+            fi
+            echo "$host"
+            ;;
+        *)
+            # No SSH host needed for this OS (uses containers or native)
+            return 0
+            ;;
+    esac
+}
+
+# ── Language path resolution ───────────────────────────────────────
+# Returns the base directory for a given OS + language.
+# Handles: per-OS (cpp, c) and common (python, java, go, rust).
+# OS overrides: if src/<os>/<lang>/ exists and is a real directory (not symlinked), use it.
+# Otherwise fall back to src/common/<lang>/ for common languages.
+resolve_lang_path() {
+    local os="$1" lang="$2"
+
+    # Per-OS languages always use src/<os>/<lang>/
+    case "$lang" in
+        cpp|c) echo "${WORKSPACE}/src/${os}/${lang}" ;;
+    esac
+
+    # Common languages: check for OS override first, then fall back to common
+    case "$lang" in
+        python|java|go|rust)
+            if [ -d "${WORKSPACE}/src/${os}/${lang}" ] && \
+               [ ! -L "${WORKSPACE}/src/${os}/${lang}" ]; then
+                # OS override exists (real directory, not symlink)
+                echo "${WORKSPACE}/src/${os}/${lang}"
+            else
+                # No override — use common
+                echo "${WORKSPACE}/src/common/${lang}"
+            fi
+            ;;
+    esac
+}
+
+# ── Registry helper: read compilers for <os> + <lang> from JSON ───
+get_compilers() {
+    local os="$1" lang="${2:-cpp}"
+
+    # C/C++ use CXX variable
+    if [ "$lang" = "cpp" ] || [ "$lang" = "c" ]; then
+        if command -v jq &>/dev/null; then
+            jq -r ".[\"${lang}\"][\"${os}\"][]?" "$REGISTRY" 2>/dev/null
+        elif command -v python3 &>/dev/null; then
+            python3 -c "
+import json, sys
+with open('${REGISTRY}') as f:
+    data = json.load(f)
+for c in data.get('${lang}', {}).get('${os}', []):
+    print(c)
+" 2>/dev/null
+        else
+            echo "ERROR: Neither jq nor python3 available to read registry" >&2
+            return 1
+        fi
+    else
+        # Non-CXX languages (python, java, go, rust) — return the interpreter/compiler
+        local compilers=""
+        if command -v jq &>/dev/null; then
+            compilers=$(jq -r ".[\"${lang}\"][\"${os}\"][]?" "$REGISTRY" 2>/dev/null)
+        elif command -v python3 &>/dev/null; then
+            compilers=$(python3 -c "
+import json, sys
+with open('${REGISTRY}') as f:
+    data = json.load(f)
+for c in data.get('${lang}', {}).get('${os}', []):
+    print(c)
+" 2>/dev/null)
+        fi
+
+        if [ -n "$compilers" ]; then
+            echo "$compilers"
+        else
+            # No registry entry — use the standard interpreter name
+            case "$lang" in
+                python) echo "python3" ;;
+                java)   echo "javac" ;;
+                go)     echo "go" ;;
+                rust)   echo "rustc" ;;
+            esac
+        fi
+    fi
+}
+
+# ── Ensure Apple Container service is running ──────────────────────
 ensure_container_service() {
-    echo "Checking Apple Container service..."
-
-    local status_output
-    if ! status_output=$($CONTAINER_CMD system status 2>&1); then
+    if ! $CONTAINER_CMD system status &>/dev/null; then
         echo "Starting Apple Container service..."
         $CONTAINER_CMD system start 2>&1 || { echo "ERROR: Failed to start container service"; exit 1; }
         sleep 5
-
-        if ! $CONTAINER_CMD system status 2>&1 | grep -q "running"; then
-            echo "ERROR: Container service failed to start after 5 seconds."
-            exit 1
-        fi
     fi
 
-    if echo "$status_output" | grep -q "running"; then
-        echo "Apple Container service is running."
-    else
-        echo "Starting Apple Container service..."
-        $CONTAINER_CMD system start 2>&1 || { echo "ERROR: Failed to start container service"; exit 1; }
-        sleep 5
-
-        if ! $CONTAINER_CMD system status 2>&1 | grep -q "running"; then
-            echo "ERROR: Container service failed to start."
-            exit 1
-        fi
+    if ! $CONTAINER_CMD system status &>/dev/null | grep -qi "running"; then
+        echo "ERROR: Container service not running after start attempt."
+        exit 1
     fi
 }
 
-# Detect available C++ compilers inside a container image
-detect_compilers_in_container() {
-    local img="$1"
-    AVAILABLE_COMPILERS=()
-    for c in g++ clang++; do
-        if $CONTAINER_CMD run --rm "$img" bash -c "command -v $c" >/dev/null 2>&1; then
-            AVAILABLE_COMPILERS+=("$c")
-        fi
-    done
-}
-
-# Detect available C++ compilers on the host
-detect_compilers_on_host() {
-    AVAILABLE_COMPILERS=()
-    for c in g++ clang++; do
-        if command -v "$c" >/dev/null 2>&1; then
-            AVAILABLE_COMPILERS+=("$c")
-        fi
-    done
-}
-
-# Check if a compiler supports C++20 <format> header inside a container
-check_format_support_in_container() {
-    local img="$1"
-    local compiler="$2"
-    $CONTAINER_CMD run --rm "$img" bash -c "echo '#include <format>' | $compiler -std=c++20 -x c++ -fsyntax-only - 2>&1" >/dev/null 2>&1
-}
-
-# Check if a compiler supports C++20 <format> header on the host
-check_format_support_on_host() {
-    local compiler="$1"
-    echo '#include <format>' | $compiler -std=c++20 -x c++ -fsyntax-only - 2>&1 >/dev/null
-}
-
-# Get compiler major version inside a container
-get_compiler_version_in_container() {
-    local img="$1"
-    local compiler="$2"
-    $CONTAINER_CMD run --rm "$img" bash -c "$compiler --version | grep -oP '(\d+)\.\d+\.\d+' | head -1"
-}
-
-# Get compiler major version on the host
-get_compiler_version_on_host() {
-    local compiler="$1"
-    $compiler --version | grep -oP '(\d+)\.\d+\.\d+' | head -1
-}
-
-# Generate UNSUPPORTED.md report for a platform
-generate_unsupported_report() {
-    local os_name="$1"
-    local report_path="$2"
-    
-    cat > "$report_path" << EOF
-# ${os_name} C++ — UNSUPPORTED
-
-**Date:** $(date '+%Y-%m-%d %H:%M:%S %z')
-**Reason:** No available C++ compiler supports required C++20 features.
-
-| Compiler | Version | <format> Support |
-|----------|---------|-----------------|
-EOF
-    
-    # Add compiler details from the probe results
-    for c in g++ clang++; do
-        local ver=""
-        if [ -f "${report_path}.versions" ]; then
-            ver=$(grep "^${c}:" "${report_path}.versions" | cut -d: -f2)
-        fi
-        if [ -n "$ver" ]; then
-            echo "| ${c} | ${ver} | ❌ Requires GCC 13+ / Clang 15+ for <format> header |" >> "$report_path"
-        fi
-    done
-    
-    cat >> "$report_path" << EOF
-
-**Required Minimum Versions:**
-- **GCC 13+** or **Clang 15+** for C++20 `<format>` support
-
-**Options to Enable Support:**
-1. Upgrade the base image to one with newer compilers (e.g., Debian 13, Ubuntu 24.04, Fedora)
-2. Remove `<format>` dependency from source code (replace with printf/snprintf or third-party library)
-3. Use a different platform that has supported compilers
-
-**Build Error Details:**
-```
-fatal error: 'format' file not found
-#include <format>
-         ^~~~~~~~
-```
-
-**Notes:**
-- This is a **toolchain limitation**, not a source code bug
-- The same source builds successfully on: macOS (Apple clang 21), Fedora, Debian, Ubuntu, Arch Linux
-EOF
-    
-    rm -f "${report_path}.versions"
-}
-
-# Build container image if needed
-build_image() {
-    echo "Building container image: $CONTAINER_IMAGE"
-
-    # Check if image already exists
-    local images
-    images=$($CONTAINER_CMD images --quiet 2>/dev/null | grep "$CONTAINER_IMAGE" || true)
-    if [ -n "$images" ]; then
-        echo "Image $CONTAINER_IMAGE already exists, skipping build."
-        return 0
-    fi
-
-    local os_dir="$WORKSPACE/src/${TARGET_OS}/cpp"
-
-    # For verify action, we need the test image. Build build first if needed, then test.
-    if [ "$ACTION" = "verify" ]; then
-        # Build build image first (test depends on it)
-        if ! $CONTAINER_CMD images --quiet 2>/dev/null | grep -q "ringbuffer_${TARGET_OS}_build"; then
-            echo "Building build image first..."
-            (cd "$os_dir" && make container 2>&1) || { echo "ERROR: Failed to build build image"; exit 1; }
-        fi
-
-        # Build test image from tests/ directory
-        if [ -d "$os_dir/tests" ] && [ -f "$os_dir/tests/Makefile" ]; then
-            echo "Building test image..."
-            (cd "$os_dir/tests" && make container 2>&1) || { echo "ERROR: Failed to build test image"; exit 1; }
-        fi
-    else
-        (cd "$os_dir" && make container 2>&1) || { echo "ERROR: Failed to build image"; exit 1; }
-    fi
-}
-
-# Run natively (macOS is native-only) — loop over available compilers
+# ── Native execution (macos target) ───────────────────────────────
 run_native() {
-    echo "=== Native execution: $ACTION on $TARGET_OS ==="
+    echo "=== Native execution: $ACTION on $TARGET_OS ($TARGET_LANG) ==="
 
-    # Detect available compilers
-    detect_compilers_on_host
-    if [ ${#AVAILABLE_COMPILERS[@]} -eq 0 ]; then
-        echo "ERROR: No C++ compiler found on host."
-        exit 1
-    fi
-    echo "Detected compilers: ${AVAILABLE_COMPILERS[*]}"
+    local os_dir tests_dir
+    os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
+    tests_dir="${os_dir}/tests"
 
-    local os_dir="$WORKSPACE/src/${TARGET_OS}/cpp"
-    if [ ! -d "$os_dir/tests" ]; then
-        echo "ERROR: $os_dir/tests does not exist."
+    if [ ! -d "$tests_dir" ]; then
+        echo "ERROR: $tests_dir does not exist."
         exit 1
     fi
 
-    for CXX in "${AVAILABLE_COMPILERS[@]}"; do
+    local -a compilers=()
+    while IFS= read -r c; do
+        [ -n "$c" ] && compilers+=("$c")
+    done < <(get_compilers "$TARGET_OS" "$TARGET_LANG")
+
+    if [ ${#compilers[@]} -eq 0 ]; then
+        echo "ERROR: No compilers found in registry for ${TARGET_OS}/${TARGET_LANG}"
+        exit 1
+    fi
+
+    echo "Compilers from registry: ${compilers[*]}"
+
+    for COMPILER in "${compilers[@]}"; do
         echo ""
         echo "============================================="
-        echo "Compiler: $CXX"
+        echo "Compiler/Interpreter: $COMPILER"
         echo "============================================="
 
-        # Check compiler version and feature support
-        local ver
-        ver=$(get_compiler_version_on_host "$CXX")
-        echo "Version: $ver"
+        # Clean C++ library for Python/Java (they depend on it)
+        case "$TARGET_LANG" in
+            python|java) make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" clean 2>&1 ;;
+        esac
 
-        if ! check_format_support_on_host "$CXX"; then
-            echo "UNSUPPORTED: $CXX does not support C++20 <format> header"
-            echo "  Required: GCC 13+ or Clang 15+"
-            
-            # Generate UNSUPPORTED.md if no compilers work
-            local all_unsupported=true
-            for c2 in "${AVAILABLE_COMPILERS[@]}"; do
-                if [ "$c2" != "$CXX" ] && check_format_support_on_host "$c2"; then
-                    all_unsupported=false
-                fi
-            done
-            
-            if [ "$all_unsupported" = true ]; then
-                generate_unsupported_report "$(echo $TARGET_OS | sed 's/^./\U&/')" "$os_dir/UNSUPPORTED.md"
-                echo "Generated: $os_dir/UNSUPPORTED.md"
-            fi
-            
-            continue
-        fi
-
-        # Clean parent dir (library)
         make -C "$os_dir" clean 2>&1
+        make -C "$tests_dir" clean 2>&1
 
-        # Clean tests dir
-        make -C "$os_dir/tests" clean 2>&1
-
-        # Run verify with this compiler
-        CXX="$CXX" make -C "$os_dir/tests" verify 2>&1
+        # Set the right variable based on language
+        case "$TARGET_LANG" in
+            cpp|c)  CXX="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
+            python) PYTHON="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
+            java)   JAVA="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
+            *)      make -C "$tests_dir" verify 2>&1 ;;
+        esac
     done
 }
 
-# Run inside container (Linux targets from macOS host) — loop over available compilers
+# ── Container execution (Linux targets from macOS host) ───────────
 run_container() {
-    echo "=== Container execution: $ACTION on $TARGET_OS ==="
+    echo "=== Container execution: $ACTION on $TARGET_OS ($TARGET_LANG) ==="
 
-    # Ensure container service is running
+    if ! command -v "$CONTAINER_CMD" &>/dev/null; then
+        echo "ERROR: '$CONTAINER_CMD' not found. Install Apple Container from https://github.com/apple/container"
+        exit 1
+    fi
+
     ensure_container_service
 
-    # Build image if needed
-    build_image
+    local os_dir
+    os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
 
-    local os_dir="$WORKSPACE/src/${TARGET_OS}/cpp"
+    echo "Ensuring container image exists (via Makefile)..."
+    make -C "$os_dir" container 2>&1 || { echo "ERROR: Failed to ensure image"; exit 1; }
 
-    # Detect compilers available inside the container image
-    detect_compilers_in_container "$CONTAINER_IMAGE"
-    if [ ${#AVAILABLE_COMPILERS[@]} -eq 0 ]; then
-        echo "ERROR: No C++ compiler found in $CONTAINER_IMAGE."
+    echo "Starting persistent container..."
+    make -C "$os_dir" start_container 2>&1 || { echo "ERROR: Failed to start container"; exit 1; }
+
+    local -a compilers=()
+    while IFS= read -r c; do
+        [ -n "$c" ] && compilers+=("$c")
+    done < <(get_compilers "$TARGET_OS" "$TARGET_LANG")
+
+    if [ ${#compilers[@]} -eq 0 ]; then
+        echo "ERROR: No compilers found in registry for ${TARGET_OS}/${TARGET_LANG}"
+        make -C "$os_dir" stop_container 2>&1 || true
         exit 1
     fi
-    echo "Detected compilers inside container: ${AVAILABLE_COMPILERS[*]}"
 
-    # Mount workspace and run make inside container
+    echo "Compilers from registry: ${compilers[*]}"
+
     local mount_path="/app/ringbuffer"
-    local workdir="${mount_path}/src/${TARGET_OS}/cpp/tests"
+    local workdir="${mount_path}/src/${TARGET_OS}/${TARGET_LANG}/tests"
 
-    # For verify action, ensure build image exists first (test depends on it)
-    if [ "$ACTION" = "verify" ]; then
-        local build_image_name="ringbuffer_${TARGET_OS}_build"
-        if ! $CONTAINER_CMD images --quiet 2>/dev/null | grep -q "$build_image_name"; then
-            echo "Building build image (required by test image)..."
-            (cd "$os_dir" && make container 2>&1) || { echo "ERROR: Failed to build build image"; exit 1; }
-        fi
-    fi
-
-    # Track which compilers support <format>
-    local supported_compilers=()
-    local unsupported_info=""
-
-    for CXX in "${AVAILABLE_COMPILERS[@]}"; do
+    for COMPILER in "${compilers[@]}"; do
         echo ""
         echo "============================================="
-        echo "Compiler: $CXX"
+        echo "Compiler/Interpreter: $COMPILER"
         echo "============================================="
 
-        # Check compiler version and feature support inside container
-        local ver
-        ver=$(get_compiler_version_in_container "$CONTAINER_IMAGE" "$CXX")
-        echo "Version: $ver"
-
-        if check_format_support_in_container "$CONTAINER_IMAGE" "$CXX"; then
-            echo "SUPPORTED: $CXX supports C++20 <format> header"
-            supported_compilers+=("$CXX")
-        else
-            echo "UNSUPPORTED: $CXX does not support C++20 <format> header"
-            echo "  Required: GCC 13+ or Clang 15+"
-            unsupported_info="${unsupported_info}${CXX}:${ver}\n"
-        fi
+        # Set the right variable based on language
+        case "$TARGET_LANG" in
+            cpp|c)  $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && CXX=$COMPILER make -C tests verify" 2>&1 ;;
+            python) $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make -C ../$(TARGET_OS)/cpp clean && make -C tests clean && PYTHON=$COMPILER make -C tests verify" 2>&1 ;;
+            java)   $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && JAVA=$COMPILER make -C tests verify" 2>&1 ;;
+            *)      $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && make -C tests verify" 2>&1 ;;
+        esac
     done
 
-    # Generate UNSUPPORTED.md if no compilers support <format>
-    if [ ${#supported_compilers[@]} -eq 0 ]; then
-        echo ""
-        echo "=== ALL COMPILERS UNSUPPORTED ==="
-        
-        # Save version info for report generation
-        echo -e "$unsupported_info" > "${os_dir}/UNSUPPORTED.md.versions"
-        
-        # Run the first unsupported compiler to capture error details
-        local first_unsupported="${AVAILABLE_COMPILERS[0]}"
-        echo "Running $first_unsupported to capture build error..."
-        
-        # Run make clean + verify with first unsupported compiler to trigger UNSUPPORTED.md generation
-        $CONTAINER_CMD run --rm \
-            -m 3g \
-            -v "$WORKSPACE:$mount_path" \
-            -w "$workdir" \
-            "$CONTAINER_IMAGE" \
-            bash -c "make -C .. clean && make clean && CXX=$first_unsupported make verify" 2>&1 || true
-        
-        # Generate the UNSUPPORTED.md report
-        generate_unsupported_report "$(echo $TARGET_OS | sed 's/^./\U&/')" "$os_dir/UNSUPPORTED.md"
-        echo "Generated: $os_dir/UNSUPPORTED.md"
-        
-        exit 0
-    fi
+    echo "Stopping container..."
+    make -C "$os_dir" stop_container 2>&1 || true
+    echo "Removing container..."
+    make -C "$os_dir" remove_container 2>&1 || true
 
-    # Run tests with supported compilers only
-    for CXX in "${supported_compilers[@]}"; do
-        echo ""
-        echo "============================================="
-        echo "Compiler: $CXX"
-        echo "============================================="
-
-        # Run clean + verify inside container for this compiler
-        $CONTAINER_CMD run --rm \
-            -m 3g \
-            -e IN_CONTAINER=1 \
-            -v "$WORKSPACE:$mount_path" \
-            -w "$workdir" \
-            "$CONTAINER_IMAGE" \
-            bash -c "make -C .. clean && make clean && CXX=$CXX make verify" 2>&1
-    done
-
-    return $?
+    echo "Container stopped and removed. Image $CONTAINER_IMAGE remains."
 }
 
-# SSH execution for FreeBSD 14 (remote host, tcsh script)
+# ── SSH execution for remote hosts (freebsd14, archlinux, etc.) ───
 run_ssh() {
-    echo "=== SSH execution: $ACTION on $TARGET_OS ==="
+    echo "=== SSH execution: $ACTION on $TARGET_OS ($TARGET_LANG) ==="
 
-    local ssh_host="ebruno@10.10.41.244"
-    local tarball="/tmp/ringbuffer.tar.gz"
+    local ssh_host
+    ssh_host=$(get_ssh_host "$TARGET_OS") || exit 1
 
-    # Step 1: Create tarball from workspace root (includes run_regression.tcsh)
+    local tarball="/tmp/ringbuffer_${TARGET_OS}.tar.gz"
+    local os_dir tests_dir
+    os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
+    tests_dir="${os_dir}/tests"
+
+    # Step 1: Create tarball from workspace root
     echo "Creating tarball..."
     tar -czf "$tarball" -C "$WORKSPACE/.." ringbuffer/
 
     # Step 2: SCP to remote home directory
-    echo "Syncing files to remote..."
+    echo "Syncing to remote..."
     scp "$tarball" "${ssh_host}:~/ringbuffer.tar.gz"
 
-    # Step 3: SSH delete on remote (clean slate)
+    # Step 3: SSH delete on remote (clean slate — emulates clean git checkout)
     echo "Cleaning remote workspace..."
     ssh "$ssh_host" 'rm -rf ~/ringbuffer'
 
-    # Step 4: SSH verify deleted
-    ssh "$ssh_host" 'ls ~/ringbuffer 2>&1' || true
-
-    # Step 5: SSH unpack on remote
+    # Step 4: SSH unpack on remote at ~/ringbuffer
     echo "Unpacking on remote..."
     ssh "$ssh_host" 'cd ~ && tar -xzf ringbuffer.tar.gz && rm -f ringbuffer.tar.gz'
 
-    # Step 6: SSH run tcsh script on remote (FreeBSD default shell)
+    # Step 5: Run regression on remote — select runner based on target OS default shell
     echo "Running regression on remote..."
-    ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_regression.tcsh freebsd14 verify'
+    case "$TARGET_OS" in
+        freebsd14)
+            # FreeBSD uses tcsh as default shell — use run_freebsd_native_or_ssh.tcsh with language-specific mode
+            # Map action to mode: verify → <lang>-test, build → <lang>-build
+            case "$TARGET_LANG" in
+                cpp|c)
+                    if [ "$ACTION" = "verify" ]; then
+                        ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 test-cpp'
+                    else
+                        ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 cpp'
+                    fi
+                    ;;
+                python)
+                    if [ "$ACTION" = "verify" ]; then
+                        ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 python-test'
+                    else
+                        ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 python-build'
+                    fi
+                    ;;
+                java)
+                    if [ "$ACTION" = "verify" ]; then
+                        ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 java-test'
+                    else
+                        ssh "$ssh_host" 'tcsh ~/ringbuffer/utils/bin/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 java-build'
+                    fi
+                    ;;
+                *)
+                    echo "ERROR: Unsupported language '$TARGET_LANG' for FreeBSD 14 SSH"
+                    rm -f "$tarball"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        *)
+            # Linux distros (archlinux, etc.) use bash as default shell — use run_linux_ssh.sh
+            # SCP the script to remote and verify it exists before running
+            echo "Deploying run_linux_ssh.sh to remote..."
+            scp "$WORKSPACE/utils/bin/run_linux_ssh.sh" "${ssh_host}:/tmp/run_linux_ssh.sh"
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to scp run_linux_ssh.sh to ${ssh_host}"
+                rm -f "$tarball"
+                exit 1
+            fi
+            ssh "$ssh_host" 'bash /tmp/run_linux_ssh.sh '"${TARGET_OS}"' '"${ACTION}"
+            local rc=$?
+            ssh "$ssh_host" 'rm -f /tmp/run_linux_ssh.sh'
+            return $rc
+            ;;
+    esac
     local rc=$?
 
-    # Step 7: SCP results back from remote
+    # Step 6: SCP results back from remote
     echo "Copying results back..."
-    ssh "$ssh_host" 'mkdir -p ~/ringbuffer/src/freebsd14/cpp/reports ~/ringbuffer/src/freebsd14/cpp/logs'
-    scp -r "${ssh_host}:~/ringbuffer/src/freebsd14/cpp/reports/" "$WORKSPACE/src/freebsd14/cpp/reports/"
-    scp -r "${ssh_host}:~/ringbuffer/src/freebsd14/cpp/logs/" "$WORKSPACE/src/freebsd14/cpp/logs/"
+    ssh "$ssh_host" 'mkdir -p ~/ringbuffer/src/'"${TARGET_OS}"'/'"${TARGET_LANG}"'/reports ~/ringbuffer/src/'"${TARGET_OS}"'/'"${TARGET_LANG}"'/logs'
+    scp -r "${ssh_host}:~/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/reports/" "$WORKSPACE/src/${TARGET_OS}/${TARGET_LANG}/reports/"
+    scp -r "${ssh_host}:~/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/logs/" "$WORKSPACE/src/${TARGET_OS}/${TARGET_LANG}/logs/"
 
     rm -f "$tarball"
     return $rc
 }
 
-# Main execution
+# ── Main dispatch ─────────────────────────────────────────────────
 echo "============================================="
-echo "Ringbuffer Regression Runner (macOS)"
+echo "Ringbuffer Regression Runner (macOS/zsh)"
+if [ "$BYPASS_OS_CHECK" = true ]; then
+    echo "  OS Check:   BYPASSED (-N flag)"
+fi
 echo "  Host OS:    $HOST_OS"
 echo "  Target OS:  $TARGET_OS"
+echo "  Language:   ${TARGET_LANG}"
 echo "  Action:     $ACTION"
 echo "============================================="
 
-# Route: macOS target = native, freebsd14 = SSH, all others = container
-if [ "$TARGET_OS" = "freebsd14" ]; then
-    run_ssh
-elif [ "$TARGET_OS" = "macos" ]; then
-    run_native
-else
-    run_container
+# ── Routing via host_targets.json (single source of truth) ─────────
+HOST_TARGETS="${WORKSPACE}/config/host_targets.json"
+
+if [ ! -f "$HOST_TARGETS" ]; then
+    echo "ERROR: Routing config not found at $HOST_TARGETS"
+    exit 1
 fi
+
+# Look up transport for this host→target pair
+TRANSPORT=$(jq -r ".[\"${HOST_OS}\"].targets[] | select(.target == \"${TARGET_OS}\") | .transports[0] // empty" "$HOST_TARGETS" 2>/dev/null)
+
+if [ -z "$TRANSPORT" ]; then
+    echo "ERROR: No routing entry found for ${HOST_OS} → ${TARGET_OS} in $HOST_TARGETS"
+    exit 1
+fi
+
+case "$TRANSPORT" in
+    native)
+        if [ "$TARGET_OS" = "macos" ]; then
+            # macOS target requires macOS host (may need -N bypass)
+            if [ "$BYPASS_OS_CHECK" = true ] && [ "$(uname -s)" = "Darwin" ]; then
+                run_native
+            else
+                echo "ERROR: macOS target requires macOS host. Use -N to bypass."
+                exit 1
+            fi
+        else
+            # Native only works if host matches target (e.g., fedora on fedora)
+            run_native
+        fi
+        ;;
+    ssh)
+        # SSH requires a configured host in ssh_hosts.json
+        local_ssh_host=$(get_ssh_host "$TARGET_OS") || {
+            echo "ERROR: SSH transport selected but no host configured for $TARGET_OS"
+            exit 1
+        }
+        if [ -z "$local_ssh_host" ]; then
+            echo "ERROR: SSH transport selected but no host configured for $TARGET_OS"
+            exit 1
+        fi
+        run_ssh
+        ;;
+    container)
+        run_container
+        ;;
+    skip)
+        echo "SKIP: ${HOST_OS} → ${TARGET_OS} is marked as skip in $HOST_TARGETS"
+        exit 0
+        ;;
+    *)
+        echo "ERROR: Unknown transport '$TRANSPORT' for ${HOST_OS} → ${TARGET_OS}"
+        exit 1
+        ;;
+esac
 
 exit $?

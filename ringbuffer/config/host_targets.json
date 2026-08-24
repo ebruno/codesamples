@@ -6,7 +6,7 @@
       {"target": "debian", "transports": ["container", "ssh"]},
       {"target": "ubuntu", "transports": ["container", "ssh"]},
       {"target": "raspios", "transports": ["container", "ssh"]},
-      {"target": "archlinux", "transports": ["container", "ssh"]},
+      {"target": "archlinux", "transports": ["ssh"]},
       {"target": "freebsd14", "transports": ["ssh"]}
     ]
   },
