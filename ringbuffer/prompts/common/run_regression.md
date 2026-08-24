@@ -3,14 +3,21 @@
 **Objective:** 
 Execute the regression test matrix (T001–T007) on an already-set-up platform. This covers build, test execution, artifact verification, report generation, state tracking, and log finalization.
 
-**ENTRY POINT — READ FIRST:** All regression test execution MUST go through `utils/bin/run_regression.<sh|zsh|tcsh>` — never run `make verify` directly. The script handles container detection, compiler loops from the registry, and delegates to the Makefile.
+**ENTRY POINT — READ FIRST:** All regression test execution MUST go through `utils/bin/run_regression.<zsh|sh>` — never run `make verify` directly. The script handles container detection, compiler loops from the registry, and delegates to the Makefile.
 
-**STEP 0 — LOAD REGRESSION RUNNER SPEC (FIRST ACTION):**
-Before executing any step in this document, read and load `rules/regression-runner-spec.md`. This spec defines the contract for `run_regression.<sh|zsh|tcsh>` scripts — host/target detection, registry lookup, container management, compiler loop, and error handling. All execution in this document must comply with that spec.
+> **FreeBSD hosts only:** On FreeBSD 14, use `utils/bin/run_regression.tcsh` instead. This script is tcsh-only and supports native FreeBSD testing only — FreeBSD hosts do not support container or SSH testing to other platforms.
+
+> **Note on shell selection:** `run_regression.zsh` is used on macOS hosts, `run_regression.sh` on Linux hosts. This is correct because:
+> - On macOS, linux distros and FreeBSD are tested via container or SSH (not bash scripts)
+> - On Linux, the same applies — containers/podman handle cross-OS testing
+> - Cross-platform execution (bash on macOS, zsh on Linux) is only allowed for syntax testing (`-n`) or when the user explicitly requests it (see `.bionic` Cross-Platform Script Execution rule)
+
+**STEP 0 — LOAD REGRESSION RUNNER SPEC (FIRST ACTION):
+Before executing any step in this document, read and load `rules/regression-runner-spec.md`. This spec defines the contract for `run_regression.<zsh|sh>` scripts — host/target detection, registry lookup, container management, compiler loop, and error handling. FreeBSD hosts use `run_regression.tcsh` for native testing only. All execution in this document must comply with that spec.
 
 **Build/Test Pattern (MANDATORY):** Every language follows the same two-step pattern:
 - `verify_build` → `<os>/<lang>/Makefile all` (build only, no tests)
-- `run_regression` → `utils/bin/run_regression.<sh|zsh|tcsh> <os> verify` (test matrix T001-T007)
+- `run_regression` → `utils/bin/run_regression.<zsh|sh> <os> verify` (test matrix T001-T007; FreeBSD hosts use `run_regression.tcsh` instead for native testing only)
 - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for details.
 
 **GOLDEN RULES — READ BEFORE EXECUTING:**
@@ -58,42 +65,15 @@ Before executing any step in this document, read and load `rules/regression-runn
      - If it returns `Linux`, read the distro ID from `/etc/os-release`: `host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)`.
      - Supported Linux distros: `ubuntu`, `debian`, `fedora`, `raspios`, `archlinux`.
    - **Targeting**:
-     - **Specified Platform + Language**: If the user specifies a language and platform (e.g., "run regression for java on fedora"), run tests only for that language on that OS. Run natively if host matches target; use container if host doesn't match.
-     - **Specified Platform Only**: If the user specifies a platform but no language (e.g., "run regression for debian"), run tests for all implemented languages on that OS. Run natively if host matches target; use container if host doesn't match.
-     - **Specified Language Only**: If the user specifies a language but no platform (e.g., "run regression for java"), run tests for that language on all supported OSes using the routing table below.
-     - **General Request (no platform, no language)**: Run tests for all implemented languages on all supported OSes using the routing table below.
-   - **Routing Table** (applies when no specific OS is given, or when host ≠ target):
-     | Host OS | Target OS | Action |
-     |---------|-----------|--------|
-     | macOS | macos | Run natively |
-     | macOS | debian/fedora/ubuntu/raspios | Use `container` command to run in target OS container |
-     | Fedora | fedora | Run natively |
-     | Fedora | debian/ubuntu/raspios | Use `podman` to run in target OS container |
-     | Fedora | macos | **Skip** — macOS cannot be containerized |
-     | Debian | debian | Run natively |
-     | Debian | fedora/ubuntu/raspios | Use `podman` to run in target OS container |
-     | Debian | macos | **Skip** — macOS cannot be containerized |
-     | Ubuntu | ubuntu | Run natively |
-     | Ubuntu | debian/fedora/raspios | Use `podman` to run in target OS container |
-     | Ubuntu | macos | **Skip** — macOS cannot be containerized |
-     | raspios | raspios | Run natively (arm64 native on Apple Silicon) |
-     | raspios | debian/fedora/ubuntu | Use `podman` to run in target OS container |
-     | raspios | macos | **Skip** — macOS cannot be containerized |
-     | macOS | archlinux | **Skip** — Arch Linux is Linux-hosts-only (no container images for Apple Silicon) |
-     | Fedora | archlinux | Use `podman` to run in target OS container |
-     | Debian | archlinux | Use `podman` to run in target OS container |
-     | Ubuntu | archlinux | Use `podman` to run in target OS container |
-     | raspios | archlinux | Use `podman` to run in target OS container |
-     | Arch Linux | archlinux | Run natively (Linux-hosts-only) |
-     | Arch Linux | macos | **Skip** — macOS cannot be containerized |
-     | freebsd14 | freebsd14 | Run natively (FreeBSD is native-only, no containers) |
-     | macOS | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on macOS |
-     | Fedora | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
-     | Debian | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
-     | Ubuntu | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
-     | raspios | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
-     | Arch Linux | freebsd14 | **Skip** — FreeBSD is native-only, no containers available on Linux |
-   - **Mode Override**: If the request includes `use container`, force container execution for all non-macOS targets, overriding native routing.
+     - **Specified Platform + Language**: If the user specifies a language and platform (e.g., "run regression for java on fedora"), run tests only for that language on that OS. Use the routing table to determine how.
+     - **Specified Platform Only**: If the user specifies a platform but no language (e.g., "run regression for debian"), run tests for all implemented languages on that OS. Use the routing table to determine how.
+     - **Specified Language Only**: If the user specifies a language but no platform (e.g., "run regression for java"), run tests for that language on all supported OSes using the routing table.
+     - **General Request (no platform, no language)**: Run tests for all implemented languages on all supported OSes using the routing table.
+   - **Routing Decision**: The `run_regression.<zsh|sh>` script reads `config/host_targets.json` — this is the single source of truth for routing. The script looks up the entry for the current `host_os` and finds the target OS's transport method:
+     - `native` → run directly on the host (no container, no SSH)
+     - `container` → use the appropriate container runtime (`container` on macOS, `podman` on Linux)
+     - `ssh` → use SSH to the remote host (resolved from `config/ssh_hosts.json`)
+     - `skip` → do not test this target (log and skip)
    - **Container Runtime Selection**:
      - macOS host → use `container` command (Apple Container)
      - Linux host → use `podman`
@@ -217,7 +197,11 @@ Before executing any step in this document, read and load `rules/regression-runn
         - If any required artifact is missing, STOP and report: `[timestamp] Infrastructure incomplete — <missing artifact> not found. Run implement_regression.md first.`
       - **Log Initialization**: If `logs/build.log` does not exist, create it with the start timestamp and routing decision.
 
-      - **FreeBSD 14 SSH Test Path**:
+      > **Routing Confirmation**: The transport (native/container/ssh) for this host→target pair is determined by `config/host_targets.json`. The script handles it internally — do NOT manually follow the SSH paths below. Delegate all execution to `run_regression.<zsh|sh>`.
+      > **Explicit routing**: When host=macos and target=archlinux, transport is `ssh` (not container) because archlinux is Linux-hosts-only from macOS hosts. When host=macos and target=freebsd14, transport is `ssh` (FreeBSD 14 uses tcsh as its default shell). When host=macos and target=fedora/debian/ubuntu/raspios, transport is `container`.
+      > **Note:** Steps below (FreeBSD/Arch SSH paths) are reference documentation for SSH transport. They apply when the target OS uses SSH (currently `freebsd14` and conditionally `archlinux`). The script handles SSH routing internally via `run_ssh()` — delegate to the script rather than executing these inline commands manually.
+
+      - **FreeBSD 14 SSH Test Path** (reference only — delegate to script):
         ```bash
         # Clean everything on remote (emulates clean git checkout)
         ssh <freebsd_host> "rm -rf ~/ringbuffer"
@@ -227,12 +211,12 @@ Before executing any step in this document, read and load `rules/regression-runn
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
         # Test C++ on remote — FreeBSD 14 uses tcsh script
-        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 test-cpp"
-        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+        scp utils/bin/run_freebsd_native_or_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 test-cpp"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_native_or_ssh.tcsh"
         ```
 
-      - **Arch Linux SSH Test Path**:
+      - **Arch Linux SSH Test Path** (reference only — delegate to script):
         ```bash
         # Clean everything on remote (emulates clean git checkout)
         ssh <archlinux_host> "rm -rf ~/ringbuffer"
@@ -266,7 +250,7 @@ Before executing any step in this document, read and load `rules/regression-runn
         ```bash
         cd src/<os>/cpp && make clean          # Remove stale C++ library artifacts
         cd src/<os>/cpp/tests && make clean     # Remove stale test binaries
-        ./utils/bin/run_regression.<zsh|sh> <os> verify    # Build + run T001-T007 test matrix (zsh on macOS, sh on Linux)
+        ./utils/bin/run_regression.<zsh|sh> <os> verify    # Build + run T001-T007 test matrix (zsh on macOS hosts, sh on Linux hosts)
         ```
       - **Timing Requirements**:
         - **Start Time**: The report `Start Time` MUST be captured at the exact moment the `make verify` target is invoked in the `tests/Makefile`.
@@ -432,13 +416,13 @@ Before executing any step in this document, read and load `rules/regression-runn
 
 **CRITICAL — DO NOT CONFUSE:**
 - `verify_build` → **always** uses `make all` (build only, no tests)
-- `run_regression` → **always** uses `utils/bin/run_regression.<sh|zsh|tcsh> <os> verify` (build + T001-T007)
+- `run_regression` → **always** uses `utils/bin/run_regression.<zsh|sh> <os> verify` (build + T001-T007; FreeBSD hosts use `run_regression.tcsh` for native testing only)
 - If you find yourself about to run `make verify` during `verify_build`, STOP — that is wrong.
 - If you find yourself about to run `make all` during `run_regression`, STOP — that is wrong.
 
 **SELF-CHECK BEFORE EXECUTING:**
 - Am I in `verify_build`? → Must run `make all`, NOT `make verify`
-- Am I in `run_regression`? → Must run `utils/bin/run_regression.<sh|zsh|tcsh> <os> verify`, NOT raw `make verify`
+- Am I in `run_regression`? → Must run `utils/bin/run_regression.<zsh|sh> <os> verify`, NOT raw `make verify` (FreeBSD hosts use `run_regression.tcsh` for native testing only)
 - If unsure, re-read the workflow header to confirm which mode you are in.
 
 **Standard Clean + Verify Process (When C++ Is Used)**
@@ -450,11 +434,11 @@ Before executing any step in this document, read and load `rules/regression-runn
 - **Why this matters:** If the C++ library was previously built for a different platform (e.g., ELF ARM64 inside a container), stale artifacts on the host will cause linker errors (e.g., `archive member not a mach-o file`). Cleaning both the C++ and language directories ensures no stale artifacts remain.
 - **Example — Python on macOS:**
   ```bash
-  ./utils/bin/run_regression.<zsh|sh> -L python macos verify  # Script handles all cleanup (zsh on macOS, sh on Linux)
+  ./utils/bin/run_regression.<zsh|sh> -L python macos verify  # Script handles all cleanup (zsh on macOS hosts, sh on Linux hosts)
   ```
 - **Example — Python on Fedora (from macOS host):**
   ```bash
-  ./utils/bin/run_regression.<zsh|sh> -L python fedora verify  # Runs inside container via Makefile (zsh on macOS, sh on Linux)
+  ./utils/bin/run_regression.<zsh|sh> -L python fedora verify  # Runs inside container via Makefile (zsh on macOS hosts, sh on Linux hosts)
   ```
 
 > **Note:** When using `run_regression.<zsh|sh>` (not raw `make verify`), the script handles all cleanup internally — including C++ library clean for dependent languages. Do not run manual `make clean` steps before invoking the script; doing so is redundant and may cause confusion about which directory to clean.
@@ -498,6 +482,8 @@ Before executing any step in this document, read and load `rules/regression-runn
   - If a specific OS was requested → only that OS.
   - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios) using the routing table.
 - For each target OS:
+  > **Routing Confirmation**: The transport (native/container/ssh) for this host→target pair is determined by `config/host_targets.json`. The script handles it internally — do NOT manually follow Steps 3–4. Delegate all execution to `run_regression.<zsh|sh>`.
+
   1. **Routing Decision**: Apply the routing table from Step 1.
      - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
      - If target matches host → run natively.
@@ -505,17 +491,19 @@ Before executing any step in this document, read and load `rules/regression-runn
   2. **Container Pre-flight Check** (Linux targets only):
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
-  3. **FreeBSD 14 SSH Build Path**:
+   > **Note:** Container lifecycle is fully managed by `run_regression.<zsh|sh>` — the script handles image detection, container start (`make start_container`), exec inside a running container, and stop+remove when done (image remains). Do NOT manually run `podman run`, `container exec`, or similar commands; delegate all container operations to the script.
+   > **Note:** Steps 3 and 4 below are reference documentation for SSH transport paths. They apply when the target OS uses SSH (currently `freebsd14` and conditionally `archlinux`). The script handles SSH routing internally via `run_ssh()` — delegate to the script rather than executing these inline commands manually.
+  3. **FreeBSD 14 SSH Build Path** (reference only — delegate to script):
      ```bash
      ssh <freebsd_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
      scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
      ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
-     scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 java-build"
-     ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+     scp utils/bin/run_freebsd_native_or_ssh.tcsh <freebsd_host>:/tmp/
+     ssh <freebsd_host> "tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 java-build"
+     ssh <freebsd_host> "rm -f /tmp/run_freebsd_native_or_ssh.tcsh"
      ```
-  4. **Arch Linux SSH Build Path**:
+  4. **Arch Linux SSH Build Path** (reference only — delegate to script):
      ```bash
      ssh <archlinux_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
@@ -526,10 +514,10 @@ Before executing any step in this document, read and load `rules/regression-runn
      ```
   5. **Execute Tests**:
      ```bash
-     cd src/common/java && make clean          # Remove stale Java build artifacts
-     cd src/common/java/tests && make clean    # Remove stale test binaries
-     ./utils/bin/run_regression.<zsh|sh> <os> verify   # Build + run T001-T007 test matrix (zsh on macOS, sh on Linux)
+     ./utils/bin/run_regression.<zsh|sh> -L java <os> verify   # Build + run T001-T007 test matrix (zsh on macOS hosts, sh on Linux hosts)
      ```
+
+     > **Note:** The script handles all cleanup internally — including C++ library clean for dependent languages. For SSH transport, the remote runner script (`run_regression.tcsh` on FreeBSD or `run_linux_ssh.sh` on Linux) handles C++ cleaning before Java tests. Do not run manual `make clean` steps before invoking the script; doing so is redundant and may cause confusion about which directory to clean.
   6. **Verification Steps**:
      - Navigate to `src/common/java/tests/`.
      - Run `make verify`. The Makefile handles: build, test execution, output comparison, and report generation.
@@ -637,6 +625,8 @@ Before executing any step in this document, read and load `rules/regression-runn
   - If a specific OS was requested → only that OS.
   - Otherwise → all supported OSes (macos, debian, fedora, ubuntu, raspios, archlinux, freebsd14) using the routing table.
 - For each target OS:
+  > **Routing Confirmation**: The transport (native/container/ssh) for this host→target pair is determined by `config/host_targets.json`. The script handles it internally — do NOT manually follow Steps 3–4. Delegate all execution to `run_regression.<zsh|sh>`.
+
   1. **Routing Decision**: Apply the routing table from Step 1.
      - If target is macOS and host is not macOS → **SKIP** (macOS cannot be containerized).
      - If target matches host → run natively.
@@ -644,17 +634,19 @@ Before executing any step in this document, read and load `rules/regression-runn
   2. **Container Pre-flight Check** (Linux targets only):
      - macOS host: `command -v container` — if not found, STOP.
      - Linux host: `command -v podman` — if not found, STOP.
-  3. **FreeBSD 14 SSH Build Path**:
+   > **Note:** Container lifecycle is fully managed by `run_regression.<zsh|sh>` — the script handles image detection, container start (`make start_container`), exec inside a running container, and stop+remove when done (image remains). Do NOT manually run `podman run`, `container exec`, or similar commands; delegate all container operations to the script.
+   > **Note:** Steps 3 and 4 below are reference documentation for SSH transport paths. They apply when the target OS uses SSH (currently `freebsd14` and conditionally `archlinux`). The script handles SSH routing internally via `run_ssh()` — delegate to the script rather than executing these inline commands manually.
+  3. **FreeBSD 14 SSH Build Path** (reference only — delegate to script):
      ```bash
      ssh <freebsd_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_freebsd14.tar.gz -C .. ringbuffer
      scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
      ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
-     scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-     ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 python-test"
-     ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+     scp utils/bin/run_freebsd_native_or_ssh.tcsh <freebsd_host>:/tmp/
+     ssh <freebsd_host> "tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 python-test"
+     ssh <freebsd_host> "rm -f /tmp/run_freebsd_native_or_ssh.tcsh"
      ```
-  4. **Arch Linux SSH Build Path**:
+  4. **Arch Linux SSH Build Path** (reference only — delegate to script):
      ```bash
      ssh <archlinux_host> "rm -rf ~/ringbuffer"
      tar -czf /tmp/ringbuffer_archlinux.tar.gz -C .. ringbuffer
@@ -666,10 +658,10 @@ Before executing any step in this document, read and load `rules/regression-runn
      ```
   5. **Execute Tests**:
      ```bash
-     cd src/common/python && make clean          # Remove stale Python build artifacts
-     cd src/common/python/tests && make clean    # Remove stale test binaries
-     ./utils/bin/run_regression.<zsh|sh> <os> verify   # Build + run T001-T007 test matrix (zsh on macOS, sh on Linux)
+     ./utils/bin/run_regression.<zsh|sh> -L python <os> verify   # Build + run T001-T007 test matrix (zsh on macOS hosts, sh on Linux hosts)
      ```
+
+     > **Note:** The script handles all cleanup internally — including C++ library clean for dependent languages. For SSH transport, the remote runner script (`run_regression.tcsh` on FreeBSD or `run_linux_ssh.sh` on Linux) handles C++ cleaning before Python tests. Do not run manual `make clean` steps before invoking the script; doing so is redundant and may cause confusion about which directory to clean.
   6. **Verification Steps**:
      - Navigate to `src/common/python/tests/`.
      - Run `make verify`. The Makefile handles: build, test execution (Concurrent + Pure Python), and report generation.

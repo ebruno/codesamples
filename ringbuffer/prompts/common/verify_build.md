@@ -311,9 +311,9 @@ Before executing any step in this document, read and load `rules/verify-build-wo
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
         # Build Java on remote — FreeBSD 14 uses BSD make override at src/freebsd14/java/
-        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 java-build"
-        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+        scp utils/bin/run_freebsd_native_or_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 java-build"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_native_or_ssh.tcsh"
         ```
      4. **Arch Linux SSH Build Path**:
         - Pre-flight: `command -v ssh`
@@ -374,9 +374,9 @@ Before executing any step in this document, read and load `rules/verify-build-wo
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
         # Build Python — FreeBSD 14 uses tcsh script
-        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 python-build"
-        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+        scp utils/bin/run_freebsd_native_or_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 python-build"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_native_or_ssh.tcsh"
         ```
      4. **Arch Linux SSH Build Path**:
         - Pre-flight: `command -v ssh`
@@ -436,9 +436,9 @@ Before executing any step in this document, read and load `rules/verify-build-wo
         scp /tmp/ringbuffer_freebsd14.tar.gz <freebsd_host>:~/
         ssh <freebsd_host> "cd ~ ; tar -xzf ringbuffer_freebsd14.tar.gz"
         # Build C++ on remote — FreeBSD 14 uses tcsh script
-        scp utils/bin/run_freebsd_ssh.tcsh <freebsd_host>:/tmp/
-        ssh <freebsd_host> "tcsh /tmp/run_freebsd_ssh.tcsh ~/ringbuffer freebsd14 cpp"
-        ssh <freebsd_host> "rm -f /tmp/run_freebsd_ssh.tcsh"
+        scp utils/bin/run_freebsd_native_or_ssh.tcsh <freebsd_host>:/tmp/
+        ssh <freebsd_host> "tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer freebsd14 cpp"
+        ssh <freebsd_host> "rm -f /tmp/run_freebsd_native_or_ssh.tcsh"
         ```
      4. **Arch Linux SSH Build Path**:
         - Pre-flight: `command -v ssh`
