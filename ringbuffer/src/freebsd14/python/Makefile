@@ -1,7 +1,13 @@
 # BSD Make-compatible Makefile for FreeBSD 14 Python regression testing
 # Uses BSD make syntax (no $(shell), no ifeq/else)
 
-.PHONY: all clean dist-clean build test syntax-check
+# OS name for registry lookup
+OS_NAME = freebsd14
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := ${.CURDIR}/../../..
+
+.PHONY: all clean dist-clean build test syntax-check probe-os
 
 # all is an alias for build (verify_build calls make all)
 all: build
@@ -135,3 +141,10 @@ dist-clean: clean
 		rm -rf $$dir 2>/dev/null || true; \
 	done
 	@echo "Python dist-clean complete."
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+PROBE_COMPILER ?= $(PYTHON)
+
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/python..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} python $(PROBE_COMPILER)

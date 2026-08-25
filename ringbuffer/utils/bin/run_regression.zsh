@@ -133,8 +133,9 @@ resolve_lang_path() {
     case "$lang" in
         python|java|go|rust)
             if [ -d "${WORKSPACE}/src/${os}/${lang}" ] && \
-               [ ! -L "${WORKSPACE}/src/${os}/${lang}" ]; then
-                # OS override exists (real directory, not symlink)
+               [ ! -L "${WORKSPACE}/src/${os}/${lang}" ] && \
+               [ -d "${WORKSPACE}/src/${os}/${lang}/tests" ]; then
+                # OS override exists (real directory with tests/, not symlink)
                 echo "${WORKSPACE}/src/${os}/${lang}"
             else
                 # No override — use common
@@ -275,16 +276,33 @@ run_native() {
         make -C "$os_dir" clean 2>&1
         make -C "$tests_dir" clean 2>&1
 
-        # Set the right variable based on language
+        # Set the right variable based on language and probe per-compiler
         case "$TARGET_LANG" in
-            cpp|c)  CXX="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
+            cpp|c)
+                make -C "$tests_dir" CXX="$COMPILER" probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
+                make -C "$tests_dir" CXX="$COMPILER" verify 2>&1 ;;
             python)
+                # Probe compiler availability if validate-tools.mk exists (skip if missing)
+                local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                if [ -f "$probe_makefile" ]; then
+                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" -f validate-tools.mk PYTHON="$COMPILER" probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
+                else
+                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+                fi
                 # Pass DISTRO_ID so Makefile.linux can resolve the correct C++ source dir
                 local distro_id="$TARGET_OS"
                 [ "$distro_id" = "raspios" ] && distro_id=raspios
-                DISTRO_ID="$distro_id" PYTHON="$COMPILER" make -C "$tests_dir" verify 2>&1
+                make -C "$tests_dir" DISTRO_ID="$distro_id" PYTHON="$COMPILER" verify 2>&1
                 ;;
-            java)   JAVA="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
+            java)
+                # Probe compiler availability if validate-tools.mk exists (skip if missing)
+                local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                if [ -f "$probe_makefile" ]; then
+                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" -f validate-tools.mk JAVA="$COMPILER" probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
+                else
+                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+                fi
+                make -C "$tests_dir" JAVA="$COMPILER" verify 2>&1 ;;
             *)      make -C "$tests_dir" verify 2>&1 ;;
         esac
     done
@@ -341,14 +359,29 @@ run_container() {
         case "$TARGET_LANG" in
             cpp|c)
                 $CONTAINER_CMD exec -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests clean 2>&1
+                $CONTAINER_CMD exec -e CXX="$COMPILER" -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
                 $CONTAINER_CMD exec -e CXX="$COMPILER" -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests verify 2>&1
                 ;;
             python)
+                # Probe compiler availability if validate-tools.mk exists (skip if missing)
+                local probe_makefile="/app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                if [ -f "$probe_makefile" ]; then
+                    $CONTAINER_CMD exec -e PYTHON="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG} -f validate-tools.mk probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
+                else
+                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+                fi
                 $CONTAINER_CMD exec -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp clean 2>&1
                 $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests clean 2>&1
                 $CONTAINER_CMD exec -e PYTHON="$COMPILER" -e DISTRO_ID="$TARGET_OS" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests verify 2>&1
                 ;;
             java)
+                # Probe compiler availability if validate-tools.mk exists (skip if missing)
+                local probe_makefile="/app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                if [ -f "$probe_makefile" ]; then
+                    $CONTAINER_CMD exec -e JAVA="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG} -f validate-tools.mk probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
+                else
+                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+                fi
                 $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests clean 2>&1
                 $CONTAINER_CMD exec -e JAVA="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests verify 2>&1
                 ;;
@@ -489,13 +522,8 @@ fi
 case "$TRANSPORT" in
     native)
         if [ "$TARGET_OS" = "macos" ]; then
-            # macOS target requires macOS host (may need -N bypass)
-            if [ "$BYPASS_OS_CHECK" = true ] && [ "$(uname -s)" = "Darwin" ]; then
-                run_native
-            else
-                echo "ERROR: macOS target requires macOS host. Use -N to bypass."
-                exit 1
-            fi
+            # macOS target requires macOS host — always OK since HOST_OS is already validated above
+            run_native
         else
             # Native only works if host matches target (e.g., fedora on fedora)
             run_native

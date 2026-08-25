@@ -1,5 +1,11 @@
 .include "version.mk"
 
+# OS name for registry lookup
+OS_NAME = freebsd14
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := ${.CURDIR}/../../..
+
 # Toolchain configuration — FreeBSD clang++ (only compiler available)
 CXX = clang++
 
@@ -64,3 +70,10 @@ dist-clean: clean
 	${MAKE} -C tests dist-clean
 .endif
 	${RM} reports ../reports logs
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+PROBE_COMPILER ?= $(CXX)
+
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/cpp..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} cpp $(PROBE_COMPILER)

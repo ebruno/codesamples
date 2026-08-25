@@ -1,11 +1,20 @@
 include version.mk
 
+# OS name for registry lookup
+OS_NAME = ubuntu
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
 # Toolchain
 CXX ?= g++
+# Normalize compiler name: strip version suffix (g++-13 → g++, clang++-17 → clang++)
+CXX_BASE := $(patsubst g++-%,g++,$(patsubst clang++-%,clang++,$(CXX)))
+
 # LTO flag: g++ uses -flto (produces native objects). clang++ on Linux produces LLVM IR
 # bitcode with -flto or -flto=thin that the linker cannot link directly. Disable LTO for clang++ on Linux.
 UNAME_S := $(shell uname -s)
-ifeq ($(CXX),clang++)
+ifeq ($(CXX_BASE),clang++)
   LTO_FLAG =
 else
   LTO_FLAG = -flto
@@ -90,7 +99,7 @@ else
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 endif
 
-.PHONY: test  all static shared clean dist-clean container container-clean lint format test-all
+.PHONY: test  all static shared clean dist-clean container container-clean lint format test-all probe-os
 
 # Static Library Target
 static: $(STATIC_LIB)
@@ -237,3 +246,8 @@ remove_container:
 	else\
 		echo "No container found for ringbuffer_$(TARGET_OS)_test.";\
 	fi
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/cpp..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} cpp

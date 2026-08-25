@@ -3,7 +3,13 @@
 # Source files from src/freebsd14/python/ (Pure Python only — Concurrent SKIPPED due to RPATH limitation)
 # Log file naming: t001_pure.log, T001_pure.exit (matches generate_junit_report expectations)
 
-.PHONY: all clean dist-clean test verify deploy_utils
+# OS name for registry lookup
+OS_NAME = freebsd14
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
+.PHONY: all clean dist-clean test verify deploy_utils probe-os
 
 # Directories
 UTILS_PROMPT_DIR = ../../../../prompts/common/python/utils/bin
@@ -67,6 +73,13 @@ verify: deploy_utils
 
 clean:
 	@rm -rf ${LOG_DIR}/* ${REPORT_DIR}/* utils/bin
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+PROBE_LANG = python
+
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/${PROBE_LANG}..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} ${PROBE_LANG}
 
 dist-clean: clean
 	@rm -rf ${LOG_DIR} ${REPORT_DIR} utils/bin

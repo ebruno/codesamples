@@ -2,7 +2,13 @@
 # Uses BSD make syntax (no $(shell), no ifeq/else)
 # Source code lives in src/common/java — this is the BSD make override
 
-.PHONY: all clean dist-clean test
+# OS name for registry lookup
+OS_NAME = freebsd14
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := ${.CURDIR}/../../..
+
+.PHONY: all clean dist-clean test probe-os
 
 # JDK version (FreeBSD 14 default)
 JDKVER ?= 25
@@ -37,3 +43,10 @@ test: clean
 dist-clean: clean
 	@rm -rf logs 2>/dev/null || true
 	@echo "Java dist-clean complete."
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+PROBE_COMPILER ?= $(JAVA)
+
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/java..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} java $(PROBE_COMPILER)

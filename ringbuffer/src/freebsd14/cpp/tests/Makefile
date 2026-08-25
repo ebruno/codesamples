@@ -1,5 +1,11 @@
 include ../version.mk
 
+# OS name for registry lookup
+OS_NAME = freebsd14
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
 CXX := clang++
 CXXFLAGS = -std=c++20 -O3 -I.. -I../src/freebsd14/cpp -pthread
 # FreeBSD/ELF: use $ORIGIN for RPATH (not @executable_path which is macOS)
@@ -68,6 +74,15 @@ verify: build-cpp deploy_utils all
 clean:
 	rm -rf ${BIN_DIR}/* ${LOG_DIR}/*
 	rm -f *.o ${BIN_DIR}/*.o *~ #*#
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+.PHONY: probe-os
+
+PROBE_LANG = cpp
+
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/${PROBE_LANG}..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} ${PROBE_LANG} $(CXX)
 
 dist-clean: clean
 	rm -rf ${LOG_DIR} ${REPORT_DIR}

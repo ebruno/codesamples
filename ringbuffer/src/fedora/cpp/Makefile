@@ -1,15 +1,24 @@
 include version.mk
 
+# OS name for registry lookup
+OS_NAME = fedora
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
 # Toolchain configuration based on CXX variable
 CXX ?= clang++
 ifeq ($(CXX),c++)
   CXX := clang++
 endif
 
+# Normalize compiler name: strip version suffix (g++-13 → g++, clang++-17 → clang++)
+CXX_BASE := $(patsubst g++-%,g++,$(patsubst clang++-%,clang++,$(CXX)))
+
 # LTO flag: g++ uses -flto (produces native objects). clang++ on Linux produces LLVM IR
 # bitcode with -flto or -flto=thin that the linker cannot link directly. Disable LTO for clang++ on Linux.
 UNAME_S := $(shell uname -s)
-ifeq ($(CXX),clang++)
+ifeq ($(CXX_BASE),clang++)
   ifeq ($(UNAME_S),Darwin)
     LTO_FLAG = -flto=thin
   else
@@ -38,7 +47,7 @@ LIB_NAME = libswtr_ringbuffer
 VERSIONED_STATIC = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).so
 
-.PHONY: test  all static shared clean dist-clean container container-clean start_container stop_container remove_container test-all
+.PHONY: test  all static shared clean dist-clean container container-clean start_container stop_container remove_container test-all probe-os
 
 # Container Mount Directory — resolves to workspace root from any nested Makefile
 CONTAINER_MOUNT_DIR := $(abspath $(CURDIR)/../../..)
@@ -164,3 +173,8 @@ container-clean:
 	fi
 	@echo "Removing $(CONTAINER_IMAGE)..."
 	$(CONTAINER_CMD) image rm -f $(CONTAINER_IMAGE) 2>/dev/null || true
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/cpp..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} cpp

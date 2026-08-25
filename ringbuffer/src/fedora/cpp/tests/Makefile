@@ -3,6 +3,9 @@ include ../version.mk
 # OS name for registry lookup
 OS_NAME = fedora
 
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
 # Compiler settings
 CXX = g++
 CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -I..
@@ -185,6 +188,15 @@ clean:
 	@rm -f $(LOGS_DIR)/*.log $(LOGS_DIR)/*.exit $(LOGS_DIR)/*.time 2>/dev/null || true
 	@rm -f $(REPORTS_DIR)/regression_report.md $(REPORTS_DIR)/compiler_version.txt 2>/dev/null || true
 	@rm -rf $(REPORTS_DIR)/cpp/per_os 2>/dev/null || true
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+.PHONY: probe-os
+
+PROBE_LANG = cpp
+
+probe-os:
+	@echo "Probing compiler availability for $(OS_NAME)/$(PROBE_LANG)..."
+	@$(PROJECT_ROOT_DIR)/utils/bin/probe_targets.sh $(OS_NAME) $(PROBE_LANG) $(CXX)
 
 dist-clean: clean
 	@$(RM) $(LOGS_DIR) 2>/dev/null || true

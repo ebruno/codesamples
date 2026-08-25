@@ -28,6 +28,13 @@ ringbuffer_path="${1:?Usage: $0 [-N] <ringbuffer_path> <os_name> [mode]}"
 os_name="${2:?Usage: $0 [-N] <ringbuffer_path> <os_name> [mode]}"
 mode="${3:-cpp}"
 
+# Extract language from mode (e.g., test-cpp → cpp, python-test → python)
+case "$mode" in
+    cpp|test-cpp)     TARGET_LANG="cpp" ;;
+    python-build|python-test) TARGET_LANG="python" ;;
+    java-build|java-test)     TARGET_LANG="java" ;;
+esac
+
 # ── Host OS check (Linux required) ────────────────────────────────
 if [ "$BYPASS_OS_CHECK" = false ]; then
     local_host_os=$(uname -s)
@@ -210,6 +217,14 @@ elif [ "$mode" = "python-test" ]; then
         exit 1
     fi
 
+    # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
+    local probe_makefile="${WORKSPACE}/src/${os_name}/${TARGET_LANG}/validate-tools.mk"
+    if [ -f "$probe_makefile" ]; then
+        make -C "${WORKSPACE}/src/${os_name}/${TARGET_LANG}" -f validate-tools.mk probe-os 2>&1
+    else
+        echo "INFO: ${probe_makefile} not present — probe-os skipped for ${os_name}/${TARGET_LANG}" >&2
+    fi
+
     make -C "$os_dir" clean 2>&1
     make -C "$tests_dir" clean 2>&1
     PYTHON="python3" make -C "$tests_dir" verify 2>&1
@@ -235,6 +250,14 @@ elif [ "$mode" = "java-test" ]; then
     if [ ! -d "$os_dir" ]; then
         echo "ERROR: $os_dir does not exist."
         exit 1
+    fi
+
+    # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
+    local probe_makefile="${WORKSPACE}/src/${os_name}/${TARGET_LANG}/validate-tools.mk"
+    if [ -f "$probe_makefile" ]; then
+        make -C "${WORKSPACE}/src/${os_name}/${TARGET_LANG}" -f validate-tools.mk probe-os 2>&1
+    else
+        echo "INFO: ${probe_makefile} not present — probe-os skipped for ${os_name}/${TARGET_LANG}" >&2
     fi
 
     make -C "$os_dir" clean 2>&1

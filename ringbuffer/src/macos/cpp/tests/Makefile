@@ -1,5 +1,11 @@
 include ../version.mk
 
+# OS name for registry lookup
+OS_NAME = macos
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
 CXX := clang++
 CXXFLAGS = -std=c++20 -O3 -I.. -I../src/macos/cpp
 LDFLAGS = -Wl,-rpath,$(abspath ../lib)
@@ -196,6 +202,15 @@ append-test-report:
 clean:
 	@$(RM) -r $(BIN_DIR)/* $(LOG_DIR)/*
 	@$(RM) *.o $(BIN_DIR)/*.o *~ #*#
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+.PHONY: probe-os
+
+PROBE_LANG = cpp
+
+probe-os:
+	@echo "Probing compiler availability for $(OS_NAME)/$(PROBE_LANG)..."
+	@$(PROJECT_ROOT_DIR)/utils/bin/probe_targets.sh $(OS_NAME) $(PROBE_LANG) $(CXX)
 
 dist-clean: clean
 	@$(RM) -r $(LOG_DIR) $(REPORT_DIR)

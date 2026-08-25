@@ -1,5 +1,11 @@
 include version.mk
 
+# OS name for registry lookup
+OS_NAME = archlinux
+
+# Project root (workspace top-level directory)
+PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
 # ============================================================================
 # Compiler auto-detection: Arch Linux has both g++ and clang++ available
 # ============================================================================
@@ -13,14 +19,17 @@ AVAILABLE_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
 # Default compiler (first available) — ?= respects CXX from environment
 CXX ?= $(firstword $(AVAILABLE_COMPILERS))
 
+# Normalize compiler name: strip version suffix (g++-13 → g++, clang++-17 → clang++)
+CXX_BASE := $(patsubst g++-%,g++,$(patsubst clang++-%,clang++,$(CXX)))
+
 # ============================================================================
 # Per-compiler LTO flags: g++ uses -flto, clang++ uses -flto=thin
 # ============================================================================
 
 define COMPILER_LTO_FLAGS
-ifeq ($(strip $(CXX)),g++)
+ifeq ($(strip $(CXX_BASE)),g++)
   LTO_FLAG := -flto
-else ifeq ($(strip $(CXX)),clang++)
+else ifeq ($(strip $(CXX_BASE)),clang++)
   LTO_FLAG := -flto=thin
 endif
 endef
@@ -35,9 +44,9 @@ override CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic $(LTO_FLAG) \
            -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 
 # Linker flags: ELF format (Linux)
-ifeq ($(strip $(CXX)),g++)
+ifeq ($(strip $(CXX_BASE)),g++)
   LDFLAGS = -Wl,--gc-sections
-else ifeq ($(strip $(CXX)),clang++)
+else ifeq ($(strip $(CXX_BASE)),clang++)
   LDFLAGS = -Wl,--gc-sections -flto=thin
 endif
 
@@ -95,7 +104,7 @@ else
     all: clean static shared
 endif
 
-.PHONY: test  all static shared clean dist-clean verify test-all container container-clean
+.PHONY: test  all static shared clean dist-clean verify test-all container container-clean probe-os
 
 # Always clean first for repeatability in verify_build
 static: $(LIB_DIR) $(VERSIONED_STATIC)
@@ -207,3 +216,10 @@ test-all:
 		echo ""; \
 	)
 	@echo "=== Multi-compiler build complete ==="
+
+# Probe OS/compiler availability (manual use only — not called by other rules)
+PROBE_COMPILER ?= $(CXX)
+
+probe-os:
+	@echo "Probing compiler availability for ${OS_NAME}/cpp..."
+	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} cpp $(PROBE_COMPILER)
