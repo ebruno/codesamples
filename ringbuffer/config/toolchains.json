@@ -23,7 +23,7 @@
     ],
     "macos": [
       {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "Apple Clang — ships with Xcode 15+ (Clang 15+)"},
-      {"name": "g++", "min_version": "13.0.0", "supported": true, "description": "Homebrew GCC — must be installed separately via brew install gcc"}
+      {"name": "g++-16", "min_version": "13.0.0", "supported": true, "description": "Homebrew GCC — must be installed separately via brew install gcc"}
     ],
     "freebsd14": [
       {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "LLVM C++ compiler — FreeBSD 14 ships with Clang 15"}
