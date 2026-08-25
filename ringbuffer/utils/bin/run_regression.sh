@@ -155,21 +155,42 @@ resolve_lang_path() {
     esac
 }
 
-# ── Registry helper: read compilers for <os> + <lang> from JSON ───
+# ── Registry helper: list ALL compilers for <os> + <lang> (to stderr) ──
+list_all_compilers() {
+    local os="$1" lang="${2:-cpp}"
+
+    if command -v jq &>/dev/null; then
+        jq -r ".[\"${lang}\"][\"${os}\"][] | \"  \\(.name) (min_version: \\(.min_version)) - \\(if .supported then \"SUPPORTED\" else \"UNSUPPORTED: \\(.description)\" end)\"" "$REGISTRY" 2>/dev/null >&2
+    elif command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+with open('${REGISTRY}') as f:
+    data = json.load(f)
+for c in data.get('${lang}', {}).get('${os}', []):
+    status = 'SUPPORTED' if c.get('supported') else f\"UNSUPPORTED: {c.get('description', 'unknown')}\"
+    print(f'  {c[\"name\"]} (min_version: {c.get(\"min_version\", \"?\")}) - {status}')
+" 2>/dev/null >&2
+    else
+        echo "ERROR: Neither jq nor python3 available to read registry" >&2
+    fi
+}
+
+# ── Registry helper: read supported compilers for <os> + <lang> from JSON ───
 get_compilers() {
     local os="$1" lang="${2:-cpp}"
 
     # C/C++ use CXX variable
     if [ "$lang" = "cpp" ] || [ "$lang" = "c" ]; then
         if command -v jq &>/dev/null; then
-            jq -r ".[\"${lang}\"][\"${os}\"][]?" "$REGISTRY" 2>/dev/null
+            jq -r ".[\"${lang}\"][\"${os}\"][] | select(.supported == true) | .name" "$REGISTRY" 2>/dev/null
         elif command -v python3 &>/dev/null; then
             python3 -c "
 import json, sys
 with open('${REGISTRY}') as f:
     data = json.load(f)
 for c in data.get('${lang}', {}).get('${os}', []):
-    print(c)
+    if c.get('supported'):
+        print(c['name'])
 " 2>/dev/null
         else
             echo "ERROR: Neither jq nor python3 available to read registry" >&2
@@ -179,14 +200,15 @@ for c in data.get('${lang}', {}).get('${os}', []):
         # Non-CXX languages (python, java, go, rust) — return the interpreter/compiler
         local compilers=""
         if command -v jq &>/dev/null; then
-            compilers=$(jq -r ".[\"${lang}\"][\"${os}\"][]?" "$REGISTRY" 2>/dev/null)
+            compilers=$(jq -r ".[\"${lang}\"][\"${os}\"][] | select(.supported == true) | .name" "$REGISTRY" 2>/dev/null)
         elif command -v python3 &>/dev/null; then
             compilers=$(python3 -c "
 import json, sys
 with open('${REGISTRY}') as f:
     data = json.load(f)
 for c in data.get('${lang}', {}).get('${os}', []):
-    print(c)
+    if c.get('supported'):
+        print(c['name'])
 " 2>/dev/null)
         fi
 
@@ -223,22 +245,17 @@ run_native() {
     done < <(get_compilers "$TARGET_OS" "$TARGET_LANG")
 
     if [ ${#compilers[@]} -eq 0 ]; then
-        echo "ERROR: No compilers found in registry for ${TARGET_OS}/${TARGET_LANG}"
+        echo "ERROR: No supported compilers found for ${TARGET_OS}/${TARGET_LANG}"
         exit 1
     fi
 
     echo "Compilers from registry: ${compilers[*]}"
 
-    for COMPILER in "${compilers[@]}"; do
-        echo ""
-        echo "============================================="
-        echo "Compiler/Interpreter: $COMPILER"
-        echo "============================================="
+    # List all compilers (supported and unsupported) to stderr
+    echo "Available compilers for ${TARGET_OS}/${TARGET_LANG}:"
+    list_all_compilers "$TARGET_OS" "$TARGET_LANG"
 
-        # Clean C++ library for Python/Java (they depend on it)
-        case "$TARGET_LANG" in
-            python|java) make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" clean 2>&1 ;;
-        esac
+    for COMPILER in "${compilers[@]}"; do
 
         make -C "$os_dir" clean 2>&1
         make -C "$tests_dir" clean 2>&1
@@ -285,12 +302,16 @@ run_container() {
     done < <(get_compilers "$TARGET_OS" "$TARGET_LANG")
 
     if [ ${#compilers[@]} -eq 0 ]; then
-        echo "ERROR: No compilers found in registry for ${TARGET_OS}/${TARGET_LANG}"
+        echo "ERROR: No supported compilers found for ${TARGET_OS}/${TARGET_LANG}"
         make -C "$os_dir" stop_container 2>&1 || true
         exit 1
     fi
 
     echo "Compilers from registry: ${compilers[*]}"
+
+    # List all compilers (supported and unsupported) to stderr
+    echo "Available compilers for ${TARGET_OS}/${TARGET_LANG}:"
+    list_all_compilers "$TARGET_OS" "$TARGET_LANG"
 
     # Derive running container name from image name (image: ringbuffer_<os>_test → container: ringbuffer_<os>_test_running)
     local RUNNING_CONTAINER="${CONTAINER_IMAGE}_running"

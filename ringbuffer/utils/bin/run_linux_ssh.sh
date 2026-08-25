@@ -71,19 +71,40 @@ resolve_lang_path() {
     esac
 }
 
-# ── Registry helper: read compilers for <os> + <lang> from JSON ───
-get_compilers() {
+# ── Registry helper: list ALL compilers for <os> + <lang> (to stderr) ──
+list_all_compilers() {
     local os="$1" lang="${2:-cpp}"
 
     if command -v jq &>/dev/null; then
-        jq -r ".[\"${lang}\"][\"${os}\"][]?" "$REGISTRY" 2>/dev/null
+        jq -r ".[\"${lang}\"][\"${os}\"][] | \"  \\(.name) (min_version: \\(.min_version)) - \\(if .supported then \"SUPPORTED\" else \"UNSUPPORTED: \\(.description)\" end)\"" "$REGISTRY" 2>/dev/null >&2
     elif command -v python3 &>/dev/null; then
         python3 -c "
 import json, sys
 with open('${REGISTRY}') as f:
     data = json.load(f)
 for c in data.get('${lang}', {}).get('${os}', []):
-    print(c)
+    status = 'SUPPORTED' if c.get('supported') else f\"UNSUPPORTED: {c.get('description', 'unknown')}\"
+    print(f'  {c[\"name\"]} (min_version: {c.get(\"min_version\", \"?\")}) - {status}')
+" 2>/dev/null >&2
+    else
+        echo "ERROR: Neither jq nor python3 available to read registry" >&2
+    fi
+}
+
+# ── Registry helper: read supported compilers for <os> + <lang> from JSON ───
+get_compilers() {
+    local os="$1" lang="${2:-cpp}"
+
+    if command -v jq &>/dev/null; then
+        jq -r ".[\"${lang}\"][\"${os}\"][] | select(.supported == true) | .name" "$REGISTRY" 2>/dev/null
+    elif command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+with open('${REGISTRY}') as f:
+    data = json.load(f)
+for c in data.get('${lang}', {}).get('${os}', []):
+    if c.get('supported'):
+        print(c['name'])
 " 2>/dev/null
     else
         echo "ERROR: Neither jq nor python3 available to read registry" >&2
@@ -107,11 +128,15 @@ if [ "$mode" = "cpp" ]; then
     done < <(get_compilers "$os_name" "cpp")
 
     if [ ${#compilers[@]} -eq 0 ]; then
-        echo "ERROR: No compilers found in registry for ${os_name}/cpp"
+        echo "ERROR: No supported compilers found for ${os_name}/cpp"
         exit 1
     fi
 
     echo "Compilers from registry: ${compilers[*]}"
+
+    # List all compilers (supported and unsupported) to stderr
+    echo "Available compilers for ${os_name}/cpp:"
+    list_all_compilers "$os_name" "cpp"
 
     for COMPILER in "${compilers[@]}"; do
         echo ""
@@ -140,11 +165,15 @@ elif [ "$mode" = "test-cpp" ]; then
     done < <(get_compilers "$os_name" "cpp")
 
     if [ ${#compilers[@]} -eq 0 ]; then
-        echo "ERROR: No compilers found in registry for ${os_name}/cpp"
+        echo "ERROR: No supported compilers found for ${os_name}/cpp"
         exit 1
     fi
 
     echo "Compilers from registry: ${compilers[*]}"
+
+    # List all compilers (supported and unsupported) to stderr
+    echo "Available compilers for ${os_name}/cpp:"
+    list_all_compilers "$os_name" "cpp"
 
     for COMPILER in "${compilers[@]}"; do
         echo ""

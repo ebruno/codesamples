@@ -18,20 +18,44 @@ if [ ! -f "$REGISTRY" ]; then
     exit 1
 fi
 
-# Read compilers from registry for this OS + language
+# ── Registry helper: list ALL compilers for <os> + <lang> (to stderr) ──
+list_all_compilers() {
+    local os="$1" lang="${2:-cpp}"
+
+    if command -v jq &>/dev/null; then
+        jq -r ".[\"${lang}\"][\"${os}\"][] | \"  \\(.name) (min_version: \\(.min_version)) - \\(if .supported then \"SUPPORTED\" else \"UNSUPPORTED: \\(.description)\" end)\"" "$REGISTRY" 2>/dev/null >&2
+    elif command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+with open('${REGISTRY}') as f:
+    data = json.load(f)
+for c in data.get('${lang}', {}).get('${os}', []):
+    status = 'SUPPORTED' if c.get('supported') else f\"UNSUPPORTED: {c.get('description', 'unknown')}\"
+    print(f'  {c[\"name\"]} (min_version: {c.get(\"min_version\", \"?\")}) - {status}')
+" 2>/dev/null >&2
+    else
+        echo "ERROR: Neither jq nor python3 available to read registry" >&2
+    fi
+}
+
+# Read supported compilers from registry for this OS + language
 COMPILERS=$(python3 -c "
 import json, sys
 reg = json.load(open('$REGISTRY'))
 compilers = reg.get('$LANG', {}).get('$OS_NAME', [])
-print(' '.join(compilers))
+print(' '.join(c['name'] for c in compilers if c.get('supported')))
 " 2>/dev/null)
 
 if [ -z "$COMPILERS" ]; then
-    echo "ERROR: No compilers defined for $LANG/$OS_NAME in registry" >&2
+    echo "ERROR: No supported compilers found for $LANG/$OS_NAME in registry" >&2
     exit 1
 fi
 
 echo "Compilers for $LANG/$OS_NAME: $COMPILERS"
+
+# List all compilers (supported and unsupported) to stderr
+echo "Available compilers for $OS_NAME/$LANG:"
+list_all_compilers "$OS_NAME" "$LANG"
 
 # Loop over each compiler
 for CXX in $COMPILERS; do
