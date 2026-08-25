@@ -125,7 +125,7 @@ validate-data:
 	@echo "Test data validation passed"
 
 # Top-level verify: clean + single-compiler verification (called by run_regression.sh)
-verify: verify-single CXX=$(CXX)
+verify: verify-single
 # Single-compiler verification (runs natively — inside container or on Linux host)
 verify-single: static dynamic build-cpp validate-data deploy-utils
 
@@ -158,27 +158,6 @@ build-cpp:
 	else \
 		TEST_STATIC=$(TEST_STATIC) DATA_DIR=$(DATA_DIR) LOGS_DIR=$(LOGS_DIR) REPORTS_DIR=$(REPORTS_DIR) UTILS_DIR=$(UTILS_DIR) CXX=$(CXX) OS_NAME=Raspios $(UTILS_DIR)/bin/run_test_matrix.sh; \
 	fi
-
-# Container lifecycle: single running instance for exec-based workflow
-CONTAINER_IMAGE = ringbuffer_raspios_test
-DOCKERFILE = containers/raspios/Dockerfile
-
-container-start:
-	@mkdir -p logs
-	@if ! $(CONTAINER_CMD) image ls --quiet 2>/dev/null | grep -q $(CONTAINER_IMAGE); then \
-		echo "Building container image: $(CONTAINER_IMAGE)"; \
-		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) ../..; \
-	else \
-		echo "Image $(CONTAINER_IMAGE) already exists."; \
-	fi
-	@$(CONTAINER_CMD) rm -f $(CONTAINER_NAME) 2>/dev/null || true
-	@echo "Starting container: $(CONTAINER_NAME)"
-	$(CONTAINER_CMD) run -d --name $(CONTAINER_NAME) $(CONTAINER_RUN_OPTS) $(CONTAINER_IMAGE) tail -f /dev/null
-
-container-stop:
-	@echo "Stopping container: $(CONTAINER_NAME)"
-	$(CONTAINER_CMD) stop $(CONTAINER_NAME) 2>/dev/null || true
-	$(CONTAINER_CMD) rm -f $(CONTAINER_NAME) 2>/dev/null || true
 
 # Clean: remove all build artifacts including parent library (needed for multi-compiler)
 clean:

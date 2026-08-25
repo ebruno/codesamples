@@ -110,24 +110,6 @@ deploy-utils:
 		echo "  Authoritative scripts directory not mounted in container — using existing scripts in $(UTILS_DIR)/bin/"; \
 	fi
 
-# Container lifecycle: single running instance for exec-based workflow
-container-start:
-	@mkdir -p logs
-	@if ! $(CONTAINER_CMD) image ls --quiet 2>/dev/null | grep -q $(CONTAINER_IMAGE); then \
-		echo "Building container image: $(CONTAINER_IMAGE)"; \
-		timeout 600 $(CONTAINER_CMD) build -t $(CONTAINER_IMAGE) -f $(DOCKERFILE) ../..; \
-	else \
-		echo "Image $(CONTAINER_IMAGE) already exists."; \
-	fi
-	@$(CONTAINER_CMD) rm -f $(CONTAINER_NAME) 2>/dev/null || true
-	@echo "Starting container: $(CONTAINER_NAME)"
-	$(CONTAINER_CMD) run -d --name $(CONTAINER_NAME) $(CONTAINER_RUN_OPTS) $(CONTAINER_IMAGE) tail -f /dev/null
-
-container-stop:
-	@echo "Stopping container: $(CONTAINER_NAME)"
-	$(CONTAINER_CMD) stop $(CONTAINER_NAME) 2>/dev/null || true
-	$(CONTAINER_CMD) rm -f $(CONTAINER_NAME) 2>/dev/null || true
-
 # Validate test data
 validate-data:
 	@echo "Validating test data..."
@@ -144,8 +126,8 @@ validate-data:
 	fi
 	@echo "Test data validation passed"
 
-# Top-level verify: clean + single-compiler verification (called by run_regression.sh)
-verify: verify-single CXX=$(CXX)
+# Top-level verify: single-compiler verification (called by run_regression.sh)
+verify: verify-single
 # Single-compiler verification (runs natively — inside container or on Linux host)
 verify-single: static dynamic build-cpp validate-data deploy-utils
 

@@ -3,6 +3,9 @@
 # Target OS for cross-platform builds (set by verify_build: TARGET_OS=fedora, etc.)
 TARGET_OS ?=
 
+# Container Mount Directory — resolves to workspace root from any nested Makefile
+CONTAINER_MOUNT_DIR := $(abspath ../../..)
+
 # Detect container runtime based on host OS
 CONTAINER_CMD := $(shell if command -v container >/dev/null 2>&1; then echo "container"; elif command -v podman >/dev/null 2>&1; then echo "podman"; else echo ""; fi)
 
@@ -76,16 +79,14 @@ start_container:
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
 	@# Check if a container for this OS is already running
-	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
 		echo "Container ringbuffer_$(TARGET_OS)_test already running.";\
 	else\
 		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) run -d --name "ringbuffer_$(TARGET_OS)_test_running" \
-			-v $(pwd)/src/common/python:/app/ringbuffer/src/common/python \
-			-v $(pwd)/src/$(TARGET_OS)/cpp:/app/ringbuffer/src/$(TARGET_OS)/cpp \
-			-v $(pwd)/src/common/cpp:/app/ringbuffer/src/common/cpp \
-			-w /app/ringbuffer/src/common/python \
-			ringbuffer_$(TARGET_OS)_test;\
+		$(CONTAINER_CMD) run --detach --name "ringbuffer_$(TARGET_OS)_test_running" \
+			-v $(CONTAINER_MOUNT_DIR):/app/ringbuffer \
+			-w /app/ringbuffer \
+			ringbuffer_$(TARGET_OS)_test tail -f /dev/null;\
 	fi
 
 # Stop the persistent container (image stays, container remains on disk)
@@ -93,7 +94,7 @@ stop_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
 		echo "Stopping container: ringbuffer_$(TARGET_OS)_test";\
 		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
 	else\
@@ -105,7 +106,7 @@ remove_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
 		echo "Removing container: ringbuffer_$(TARGET_OS)_test";\
 		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
 	else\
@@ -130,8 +131,8 @@ else
   ifeq ($(DISTRO_ID),ubuntu)
     CPP_SRC_DIR := ../../ubuntu/cpp
   else ifeq ($(DISTRO_ID),debian)
-    # raspios is based on Debian but reports ID=debian; check for rpi-issue
-    ifneq ($(wildcard /etc/rpi-issue),)
+    # raspios is based on Debian but reports ID=debian; check for rpi-issue at runtime
+    ifneq ($(shell test -f /etc/rpi-issue 2>/dev/null && echo yes),)
       CPP_SRC_DIR := ../../raspios/cpp
     else
       CPP_SRC_DIR := ../../debian/cpp
@@ -157,20 +158,20 @@ ifeq ($(TARGET_OS),)
 else ifeq ($(UNAME_S),Darwin)
     all: container-build-$(TARGET_OS)
 	@$(CONTAINER_CMD) run --rm \
-		-v $(pwd)/src/common/python:/app \
-		-v $(pwd)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
-		-v $(pwd)/src/common/cpp:/common/cpp \
-		-v $(pwd)/prompts:/prompts \
+		-v $(CURDIR)/src/common/python:/app \
+		-v $(CURDIR)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
+		-v $(CURDIR)/src/common/cpp:/common/cpp \
+		-v $(CURDIR)/prompts:/prompts \
 		ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
 else
     HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
     ifneq ($(HOST_DISTRO),$(TARGET_OS))
         all: container-build-$(TARGET_OS)
 		@$(CONTAINER_CMD) run --rm \
-			-v $(pwd)/src/common/python:/app \
-			-v $(pwd)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
-			-v $(pwd)/src/common/cpp:/common/cpp \
-			-v $(pwd)/prompts:/prompts \
+			-v $(CURDIR)/src/common/python:/app \
+			-v $(CURDIR)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
+			-v $(CURDIR)/src/common/cpp:/common/cpp \
+			-v $(CURDIR)/prompts:/prompts \
 			ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
     else
         all: clean build

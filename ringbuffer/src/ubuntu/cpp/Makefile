@@ -50,17 +50,22 @@ OBJS = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 RM = rm -rf
 JOBS ?= 1
 
+# Container Mount Directory — resolves to workspace root from any nested Makefile
+CONTAINER_MOUNT_DIR := $(abspath $(CURDIR)/../../..)
+
 # Container Configuration
 CONTAINER_IMAGE = ringbuffer_ubuntu_build
 DOCKERFILE = ../containers/build/Dockerfile
 
-# Detect Container Runtime and Host OS
+# Detect Container Runtime and Host OS (allow override from host via -e CONTAINER_CMD)
 UNAME_S := $(shell uname -s)
 HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
-ifeq ($(UNAME_S),Darwin)
-    CONTAINER_CMD = container
-else
-    CONTAINER_CMD = podman
+ifeq ($(CONTAINER_CMD),)
+    ifeq ($(UNAME_S),Darwin)
+        CONTAINER_CMD = container
+    else
+        CONTAINER_CMD = podman
+    endif
 endif
 
 # Detect if already inside a container (prevent nested containers)
@@ -75,11 +80,11 @@ ifeq ($(INSIDE_CONTAINER),yes)
 else ifeq ($(UNAME_S),Darwin)
     # macOS host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),ubuntu)
     # Non-Ubuntu Linux host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make all
 else
     # Ubuntu host - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
@@ -115,10 +120,10 @@ $(BUILD_DIR)/%.o: %.cpp
 # Auto-container for test when host is not ubuntu
 ifeq ($(UNAME_S),Darwin)
     test: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make test
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make test
 else ifneq ($(HOST_DISTRO),ubuntu)
     test: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make test
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/ubuntu/cpp $(CONTAINER_IMAGE) make test
 else
     test: all
 endif
@@ -191,3 +196,44 @@ format:
 		clang-format -i $$f 2>/dev/null || true; \
 	done
 	@echo "Format complete."
+
+# ── Container Lifecycle Rules (persistent container for test execution) ──
+
+# Start a persistent container for test execution (image stays)
+start_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Container ringbuffer_$(TARGET_OS)_test already running."; \
+	else\
+		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) run --detach --name "ringbuffer_$(TARGET_OS)_test_running" \
+			-v $(CONTAINER_MOUNT_DIR):/app/ringbuffer \
+			-w /app/ringbuffer/src/$(TARGET_OS)/cpp \
+			ringbuffer_$(TARGET_OS)_test tail -f /dev/null;\
+	fi
+
+# Stop the persistent container (image stays, container remains on disk)
+stop_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Stopping container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	else\
+		echo "No running container found for ringbuffer_$(TARGET_OS)_test.";\
+	fi
+
+# Remove the persistent container (image stays)
+remove_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+		echo "Removing container: ringbuffer_$(TARGET_OS)_test";\
+		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	else\
+		echo "No container found for ringbuffer_$(TARGET_OS)_test.";\
+	fi

@@ -246,7 +246,10 @@ run_native() {
         # Set the right variable based on language
         case "$TARGET_LANG" in
             cpp|c)  CXX="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
-            python) PYTHON="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
+            python)
+                # Pass DISTRO_ID so Makefile.linux can resolve the correct C++ source dir
+                DISTRO_ID="$TARGET_OS" PYTHON="$COMPILER" make -C "$tests_dir" verify 2>&1
+                ;;
             java)   JAVA="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
             *)      make -C "$tests_dir" verify 2>&1 ;;
         esac
@@ -264,6 +267,11 @@ run_container() {
 
     local os_dir
     os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
+
+    # Always clean up any stale container from previous runs before starting fresh
+    echo "Cleaning up any stale container..."
+    make -C "$os_dir" stop_container 2>&1 || true
+    make -C "$os_dir" remove_container 2>&1 || true
 
     echo "Ensuring container image exists (via Makefile)..."
     make -C "$os_dir" container 2>&1 || { echo "ERROR: Failed to ensure image"; exit 1; }
@@ -284,8 +292,8 @@ run_container() {
 
     echo "Compilers from registry: ${compilers[*]}"
 
-    local mount_path="/app/ringbuffer"
-    local workdir="${mount_path}/src/${TARGET_OS}/${TARGET_LANG}/tests"
+    # Derive running container name from image name (image: ringbuffer_<os>_test → container: ringbuffer_<os>_test_running)
+    local RUNNING_CONTAINER="${CONTAINER_IMAGE}_running"
 
     for COMPILER in "${compilers[@]}"; do
         echo ""
@@ -293,12 +301,17 @@ run_container() {
         echo "Compiler/Interpreter: $COMPILER"
         echo "============================================="
 
-        # Set the right variable based on language
+        # Set the right variable based on language — use make -C with absolute paths
         case "$TARGET_LANG" in
-            cpp|c)  $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && CXX=$COMPILER make -C tests verify" 2>&1 ;;
-            python) $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make -C ../$(TARGET_OS)/cpp clean && make -C tests clean && PYTHON=$COMPILER make -C tests verify" 2>&1 ;;
-            java)   $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && JAVA=$COMPILER make -C tests verify" 2>&1 ;;
-            *)      $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && make -C tests verify" 2>&1 ;;
+            cpp|c)  $CONTAINER_CMD exec -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests clean 2>&1
+                    $CONTAINER_CMD exec -e CXX="$COMPILER" -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests verify 2>&1 ;;
+            python) $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp clean 2>&1
+                    $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests clean 2>&1
+                    $CONTAINER_CMD exec -e PYTHON="$COMPILER" -e DISTRO_ID="$TARGET_OS" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests verify 2>&1 ;;
+            java)   $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests clean 2>&1
+                    $CONTAINER_CMD exec -e JAVA="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests verify 2>&1 ;;
+            *)      $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/tests clean 2>&1
+                    $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/tests verify 2>&1 ;;
         esac
     done
 

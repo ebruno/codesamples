@@ -86,15 +86,14 @@ start_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
 		echo "Container ringbuffer_$(TARGET_OS)_test already running."; \
 	else\
 		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) run -d --name "ringbuffer_$(TARGET_OS)_test_running" \
-			-v $(pwd)/src/common/java:/app/ringbuffer/src/common/java \
-			-v $(pwd)/src/$(TARGET_OS)/java:/app/ringbuffer/src/$(TARGET_OS)/java \
-			-w /app/ringbuffer/src/common/java \
-			ringbuffer_$(TARGET_OS)_test;\
+		$(CONTAINER_CMD) run --detach --name "ringbuffer_$(TARGET_OS)_test_running" \
+			-v $(abspath ../../..):/app/ringbuffer \
+			-w /app/ringbuffer \
+			ringbuffer_$(TARGET_OS)_test tail -f /dev/null;\
 	fi
 
 # Stop the persistent container (image stays, container remains on disk)
@@ -102,7 +101,7 @@ stop_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
 		echo "Stopping container: ringbuffer_$(TARGET_OS)_test";\
 		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
 	else\
@@ -114,7 +113,7 @@ remove_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) ps --quiet 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
 		echo "Removing container: ringbuffer_$(TARGET_OS)_test";\
 		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
 	else\
@@ -138,16 +137,16 @@ ifeq ($(TARGET_OS),)
 else ifeq ($(UNAME_S),Darwin)
     all: container-build-$(TARGET_OS)
 	@$(CONTAINER_CMD) run --rm \
-		-v $(pwd)/src/common/java:/app \
-		-v $(pwd)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
+		-v $(CURDIR)/src/common/java:/app \
+		-v $(CURDIR)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
 		ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
 else
     HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
     ifneq ($(HOST_DISTRO),$(TARGET_OS))
         all: container-build-$(TARGET_OS)
 		@$(CONTAINER_CMD) run --rm \
-			-v $(pwd)/src/common/java:/app \
-			-v $(pwd)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
+			-v $(CURDIR)/src/common/java:/app \
+			-v $(CURDIR)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
 			ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
     else
         all: clean

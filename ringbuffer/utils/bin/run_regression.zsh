@@ -195,14 +195,21 @@ for c in data.get('${lang}', {}).get('${os}', []):
 
 # ── Ensure Apple Container service is running ──────────────────────
 ensure_container_service() {
-    if ! $CONTAINER_CMD system status &>/dev/null; then
+    local status_output
+    # Use zsh builtins only — no grep/awk/sed (Shell Script Portability Rule)
+    # container system status returns exit 1 when not running — use || true to prevent set -e from killing us
+    status_output=$($CONTAINER_CMD system status 2>&1 || true)
+    # Check for negative indicators — "not running" contains "running" so we must check the full phrase
+    if [[ "$status_output" == *"not running"* ]] || [[ "$status_output" == *"not registered"* ]]; then
         echo "Starting Apple Container service..."
         $CONTAINER_CMD system start 2>&1 || { echo "ERROR: Failed to start container service"; exit 1; }
         sleep 5
     fi
 
-    if ! $CONTAINER_CMD system status &>/dev/null | grep -qi "running"; then
+    status_output=$($CONTAINER_CMD system status 2>&1 || true)
+    if [[ "$status_output" == *"not running"* ]] || [[ "$status_output" == *"not registered"* ]]; then
         echo "ERROR: Container service not running after start attempt."
+        echo "$status_output"
         exit 1
     fi
 }
@@ -249,7 +256,12 @@ run_native() {
         # Set the right variable based on language
         case "$TARGET_LANG" in
             cpp|c)  CXX="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
-            python) PYTHON="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
+            python)
+                # Pass DISTRO_ID so Makefile.linux can resolve the correct C++ source dir
+                local distro_id="$TARGET_OS"
+                [ "$distro_id" = "raspios" ] && distro_id=raspios
+                DISTRO_ID="$distro_id" PYTHON="$COMPILER" make -C "$tests_dir" verify 2>&1
+                ;;
             java)   JAVA="$COMPILER" make -C "$tests_dir" verify 2>&1 ;;
             *)      make -C "$tests_dir" verify 2>&1 ;;
         esac
@@ -270,11 +282,16 @@ run_container() {
     local os_dir
     os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
 
+    # Always clean up any stale container from previous runs before starting fresh
+    echo "Cleaning up any stale container..."
+    make -C "$os_dir" TARGET_OS="$TARGET_OS" stop_container 2>&1 || true
+    make -C "$os_dir" TARGET_OS="$TARGET_OS" remove_container 2>&1 || true
+
     echo "Ensuring container image exists (via Makefile)..."
-    make -C "$os_dir" container 2>&1 || { echo "ERROR: Failed to ensure image"; exit 1; }
+    make -C "$os_dir" TARGET_OS="$TARGET_OS" container 2>&1 || { echo "ERROR: Failed to ensure image"; exit 1; }
 
     echo "Starting persistent container..."
-    make -C "$os_dir" start_container 2>&1 || { echo "ERROR: Failed to start container"; exit 1; }
+    make -C "$os_dir" TARGET_OS="$TARGET_OS" start_container 2>&1 || { echo "ERROR: Failed to start container"; exit 1; }
 
     local -a compilers=()
     while IFS= read -r c; do
@@ -289,8 +306,8 @@ run_container() {
 
     echo "Compilers from registry: ${compilers[*]}"
 
-    local mount_path="/app/ringbuffer"
-    local workdir="${mount_path}/src/${TARGET_OS}/${TARGET_LANG}/tests"
+    # Derive running container name from image name (image: ringbuffer_<os>_test → container: ringbuffer_<os>_test_running)
+    local RUNNING_CONTAINER="${CONTAINER_IMAGE}_running"
 
     for COMPILER in "${compilers[@]}"; do
         echo ""
@@ -298,19 +315,32 @@ run_container() {
         echo "Compiler/Interpreter: $COMPILER"
         echo "============================================="
 
-        # Set the right variable based on language
+        # Set the right variable based on language — use make -C with absolute paths
         case "$TARGET_LANG" in
-            cpp|c)  $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && CXX=$COMPILER make -C tests verify" 2>&1 ;;
-            python) $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make -C ../$(TARGET_OS)/cpp clean && make -C tests clean && PYTHON=$COMPILER make -C tests verify" 2>&1 ;;
-            java)   $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && JAVA=$COMPILER make -C tests verify" 2>&1 ;;
-            *)      $CONTAINER_CMD exec "$CONTAINER_IMAGE" bash -c "make clean && make -C tests clean && make -C tests verify" 2>&1 ;;
+            cpp|c)
+                $CONTAINER_CMD exec -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests clean 2>&1
+                $CONTAINER_CMD exec -e CXX="$COMPILER" -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests verify 2>&1
+                ;;
+            python)
+                $CONTAINER_CMD exec -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp clean 2>&1
+                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests clean 2>&1
+                $CONTAINER_CMD exec -e PYTHON="$COMPILER" -e DISTRO_ID="$TARGET_OS" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests verify 2>&1
+                ;;
+            java)
+                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests clean 2>&1
+                $CONTAINER_CMD exec -e JAVA="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests verify 2>&1
+                ;;
+            *)
+                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/tests clean 2>&1
+                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/tests verify 2>&1
+                ;;
         esac
     done
 
     echo "Stopping container..."
-    make -C "$os_dir" stop_container 2>&1 || true
+    make -C "$os_dir" TARGET_OS="$TARGET_OS" stop_container 2>&1 || true
     echo "Removing container..."
-    make -C "$os_dir" remove_container 2>&1 || true
+    make -C "$os_dir" TARGET_OS="$TARGET_OS" remove_container 2>&1 || true
 
     echo "Container stopped and removed. Image $CONTAINER_IMAGE remains."
 }

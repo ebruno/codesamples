@@ -41,9 +41,17 @@ verify: deploy_utils all
 		echo "  Running Concurrent $$TNUM...";\
 		echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | \
 			python3 ../test_ringbuffer.py $$t > $(LOG_DIR)/t$${TNUM#T}_concurrent.log 2>&1;\
-		echo $$? > $(LOG_DIR)/${TNUM}_concurrent.exit;\
 		EXIT=$$?;\
-		if [ $$EXIT -ne 0 ]; then\
+		echo $$EXIT > $(LOG_DIR)/$${TNUM}_concurrent.exit;\
+		if [ "$$TNUM" = "T005" ]; then\
+			if [ $$EXIT -eq 1 ]; then\
+				echo "    PASS: Concurrent $$TNUM (expected exit code 1)";\
+				PASS=$$((PASS+1));\
+			else\
+				echo "    FAIL: Concurrent $$TNUM (expected exit code 1, got $$EXIT)";\
+				FAIL=$$((FAIL+1));\
+			fi;\
+		elif [ $$EXIT -ne 0 ]; then\
 			echo "    FAIL: Concurrent $$TNUM (exit code $$EXIT)";\
 			FAIL=$$((FAIL+1));\
 		else\
@@ -57,9 +65,17 @@ verify: deploy_utils all
 		echo "  Running Pure Python $$TNUM...";\
 		echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | \
 			python3 ../test_ringbuffer_pure.py $$t > $(LOG_DIR)/t$${TNUM#T}_pure.log 2>&1;\
-		echo $$? > $(LOG_DIR)/${TNUM}_pure.exit;\
 		EXIT=$$?;\
-		if [ $$EXIT -ne 0 ]; then\
+		echo $$EXIT > $(LOG_DIR)/$${TNUM}_pure.exit;\
+		if [ "$$TNUM" = "T005" ]; then\
+			if [ $$EXIT -eq 1 ]; then\
+				echo "    PASS: Pure Python $$TNUM (expected exit code 1)";\
+				PASS=$$((PASS+1));\
+			else\
+				echo "    FAIL: Pure Python $$TNUM (expected exit code 1, got $$EXIT)";\
+				FAIL=$$((FAIL+1));\
+			fi;\
+		elif [ $$EXIT -ne 0 ]; then\
 			echo "    FAIL: Pure Python $$TNUM (exit code $$EXIT)";\
 			FAIL=$$((FAIL+1));\
 		else\

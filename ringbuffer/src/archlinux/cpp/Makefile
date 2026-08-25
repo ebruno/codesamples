@@ -54,6 +54,11 @@ VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).so
 
 # ============================================================================
+# Container Mount Directory — resolves to workspace root from any nested Makefile
+# ============================================================================
+CONTAINER_MOUNT_DIR := $(abspath $(CURDIR)/../../..)
+
+# ============================================================================
 # Container Configuration (cross-platform builds)
 # ============================================================================
 
@@ -80,11 +85,11 @@ ifeq ($(INSIDE_CONTAINER),yes)
 else ifeq ($(UNAME_S),Darwin)
     # macOS host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),arch)
     # Non-Arch Linux host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -v $$(pwd)/../..:/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
 else
     # Arch Linux host - build natively
     all: clean static shared

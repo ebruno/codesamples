@@ -2,15 +2,12 @@
 # Uses GNU Make with /bin/sh (ash) for recipe execution
 
 # Detect distro — raspios reports ID=debian, so check /etc/rpi-issue
+DISTRO_ID := $(shell grep '^ID=' /etc/os-release 2>/dev/null | cut -d= -f2 || echo "")
 ifeq ($(DISTRO_ID),raspios)
   CPP_SRC_DIR = ../../raspios/cpp
 else ifeq ($(DISTRO_ID),debian)
-  # raspios is based on Debian but reports ID=debian; check for rpi-issue
-  ifneq ($(wildcard /etc/rpi-issue),)
-    CPP_SRC_DIR = ../../raspios/cpp
-  else
-    CPP_SRC_DIR = ../../debian/cpp
-  endif
+  # raspios is based on Debian but reports ID=debian; check for rpi-issue at runtime
+  CPP_SRC_DIR := $(shell if [ -f /etc/rpi-issue ]; then echo ../../raspios/cpp; else echo ../../debian/cpp; fi)
 else ifeq ($(DISTRO_ID),ubuntu)
   CPP_SRC_DIR = ../../ubuntu/cpp
 else ifeq ($(DISTRO_ID),fedora)
@@ -42,7 +39,7 @@ check-makefile: check-dir
 
 # Build C++ library (single-line)
 build-cpp: check-makefile
-	@echo "=== Building C++ shared library from $(CPP_SRC_DIR) ===" >> $(LOG_FILE); cd $(CPP_SRC_DIR) && make all > $(BUILD_OUTPUT) 2>&1; BUILD_EXIT=$$?; cat $(BUILD_OUTPUT); if [ $$BUILD_EXIT -ne 0 ]; then echo "WARNING: C++ build failed (exit code $$BUILD_EXIT)" >> $(LOG_FILE); echo "C++ shared library not available - running Pure Python tests only"; touch .cpp_build_failed; exit 0; fi
+	@mkdir -p logs; echo "=== Building C++ shared library from $(CPP_SRC_DIR) ===" >> $(LOG_FILE); cd $(CPP_SRC_DIR) && make all > $(BUILD_OUTPUT) 2>&1; BUILD_EXIT=$$?; cat $(BUILD_OUTPUT); if [ $$BUILD_EXIT -ne 0 ]; then echo "WARNING: C++ build failed (exit code $$BUILD_EXIT)" >> $(LOG_FILE); echo "C++ shared library not available - running Pure Python tests only"; touch .cpp_build_failed; exit 0; fi
 
 # Symlink shared library (single-line)
 # Note: CPP_SRC_DIR is relative to src/common/python/, but symlink target is resolved from lib/ subdirectory
