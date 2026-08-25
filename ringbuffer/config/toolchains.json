@@ -12,10 +12,7 @@
       "g++",
       "clang++"
     ],
-    "raspios": [
-      "g++",
-      "clang++"
-    ],
+    "raspios": [],
     "archlinux": [
       "g++",
       "clang++"
