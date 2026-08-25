@@ -885,6 +885,8 @@ count := $(shell read -ra fields <<< "$data")   # here-strings don't exist in /b
 
 **This check is mandatory — not optional.** The rule exists in `.bionic` but must be actively verified before each script write. Relying on memory alone has led to violations.
 
+**Enforcement:** The step-by-step workflow for this rule is defined in `rules/shell-portability-workflow.md`. You MUST follow that document's Phase 1 (Plan), Phase 2 (Execute with builtin-only, scan for forbidden tools), and Phase 3 (Verify) before proceeding. See `rules/shell-portability-workflow.md` for the full procedure.
+
 **Example — Pre-Flight Check in Action:**
 ```bash
 # ❌ BEFORE pre-flight check: uses grep (forbidden)
@@ -958,6 +960,8 @@ make -n -f src/macos/cpp/Makefile         # ← GNU Makefile check
 
 **This rule is self-referential: if you are reading this, you have already read it.**
 
+**Enforcement:** The step-by-step workflow for this rule is defined in `rules/golden-workflow.md`. You MUST follow that document's Phase 1 (Plan), Phase 2 (Execute one change at a time, test immediately), and Phase 3 (Verify) before proceeding. See `rules/golden-workflow.md` for the full procedure.
+
 ### Host OS Check — Mandatory for All Shell Scripts (MANDATORY)
 
 **Every shell script (`.zsh`, `.sh`) MUST include a host OS check at the top of its execution flow.** This prevents scripts from running on unsupported platforms and failing silently or causing data corruption.
@@ -974,6 +978,8 @@ make -n -f src/macos/cpp/Makefile         # ← GNU Makefile check
 4. **If bypass is set**, log that the check was bypassed but continue execution (unsafe — for testing only)
 
 **This check is mandatory — not optional.** The rule exists in `.bionic` but has been violated because scripts were written without host OS checks. Relying on memory alone has led to scripts running on wrong platforms.
+
+**Enforcement:** The step-by-step workflow for this rule is defined in `rules/host-os-check-workflow.md`. You MUST follow that document's Phase 1 (Plan — identify shell and required host OS), Phase 2 (Execute — add check after argument parsing, verify with `uname -s`), and Phase 3 (Verify) before proceeding. See `rules/host-os-check-workflow.md` for the full procedure.
 
 **Example — Pre-Flight Check in Action:**
 ```bash
@@ -1037,6 +1043,8 @@ fi
 
 **This rule is self-referential: if you are reading this, you have already read it.**
 
+**Enforcement:** The step-by-step workflow for this rule is defined in `rules/cross-platform-execution-workflow.md`. You MUST follow that document's Phase 1 (Plan — identify host OS and script shell), Phase 2 (Execute — syntax check then run with `-N`), and Phase 3 (Verify) before proceeding. See `rules/cross-platform-execution-workflow.md` for the full procedure.
+
 ### Shell Isolation Rule (MANDATORY)
 
 **Scripts may only call other scripts written for the same shell.** This prevents cross-shell invocation bugs caused by syntax differences between shells.
@@ -1055,6 +1063,8 @@ fi
    - Ask the user for guidance on how to proceed.
 
 **This rule is self-referential: if you are reading this, you have already read it.**
+
+**Enforcement:** The step-by-step workflow for this rule is defined in `rules/shell-isolation-workflow.md`. You MUST follow that document's Phase 1 (Plan — list all invocations and their shells), Phase 2 (Execute — verify each call matches the caller's shell), and Phase 3 (Verify) before proceeding. See `rules/shell-isolation-workflow.md` for the full procedure.
 
 ### tcsh Script Creation — Pre-Flight Check (MANDATORY)
 
