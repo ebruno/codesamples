@@ -1828,6 +1828,17 @@ The common thread across all these challenges is **platform divergence in tools 
 - The `run_regression.md` workflow doc should reference the config as the single source of truth for routing
 - This also feeds into CI/CD planning — a future pipeline runner will need the same routing table
 
+### Python Multi-Compiler C++ Library Testing
+
+**Goal:** Test Python concurrent mode (which uses the C++ shared library via ctypes) against multiple C++ compilers, not just the default.
+
+**Current state:** Python tests run via `src/common/python/tests/Makefile` which calls `make -C .. build` in the parent directory. The regression script iterates over compilers from `config/toolchains.json`, but Python only has one entry (`python3`). The C++ library is built once with whatever `CXX` is set in the environment — there's no per-compiler iteration for Python.
+
+**What still needs to happen:**
+- Add multiple C++ compiler entries for Python in `config/toolchains.json` (e.g., `g++`, `clang++`) so the regression loop rebuilds the C++ library with each compiler before running Python tests
+- Ensure `src/common/python/tests/Makefile` accepts a `CXX` variable to pass through to the parent build
+- Verify Python concurrent mode tests pass with each C++ compiler variant (ABI compatibility, ctypes loading)
+
 ## Appendices
 
 | Appendix | Description |
