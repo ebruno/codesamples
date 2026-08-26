@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Ringbuffer — Pre-commit hook wrapper: README ↔ generate_toplevel_readme.md consistency
+# Ringbuffer — Pre-commit hook wrapper: README ↔ readme_template.md consistency (auto-sync)
 #
 # POSIX sh entry point.  Detects the host OS and delegates to the appropriate
 # shell implementation stored as sibling files:

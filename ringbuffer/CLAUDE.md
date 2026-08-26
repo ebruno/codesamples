@@ -17,7 +17,7 @@ ringbuffer/
 │   │   ├── session_hints.md          # Shared hints (container rules, host-target compat, spec precedence)
 │   │   ├── CHANGELOG.md              # Prompt modification changelog
 │   │   ├── CHANGELOG_TEMPLATE.md     # Template for changelog entries
-│   │   ├── generate_toplevel_readme.md  # README generation spec (synced with README.md)
+│   │   ├── readme_template.md  # README generation spec (synced with README.md)
 │   │   ├── add_language.md           # `add <lang> to <os>` dispatcher prompt
 │   │   ├── templates/                # OS configuration JSON templates
 │   │   │   ├── template_fedora.json  # Fedora platform template
@@ -98,22 +98,41 @@ ringbuffer/
 ├── doc/                            # Documentation and generated assets
 │   └── README.pdf                  # Rendered PDF of README.md
 ├── docs/                           # GitLab Pages documentation (zero-length .required_directory)
-├── reports/                        # Per-language build/regression reports (java/, python/, cpp/)
-│   ├── java/                       # Java build and regression reports
-│   │   ├── build_verify.md         # Build verification report
-│   │   └── regression.md           # Regression test report
-│   ├── python/                     # Python build and regression reports
-│   │   ├── build_verify.md         # Build verification report
-│   │   └── regression.md           # Regression test report
-│   └── cpp/                        # C++ build and regression reports
-│       ├── build_verify.md         # Build verification report
-│       └── per_os/                 # Per-OS reports
+├── reports/                        # Aggregated build/regression summaries + per-language reports
+│   ├── build_verify_summary.md     # Build verification summary (all OSes, all languages)
+│   ├── regression_summary.md      # Regression verification summary (all OSes, all languages)
+│   ├── junit/                      # Aggregated JUnit XML/HTML reports
+│   │   ├── aggregated.xml         # Combined JUnit XML (all OSes, all languages)
+│   │   └── aggregated.html        # Combined JUnit HTML report
+│   ├── cpp/                        # C++ per-OS reports
+│   │   └── per_os/                 # <os>_build_verify.md + <os>_regression.md per OS
+│   │       └── junit/              # <os>_regression_report_junit.xml per OS
+│   ├── java/                       # Java per-OS reports
+│   │   └── per_os/
+│   │       └── junit/
+│   └── python/                     # Python per-OS reports
+│       └── per_os/
+│           └── junit/
 ├── animated_graphics/              # Animated graphics artifacts
 │   ├── bin/                        # Scripts for generating animated graphics
 │   │   └── generate_pipeline_animation.py
 │   └── pipeline_animation.gif
-├── utils/bin/                      # Utility scripts (gif_to_mp4.sh, etc.)
+├── utils/bin/                      # Utility scripts (build, regression, aggregates, etc.)
+│   ├── run_build.{zsh,sh}          # Build verification entry point
+│   ├── run_regression.{zsh,sh}     # Regression test entry point
+│   ├── aggregate_verify_build.{zsh,sh}  # Build summary → reports/build_verify_summary.md
+│   ├── aggregate_regression.{zsh,sh}    # Regression summary → reports/regression_summary.md
+│   ├── aggregate_junit.{zsh,sh}    # JUnit XML aggregation → reports/junit/aggregated.xml
+│   ├── clean_stale_locks.sh        # Stale lock cleanup (>15 min)
+│   ├── recover_container_network.{zsh,sh}  # Container network recovery
+│   └── ...
 ├── images/                         # Static image assets (gif, mp4, png)
+├── tmp/                            # Runtime state (locks, temp files)
+│   ├── .required_directory         # Git placeholder for empty directory
+│   └── .run_lock/                  # Run lock (prevents parallel verify_build/run_regression)
+│       ├── pid                     # PID of lock holder
+│       ├── mode                    # Lock mode (verify_build / run_regression)
+│       └── started                 # Epoch seconds when lock was acquired
 └── README.md                         # Project-level documentation
 ```
 
@@ -122,9 +141,9 @@ ringbuffer/
 - `src/<os>/cpp/` — **Write target.** All generated code, Makefiles, and artifacts go here.
 - `src/<os>/cpp/tests/` — **Managed exclusively by testing workflows.** Build-only prompts must treat this as read-only.
 - `src/<os>/cpp/LICENSE` — **License file.** Present in all OS directories; do not remove or modify.
-- `reports/` — **Per-language reports.** Build and regression reports for Java, Python, C++, etc. Regenerated on every run.
+- `reports/` — **Build and regression reports.** Per-OS `.md` reports in `reports/<lang>/per_os/`, JUnit `.xml` in `reports/<lang>/per_os/junit/`. Aggregated summaries at `reports/build_verify_summary.md` and `reports/regression_summary.md`. Regenerated on every run.
 - `animated_graphics/` — **Animated graphics.** Artifacts (GIFs) go here; scripts in `animated_graphics/bin/`.
-- `utils/bin/` — **Utility scripts.** Store general-purpose utility scripts here (e.g., gif_to_mp4.sh).
+- `utils/bin/` — **Utility scripts.** Build/regression runners, aggregate report generators, container network recovery, lock cleanup. All script pairs have `.zsh` (macOS) and `.sh` (Linux) variants.
 - `images/` — **Image assets.** Store gif, mp4, png files here.
 - `docs/` — **GitLab Pages documentation.** Contains information intended for use by GitLab Pages.
 
@@ -172,6 +191,18 @@ When a common workflow says "execute `create_*.md` as the PRIMARY document," it 
 | Excluded | FreeBSD 15 only | Zero-length files only; do not modify |
 | Generic FreeBSD | `prompts/freebsd/` (C++ only) | Non-zero — generic 14.x/15.x FreeBSD C++ build spec for SSH-based remote builds |
 | Implemented (Linux-hosts-only) | Arch Linux | Yes — `podman` on Linux hosts; macOS skip with logging
+
+### Development Host vs Target
+
+| System | Development Host | Target | Notes |
+|--------|:---:|:---:|-------|
+| **macOS** | ✅ Verified | ✅ | Native `container` CLI, `.zsh` scripts |
+| **Linux distributions** | ⚠️ Alpha | ✅ | `podman` for containers, `.sh` scripts. Development host capability not yet verified end-to-end |
+| **FreeBSD 14/15** | ❌ | ✅ | No container support — SSH deploy only. `.tcsh` scripts, BSD make. Cannot act as a development host |
+
+**Definitions:**
+- **Development host** — where code is written, scripts are verified (`make -n`/`bmake -n`/`tcsh -n`), and containers are run. Must support containers to build/test Linux targets locally.
+- **Target** — where `verify_build` or `run_regression` executes. May be local (containers on the development host) or remote (SSH to FreeBSD/Arch Linux).
 
 > **Debian vs. Raspberry Pi OS:** Both share `ID=debian` in `/etc/os-release`. They are distinguished by the presence of `/etc/rpi-issue`: if it exists, this is Raspberry Pi OS; otherwise, stock Debian. See `prompts/common/session_hints.md` for the full detection logic.
 
@@ -854,12 +885,29 @@ make -n -f src/macos/cpp/Makefile         # ← GNU Makefile check
 | `.sh` | `#!/usr/bin/env bash` or `#!/usr/bin/env sh` | `bash -n <script>` |
 | `.tcsh` | `#!/usr/bin/env tcsh` | `tcsh -n <script>` |
 
-**Makefile-to-platform mapping:**
-| Target platform | Make type | Syntax check command |
-|-----------------|-----------|---------------------|
-| FreeBSD 14/15 | BSD Make (`bmake`) | `bmake -n -f <Makefile>` |
-| macOS | GNU Make (`make`) | `make -n -f <Makefile>` |
-| Linux distros | GNU Make (`make`) | `make -n -f <Makefile>` |
+**Makefile type detection (verified on the development host):**
+
+The **development host** is always macOS or a Linux distribution — code is written here and then deployed to the target. FreeBSD is only a deployment target, never a development environment.
+
+| Makefile location | Make type | Verify on development host |
+|-------------------|-----------|---------------------------|
+| `src/macos/`, `src/fedora/`, `src/debian/`, `src/ubuntu/`, `src/raspios/`, `src/archlinux/`, `src/common/` | **GNU Make** | `make -n -f <Makefile>` |
+| `src/freebsd14/`, `src/freebsd15/` | **BSD Make** (`.include`, `${.CURDIR}`, `.PHONY:`) | `bmake -n -f <Makefile>` |
+
+**Why `bmake` on the development host:** FreeBSD makefiles use BSD syntax. Since the development host runs GNU make, you need `bmake` (BSD make) to syntax-check them locally before deploying. Install with `brew install bmake` (macOS) or your distro's package manager. On FreeBSD itself, native `make` IS BSD make — `make -n` works directly there — but you should never need to verify on FreeBSD; verify on the development host first, then deploy.
+
+**tcsh script verification (on the development host):**
+
+| Script type | Verify on development host |
+|-------------|---------------------------|
+| `.tcsh` scripts | `tcsh -n <script>` |
+
+**Why `tcsh -n` on the development host:** `.tcsh` scripts are written on macOS/Linux and deployed to FreeBSD. Verify syntax with `tcsh -n` locally before SCP — catches errors without requiring SSH. Install with `brew install tcsh` (macOS) or your distro's package manager. On FreeBSD, tcsh is the native shell and runs directly — but verification happens on the development host, not on FreeBSD.
+
+**tcsh applicability:** tcsh syntax rules apply in these contexts:
+- **Writing `.tcsh` scripts** — verify with `tcsh -n` on the development host before deploying
+- **Inline SSH commands to FreeBSD** — the remote shell is tcsh, so commands must follow tcsh syntax regardless of where you SSH from (no `2>&1`, use `;` not `&&`, no `$()`)
+- tcsh rules do **NOT** apply to `.sh`/`.zsh` scripts, Makefile recipes, or container commands
 
 **This rule is self-referential: if you are reading this, you have already read it.**
 
@@ -974,7 +1022,9 @@ fi
 This project has 18+ script pairs with the same base name but different shell suffixes (e.g., `run_regression.zsh` + `run_regression.sh`, `generate_test_data.zsh` + `generate_test_data.sh`). Due to the Shell Isolation Rule above, each pair represents **independent implementations of the same contract** — they cannot share code.
 
 **Applicable to ALL paired scripts in the project**, including but not limited to:
-- `utils/bin/run_regression.{zsh,sh}`, `check_tools.{zsh,sh}`, `lint_scripts.{zsh,sh}`, `sync-bionic-rules.{zsh,sh}`
+- `utils/bin/run_regression.{zsh,sh}`, `run_build.{zsh,sh}`, `check_tools.{zsh,sh}`, `lint_scripts.{zsh,sh}`, `sync-bionic-rules.{zsh,sh}`
+- `utils/bin/aggregate_verify_build.{zsh,sh}`, `aggregate_regression.{zsh,sh}`, `aggregate_junit.{zsh,sh}`
+- `utils/bin/recover_container_network.{zsh,sh}`
 - `knowledge/build_model.{zsh,sh}`, `knowledge/update.{zsh,sh}`
 - `prompts/common/cpp/utils/bin/generate_test_data.{zsh,sh}`, `generate_junit_report.{zsh,sh}`, `verify_test_data.{zsh,sh}`, `verify_binary_symmetry.{zsh,sh}`, `lint_prompts.{zsh,sh}`, `archlinux_container.{zsh,sh}`
 - All per-OS copies in `src/<os>/cpp/tests/utils/bin/`
@@ -1050,15 +1100,15 @@ All shell scripts MUST use a shebang line that invokes the interpreter via `env`
 
 **Exception:** Scripts that must run under a specific shell version and are invoked directly by the OS (e.g., githooks installed via `git config core.hookspath`) should still use `env` — the hook runner invokes them as executables, so the shebang is respected.
 
-## README ↔ generate_toplevel_readme.md Sync Rule
+## README ↔ readme_template.md Sync Rule
 
-**NEVER let the prompt drift from the README.** The README is the source of truth for documentation content. `generate_toplevel_readme.md` describes what the README should look like — it must always match.
+**Keep the template in sync with the README.** `prompts/common/templates/readme_template.md` is the outline and template for `README.md` — its Content Structure section must always match the actual README sections.
 
 When you edit `README.md` directly (add a section, change content, restructure):
-1. **Immediately update** `generate_toplevel_readme.md` to reflect the change in its Content Structure section
-2. The prompt should describe what the README *actually has*, not what it *should have*
-3. If a new section appears in the README that isn't described in the prompt, add it
-4. If a section is removed from the README, remove it from the prompt
+1. **Immediately update** `readme_template.md` to reflect the change in its Content Structure section
+2. The template should describe what the README *actually has*, not what it *should have*
+3. If a new section appears in the README that isn't in the template, add it
+4. If a section is removed from the README, remove it from the template
 5. **Before updating `README.md`**, load and read `rules/mermaid-validation.md` — if the README contains any mermaid diagrams, validate that all diagram syntax follows the rules in that file (quoted parentheses, quoted at-signs, no `direction` inside subgraphs, etc.)
 
 ### Mermaid Diagram Validation Rule (README Updates)
@@ -1108,5 +1158,44 @@ echo '```mermaid' >> README.md
 echo 'graph TD; ["Start"] --> ["End (complete)"]' >> README.md  # Fixed: quoted labels, no reserved names
 mmdc -i README.md -o /tmp/validate.png  # ← Validate with mmdc before including
 ```
+
+### Report Directory Conventions (MANDATORY)
+
+All build and regression reports follow a strict directory layout:
+
+```
+reports/
+├── build_verify_summary.md          # Aggregate build summary (all OS/languages)
+├── regression_summary.md           # Aggregate regression summary (all OS/languages)
+├── junit/
+│   ├── aggregated.xml             # Combined JUnit XML
+│   └── aggregated.html            # Combined JUnit HTML
+├── <lang>/                         # cpp, java, python
+│   └── per_os/
+│       ├── <os>_build_verify.md   # Per-OS build verification report
+│       ├── <os>_regression.md      # Per-OS regression test report
+│       └── junit/
+│           └── <os>_regression_report_junit.xml  # Per-OS JUnit XML
+```
+
+**Rules:**
+- **`.md` reports** go in `reports/<lang>/per_os/<os>_build_verify.md` and `<os>_regression.md`
+- **JUnit `.xml`** goes in `reports/<lang>/per_os/junit/<os>_regression_report_junit.xml`
+- **Aggregate summaries** are `reports/build_verify_summary.md` (from `aggregate_verify_build`) and `reports/regression_summary.md` (from `aggregate_regression`)
+- **Aggregate JUnit** is `reports/junit/aggregated.xml` + `.html` (from `aggregate_junit`)
+- Aggregates are auto-generated at the end of each `verify_build` / `run_regression` run
+
+### UNSUPPORTED Platform Contract (MANDATORY)
+
+When an OS/language combination cannot build or test, it must be documented via `UNSUPPORTED.md`:
+
+**Location:** `src/<os>/<lang>/UNSUPPORTED.md`
+
+**Detection by scripts:**
+- **`run_build`:** `run_native`/`run_container` capture `make all` output — if it contains "unsupported", `BUILD_STATUS` is set to `UNSUPPORTED`
+- **`run_regression`:** `populate_top_reports` checks for `UNSUPPORTED.md` when no test output exists — generates an UNSUPPORTED `.md` report
+- **Aggregators** (`aggregate_verify_build`, `aggregate_regression`) grep reports for `UNSUPPORTED`/`unsupported`/`skipped` keywords and count them separately from PASS/FAIL
+
+**Summary displays:** Both `build_verify_summary.md` and `regression_summary.md` show UNSUPPORTED entries in the Per-OS Results table with `UNSUPPORTED` status and a link to the full report.
 
 <!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md --># test hook

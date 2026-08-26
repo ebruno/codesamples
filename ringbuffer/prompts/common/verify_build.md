@@ -606,11 +606,11 @@ Before executing any step in this document, read and load `rules/verify-build-wo
     - **Reports Generated**: `reports/python/per_os/<os>_build_verify.md` exists.
     - **State File**: `src/common/python/.gen_state.json` was created/updated.
 
-**Final Aggregation** (after all languages complete):
-- Run `utils/bin/aggregate_junit.sh` to merge all per-OS JUnit XML files into:
-  - `reports/junit/aggregated.xml` — single merged JUnit document with `os` and `lang` attributes
-  - `reports/junit/aggregated.html` — human-readable HTML summary viewable in a browser
-- This step is optional but recommended for consolidated review.
+**Report Generation and Aggregation** (runs automatically at end of each `verify_build`):
+- **Per-OS report:** `populate_build_reports()` writes `reports/<lang>/per_os/<os>_build_verify.md` with build status (PASS/FAIL/UNSUPPORTED)
+- **Status detection:** `run_native`/`run_container` capture `make all` output — if it contains "unsupported", `BUILD_STATUS` is set to `UNSUPPORTED`. Non-zero exit sets FAIL. Otherwise PASS.
+- **Aggregate summary:** `utils/bin/aggregate_verify_build.{zsh,sh}` auto-runs to produce `reports/build_verify_summary.md` with Overview table (PASS/FAIL/UNSUPPORTED counts) and Per-OS Results table (one row per OS, `<br>`-separated languages)
+- **Aggregate JUnit:** Not applicable to `verify_build` (no tests run) — JUnit aggregation is handled by `run_regression`
 
 **Excluded Platforms:**
 - **C++**: FreeBSD 14 is supported (clang++/g++ available). FreeBSD 15 is excluded — zero-length files only.

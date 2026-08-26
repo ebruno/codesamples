@@ -650,7 +650,7 @@ When using `prompts/common/implement_new_os.md` to add a new operating system, t
 ### After Scaffolding Completes
 The OS scaffolding is fully functional without documentation updates. Once the OS passes all tests:
 1. Update implementation state: `:state regression_passed`
-2. Regenerate README.md: "Use prompts/common/generate_toplevel_readme.md to regenerate the top-level README.md"
+2. Regenerate README.md: "Use prompts/common/templates/readme_template.md to regenerate the top-level README.md"
 3. Update .bionic platform classification table (manually or via agent)
 4. Update implementation state: `:state officially_supported`
 

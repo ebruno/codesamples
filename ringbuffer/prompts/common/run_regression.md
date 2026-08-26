@@ -805,11 +805,11 @@ Before executing any step in this document, read and load `rules/regression-runn
     - **State File**: `src/common/python/.gen_state.json` was created/updated.
     - **C++ Build Status Noted**: Report includes C++ build status (SUCCESS or SKIPPED with reason) in the Audit Trail section.
 
-**Final Aggregation** (after all languages complete):
-- Run `utils/bin/aggregate_junit.sh` to merge all per-OS JUnit XML files into:
-  - `reports/junit/aggregated.xml` — single merged JUnit document with `os` and `lang` attributes
-  - `reports/junit/aggregated.html` — human-readable HTML summary viewable in a browser
-- This step is optional but recommended for consolidated review.
+**Report Generation and Aggregation** (runs automatically at end of each `run_regression`):
+- **Per-OS report:** `populate_top_reports()` copies test harness `.md`/`.xml` output to `reports/<lang>/per_os/` and `reports/<lang>/per_os/junit/`. If no test output exists and `UNSUPPORTED.md` is found in the source directory, an UNSUPPORTED `.md` report is generated.
+- **Status detection:** Reports are copied from the test harness output. UNSUPPORTED is detected by checking for `UNSUPPORTED.md` when no test results exist.
+- **Aggregate JUnit:** `utils/bin/aggregate_junit.{zsh,sh}` auto-runs to merge all per-OS JUnit XML into `reports/junit/aggregated.xml` + `.html`
+- **Aggregate summary:** `utils/bin/aggregate_regression.{zsh,sh}` auto-runs to produce `reports/regression_summary.md` with Overview table (PASS/FAIL/UNSUPPORTED counts) and Per-OS Results table (one row per OS, `<br>`-separated languages)
 
 **Directives:**
 1. Use `prompts/<os>/cpp/testing.md` for platform-specific prerequisites (package lists, container settings).

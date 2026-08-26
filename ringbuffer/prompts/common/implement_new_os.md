@@ -681,7 +681,7 @@ Implementation State: scaffolded
        → "Use prompts/<os>/<lang>/create_regression.md to set up test infrastructure"
 
     4. officially_supported — After all tests pass:
-       → "Use prompts/common/generate_toplevel_readme.md to regenerate README.md"
+       → "Use prompts/common/templates/readme_template.md to regenerate README.md"
        → Update .bionic platform classification table manually or via agent
 
 To update the implementation state, use: :state <new_state>
@@ -784,5 +784,5 @@ Before generating any files, the agent should read these reference implementatio
 - Update prompts (`update_*.md`) follow the same structure as `create_*.md` but add `.gen_state.json` delta detection for incremental regeneration.
 - Session files in `.ringbuffer_sessions/` are gitignored and cleaned by `dist-clean`.
 - Template files in `prompts/common/templates/` are git-tracked and updated in place (no timestamps).
-- The `generate_toplevel_readme.md` workflow handles README regeneration after an OS reaches `officially_supported` state.
+- The `readme_template.md` workflow handles README regeneration after an OS reaches `officially_supported` state.
 - `.bionic` platform classification table should be updated manually or via agent after an OS reaches `officially_supported` state.

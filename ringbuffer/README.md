@@ -37,6 +37,19 @@ The core focus of the project is **binary symmetry within OS families**, with mi
 **Phases:** A = common spec written, B = implemented + passes 7-test matrix (T001-T007)  
 C, Go, and Rust are next in the pipeline — their common specs are complete and the dispatcher prompt (`add_language.md`) can generate implementations on demand. See [Roadmap](#roadmap).
 
+## Platform Support
+
+### Development Host vs Target
+
+| System | Development Host | Target | Notes |
+|--------|:---:|:---:|-------|
+| **macOS** | ✅ Verified | ✅ | Native `container` CLI, `.zsh` scripts |
+| **Linux distributions** | ⚠️ Alpha | ✅ | `podman` for containers, `.sh` scripts. Development host capability not yet verified end-to-end |
+| **FreeBSD 14/15** | ❌ | ✅ | No container support — SSH deploy only. `.tcsh` scripts, BSD make |
+
+- **Development host** — where code is written, scripts are verified, and containers are run. Must support containers to build/test Linux targets locally.
+- **Target** — where `verify_build` or `run_regression` executes. May be local (containers on the development host) or remote (SSH to FreeBSD/Arch Linux).
+
 ## Roadmap
 
 - [x] **Phase 1** — Common functional + build specs for all 6 languages
@@ -999,24 +1012,19 @@ The test suite validates functional correctness, error handling, transform opera
 
 #### Part D: Documentation & Media Assets
 
-**README Generation (`prompts/common/generate_toplevel_readme.md`)**
-The README.md is generated from a structured prompt that enforces a strict section order and content requirements. To regenerate the README after any changes:
-- *Prompt:* `prompts/common/generate_toplevel_readme.md`
-- *Syntax Example:* `"Use prompts/common/generate_toplevel_readme.md to regenerate the top-level README.md"`
+**README Template (`prompts/common/templates/readme_template.md`)**
+The README template is an outline and hint document describing every section `README.md` should contain. It can be used as a reference to recreate the README if lost, or as a starting point for a new project.
+- *Path:* `prompts/common/templates/readme_template.md`
+- *Syntax Example:* `"Use prompts/common/templates/readme_template.md to recreate the top-level README.md"`
 
-**When to regenerate:**
-- After adding or removing a platform/language implementation in `src/`
-- After updating version numbers (`version.mk`) on any platform
-- After adding new languages, test patterns, or prompt files
-- When the "What Works Today" status table needs refreshing (e.g., after fixing binary symmetry or prompt linting)
+**When to update:**
+- After adding or removing a section in `README.md`
 - After restructuring the project directory layout
+- After adding a new platform/language or test pattern
 
-**Updating the prompt itself:**
-`README.md` is the source of truth. `prompts/common/generate_toplevel_readme.md` must be kept in sync with it. When you edit README.md directly (which is common), use this prompt to have the agent sync both files:
-
-- *Syntax Example:* `"Use prompts/common/generate_toplevel_readme.md to sync the prompt with README.md as source of truth"`
-
-This tells the agent to read both files, compare their section structures, and update `generate_toplevel_readme.md`'s Content Structure list to match README.md's actual sections.
+**Keeping the template in sync:**
+`README.md` is the source of truth. `readme_template.md` must be kept in sync with it. When you edit README.md directly, update the template's Content Structure list to match:
+- *Syntax Example:* `"Update readme_template.md to match the current README.md structure"`
 
 **Pipeline Animation (`animated_graphics/bin/generate_pipeline_animation.py`)**
 Regenerates the `pipeline_animation.gif` demonstrating the three-stage pipeline with 45 frames at 1000ms each (~45s total cycle). The animation shows the Read → Transform → Write thread progression through shared slots with independent atomic index counters.
@@ -1560,7 +1568,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 1. Run `create_functional.md` for each language to generate source code
 2. Run `create_build.md` for each language to create the build environment
 3. Run `create_regression.md` for each language to set up test infrastructure
-4. After all tests pass, regenerate README.md via `generate_toplevel_readme.md`
+4. After all tests pass, regenerate README.md via `readme_template.md`
 5. Update `.bionic` platform classification table
 6. Update implementation state to `officially_supported`
 
