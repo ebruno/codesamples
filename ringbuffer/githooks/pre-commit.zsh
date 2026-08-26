@@ -151,29 +151,35 @@ if [ ${#missing_in_prompt[@]} -gt 0 ] || [ ${#missing_in_readme[@]} -gt 0 ]; the
     print -r -- ""
 fi
 
-# ── Rule 3: .bionic → CLAUDE.md sync (HARD BLOCK) ────────────────────
-BIONIC_STAGED=0
+# ── Rule 3: .bionic.d/* → CLAUDE.md sync (HARD BLOCK) ────────────────────
+# CLAUDE.md is assembled from .bionic.d/project.md + .bionic.d/rules.md
+BIONIC_MOD_STAGED=0
 CLAUDE_STAGED=0
 while IFS= read -r f; do
     nf=$(normalize_path "$f")
     case "$nf" in
-        .bionic) BIONIC_STAGED=1 ;;
+        .bionic.d/project.md) BIONIC_MOD_STAGED=1 ;;
+        .bionic.d/rules.md) BIONIC_MOD_STAGED=1 ;;
         CLAUDE.md) CLAUDE_STAGED=1 ;;
     esac
 done <<< "$STAGED_FILES"
 
-if [ "$BIONIC_STAGED" -gt 0 ]; then
-    # Compare staged versions of .bionic and CLAUDE.md
-    BIONIC_HASH=$(git show :ringbuffer/.bionic 2>/dev/null | md5sum)
+if [ "$BIONIC_MOD_STAGED" -gt 0 ]; then
+    # Compare staged CLAUDE.md against the concatenation of its sources
+    PROJECT_HASH=$(git show :ringbuffer/.bionic.d/project.md 2>/dev/null | md5sum)
+    RULES_HASH=$(git show :ringbuffer/.bionic.d/rules.md 2>/dev/null | md5sum)
+    COMBINED_HASH=$(printf '%s%s' "$PROJECT_HASH" "$RULES_HASH" | md5sum)
     CLAUDE_HASH=$(git show :ringbuffer/CLAUDE.md 2>/dev/null | md5sum)
     
-    if [ "$BIONIC_HASH" != "$CLAUDE_HASH" ]; then
+    # Reconstruct what CLAUDE.md should be and compare
+    EXPECTED=$(git show :ringbuffer/.bionic.d/project.md :ringbuffer/.bionic.d/rules.md 2>/dev/null | md5sum)
+    
+    if [ "$EXPECTED" != "$CLAUDE_HASH" ]; then
         print -r -- ""
-        print -r -- "${RED}✗ BLOCKED: .bionic was modified but CLAUDE.md is not in sync.${NC}"
+        print -r -- "${RED}✗ BLOCKED: .bionic.d/project.md or .bionic.d/rules.md was modified but CLAUDE.md is not in sync.${NC}"
         print -r -- ""
-        print -r -- "  .bionic is the source of truth. CLAUDE.md must always match."
-        print -r -- ""
-        print -r -- "  Run: make sync-claude"
+        print -r -- "  CLAUDE.md = cat .bionic.d/project.md .bionic.d/rules.md"
+        print -r -- "  Run: cat .bionic.d/project.md .bionic.d/rules.md > CLAUDE.md"
         print -r -- "  Then re-stage CLAUDE.md and retry the commit."
         print -r -- ""
         exit 1

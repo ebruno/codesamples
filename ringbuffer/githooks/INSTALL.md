@@ -48,8 +48,8 @@ If `README.md` is staged but `prompts/common/generate_toplevel_readme.md` is not
 ### Rule 2: Section Alignment (Warning)
 If both files are staged, the hook compares their section headers (`##` and `###`). If sections exist in one file but not the other, a **warning** is printed — the commit still proceeds. This catches drift before it compounds.
 
-### Rule 3: .bionic → CLAUDE.md Sync (Hard Block)
-If `.bionic` is staged, `CLAUDE.md` must be in sync (identical content). This ensures the LM Studio Bionic agent always has the latest rules. Run `make sync-claude` to fix.
+### Rule 3: .bionic.d/* → CLAUDE.md Sync (Hard Block)
+If `.bionic.d/project.md` or `.bionic.d/rules.md` is staged, `CLAUDE.md` must be in sync (CLAUDE.md = cat .bionic.d/project.md .bionic.d/rules.md). This ensures the LM Studio Bionic agent always has the latest rules. Run `cat .bionic.d/project.md .bionic.d/rules.md > CLAUDE.md` to fix.
 
 ## How the Post-Commit Hook Works
 
