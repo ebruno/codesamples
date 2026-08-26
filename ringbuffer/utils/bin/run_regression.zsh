@@ -399,7 +399,7 @@ run_ssh() {
 
     # Step 1: Create tarball from workspace root
     echo "Creating tarball..."
-    tar -czf "$tarball" -C "$WORKSPACE/.." ringbuffer/
+    tar --no-xattrs -czf "$tarball" -C "$WORKSPACE/.." ringbuffer/
 
     # Step 2: SCP to remote home directory
     echo "Syncing to remote..."
