@@ -11,11 +11,11 @@
     ],
     "ubuntu": [
       {"name": "g++", "min_version": "13.0.0", "supported": true, "description": "GNU C++ compiler — requires GCC 13+ for <format> header (C++20)"},
-      {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "LLVM C++ compiler — requires Clang 15+ for <format> header (C++20)"}
+      {"name": "clang++", "min_version": "15.0.0", "supported": false, "description": "LLVM C++ compiler — Ubuntu clang looks for headers in GCC 14 path which doesn't exist (see README Known Issues)"}
     ],
     "raspios": [
-      {"name": "g++", "min_version": "13.0.0", "supported": false, "description": "GNU C++ compiler — Bookworm ships GCC 12.2, lacks <format> support"},
-      {"name": "clang++", "min_version": "15.0.0", "supported": false, "description": "LLVM C++ compiler — Bookworm ships Clang 14, lacks <format> support"}
+      {"name": "g++", "min_version": "13.0.0", "installed_version": "12.2.0", "supported": false, "description": "GNU C++ compiler — Bookworm ships GCC 12.2, lacks <format> header (C++20)"},
+      {"name": "clang++", "min_version": "15.0.0", "installed_version": "14.0.6", "supported": false, "description": "LLVM C++ compiler — Bookworm ships Clang 14.0, lacks <format> header (C++20)"}
     ],
     "archlinux": [
       {"name": "g++", "min_version": "13.0.0", "supported": true, "description": "GNU C++ compiler — rolling release provides recent GCC"},
@@ -61,22 +61,22 @@
   },
   "java": {
     "fedora": [
-      {"name": "javac", "min_version": "25.0.0", "supported": true, "description": "OpenJDK 25 — latest LTS available on Fedora"}
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — available on Fedora"}
     ],
     "debian": [
-      {"name": "javac", "min_version": "25.0.0", "supported": true, "description": "OpenJDK 25 — available via Debian backports"}
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — available via Debian repos"}
     ],
     "ubuntu": [
-      {"name": "javac", "min_version": "25.0.0", "supported": true, "description": "OpenJDK 25 — available via Ubuntu repos"}
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — available via Ubuntu repos"}
     ],
     "raspios": [
       {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17 — latest available on Bookworm (raspios base)"}
     ],
     "archlinux": [
-      {"name": "javac", "min_version": "25.0.0", "supported": true, "description": "OpenJDK 25 — rolling release provides latest JDK"}
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — rolling release provides recent JDK"}
     ],
     "macos": [
-      {"name": "javac", "min_version": "25.0.0", "supported": true, "description": "OpenJDK 25 — must be installed via brew install openjdk@25"}
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — must be installed via brew install openjdk@17"}
     ]
   },
   "python": {

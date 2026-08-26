@@ -7,6 +7,7 @@ reports/
 src/common/java/logs/
 src/common/python/build.log
 src/common/python/logs/
+src/freebsd14/*/logs/
 
 # Build output directories (produced by native builds on any platform)
 **/cpp/build/
@@ -22,6 +23,7 @@ src/common/python/logs/
 .dockerfile_created_by_step0
 .ringbuffer_start
 __pycache__/
+tmp/.run_lock/
 
 # Java / Maven build artifacts
 target/
