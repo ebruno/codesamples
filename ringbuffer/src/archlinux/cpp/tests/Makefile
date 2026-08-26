@@ -7,9 +7,16 @@ OS_NAME = archlinux
 PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
 
 # Compiler settings
-CXX = g++
+CXX ?= g++
+# Normalize compiler name: strip version suffix (g++-13 → g++, clang++-17 → clang++)
+CXX_BASE := $(patsubst g++-%,g++,$(patsubst clang++-%,clang++,$(CXX)))
 CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -I..
-LDFLAGS = 
+# Linker: use lld for clang++ (thin LTO archives require LLVM linker)
+ifeq ($(strip $(CXX_BASE)),clang++)
+  LDFLAGS = -fuse-ld=lld
+else
+  LDFLAGS =
+endif
 RM = rm -rf
 
 # Directories
@@ -61,26 +68,22 @@ all: static dynamic
 static: $(TEST_STATIC)
 dynamic: $(TEST_DYNAMIC)
 
-# Library build rule (invoked when library is missing)
-$(STATIC_LIB): ../Makefile
-	@echo "Building C++ library..."
-	$(MAKE) -C .. all
-
-$(SHARED_LIB): ../Makefile
-	@echo "Building C++ library..."
-	$(MAKE) -C .. all
+# Build library rule (invoked when library is missing)
+build-lib:
+	@echo "Building C++ library with $(CXX)..."
+	make CXX=$(CXX) -C .. all
 
 # Static linking test binary
-$(TEST_STATIC): $(SRC_DIR)/test001.cpp $(STATIC_LIB)
+$(TEST_STATIC): $(SRC_DIR)/test001.cpp build-lib
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ \
-		$(STATIC_LIB)
+		$(LDFLAGS) $(STATIC_LIB)
 
 # Dynamic linking test binary
-$(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp $(SHARED_LIB)
+$(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp build-lib
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ \
-		-L$(LIB_DIR) -lswtr_ringbuffer \
+		$(LDFLAGS) -L$(LIB_DIR) -lswtr_ringbuffer \
 		-Wl,-rpath,$(abspath $(LIB_DIR))
 
 # Per-compiler test binaries
@@ -128,9 +131,9 @@ validate-data:
 	@echo "Test data validation passed"
 
 # Top-level verify: clean + single-compiler verification (called by run_regression.sh)
-verify: verify-single CXX=$(CXX)
+verify: verify-single
 # Single-compiler verification (runs natively — inside container or on Linux host)
-verify-single: static dynamic deploy-utils validate-data build-cpp
+verify-single: build-lib static dynamic deploy-utils validate-data build-cpp
 
 # Build C++ library (always rebuild with current CXX for multi-compiler support)
 build-cpp:

@@ -24,7 +24,8 @@ REPORT_DIR = reports
 # Library build rules (static-only — FreeBSD 14 RPATH limitation)
 STATIC_LIB = ${LIB_DIR}/libswtr_ringbuffer.a
 
-${STATIC_LIB}: ../Makefile
+# Library build rule (invoked when library is missing)
+${STATIC_LIB}:
 	@echo "Building C++ library..."
 	${MAKE} -C .. all
 

@@ -169,12 +169,10 @@ for c in data.get('${lang}', {}).get('${os}', []):
 get_compilers() {
     local os="$1" lang="${2:-cpp}"
 
-    # C/C++ use CXX variable
-    if [ "$lang" = "cpp" ] || [ "$lang" = "c" ]; then
-        if command -v jq &>/dev/null; then
-            jq -r ".[\"${lang}\"][\"${os}\"][] | select(.supported == true) | .name" "$REGISTRY" 2>/dev/null
-        elif command -v python3 &>/dev/null; then
-            python3 -c "
+    if command -v jq &>/dev/null; then
+        jq -r ".[\"${lang}\"][\"${os}\"][] | select(.supported == true) | .name" "$REGISTRY" 2>/dev/null
+    elif command -v python3 &>/dev/null; then
+        python3 -c "
 import json, sys
 with open('${REGISTRY}') as f:
     data = json.load(f)
@@ -182,222 +180,209 @@ for c in data.get('${lang}', {}).get('${os}', []):
     if c.get('supported'):
         print(c['name'])
 " 2>/dev/null
-        else
-            echo "ERROR: Neither jq nor python3 available to read registry" >&2
-            return 1
-        fi
     else
-        # Non-CXX languages (python, java, go, rust) — return the interpreter/compiler
-        local compilers=""
-        if command -v jq &>/dev/null; then
-            compilers=$(jq -r ".[\"${lang}\"][\"${os}\"][] | select(.supported == true) | .name" "$REGISTRY" 2>/dev/null)
-        elif command -v python3 &>/dev/null; then
-            compilers=$(python3 -c "
+        echo "ERROR: Neither jq nor python3 available to read registry" >&2
+        return 1
+    fi
+}
+
+# ── Registry helper: read compiler list for <os> + <lang> from JSON ───
+get_all_compilers() {
+    local os="$1" lang="${2:-cpp}"
+
+    if command -v jq &>/dev/null; then
+        jq -r ".[\"${lang}\"][\"${os}\"][] | .name" "$REGISTRY" 2>/dev/null
+    elif command -v python3 &>/dev/null; then
+        python3 -c "
 import json, sys
 with open('${REGISTRY}') as f:
     data = json.load(f)
 for c in data.get('${lang}', {}).get('${os}', []):
-    if c.get('supported'):
-        print(c['name'])
-" 2>/dev/null)
-        fi
-
-        if [ -n "$compilers" ]; then
-            echo "$compilers"
-        else
-            # No registry entry — use the standard interpreter name
-            case "$lang" in
-                python) echo "python3" ;;
-                java)   echo "javac" ;;
-                go)     echo "go" ;;
-                rust)   echo "rustc" ;;
-            esac
-        fi
+    print(c['name'])
+" 2>/dev/null
+    else
+        echo "ERROR: Neither jq nor python3 available to read registry" >&2
+        return 1
     fi
 }
 
-# ── Ensure Apple Container service is running ──────────────────────
-ensure_container_service() {
-    local status_output
-    # Use zsh builtins only — no grep/awk/sed (Shell Script Portability Rule)
-    # container system status returns exit 1 when not running — use || true to prevent set -e from killing us
-    status_output=$($CONTAINER_CMD system status 2>&1 || true)
-    # Check for negative indicators — "not running" contains "running" so we must check the full phrase
-    if [[ "$status_output" == *"not running"* ]] || [[ "$status_output" == *"not registered"* ]]; then
-        echo "Starting Apple Container service..."
-        $CONTAINER_CMD system start 2>&1 || { echo "ERROR: Failed to start container service"; exit 1; }
-        sleep 5
-    fi
-
-    status_output=$($CONTAINER_CMD system status 2>&1 || true)
-    if [[ "$status_output" == *"not running"* ]] || [[ "$status_output" == *"not registered"* ]]; then
-        echo "ERROR: Container service not running after start attempt."
-        echo "$status_output"
-        exit 1
-    fi
-}
-
-# ── Native execution (macos target) ───────────────────────────────
-run_native() {
-    echo "=== Native execution: $ACTION on $TARGET_OS ($TARGET_LANG) ==="
-
-    local os_dir tests_dir
-    os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
-    tests_dir="${os_dir}/tests"
-
-    if [ ! -d "$tests_dir" ]; then
-        echo "ERROR: $tests_dir does not exist."
-        exit 1
-    fi
-
-    local -a compilers=()
-    while IFS= read -r c; do
-        [ -n "$c" ] && compilers+=("$c")
-    done < <(get_compilers "$TARGET_OS" "$TARGET_LANG")
-
-    if [ ${#compilers[@]} -eq 0 ]; then
-        echo "ERROR: No compilers found in registry for ${TARGET_OS}/${TARGET_LANG}"
-        exit 1
-    fi
-
-    echo "Compilers from registry: ${compilers[*]}"
-
-    for COMPILER in "${compilers[@]}"; do
-        echo ""
-        echo "============================================="
-        echo "Compiler/Interpreter: $COMPILER"
-        echo "============================================="
-
-        # Clean C++ library for Python/Java (they depend on it)
-        case "$TARGET_LANG" in
-            python|java) make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" clean 2>&1 ;;
-        esac
-
-        make -C "$os_dir" clean 2>&1
-        make -C "$tests_dir" clean 2>&1
-
-        # Set the right variable based on language and probe per-compiler
-        case "$TARGET_LANG" in
-            cpp|c)
-                make -C "$tests_dir" CXX="$COMPILER" probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
-                make -C "$tests_dir" CXX="$COMPILER" verify 2>&1 ;;
-            python)
-                # Probe compiler availability if validate-tools.mk exists (skip if missing)
-                local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
-                if [ -f "$probe_makefile" ]; then
-                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" -f validate-tools.mk PYTHON="$COMPILER" probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
-                else
-                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
-                fi
-                # Pass DISTRO_ID so Makefile.linux can resolve the correct C++ source dir
-                local distro_id="$TARGET_OS"
-                [ "$distro_id" = "raspios" ] && distro_id=raspios
-                make -C "$tests_dir" DISTRO_ID="$distro_id" PYTHON="$COMPILER" verify 2>&1
-                ;;
-            java)
-                # Probe compiler availability if validate-tools.mk exists (skip if missing)
-                local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
-                if [ -f "$probe_makefile" ]; then
-                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" -f validate-tools.mk JAVA="$COMPILER" probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
-                else
-                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
-                fi
-                make -C "$tests_dir" JAVA="$COMPILER" verify 2>&1 ;;
-            *)      make -C "$tests_dir" verify 2>&1 ;;
-        esac
-    done
-}
-
-# ── Container execution (Linux targets from macOS host) ───────────
+# ── Container execution ────────────────────────────────────────────
 run_container() {
     echo "=== Container execution: $ACTION on $TARGET_OS ($TARGET_LANG) ==="
 
+    # Check if container runtime is available
     if ! command -v "$CONTAINER_CMD" &>/dev/null; then
         echo "ERROR: '$CONTAINER_CMD' not found. Install Apple Container from https://github.com/apple/container"
         exit 1
     fi
 
-    ensure_container_service
-
-    local os_dir
+    # Resolve paths
+    local os_dir tests_dir workspace_dir
     os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
+    tests_dir="${os_dir}/tests"
 
-    # Always clean up any stale container from previous runs before starting fresh
-    echo "Cleaning up any stale container..."
-    make -C "$os_dir" TARGET_OS="$TARGET_OS" stop_container 2>&1 || true
-    make -C "$os_dir" TARGET_OS="$TARGET_OS" remove_container 2>&1 || true
-
-    echo "Ensuring container image exists (via Makefile)..."
-    make -C "$os_dir" TARGET_OS="$TARGET_OS" container 2>&1 || { echo "ERROR: Failed to ensure image"; exit 1; }
-
-    echo "Starting persistent container..."
-    make -C "$os_dir" TARGET_OS="$TARGET_OS" start_container 2>&1 || { echo "ERROR: Failed to start container"; exit 1; }
-
-    local -a compilers=()
-    while IFS= read -r c; do
-        [ -n "$c" ] && compilers+=("$c")
-    done < <(get_compilers "$TARGET_OS" "$TARGET_LANG")
-
-    if [ ${#compilers[@]} -eq 0 ]; then
-        echo "ERROR: No compilers found in registry for ${TARGET_OS}/${TARGET_LANG}"
-        make -C "$os_dir" stop_container 2>&1 || true
-        exit 1
+    # Determine workspace directory for mounting
+    if [ "$TARGET_OS" = "common" ]; then
+        # For common language tests, mount from project root
+        workspace_dir="${WORKSPACE}"
+    else
+        workspace_dir="${WORKSPACE}"
     fi
 
-    echo "Compilers from registry: ${compilers[*]}"
+    # Determine container image name
+    local CONTAINER_IMAGE_NAME
+    if [ -n "$IMAGE_OVERRIDE" ]; then
+        CONTAINER_IMAGE_NAME="$IMAGE_OVERRIDE"
+    elif [ "$ACTION" = "verify" ]; then
+        CONTAINER_IMAGE_NAME="ringbuffer_${TARGET_OS}_test"
+    else
+        CONTAINER_IMAGE_NAME="ringbuffer_${TARGET_OS}_build"
+    fi
 
-    # Derive running container name from image name (image: ringbuffer_<os>_test → container: ringbuffer_<os>_test_running)
-    local RUNNING_CONTAINER="${CONTAINER_IMAGE}_running"
+    # Check if image exists, build if not
+    echo "Checking for container image: $CONTAINER_IMAGE_NAME"
+    if ! "$CONTAINER_CMD" inspect "$CONTAINER_IMAGE_NAME" &>/dev/null; then
+        echo "Image not found. Building..."
+        make -C "$os_dir" TARGET_OS="$TARGET_OS" build_image 2>&1
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to build container image $CONTAINER_IMAGE_NAME"
+            exit 1
+        fi
+    else
+        echo "Image $CONTAINER_IMAGE_NAME found."
+    fi
 
-    for COMPILER in "${compilers[@]}"; do
-        echo ""
-        echo "============================================="
-        echo "Compiler/Interpreter: $COMPILER"
-        echo "============================================="
+    # Check if container is already running
+    local RUNNING_CONTAINER=""
+    RUNNING_CONTAINER=$("$CONTAINER_CMD" ps --filter "ancestor=$CONTAINER_IMAGE_NAME" --format '{{.Names}}' 2>/dev/null | head -1)
 
-        # Set the right variable based on language — use make -C with absolute paths
-        case "$TARGET_LANG" in
-            cpp|c)
-                $CONTAINER_CMD exec -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests clean 2>&1
-                $CONTAINER_CMD exec -e CXX="$COMPILER" -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
-                $CONTAINER_CMD exec -e CXX="$COMPILER" -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp/tests verify 2>&1
-                ;;
-            python)
-                # Probe compiler availability if validate-tools.mk exists (skip if missing)
-                local probe_makefile="/app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
-                if [ -f "$probe_makefile" ]; then
-                    $CONTAINER_CMD exec -e PYTHON="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG} -f validate-tools.mk probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
-                else
-                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
-                fi
-                $CONTAINER_CMD exec -e CONTAINER_CMD="$CONTAINER_CMD" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/cpp clean 2>&1
-                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests clean 2>&1
-                $CONTAINER_CMD exec -e PYTHON="$COMPILER" -e DISTRO_ID="$TARGET_OS" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/python/tests verify 2>&1
-                ;;
-            java)
-                # Probe compiler availability if validate-tools.mk exists (skip if missing)
-                local probe_makefile="/app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
-                if [ -f "$probe_makefile" ]; then
-                    $CONTAINER_CMD exec -e JAVA="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG} -f validate-tools.mk probe-os 2>&1 || { echo "SKIP: $COMPILER failed probe check" >&2; continue; }
-                else
-                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
-                fi
-                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests clean 2>&1
-                $CONTAINER_CMD exec -e JAVA="$COMPILER" "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/common/java/tests verify 2>&1
-                ;;
-            *)
-                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/tests clean 2>&1
-                $CONTAINER_CMD exec "$RUNNING_CONTAINER" make -C /app/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/tests verify 2>&1
-                ;;
-        esac
-    done
+    if [ -z "$RUNNING_CONTAINER" ]; then
+        # Start a new container in detached mode
+        echo "Starting container..."
+        "$CONTAINER_CMD" run --detach \
+            --name "ringbuffer_${TARGET_OS}_test_running" \
+            -v "${workspace_dir}:/app/ringbuffer" \
+            --cpus 4 \
+            --memory 1024m \
+            "$CONTAINER_IMAGE_NAME" \
+            tail -f /dev/null 2>&1
 
-    echo "Stopping container..."
-    make -C "$os_dir" TARGET_OS="$TARGET_OS" stop_container 2>&1 || true
-    echo "Removing container..."
-    make -C "$os_dir" TARGET_OS="$TARGET_OS" remove_container 2>&1 || true
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to start container"
+            exit 1
+        fi
+        RUNNING_CONTAINER="ringbuffer_${TARGET_OS}_test_running"
+    else
+        echo "Container $RUNNING_CONTAINER already running."
+    fi
 
-    echo "Container stopped and removed. Image $CONTAINER_IMAGE remains."
+    # Execute commands inside the container
+    echo "Executing commands in container..."
+
+    case "$TARGET_LANG" in
+        cpp)
+            # C++ tests — use per-OS paths
+            local os_dir tests_dir
+            os_dir="${WORKSPACE}/src/${TARGET_OS}/cpp"
+            tests_dir="${os_dir}/tests"
+
+            # Get compilers from registry
+            local compilers=()
+            while IFS= read -r c; do
+                [ -n "$c" ] && compilers+=("$c")
+            done < <(get_compilers "$TARGET_OS" "cpp")
+
+            if [ ${#compilers[@]} -eq 0 ]; then
+                echo "ERROR: No supported compilers found for ${TARGET_OS}/cpp"
+                exit 1
+            fi
+
+            echo "Compilers from registry: ${compilers[*]}"
+
+            for COMPILER in "${compilers[@]}"; do
+                echo ""
+                echo "============================================="
+                echo "Compiler: $COMPILER"
+                echo "============================================="
+
+                # Clean and verify with specific compiler — use cd + exec, no bash -c
+                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean" 2>&1
+                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp/tests clean" 2>&1
+                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp/tests CXX=$COMPILER verify" 2>&1
+            done
+            ;;
+        python)
+            # Python — depends on C++ library first
+            local os_dir tests_dir
+            os_dir=$(resolve_lang_path "$TARGET_OS" "python")
+            tests_dir="${os_dir}/tests"
+
+            # Build C++ library first (java and python depend on it)
+            echo "Building C++ library..."
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean" 2>&1
+
+            # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
+            local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+            if [ -f "$probe_makefile" ]; then
+                echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
+                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/${TARGET_LANG} probe-os" 2>&1
+            else
+                echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+            fi
+
+            # Clean and verify Python tests
+            echo "Running Python tests..."
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/python clean" 2>&1
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/python/tests clean" 2>&1
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/python/tests PYTHON=python3 verify" 2>&1
+            ;;
+        java)
+            # Java — depends on C++ library first
+            local os_dir tests_dir
+            os_dir=$(resolve_lang_path "$TARGET_OS" "java")
+            tests_dir="${os_dir}/tests"
+
+            # Build C++ library first (java depends on it)
+            echo "Building C++ library..."
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean" 2>&1
+
+            # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
+            local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+            if [ -f "$probe_makefile" ]; then
+                echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
+                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/${TARGET_LANG} probe-os" 2>&1
+            else
+                echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+            fi
+
+            # Clean and verify Java tests
+            echo "Running Java tests..."
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/java clean" 2>&1
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/java/tests clean" 2>&1
+            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/java/tests JAVA=javac verify" 2>&1
+            ;;
+        *)
+            echo "ERROR: Unsupported language '$TARGET_LANG' for container execution"
+            exit 1
+            ;;
+    esac
+
+    echo "Container tests completed successfully."
+}
+
+# ── Cleanup container ──────────────────────────────────────────────
+cleanup_container() {
+    local RUNNING_CONTAINER=""
+    RUNNING_CONTAINER=$("$CONTAINER_CMD" ps --filter "ancestor=ringbuffer_${TARGET_OS}_test:latest" --format '{{.Names}}' 2>/dev/null | head -1)
+
+    if [ -n "$RUNNING_CONTAINER" ]; then
+        echo "Stopping container..."
+        make -C "$os_dir" TARGET_OS="$TARGET_OS" stop_container 2>&1 || true
+        echo "Removing container..."
+        make -C "$os_dir" TARGET_OS="$TARGET_OS" remove_container 2>&1 || true
+
+        echo "Container stopped and removed. Image $CONTAINER_IMAGE remains."
+    fi
 }
 
 # ── SSH execution for remote hosts (freebsd14, archlinux, etc.) ───
@@ -473,7 +458,7 @@ run_ssh() {
                 rm -f "$tarball"
                 exit 1
             fi
-            ssh "$ssh_host" 'bash /tmp/run_linux_ssh.sh '"${TARGET_OS}"' '"${ACTION}"
+            ssh "$ssh_host" 'bash /tmp/run_linux_ssh.sh ~/ringbuffer '"${TARGET_OS}"' test-'"${TARGET_LANG}"
             local rc=$?
             ssh "$ssh_host" 'rm -f /tmp/run_linux_ssh.sh'
             return $rc
@@ -503,34 +488,149 @@ echo "  Language:   ${TARGET_LANG}"
 echo "  Action:     $ACTION"
 echo "============================================="
 
-# ── Routing via host_targets.json (single source of truth) ─────────
+# ── Read build workflow document for routing rules ────────────────
+echo ""
+echo "Loading build workflow from rules/regression-runner-spec.md..."
+if [ -f "${WORKSPACE}/rules/regression-runner-spec.md" ]; then
+    echo "  ✓ Loaded rules/regression-runner-spec.md"
+else
+    echo "  WARNING: rules/regression-runner-spec.md not found — using built-in routing"
+fi
+
+# ── Host-to-Target Routing ────────────────────────────────────────
 HOST_TARGETS="${WORKSPACE}/config/host_targets.json"
 
-if [ ! -f "$HOST_TARGETS" ]; then
-    echo "ERROR: Routing config not found at $HOST_TARGETS"
-    exit 1
-fi
+# Determine transport method (native, container, ssh, skip)
+get_transport() {
+    local host="$1" target="$2"
 
-# Look up transport for this host→target pair
-TRANSPORT=$(jq -r ".[\"${HOST_OS}\"].targets[] | select(.target == \"${TARGET_OS}\") | .transports[0] // empty" "$HOST_TARGETS" 2>/dev/null)
+    if [ ! -f "$HOST_TARGETS" ]; then
+        echo "ERROR: Host targets config not found at $HOST_TARGETS" >&2
+        return 1
+    fi
 
-if [ -z "$TRANSPORT" ]; then
-    echo "ERROR: No routing entry found for ${HOST_OS} → ${TARGET_OS} in $HOST_TARGETS"
-    exit 1
-fi
+    if command -v jq &>/dev/null; then
+        local transport
+        transport=$(jq -r ".[\"${host}\"].targets[] | select(.target == \"${target}\") | .transports[0] // empty" "$HOST_TARGETS" 2>/dev/null)
+        if [ -z "$transport" ]; then
+            transport="native"
+        fi
+        echo "$transport"
+    elif command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+with open('${HOST_TARGETS}') as f:
+    data = json.load(f)
+targets = data.get('${host}', {}).get('targets', [])
+for t in targets:
+    if t.get('target') == '${target}':
+        print(t['transports'][0])
+        sys.exit(0)
+print('native')
+" 2>/dev/null
+    else
+        echo "ERROR: Neither jq nor python3 available to read host targets" >&2
+        return 1
+    fi
+}
+
+TRANSPORT=$(get_transport "$HOST_OS" "$TARGET_OS") || exit 1
+echo "Transport: $TRANSPORT (from host_targets.json)"
 
 case "$TRANSPORT" in
     native)
-        if [ "$TARGET_OS" = "macos" ]; then
-            # macOS target requires macOS host — always OK since HOST_OS is already validated above
-            run_native
-        else
-            # Native only works if host matches target (e.g., fedora on fedora)
-            run_native
-        fi
+        echo "Running natively on $HOST_OS..."
+
+        # Resolve paths for native execution
+        os_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
+        tests_dir="${os_dir}/tests"
+
+        case "$TARGET_LANG" in
+            cpp)
+                # C++ native — use per-OS paths
+                os_dir="${WORKSPACE}/src/${TARGET_OS}/cpp"
+                tests_dir="${os_dir}/tests"
+
+                # Get compilers from registry
+                local compilers=()
+                while IFS= read -r c; do
+                    [ -n "$c" ] && compilers+=("$c")
+                done < <(get_compilers "$TARGET_OS" "cpp")
+
+                if [ ${#compilers[@]} -eq 0 ]; then
+                    echo "ERROR: No supported compilers found for ${TARGET_OS}/cpp"
+                    exit 1
+                fi
+
+                echo "Compilers from registry: ${compilers[*]}"
+
+                for COMPILER in "${compilers[@]}"; do
+                    echo ""
+                    echo "============================================="
+                    echo "Compiler: $COMPILER"
+                    echo "============================================="
+
+                    make -C "$os_dir" clean 2>&1
+                    make -C "$tests_dir" clean 2>&1
+                    make -C "$tests_dir" CXX="$COMPILER" verify 2>&1
+                done
+                ;;
+            python)
+                # Python native — depends on C++ library first
+                os_dir=$(resolve_lang_path "$TARGET_OS" "python")
+                tests_dir="${os_dir}/tests"
+
+                # Build C++ library first (java and python depend on it)
+                echo "Building C++ library..."
+                make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" clean 2>&1
+
+                # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
+                probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                if [ -f "$probe_makefile" ]; then
+                    echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
+                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" probe-os 2>&1
+                else
+                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+                fi
+
+                # Clean and verify Python tests
+                echo "Running Python tests..."
+                make -C "$os_dir" clean 2>&1
+                make -C "$tests_dir" clean 2>&1
+                PYTHON="python3" make -C "$tests_dir" verify 2>&1
+                ;;
+            java)
+                # Java native — depends on C++ library first
+                os_dir=$(resolve_lang_path "$TARGET_OS" "java")
+                tests_dir="${os_dir}/tests"
+
+                # Build C++ library first (java depends on it)
+                echo "Building C++ library..."
+                make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" clean 2>&1
+
+                # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
+                probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                if [ -f "$probe_makefile" ]; then
+                    echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
+                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" probe-os 2>&1
+                else
+                    echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
+                fi
+
+                # Clean and verify Java tests
+                echo "Running Java tests..."
+                make -C "$os_dir" clean 2>&1
+                make -C "$tests_dir" clean 2>&1
+                JAVA="javac" make -C "$tests_dir" verify 2>&1
+                ;;
+            *)
+                echo "ERROR: Unsupported language '$TARGET_LANG' for native execution"
+                exit 1
+                ;;
+        esac
         ;;
     ssh)
-        # SSH requires a configured host in ssh_hosts.json
+        # SSH transport — requires configured host in ssh_hosts.json
         local_ssh_host=$(get_ssh_host "$TARGET_OS") || {
             echo "ERROR: SSH transport selected but no host configured for $TARGET_OS"
             exit 1
@@ -554,4 +654,7 @@ case "$TRANSPORT" in
         ;;
 esac
 
-exit $?
+echo ""
+echo "============================================="
+echo "Regression runner completed."
+echo "============================================="

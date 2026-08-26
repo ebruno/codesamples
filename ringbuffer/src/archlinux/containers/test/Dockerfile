@@ -8,7 +8,7 @@ WORKDIR /app
 # Install all tools needed for C++ development on Arch Linux
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm \
-        base-devel gcc clang make file binutils patchelf vim strace procps-ng \
+        base-devel gcc clang make file binutils patchelf vim strace procps-ng llvm lld \
         cmake doxygen && \
     pacman -Sc --noconfirm
 

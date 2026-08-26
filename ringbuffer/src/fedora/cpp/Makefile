@@ -29,11 +29,15 @@ else
 endif
 override CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic $(LTO_FLAG) -fvisibility=hidden -ffunction-sections -fdata-sections -I.
 
-# Linker flags are OS-dependent, not compiler-dependent:
+# Linker flags: OS-dependent + compiler-specific for thin LTO
 ifeq ($(shell uname -s),Darwin)
   LDFLAGS = -dead_strip
 else
-  LDFLAGS = -Wl,--gc-sections
+  ifeq ($(strip $(CXX_BASE)),clang++)
+    LDFLAGS = -Wl,--gc-sections -fuse-ld=lld
+  else
+    LDFLAGS = -Wl,--gc-sections
+  endif
 endif
 
 RM = rm -rf

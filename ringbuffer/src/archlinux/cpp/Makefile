@@ -22,6 +22,13 @@ CXX ?= $(firstword $(AVAILABLE_COMPILERS))
 # Normalize compiler name: strip version suffix (g++-13 → g++, clang++-17 → clang++)
 CXX_BASE := $(patsubst g++-%,g++,$(patsubst clang++-%,clang++,$(CXX)))
 
+# Archiver: use llvm-ar for clang++ (thin LTO objects), ar for g++
+ifeq ($(strip $(CXX_BASE)),clang++)
+  AR = llvm-ar
+else
+  AR = ar
+endif
+
 # ============================================================================
 # Per-compiler LTO flags: g++ uses -flto, clang++ uses -flto=thin
 # ============================================================================
@@ -47,13 +54,12 @@ override CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic $(LTO_FLAG) \
 ifeq ($(strip $(CXX_BASE)),g++)
   LDFLAGS = -Wl,--gc-sections
 else ifeq ($(strip $(CXX_BASE)),clang++)
-  LDFLAGS = -Wl,--gc-sections -flto=thin
+  LDFLAGS = -Wl,--gc-sections -flto=thin -fuse-ld=lld
 endif
 
 RM = rm -rf
 
 SRCS = $(wildcard *.cpp)
-OBJS = $(SRCS:%.cpp=%.o)
 
 LIB_NAME = libswtr_ringbuffer
 LIB_DIR = lib
@@ -119,15 +125,16 @@ $(LIB_DIR):
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-%.o: %.cpp
+$(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(VERSIONED_STATIC): $(OBJS)
-	ar rcs $@ $^
-	@echo "Static library: $@"
+$(VERSIONED_STATIC): $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
+	@mkdir -p $(LIB_DIR)
+	$(AR) rcs $@ $^
 
-$(VERSIONED_SHARED): $(OBJS)
+$(VERSIONED_SHARED): $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
+	@mkdir -p $(LIB_DIR)
 	$(CXX) -shared $(LDFLAGS) -Wl,-soname,$(LIB_NAME).so -o $@ $^ -pthread
 	@ln -sf libswtr_ringbuffer-$(VERSION).so $(LIB_DIR)/libswtr_ringbuffer.so
 	@ln -sf libswtr_ringbuffer-$(VERSION).so $(LIB_DIR)/libswtr_ringbuffer.so.1
@@ -137,7 +144,7 @@ test: all
 	@if [ -d tests ]; then $(MAKE) -C tests verify; else echo "No tests directory"; fi
 
 clean:
-	$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
+	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
 	@find . -name '*.o.tmp' -delete 2>/dev/null || true
 
 dist-clean: clean container-clean

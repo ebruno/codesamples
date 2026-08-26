@@ -21,7 +21,12 @@ else
 endif
 override CXXFLAGS = -std=c++20 -fPIC -Wall -Wextra -Wpedantic -O3 $(LTO_FLAG) \
            -fvisibility=hidden -ffunction-sections -fdata-sections -I.
-LDFLAGS = -Wl,--gc-sections
+# Linker flags: compiler-specific for thin LTO
+ifeq ($(strip $(CXX_BASE)),clang++)
+  LDFLAGS = -Wl,--gc-sections -fuse-ld=lld
+else
+  LDFLAGS = -Wl,--gc-sections
+endif
 
 # Versioning
 LIB_NAME = libswtr_ringbuffer

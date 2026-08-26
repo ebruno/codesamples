@@ -7,9 +7,14 @@ OS_NAME = raspios
 PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
 
 # Compiler settings
-CXX = g++
+CXX ?= g++
+CXX_BASE := $(patsubst g++-%,g++,$(patsubst clang++-%,clang++,$(CXX)))
 CXXFLAGS = -std=c++20 -O3 -Wall -Wextra -I..
-LDFLAGS = 
+ifeq ($(strip $(CXX_BASE)),clang++)
+  LDFLAGS = -fuse-ld=lld
+else
+  LDFLAGS =
+endif
 RM = rm -rf
 
 # Directories
@@ -61,39 +66,35 @@ all: static dynamic
 static: $(TEST_STATIC)
 dynamic: $(TEST_DYNAMIC)
 
-# Library build rules (invoked when library is missing)
-$(STATIC_LIB): ../Makefile
-	@echo "Building C++ library..."
-	$(MAKE) -C .. all
-
-$(SHARED_LIB): ../Makefile
-	@echo "Building C++ library..."
-	$(MAKE) -C .. all
+# Build library rule (invoked when library is missing)
+build-lib:
+	@echo "Building C++ library with $(CXX)..."
+	make CXX=$(CXX) -C .. all
 
 # Static linking test binary
-$(TEST_STATIC): $(SRC_DIR)/test001.cpp $(STATIC_LIB)
+$(TEST_STATIC): $(SRC_DIR)/test001.cpp build-lib
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ \
-		$(STATIC_LIB)
+		$(LDFLAGS) $(STATIC_LIB)
 
 # Dynamic linking test binary
-$(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp $(SHARED_LIB)
+$(TEST_DYNAMIC): $(SRC_DIR)/test001.cpp build-lib
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ \
-		-L$(LIB_DIR) -lswtr_ringbuffer \
+		$(LDFLAGS) -L$(LIB_DIR) -lswtr_ringbuffer \
 		-Wl,-rpath,$(abspath $(LIB_DIR))
 
 # Per-compiler test binaries
 define PER_COMPILER_TEST_TARGETS
-test001_staticlib_$(1): $(SRC_DIR)/test001.cpp
+test001_staticlib_$(1): $(SRC_DIR)/test001.cpp build-lib
 	@mkdir -p $(BIN_DIR)
 	$(1) $(CXXFLAGS) $< -o $(BIN_DIR)/test001_staticlib_$(1) \
-		$(STATIC_LIB)
+		$(LDFLAGS) $(STATIC_LIB)
 
-test001_dynamiclib_$(1): $(SRC_DIR)/test001.cpp
+test001_dynamiclib_$(1): $(SRC_DIR)/test001.cpp build-lib
 	@mkdir -p $(BIN_DIR)
 	$(1) $(CXXFLAGS) $< -o $(BIN_DIR)/test001_dynamiclib_$(1) \
-		-L$(LIB_DIR) -lswtr_ringbuffer \
+		$(LDFLAGS) -L$(LIB_DIR) -lswtr_ringbuffer \
 		-Wl,-rpath,$(abspath $(LIB_DIR))
 endef
 

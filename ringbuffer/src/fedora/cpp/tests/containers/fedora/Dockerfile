@@ -11,6 +11,8 @@ RUN dnf install -y --setopt=timeout=300 \
         cmake \
         doxygen \
         clang \
+        llvm \
+        lld \
         procps-ng \
         coreutils \
         findutils \

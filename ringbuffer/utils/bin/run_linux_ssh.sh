@@ -10,9 +10,6 @@
 
 set -euo pipefail
 
-WORKSPACE="$(cd "$(dirname "$0")/../.." && pwd)"
-REGISTRY="${WORKSPACE}/config/toolchains.json"
-
 # ── Parse arguments (handle -N flag) ───────────────────────────────
 BYPASS_OS_CHECK=false
 
@@ -27,6 +24,10 @@ shift $((OPTIND - 1))
 ringbuffer_path="${1:?Usage: $0 [-N] <ringbuffer_path> <os_name> [mode]}"
 os_name="${2:?Usage: $0 [-N] <ringbuffer_path> <os_name> [mode]}"
 mode="${3:-cpp}"
+
+# Use ringbuffer_path argument (set by SSH caller) as WORKSPACE
+WORKSPACE="${ringbuffer_path}"
+REGISTRY="${WORKSPACE}/config/toolchains.json"
 
 # Extract language from mode (e.g., test-cpp → cpp, python-test → python)
 case "$mode" in
@@ -69,7 +70,8 @@ resolve_lang_path() {
     case "$lang" in
         python|java|go|rust)
             if [ -d "${WORKSPACE}/src/${os}/${lang}" ] && \
-               [ ! -L "${WORKSPACE}/src/${os}/${lang}" ]; then
+               [ ! -L "${WORKSPACE}/src/${os}/${lang}" ] && \
+               [ -d "${WORKSPACE}/src/${os}/${lang}/tests" ]; then
                 echo "${WORKSPACE}/src/${os}/${lang}"
             else
                 echo "${WORKSPACE}/src/common/${lang}"
@@ -151,7 +153,7 @@ if [ "$mode" = "cpp" ]; then
         echo "Compiler: $COMPILER"
         echo "============================================="
         make -C "$os_dir" clean 2>&1
-        CXX="$COMPILER" make -C "$os_dir" all 2>&1
+        make -C "$os_dir" CXX="$COMPILER" all 2>&1
     done
 
 # ── C++ tests — uses src/<os>/cpp/tests/ per-OS test directory ───
@@ -189,7 +191,7 @@ elif [ "$mode" = "test-cpp" ]; then
         echo "============================================="
         make -C "$os_dir" clean 2>&1
         make -C "$tests_dir" clean 2>&1
-        CXX="$COMPILER" make -C "$tests_dir" verify 2>&1
+        make -C "$tests_dir" CXX="$COMPILER" verify 2>&1
     done
 
 # ── Python build — uses src/common/python/ source, per-OS Makefile ─
@@ -218,7 +220,7 @@ elif [ "$mode" = "python-test" ]; then
     fi
 
     # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
-    local probe_makefile="${WORKSPACE}/src/${os_name}/${TARGET_LANG}/validate-tools.mk"
+    probe_makefile="${WORKSPACE}/src/${os_name}/${TARGET_LANG}/validate-tools.mk"
     if [ -f "$probe_makefile" ]; then
         make -C "${WORKSPACE}/src/${os_name}/${TARGET_LANG}" -f validate-tools.mk probe-os 2>&1
     else
@@ -253,7 +255,7 @@ elif [ "$mode" = "java-test" ]; then
     fi
 
     # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
-    local probe_makefile="${WORKSPACE}/src/${os_name}/${TARGET_LANG}/validate-tools.mk"
+    probe_makefile="${WORKSPACE}/src/${os_name}/${TARGET_LANG}/validate-tools.mk"
     if [ -f "$probe_makefile" ]; then
         make -C "${WORKSPACE}/src/${os_name}/${TARGET_LANG}" -f validate-tools.mk probe-os 2>&1
     else

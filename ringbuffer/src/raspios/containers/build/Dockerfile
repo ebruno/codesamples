@@ -12,7 +12,7 @@ RUN mkdir -p /usr/share/man/man1
 # Note: Bookworm repos only have JDK 17; JDK 25 is not available
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # C/C++ toolchain
-    build-essential cmake doxygen clang clang-tidy clang-format \
+    build-essential cmake doxygen clang clang-tidy clang-format llvm lld \
     gcc g++ binutils make file patchelf vim strace emacs-nox procps \
     # Java (JDK 17 is latest available on Bookworm)
     openjdk-17-jdk maven \

@@ -5,7 +5,7 @@ FROM ${BASE_IMAGE}
 # Install all tools needed for all supported languages on Fedora
 RUN dnf install -y --setopt=timeout=300 \
     # C/C++ toolchain
-    gcc gcc-c++ binutils make cmake doxygen clang clang-tidy clang-format \
+    gcc gcc-c++ binutils make cmake doxygen clang clang-tidy clang-format llvm lld \
     # Java
     java-25-openjdk maven \
     # Python

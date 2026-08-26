@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4 \
     && apt-get update && apt-get install -y --no-install-recommends \
     # C/C++ toolchain
-    build-essential cmake doxygen clang clang-tidy clang-format \
+    build-essential cmake doxygen clang clang-tidy clang-format llvm lld \
     gcc g++ binutils make file patchelf vim strace emacs-nox procps \
     # Java
     openjdk-25-jdk maven \
