@@ -35,13 +35,10 @@ DISTINCT_COMPILERS := $(foreach COMP,$(ALL_COMPILERS),\
 STATIC_LIB = $(LIB_DIR)/libswtr_ringbuffer.a
 SHARED_LIB = $(LIB_DIR)/libswtr_ringbuffer.dylib
 
-$(STATIC_LIB): ../Makefile
-	@echo "Building C++ library..."
-	$(MAKE) -C .. all
-
-$(SHARED_LIB): ../Makefile
-	@echo "Building C++ library..."
-	$(MAKE) -C .. all
+# Build library rule (invoked when library is missing)
+build_lib:
+	@echo "Building C++ library with $(CXX)..."
+	$(MAKE) -C .. all CXX=$(CXX)
 
 .PHONY: build-cpp
 build-cpp:
@@ -66,7 +63,7 @@ deploy_utils:
 container:
 	@echo "Container not used for macOS native build"
 
-verify: build-cpp deploy_utils all
+verify: build_lib build-cpp deploy_utils all
 	@mkdir -p $(LOG_DIR) $(REPORT_DIR)
 	@# Audit Trail: capture compiler and linker versions
 	@echo "Compiler:" > $(REPORT_DIR)/compiler_version.txt
