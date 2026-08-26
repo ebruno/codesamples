@@ -14,9 +14,6 @@ The Ringbuffer library implements a **three-stage pipelined architecture** (Read
 
 Each stage uses its own independent atomic index counter, so threads operate on slots without contention. The `wait()` method blocks until all data has flowed through the entire pipeline and threads have joined cleanly via `std::jthread` cooperative cancellation.
 
-## Overview
-The Ringbuffer library implements a three-stage pipelined architecture (**Read $\rightarrow$ Transform $\rightarrow$ Write**) to ensure efficient data movement and processing. Each stage runs in its own thread, communicating through a fixed-size array of shared slots with independent atomic index counters.
-
 The core focus of the project is **binary symmetry within OS families**, with minimal differences allowed when crossing OS boundaries:
 - **Same OS Family (e.g., all Linux distros):** Source code is byte-identical across ALL platforms **by construction via symlinks to a single canonical source tree in `src/common/cpp/`**. The build system handles platform-specific flags (linker options, container images), but `.cpp` and `.hpp` files are byte-identical.
 - **Cross OS Family (Linux vs macOS vs FreeBSD):** Differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls (e.g., file sync behavior, threading primitives). The core logic, architecture, and API surface remain identical.
@@ -25,42 +22,28 @@ The core focus of the project is **binary symmetry within OS families**, with mi
 
 **Goal:** A single canonical source tree that compiles and runs correctly on every target platform. The build system, not the source code, is responsible for platform-specific adaptation.
 
-## Primary Goal
-The objective is to provide a prompt-driven, immediate build-and-run functionality where the codebase can be regenerated or updated across multiple platforms using a single set of functional specifications.
 
-The project follows a **develop-then-refactor** strategy with three phases:
-1. **Phase A — Platform Development:** Implement the language on 2–3 representative platforms (typically macOS for native/Apple Silicon, one Linux distro for containerized builds). This validates correctness against real toolchains and OS behaviors.
-2. **Phase B — Common Refactor:** Once Phase A passes all tests, extract the common logic into `src/common/<lang>/`. Platform-specific overrides (build flags, container images) remain per-OS; all shared logic lives in common.
-3. **Phase C — Platform Rollout:** Generate source for remaining platforms from the common spec + per-OS overrides.
+## Implementation Status
 
-**Current Status:** C++ is in Phase B (common implementations exist at `src/common/cpp/` with symlinks from all 8 OS platforms — macOS, Debian, Fedora, Ubuntu, Raspios, Arch Linux, FreeBSD 14). Java and Python are in Phase B (common implementations exist at `src/common/java/` and `src/common/python/`). C, Go, and Rust are pre-Phase A (specs created, implementation pending).
+| Language | Phase | macOS | Fedora | Debian | Ubuntu | Arch Linux | FreeBSD 14 | Raspios |
+|----------|-------|-------|--------|--------|--------|------------|------------|---------|
+| C++      | ✅ B  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Java     | ✅ B  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Python   | ✅ B  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| C        | ⬜ A  | — | — | — | — | — | — | — |
+| Go       | ⬜ A  | — | — | — | — | — | — | — |
+| Rust     | ⬜ A  | — | — | — | — | — | — | — |
 
-**Note:** Unimplemented languages should not be considered a negative — the spec scaffolding is in place and the dispatcher prompt (`add_language.md`) routes correctly.
+**Phases:** A = common spec written, B = implemented + passes 7-test matrix (T001-T007)  
+C, Go, and Rust are next in the pipeline — their common specs are complete and the dispatcher prompt (`add_language.md`) can generate implementations on demand. See [Roadmap](#roadmap).
 
-## Prompt Execution Pattern
-Every workflow follows a consistent pattern:
-1. **Common workflow** provides structure, image/version resolution, and routing decisions
-2. **Platform-specific primary document** (`create_*.md`) is the authoritative execution guide
-3. **Common spec** (`common/cpp/*.md` or `common/<lang>/*.md`) provides technical requirements
-4. **Platform spec** (`<os>/cpp/*.md` or `<os>/<lang>/*.md`) provides platform-specific overrides
+## Roadmap
 
-When a common workflow says "execute `create_*.md` as the PRIMARY document," it means: read it for directives and immediate requirements, follow its steps as the main execution path, use the common workflow for infrastructure (image resolution, routing) only.
-
-## Development Methodology
-
-This project was created entirely from scratch using an LLM (Large Language Model) as the primary development tool. Every aspect of the codebase — from architecture decisions to implementation details, build configuration, test infrastructure, and documentation — was generated through interactive prompt-driven development.
-
-**How it works:**
-- **Interactive Prompt Generation**: All workflow prompts were created through iterative dialogue with the LLM, refining specifications until they precisely captured the desired behavior.
-- **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
-- **Binary Symmetry**: Source code is byte-identical across ALL platforms **by construction via symlinks to `src/common/cpp/`** (C++) or shared common directories (`src/common/java/`, `src/common/python/`). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
-- **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
-- **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations. The **post-commit hook** (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs and suggests changelog entries — the hook is scoped to `ringbuffer/prompts/` when in a multi-project repo (controlled by `PROJECT_PREFIX` variable in the script).
-
-**Why this approach:**
-- **Reproducibility**: Any platform can be regenerated from the same prompts, ensuring consistency.
-- **Maintainability**: Specifications are explicit and version-controlled in the `prompts/` directory.
-- **Speed**: Development cycles are dramatically shorter than traditional manual coding, with immediate build-and-run feedback.
+- [x] **Phase 1** — Common functional + build specs for all 6 languages
+- [x] **Phase 2** — Dispatcher prompt (`add_language.md`) routes any language to any OS
+- [x] **Phases A–B** — C++, Java, Python implemented and tested across 7 OSes
+- [ ] **Phase 3** — Implement C, Go, Rust from existing specs (dispatcher-ready)
+- [ ] **Phase 4** — Cross-language verification, unified README, PDF docs
 
 ## Key Specifications
 - **Multi-OS Support**: Seamless deployment across macOS, Linux distributions (Fedora, Debian, Ubuntu, Raspberry Pi OS), Arch Linux, and FreeBSD 14.
@@ -110,181 +93,6 @@ This project was created entirely from scratch using an LLM (Large Language Mode
 - **Data Integrity**: Integrated checksumming (MD5, SHA256, SHA512) for every buffer slot.
 - **Diagnostics**: Non-Virtual Public Interface (NVI) logging system with per-stage (read/transform/write) independently configurable verbosity levels.
 - **LLM Knowledge Package**: Versioned, shareable context packages that teach LLMs (Qwen family and compatible) how to use the ringbuffer library. Distributed via Ollama Modelfile (system prompt injection) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) below.
-
-## LLM Knowledge Package
-
-The Ringbuffer project ships versioned knowledge packages that teach LLMs how to use the library. Each package covers all implemented languages (C++, Java, Python) and is distributed in two forms for different user needs.
-
-### What It Contains
-
-```
-knowledge/
-├── manifest.json                   # Version, SHA-256 checksums of every file
-├── Modelfile                       # Ollama model definition (wraps Qwen3.6-35B)
-├── system-prompt.md                # Lean core knowledge (~2KB, inline in Modelfile)
-├── api-reference/                  # Full API docs by language (external, referenced by system prompt)
-│   ├── cpp.md                      # C++ headers, types, full signatures
-│   ├── java.md                     # Java API, class hierarchy, usage patterns
-│   └── python.md                   # Python API, ctypes FFI, pure-Python impl
-├── examples/                       # Copy-pasteable code snippets by language
-│   ├── basic.cpp / .java / .py     # Construct, transform, run pipeline
-│   └── advanced.cpp / .java / .py  # Per-stage logging, checksumming, error handlers
-├── patterns/                       # Common usage patterns (all languages)
-│   ├── logging-guide.md            # Per-stage verbosity configuration
-│   └── checksumming.md             # MD5/SHA256/SHA512 per-slot
-├── instruction-dataset/            # QLoRA training data (for 14B fine-tuning)
-│   ├── train.jsonl                 # Instruction/response pairs
-│   └── eval.jsonl                  # Held-out validation set
-├── update.sh / update.zsh          # Regenerates docs + dataset from source headers
-└── build_model.sh / .zsh           # QLoRA fine-tuning script for M4 Mac mini
-```
-
-### Distribution Paths
-
-| Path | What it is | User command | Hardware needed |
-|---|---|---|---|
-| **System Prompt** (Modelfile) | Knowledge injected as text before every conversation | `ollama create swtr-ringbuffer -f Modelfile` | Any Qwen-compatible setup |
-| **Fine-Tuned** (14B GGUF) | Knowledge baked into model weights via QLoRA | `ollama create swtr-ringbuffer --from model.gguf` | ~10GB RAM (M4 Mac mini or equivalent) |
-
-**System Prompt approach:** The Modelfile wraps a base Qwen model with a lean system prompt (~2KB) containing architecture overview, key types, and quick examples. External API reference files are referenced for deep dives. Instant to use — no training required.
-
-**Fine-Tuned approach:** A Qwen2.5-14B-Instruct model is fine-tuned (QLoRA) on an instruction dataset generated from the knowledge source. The resulting `.gguf` file has ringbuffer knowledge baked into its weights — zero context window cost at inference time. Built on the project's M4 Mac mini (64GB unified memory) and exported via llama.cpp.
-
-### Versioning
-
-Knowledge packages follow the same versioning scheme as the library itself, derived from `src/*/cpp/version.mk`:
-
-| Component | Source | Example |
-|---|---|---|
-| MAJOR.MINOR.SUBVERSION | Auto-detected from `version.mk` | `1.0.0` |
-| BUILD_ID | Manual input to `update.sh` (no auto-increment) | `build-1`, `build-2` |
-| Full version string | `knowledge/manifest.json` | `1.0.0-build-1` |
-| GGUF filename | Generated from version string | `swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf` |
-
-The `BUILD_ID` is a manual parameter — if not supplied to `update.sh`, the current value is preserved. This gives full control over release numbering without auto-increment surprises.
-
-### Update Process
-
-When ringbuffer source code changes:
-
-1. Run `./knowledge/update.sh <BUILD_ID>` — regenerates API docs, examples, and instruction dataset from actual `.hpp`/`.py` headers for all three languages (C++, Java, Python)
-2. The script reads `version.mk` for MAJOR/MINOR/SUBVERSION, accepts BUILD_ID as argument (or preserves current value if omitted)
-3. Updates checksums in `manifest.json` using the existing `.gen_state.json` SHA-256 pattern
-4. Run `./knowledge/build_model.sh` on the M4 Mac mini — fine-tunes 14B, exports GGUF (~1-3 hours)
-5. Release both artifacts (`Modelfile` + `.gguf`) via GitHub Releases
-
-### Installation (End Users)
-
-**Path A — System Prompt (any Qwen model, instant):**
-```bash
-curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/Modelfile -o Modelfile
-ollama create swtr-ringbuffer -f Modelfile
-ollama run swtr-ringbuffer "How do I configure per-stage logging?"
-```
-
-**Path B — Fine-Tuned 14B (zero-context inference):**
-```bash
-curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf -o model.gguf
-ollama create swtr-ringbuffer --from model.gguf
-ollama run swtr-ringbuffer "How do I configure per-stage logging?"
-```
-
-### Development (Internal)
-
-All knowledge package development happens in GitLab on private branches. The auto-replication pipeline syncs `main` to a public GitHub mirror, where releases are published. The knowledge source (`knowledge/`) is not visible on the public repo — only the built artifacts (Modelfile, GGUF) and installation instructions (README) are public.
-
-## LinkedIn Post Generator
-
-A lightweight, ad-hoc tool for generating personal LinkedIn posts about projects in this workspace. Posts follow engagement best practices: hook in the first 140 characters, short paragraphs for scannability, first-person tone, a call-to-action question at the end, and 3–5 relevant hashtags.
-
-**Location:** `prompts/common/linkedin/generate_post.py`
-
-### Usage
-
-```bash
-# Generate from a project metadata file:
-python3 prompts/common/linkedin/generate_post.py --project prompts/common/linkedin/projects/ringbuffer.json
-# (Update the `link` field in the JSON to point to your repo, e.g. https://github.com/ebruno/codesamples)
-
-# Generate inline with CLI arguments:
-python3 prompts/common/linkedin/generate_post.py \
-    --name "My Project" \
-    --description "What it does in one sentence" \
-    --features "Feature 1, Feature 2, Feature 3" \
-    --tech "C++20, Python" \
-    --link "https://github.com/youruser/repo"
-
-# Dry-run (show character count and validation warnings only):
-python3 prompts/common/linkedin/generate_post.py --project <file> --dry-run
-
-# Write to a file:
-python3 prompts/common/linkedin/generate_post.py --project <file> -o post.txt
-```
-
-### Project Metadata Files
-
-Store reusable project metadata as JSON in `prompts/common/linkedin/projects/`. Each file defines:
-
-| Field | Description |
-|-------|-------------|
-| `name` | Project name |
-| `description` | One-sentence summary of what it does |
-| `features` | Array of key features |
-| `tech` | Tech stack (e.g., "C++20, Java, Python") |
-| `link` | Repository URL |
-| `lesson` | What building it taught you |
-| `feedback_area` | Specific area to ask for feedback on |
-
-### Post Guidelines Enforced
-
-- **Character count:** 1,000–1,500 optimal (max 3,000)
-- **Hook:** Compelling statement in the first 140 characters (before "See more")
-- **Formatting:** Single-sentence paragraphs, bullet-point features
-- **Tone:** First-person, authentic and relatable
-- **Call to action:** Ends with a question to invite comments
-- **Hashtags:** 3–5 relevant tags auto-generated from the tech stack
-
-## Quick Start: End-to-End Workflow (macOS Example)
-
-The following sequence shows the complete prompt-driven workflow for setting up, building, verifying, and testing on macOS. Each step depends on the previous one — execute them in order.
-
-### Step 1: Generate Source Code
-```
-"Use prompts/macos/cpp/create_functional.md to perform a full generation of the ringbuffer for macos"
-```
-Produces: `ringbuffer.hpp`, `status.hpp`, `swtr_ringbuffer_impl.hpp`, and all `.cpp` implementation files in `src/macos/cpp/`.
-
-### Step 2: Create Build Environment
-```
-"Use prompts/macos/cpp/create_build.md to create the build environment for macos"
-```
-Produces: `Makefile`, `version.mk`, and built library artifacts (`.a` static, `.dylib` shared) in `src/macos/cpp/lib/`. Libraries are versioned as `libswtr_ringbuffer-<MAJOR>.<MINOR>.<SUBVERSION>-<BUILD_ID>` with unversioned symlinks for convenience.
-
-### Step 3: Verify the Build
-```
-"Use prompts/common/verify_build.md to run build_verify for macos"
-```
-Runs: `<os>/<lang>/Makefile all` — builds library artifacts and creates symlinks (no tests). Confirms: library compiles, produces correct Mach-O binaries, symbol visibility is correct, and binary sizes are within expected ranges.
-
-### Step 4: Set Up Test Infrastructure
-```
-"Use prompts/macos/cpp/create_regression.md to create the test environment for macos"
-```
-Produces: `tests/` directory with Makefile, test data (T001–T007), utility scripts, and builds `test001_staticlib` / `test001_dynamiclib`.
-
-### Step 5: Execute Regression Tests
-```
-"Use prompts/common/run_regression.md to run regression_test on macos"
-```
-Runs: `tests/Makefile verify` — executes the full T001–T007 test matrix, generates `regression_report.md` and `regression_report_junit.xml`.
-
-**Linux platforms:** Replace native commands with container-wrapped equivalents. For example, `make` becomes `container run --rm -v $(pwd):/app ringbuffer_ubuntu_test make`. The container runtime (`container` on macOS hosts, `podman` on Linux hosts) is selected automatically by the Makefile.
-
-### Incremental Updates
-After the initial setup, use update prompts to synchronize with changed specifications:
-```
-"Use prompts/macos/cpp/update_functional.md to synchronize the macos implementation with updated common specifications"
-```
 
 ## Library API Example
 
@@ -394,37 +202,181 @@ The following animation demonstrates the three-stage pipeline in action, showing
 
 ![Pipeline Animation](animated_graphics/pipeline_animation.gif)
 
-## Initial Development Environment
-- **Operating System**: macOS 26.5.2 (Darwin 25.5.0)
-- **Hardware**: Apple M4 Pro (arm64), 14 cores, 64 GB RAM
-- **AI Tools**:
-    - **Agent Harness**: LM Studio Bionic (CLI commit: 71bd99c)
-    - **Model Name**: qwen3.6-35b-a3b-mlx
-    - **Model Specs**: 37.75 GB, 162816 context window, parallelism factor 4, Decoder-only Transformer architecture, local execution.
+## Quick Start: End-to-End Workflow (macOS Example)
 
-> **Note:** This section documents the environment where the project was created. Development may occur on different hardware/OS configurations — see [Platform-Specific Notes](#platform-specific-notes) for build differences across platforms.
+The following sequence shows the complete prompt-driven workflow for setting up, building, verifying, and testing on macOS. Each step depends on the previous one — execute them in order.
 
-## Required Tools
+### Step 1: Generate Source Code
+```
+"Use prompts/macos/cpp/create_functional.md to perform a full generation of the ringbuffer for macos"
+```
+Produces: `ringbuffer.hpp`, `status.hpp`, `swtr_ringbuffer_impl.hpp`, and all `.cpp` implementation files in `src/macos/cpp/`.
 
-The following tools are checked at session start by `utils/bin/check_tools.zsh` (macOS) and `utils/bin/check_tools.sh` (Linux). Core development requires the tools in the table below.
+### Step 2: Create Build Environment
+```
+"Use prompts/macos/cpp/create_build.md to create the build environment for macos"
+```
+Produces: `Makefile`, `version.mk`, and built library artifacts (`.a` static, `.dylib` shared) in `src/macos/cpp/lib/`. Libraries are versioned as `libswtr_ringbuffer-<MAJOR>.<MINOR>.<SUBVERSION>-<BUILD_ID>` with unversioned symlinks for convenience.
 
-| Tool | Type | Purpose |
-|------|------|---------|
-| `bmake` | Required | BSD Make — used for testing on non-FreeBSD platforms |
-| `clang` | Required | C compiler (macOS default) |
-| `clang++` | Required | C++ compiler (macOS default) |
-| `cmake` | Required | Build system — required for future language implementations |
-| `ffmpeg` | Required | Media processing — creates animated GIFs used in README |
-| `ffprobe` | Required | Media inspection — validates media assets used in README |
-| `g++` | Required | C++ compiler (Linux fallback, cross-platform) |
-| `gcc` | Required | C/C++ compiler (Linux fallback, cross-platform) |
-| `gh` | Optional | GitHub CLI — repository management workflows |
-| `glab` | Optional | GitLab CLI — repository management workflows |
-| `jq` | Required | JSON parsing — reads `config/toolchains.json` at runtime |
-| `make` | Required | GNU Make — build system for all languages |
-| `mmdc` | Required | Mermaid diagram renderer — validates diagrams before README commits |
-| `pandoc` | Required | Document conversion — generates README.pdf and other file types |
-| `tcsh` | Required | FreeBSD default shell — used for testing on non-FreeBSD platforms |
+### Step 3: Verify the Build
+```
+"Use prompts/common/verify_build.md to run build_verify for macos"
+```
+Runs: `<os>/<lang>/Makefile all` — builds library artifacts and creates symlinks (no tests). Confirms: library compiles, produces correct Mach-O binaries, symbol visibility is correct, and binary sizes are within expected ranges.
+
+### Step 4: Set Up Test Infrastructure
+```
+"Use prompts/macos/cpp/create_regression.md to create the test environment for macos"
+```
+Produces: `tests/` directory with Makefile, test data (T001–T007), utility scripts, and builds `test001_staticlib` / `test001_dynamiclib`.
+
+### Step 5: Execute Regression Tests
+```
+"Use prompts/common/run_regression.md to run regression_test on macos"
+```
+Runs: `tests/Makefile verify` — executes the full T001–T007 test matrix, generates `regression_report.md` and `regression_report_junit.xml`.
+
+**Linux platforms:** Replace native commands with container-wrapped equivalents. For example, `make` becomes `container run --rm -v $(pwd):/app ringbuffer_ubuntu_test make`. The container runtime (`container` on macOS hosts, `podman` on Linux hosts) is selected automatically by the Makefile.
+
+### Incremental Updates
+After the initial setup, use update prompts to synchronize with changed specifications:
+```
+"Use prompts/macos/cpp/update_functional.md to synchronize the macos implementation with updated common specifications"
+```
+
+## Supported Platforms
+
+| OS | Language | Version | Verified Compilers |
+| :--- | :--- | :--- | :--- |
+| **macOS** | C++ | v1.0.0 | clang++ 21.0.0, g++ 16.1.0 |
+| | Java | v1.0.0 | javac 26.x (JDK 26) |
+| | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
+| **Debian** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
+| **Fedora** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
+| **Ubuntu** | C++ | v1.0.0 | g++ 13.x (clang++ unsupported — see Known Issues) |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
+| **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
+| **ArchLinux** | C++ | v1.0.0[^2] | g++ 16.2.1, clang++ 22.1.8 |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
+| **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x (Pure Python only — Concurrent skipped, RPATH limitation) |
+| | Go | placeholder | scaffolding complete, implementation pending |
+| | Rust | placeholder | scaffolding complete, implementation pending |
+| **FreeBSD 15** | C++ | TBS | — |
+
+[^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
+[^2]: Arch Linux is a rolling-release distribution. Both g++ and clang++ are fully supported (unlike Ubuntu 24.04 where clang++ is unsupported). See [prompts/common/cpp/session_hints.md](prompts/common/cpp/session_hints.md) Section 10.
+
+`*TBS: To Be Supplied | WIP: Work In Progress`
+
+> **Note:** Compiler versions shown are those verified during implementation. Actual available versions may vary by OS release. See [prompts/common/session_hints.md](prompts/common/session_hints.md) for toolchain detection and fallback logic.
+
+### Known Issues & Toolchain Limitations
+
+| Platform | Issue | Impact | Workaround |
+|----------|-------|--------|------------|
+| **Ubuntu 24.04** | Clang 18 looks for C++ headers in `/usr/include/c++/14`, but Ubuntu ships only `g++-13` (headers in `/usr/include/c++/13`). The GCC 14 base package (`gcc-14-base`) does not include C++ headers. | `clang++` fails with `'atomic' file not found` and similar errors when compiling C++20 code. | **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. The Dockerfiles include clang packages for reference but only g++ is used in practice. |
+| **FreeBSD 14** | `ld-elf.so.1` does NOT support `$ORIGIN` in RUNPATH — the dynamic linker strips it to empty at runtime. | **Dynamic library testing is not possible on FreeBSD 14.** The test binary cannot find `libswtr_ringbuffer.so` at runtime. | **Static library only.** Use the `make verify` target which builds and runs tests against the static library (`libswtr_ringbuffer.a`). All 7 regression tests pass via static library. See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for details. |
+
+## Known Issues
+
+- **LM Studio shell ENOENT after session compaction:** After a long session hits its first compaction, `shell_command` calls fail with `spawn ... ENOENT`. This is a bug in LM Studio Bionic — the scratchpad directory isn't materialized until a sandboxed Python or file-delivery call creates it. **Workaround:** run a trivial sandboxed Python call first, then retry the shell command. See `.bionic` Common Pitfalls #1 for details. **Remove this note once LM Studio fixes the bug.**
+
+## Where We Are At
+
+### Current Status (as of 2026-08-25)
+
+**Implementation:**
+
+Implementation status is tracked in the [Implementation Status](#implementation-status) table above.
+
+**Verification & Quality Gates:**
+- **Automated binary symmetry check** — `verify_binary_symmetry.sh` compares all 21 source files across Linux platforms; integrated into `verify_build.md` as a mandatory post-build step (step 0.5)
+- **Automated prompt linting** — `lint_prompts.sh` validates directory structure, required files per platform/language, excluded platform cleanliness, primary document naming, and common workflow completeness; integrated into `verify_build.md` as step 0.6
+- **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (FreeBSD 15 only) contain only zero-length placeholder files
+- **Multi-language verification** — `verify_build.md` dispatches to language-specific checks: Java (`mvn compile`, `mvn package`, JAR artifact, classload test), Python (syntax check, import verification, class instantiation), C/C++ (binary format, symbol visibility)
+- **Java regression testing** — Full T001–T007 test matrix executed across all 4 OSes (macOS native + 3 Linux containers); 18 assertions, 0 failures; Surefire-compatible test harness with `testAll()` method
+- **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
+
+**Development Methodology:**
+- Prompt-driven development with hundreds of prompt files across 8 OSes × 6 languages (common specs)
+- Session isolation by design — each prompt file is self-contained for LLM-agent reliability
+- Incremental regeneration via `.gen_state.json` delta detection (3-phase sync: Functional → Build → Regression)
+- Two verification scripts integrated into the build workflow as mandatory gates
+- Post-commit hook (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) for changelog entry suggestions
+
+### What Works Today
+
+| Capability | Status | Details |
+|------------|--------|---------|
+| C++ library (macOS) | ✅ Complete | Universal binaries (arm64 + x86_64), static + shared libs |
+| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios/archlinux — enforced by symlinks to `src/common/cpp/` |
+| C++ library (FreeBSD 14) | ✅ Complete | Static library only (RPATH limitation), all 7 tests pass |
+| Java library (all OS) | ✅ Complete | Maven build, JAR artifact, classload test verified |
+| Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
+| Build system | ✅ Complete | Unified `all` target pattern: `<os>/<lang>/Makefile all` (build + symlinks, no tests) |
+| Test infrastructure | ✅ Complete | Unified `verify` target pattern: `tests/Makefile verify` (T001–T007, reports) |
+| Build/test separation | ✅ Enforced | `verify_build` uses `<os>/<lang>/Makefile all`; `run_regression` uses `tests/Makefile verify` |
+| Binary symmetry | ✅ Verified | All compared source files byte-identical across macOS and all Linux platforms — enforced by symlinks to single canonical tree (`src/common/cpp/`)
+| Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
+| State tracking | ✅ Operational | `.gen_state.json` on all 8 active platforms |
+| Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
+| Java regression | ✅ Passed | 18 assertions, 0 failures across 7 OSes (see [Implementation Status](#implementation-status)) |
+| Go/Rust scaffolding | ✅ Complete | Common specs written; next in pipeline (see [Roadmap](#roadmap)) |
+| Changelog suggestions | ✅ Operational | Post-commit hook analyzes prompt diffs and suggests entries |
+
+## Where We're Going
+
+### Near-Term (Next Iterations)
+
+- **Additional languages** — Go and Rust scaffolding is complete across all OSes (macos, fedora, debian, ubuntu, archlinux, raspios). C scaffolding is in place with common specs; per-OS overrides are placeholders (unlike C++ which has full platform-specific specs). The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (placeholder prompts, `.required_directory` markers) is already present.
+- **Additional patterns** — The test data pattern system supports adding new patterns beyond zigzag (e.g., sequential, random). Each new pattern requires a single spec file in `prompts/common/testing/patterns/` and running `create_scripts.md`.
+- **Enhanced CI/CD** — The automated verification scripts (`verify_binary_symmetry.sh`, `lint_prompts.sh`) are ready for CI integration. They can be added as pre-commit hooks or GitHub Actions to enforce quality gates before any code is committed.
+- **LLM Knowledge Package** — Versioned knowledge packages for C++, Java, and Python are in development. Distributed via Ollama Modelfile (system prompt) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) for details.
+
+### Medium-Term (Roadmap)
+
+- **FreeBSD 15 implementation** — Currently excluded with zero-length placeholder files. FreeBSD 14 C++ is implemented and verified (static library only, all 7 tests pass). Implementation requires writing the platform/language spec files and generating source code.
+- **Arch Linux C++ source generation** — Prompts are implemented (`prompts/archlinux/cpp/`); actual source code generation requires executing `create_functional.md`, `create_build.md`, and `create_regression.md` on a Linux host.
+- **More comprehensive test coverage** — Additional test scenarios for edge cases (concurrent access patterns, memory pressure, signal handling).
+- **Documentation expansion** — API reference generation from headers, performance benchmarking documentation, container deployment guides.
+
+### Long-Term (Vision)
+
+- **Full multi-language library** — The architecture is designed so that each language implementation shares the same functional specification. When all 6 languages are implemented, any platform can be built in any language from the same spec.
+- **Cross-platform verification suite** — Automated comparison of behavior across all language/platform combinations, not just source-level binary symmetry.
+- **Plugin ecosystem** — The transform function abstraction (`std::function<void(std::vector<uint8_t>&, size_t&)>`) is designed to support a plugin model where users can register custom transforms without modifying the library.
+
+## Primary Goal
+The objective is to provide a prompt-driven, immediate build-and-run functionality where the codebase can be regenerated or updated across multiple platforms using a single set of functional specifications.
+
+The project follows a **develop-then-refactor** strategy with three phases:
+1. **Phase A — Platform Development:** Implement the language on 2–3 representative platforms (typically macOS for native/Apple Silicon, one Linux distro for containerized builds). This validates correctness against real toolchains and OS behaviors.
+2. **Phase B — Common Refactor:** Once Phase A passes all tests, extract the common logic into `src/common/<lang>/`. Platform-specific overrides (build flags, container images) remain per-OS; all shared logic lives in common.
+3. **Phase C — Platform Rollout:** Generate source for remaining platforms from the common spec + per-OS overrides.
+
+**Current Status:** C++ is in Phase B (common implementations exist at `src/common/cpp/` with symlinks from all 8 OS platforms — macOS, Debian, Fedora, Ubuntu, Raspios, Arch Linux, FreeBSD 14). Java and Python are in Phase B (common implementations exist at `src/common/java/` and `src/common/python/`). C, Go, and Rust are pre-Phase A (specs created, implementation pending).
+
+**Note:** Unimplemented languages should not be considered a negative — the spec scaffolding is in place and the dispatcher prompt (`add_language.md`) routes correctly.
 
 ## Project Structure
 The project uses a **Deterministic File Mapping** strategy. Logic groups are mapped to specific filenames (e.g., `ReadOps.cpp`, `Threading.cpp`) with a strict constraint of **maximum 3 functions per file** to minimize git collisions and maximize modularity.
@@ -570,165 +522,194 @@ src/macos/cpp/lib/
 
 These are build artifacts (gitignored) and serve a different purpose: allowing consumers to link against `libswtr_ringbuffer.a` without knowing the exact version string. They are created by each OS's `Makefile all` target and regenerated on every build.
 
-## Project Policies
+## Development Methodology
 
-> **Portable Shell Scripts (Core Feature):** This project's most impactful rule — forbidding `awk`, `sed`, `grep` and other external tools in favor of bash/zsh builtins — eliminates an entire class of cross-platform bugs. We only use the default shell for each platform (**zsh on macOS**, **bash on Linux**, **tcsh on FreeBSD**). See [LLM Challenges — Portable Shell Scripts](#portable-shell-scripts-core-feature) for the full story on why this rule exists, how it works, and what problems it solved.
+This project was created entirely from scratch using an LLM (Large Language Model) as the primary development tool. Every aspect of the codebase — from architecture decisions to implementation details, build configuration, test infrastructure, and documentation — was generated through interactive prompt-driven development.
 
-### Shell Script Portability
+**How it works:**
+- **Interactive Prompt Generation**: All workflow prompts were created through iterative dialogue with the LLM, refining specifications until they precisely captured the desired behavior.
+- **Prompt-Driven Development**: The project follows a strict prompt-driven workflow where each phase (functional implementation, build setup, test infrastructure) is governed by well-defined prompt files in `prompts/`.
+- **Binary Symmetry**: Source code is byte-identical across ALL platforms **by construction via symlinks to `src/common/cpp/`** (C++) or shared common directories (`src/common/java/`, `src/common/python/`). The goal is a single canonical source tree that compiles and runs correctly on every target platform. When running on the same OS family (e.g., all Linux distros), source code is naturally identical since toolchain changes are applied uniformly. When using pure C++, pure Java, or pure Python across different Unix-family OSes (Linux vs macOS vs FreeBSD), differences should be minimal — limited only to `#ifdef` guards or macros that wrap OS-specific syscalls. The core logic, architecture, and API surface remain identical across all platforms.
+- **Incremental Refinement**: The codebase evolved through multiple iterations — each prompt refinement produced targeted diffs rather than full rewrites, preserving manual overrides and reducing churn.
+- **Prompt Versioning**: Prompt files are tracked via `.gen_state.json` SHA-256 hashes for deterministic delta detection. A changelog mechanism (`prompts/common/CHANGELOG.md`) is available to document prompt changes between generations. The **post-commit hook** (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs and suggests changelog entries — the hook is scoped to `ringbuffer/prompts/` when in a multi-project repo (controlled by `PROJECT_PREFIX` variable in the script).
 
-All shell scripts in this project follow strict portability rules to ensure they work identically across macOS (BSD), Linux (GNU), and FreeBSD:
+**Why this approach:**
+- **Reproducibility**: Any platform can be regenerated from the same prompts, ensuring consistency.
+- **Maintainability**: Specifications are explicit and version-controlled in the `prompts/` directory.
+- **Speed**: Development cycles are dramatically shorter than traditional manual coding, with immediate build-and-run feedback.
 
-**Supported shells:**
-- **Bash (`bash`)** — primary target for all scripts
-- **Zsh (`zsh`)** — acceptable alternative (macOS default)
-- **Tcsh (`tcsh`)** — used only for FreeBSD 14 remote builds (FreeBSD default shell)
+## LLM Challenges
 
-**Forbidden in bash/zsh scripts:**
-The following external tools are **forbidden** because their behavior differs between GNU (Linux) and BSD (macOS/FreeBSD) implementations:
-- `awk` — behavior varies between `gawk`, `mawk`, BSD `awk`
-- `sed` — syntax differences between GNU `sed` and BSD `sed` (e.g., `-i` flag, extended regex)
-- `grep` — feature flags (`-P`, `-E`) and behavior differ between GNU grep and BSD grep
-- `cut`, `tr`, `sort`, `uniq` — minor behavioral differences across implementations
-- `find`, `xargs` — flag syntax and behavior differ between GNU and BSD implementations
-- **`which`** — external binary with inconsistent behavior; use `command -v` instead
-- Any other utility not provided by the shell itself whose behavior is not guaranteed to be identical across platforms
+This project was built entirely through prompt-driven LLM development. The most persistent and costly issues came from platform-specific shell and build system quirks that are easy for an LLM to get wrong because they contradict the patterns it has seen thousands of times in training data.
 
-**What is permitted:**
-- **Shell builtins**: `echo`, `printf`, `test`/`[`, `[[`, `read`, `export`, `source`, `local`, `declare`, arrays, parameter expansion (`${var//pattern/replacement}`, `${#array[@]}`, `${file%.txt}`), arithmetic expansion `$((...))`, globbing
-- **Standard POSIX utilities with guaranteed identical behavior**: `date` (timestamps), `cat`, `mkdir -p`, `rm -rf`, `cp`, `mv`, `chmod`
-- **`command -v`** — use this instead of `which` to check if a command exists. It is a shell builtin (not an external binary), works identically in bash, zsh, and sh, and is faster (no process fork).
+### Portable Shell Scripts (Core Feature)
 
-**tcsh exception:**
-In tcsh scripts, `which` is a **builtin** (not the external `/usr/bin/which` binary), so it is permitted and preferred for command existence checks:
-```csh
-# tcsh — which is a builtin, perfectly portable
-csh:which gcc && echo "gcc found"
+**The Problem:** Across every platform we target — macOS, Linux distros, FreeBSD — the same family of utilities (`grep`, `sed`, `awk`, `find`) behave differently. An LLM will confidently generate code that works on its training data distribution (Linux/GNU) but fails silently or catastrophically elsewhere. This isn't a niche issue — it affects every script in the project, from Makefiles to test harnesses to deployment automation.
 
-# bash/zsh — use command -v instead (never which)
-bash:command -v gcc && echo "gcc found"
-```
+**The Rule (enforced in `.bionic`):** Shell scripts must use only bash/zsh builtins and universally available utilities. Forbidden external tools: `awk`, `sed`, `grep`, `cut`, `tr`, `sort`, `uniq`, `find`, `xargs`.
 
-**Shebang line rule:**
-All shell scripts MUST use `env` for portability:
-```bash
-#!/usr/bin/env bash    # ✅ Correct — finds bash in PATH, works on all platforms
-#!/bin/bash            # ❌ Hardcoded — may not exist on all platforms (e.g., Homebrew bash)
-```
+**Default shells per platform:** We only use the default shell for each target platform — **zsh on macOS**, **bash on Linux**, and **tcsh on FreeBSD**. This is intentional: each platform's default shell has the best compatibility with that OS's toolchain, package manager, and system utilities. Scripts never assume a non-default shell is available.
 
-**Makefile recipe exception:**
-Makefile recipes execute under `/bin/sh -c`, which is a restricted POSIX shell environment. Bash/zsh builtins like arrays, `<<<` (here-strings), and `[[ ]]` are **not available**. Makefile recipes may use external tools (`grep`, `sed`, `awk`, etc.) as needed, since the shell is already POSIX sh and cannot support bash/zsh builtins anyway.
+**How it works in practice:**
+- **`grep` → `case` pattern matching or `[[ "$var" == *pattern* ]]`**
+- **`sed 's/old/new/'` → `${var//old/new}` parameter expansion**
+- **`awk '{print $1}'` → `read -ra fields <<< "$data"`**
+- **`wc -l` → `${#array[@]}` or bash arithmetic**
 
-### SSH Authentication Policy
+**Why it matters:** This single rule eliminates an entire class of cross-platform bugs. Instead of maintaining separate script variants for macOS vs Linux, one portable script works everywhere. It also makes LLM-generated code more reliable — the model doesn't need to know which platform it's targeting because the forbidden tools are never used.
 
-**Golden Rule — Key-Based Authentication Only:**
-SSH remote execution requires key-based authentication only. **Password authentication is not supported and prohibited.** All remote hosts must have the user's public key installed in `~/.ssh/authorized_keys`. If password authentication is required, the workflow cannot proceed.
+**Exception:** Makefile recipes run under `/bin/sh`, which lacks bash builtins like arrays and `[[ ]]`. In that context, external tools are permitted (but bash-specific features remain forbidden).
 
-**Rationale:**
-- Automated workflows (CI pipelines, agent harnesses) cannot interactively enter passwords
-- Password-based SSH is a security risk — keys are cryptographically stronger and can be revoked without changing passwords
-- Key-based authentication enables passwordless automation, which is essential for remote build/test workflows
+### BSD Makefiles vs GNU Make
 
-**Setup:**
-```bash
-# Generate a key pair (if you don't have one)
-ssh-keygen -t ed25519 -C "ringbuffer-workspace"
+**The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
 
-# Install public key on remote host
-cat ~/.ssh/id_ed25519.pub | ssh <user>@<host> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+| Feature | GNU Make (Linux) | BSD Make (macOS, FreeBSD) |
+|---------|-----------------|---------------------------|
+| Variable reference | `$(VAR)` or `${VAR}` | `${VAR}` only |
+| Shell command | `$(shell echo hello)` | Not supported — use `${.OBJDIR}` or external tools |
+| Conditional syntax | `ifeq`, `ifdef` | Not supported — use `.if`, `.elif`, `.else` |
+| Built-in defaults | `make` runs `/bin/sh -c` recipes | `make` may use different built-in rules |
+| Tab requirement | Required | Required (same) |
 
-# Verify passwordless login works
-ssh <user>@<host> "echo 'SSH key authentication working'"
-```
+**How we solved it:**
+- **Installed `bmake` on macOS host:** We installed BSD make (`pkg install bmake`) directly on the development Mac so we can write, test, and debug Makefiles natively without needing a container or remote host. This eliminated the guesswork — we can run `make -n` and see real errors instead of hoping the LLM got it right.
+- **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
+- **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
+- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
 
-**Verification:**
-The workflow will fail immediately if SSH requires a password. If you encounter an authentication prompt, the key is not properly installed on the remote host.
+**Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. Installing `bmake` locally was the turning point — it let us iterate on Makefiles interactively instead of through trial-and-error LLM prompts.
 
-### Git Discipline
+### macOS Toolchain Quirks: sed, awk, zsh
 
-- **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
-- **NEVER commit reports, logs, or build artifacts.** These are regenerated on every run. The `.gitignore` covers them.
-- If the user asks you to "commit" or "stage," decline and remind them they handle all commits.
-- `.gen_state.json` is also excluded from commits (tracked in `.gitignore`).
+**The Problem:** macOS ships with BSD-derived versions of common utilities and uses `zsh` as the default shell (since Catalina). Each has subtle differences from their GNU/Linux counterparts:
 
-### Build vs Test Workflow Pattern (All Languages)
+| Tool | macOS (BSD) | Linux (GNU) | Gotcha |
+|------|-------------|-------------|--------|
+| `sed` | BSD sed | GNU sed | `-i` requires backup suffix: `sed -i '' 's/x/y/'` vs Linux's `sed -i 's/x/y/'` |
+| `awk` | BSD awk (old nawk) | gawk | No `gsub` with array, limited regex features, no `PROCINFO` |
+| `zsh` | Default shell (since Catalina) | bash | Different array syntax, different globbing (`**` vs `find`), different parameter expansion |
 
-Every language follows the same two-step pattern:
+**How we solved it:**
+- **Shell Script Portability Rule (`.bionic`):** Scripts use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely. This sidesteps all `sed`/`awk` differences.
+- **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
+- **zsh compatibility:** Scripts use `#!/usr/bin/env bash` shebangs explicitly — never relying on the default shell. Where zsh-specific features are needed, they're documented and isolated.
+- **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
 
-1. **`verify_build`** → `<os>/<lang>/Makefile all` (build only, no tests)
-   - C/C++: `src/<os>/cpp/Makefile all` → builds static + shared libs, creates symlinks
-   - Java: `src/common/java/Makefile all` → runs Maven, creates JAR symlink
-   - Python: `src/common/python/Makefile all` → builds C++ shared lib, creates symlink
-   - **Never** runs tests — only produces build artifacts and symlinks
+**Cost:** These bugs were insidious because they only manifested when scripts ran on a different platform. A `sed -i` command that worked perfectly in development (macOS) would silently corrupt files on Linux by treating the pattern as a backup suffix. The portability rule was the definitive fix — it eliminated the need for platform-specific script variants entirely.
 
-2. **`run_regression`** → `tests/Makefile verify` (build + test matrix T001-T007)
-   - C/C++: `src/<os>/cpp/tests/Makefile verify` → runs test harness with T001-T007
-   - Java: `src/common/java/tests/Makefile verify` → runs TestRingbuffer T001-T007
-   - Python: `src/common/python/tests/Makefile verify` → runs Concurrent + Pure Python T001-T007
-   - The `tests/Makefile` has a `test: verify` target so `make test` also works
+### tcsh Scripts for FreeBSD 14
 
-**Golden rule:** Never use `tests/Makefile verify` for build verification. Never use `<os>/<lang>/Makefile all` for regression testing.
+**The Problem:** FreeBSD 14's default shell is `tcsh`, not bash or zsh. tcsh has extremely limited scripting capabilities compared to POSIX shells:
 
-### Container Commands (macOS)
+| Feature | bash/zsh | tcsh |
+|---------|----------|------|
+| Arithmetic expansion | `$((a + b))` | `@ x = $a + $b` |
+| Error handling | `set -e` | Not supported |
+| Redirections | `2>&1` | Not supported — use `grep ---` pattern |
+| Here-strings | `<<< "text"` | Not supported |
+| Arrays | `${arr[@]}` | `$arr[*]` (no quoting support) |
+| Control flow | `if [[ ... ]]; then` | `if ( $cond ) then` (then on own line) |
 
-- **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
-- **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_debian_build:latest ...`, NOT `container run localhost/ringbuffer_debian_build:latest ...`.
-- **Debian Makefile LTO_FLAG:** The Debian container's g++ does not support `-flto=thin`. Use `-flto` instead. The Makefile's LTO_FLAG logic must reflect this.
+**How we solved it:**
+- **Installed `tcsh` on macOS host:** We installed tcsh (`pkg install tcsh`) directly on the development Mac so we can write, test, and debug FreeBSD scripts locally. This eliminated the round-trip latency of SSHing into a remote FreeBSD box for every syntax error.
+- **tcsh reference scripts:** We built a reusable tcsh script library in `rules/tcsh-syntax.md` and supporting scripts that serve as a reference for all FreeBSD 14 operations. These cover the common patterns — SSH execution, tarball unpacking, make invocation, test running — so each new script doesn't start from scratch. The reference is loaded via `.bionic` pre-flight checks before any tcsh script generation, ensuring compliance.
+- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
+- **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
+- **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
 
-### Prompt Changelog Discipline
+**Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. Installing `tcsh` locally was a game-changer — it let us iterate interactively instead of through slow SSH round-trips. The reusable tcsh reference library then prevented the same mistakes from recurring across sessions and scripts.
 
-When modifying any prompt file that affects generated code, record the change in `prompts/common/CHANGELOG.md` using this format:
+### Key Takeaway
 
-```markdown
-## [YYYY-MM-DD] <short description>
-- **File**: `prompts/<path>/functional.md`
-- **Change**: <one-line description>
-- **Rationale**: <why this change was made>
-```
+The common thread across all these challenges is **platform divergence in tools that appear identical**. An LLM trained on the vast majority of Linux/GNU examples will confidently generate incorrect macOS/BSD or FreeBSD/tcsh code because the surface syntax looks right — it's only at execution time that the differences matter. The solution is always:
 
-This is a documentation discipline — no automation logic uses the changelog at this time. The `utils/bin/suggest_changelog_entry.sh` script can analyze git diffs and suggest entries for manual review.
+1. **Install target tools on the host** — `bmake` and `tcsh` on macOS let us iterate interactively instead of through slow LLM round-trips
+2. **Shell Script Portability Rule** — forbid `awk`, `sed`, `grep` and use bash/zsh builtins instead; this single rule eliminates an entire class of cross-platform bugs
+3. **Explicit per-platform templates** — never assume one syntax works everywhere
+4. **Reusable reference libraries** — tcsh scripts and rules that persist across sessions, loaded via pre-flight checks
+5. **Container-based testing** — always verify inside the target platform, never on the host
+6. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
 
-### Prompt Deduplication Discipline
+This project was built entirely through prompt-driven LLM development. The most persistent and costly issues came from platform-specific shell and build system quirks that are easy for an LLM to get wrong because they contradict the patterns it has seen thousands of times in training data.
 
-Before adding repeated content (container runtime rules, host-target compatibility, spec precedence) to a new or existing prompt file:
-1. Check if the content already exists in `prompts/common/session_hints.md` or another shared reference document.
-2. If it does, add a relative link instead of duplicating the text.
-3. If it doesn't, add it to `prompts/common/session_hints.md` first, then reference it from the platform-specific prompt.
+### BSD Makefiles vs GNU Make
 
-### Makefile Tab Discipline
+**The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
 
-Makefiles require **real tab characters**, not spaces, for recipe indentation. When generating Makefiles programmatically (e.g., via Python or heredocs), use explicit `\t` for tabs. This is a common source of build failures — BSD make on macOS and GNU make on Linux both reject space-indented recipes.
+| Feature | GNU Make (Linux) | BSD Make (macOS, FreeBSD) |
+|---------|-----------------|---------------------------|
+| Variable reference | `$(VAR)` or `${VAR}` | `${VAR}` only |
+| Shell command | `$(shell echo hello)` | Not supported — use `${.OBJDIR}` or external tools |
+| Conditional syntax | `ifeq`, `ifdef` | Not supported — use `.if`, `.elif`, `.else` |
+| Built-in defaults | `make` runs `/bin/sh -c` recipes | `make` may use different built-in rules |
+| Tab requirement | Required | Required (same) |
 
-### Version Naming Convention
+**How we solved it:**
+- **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
+- **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
+- **Explicit `make` detection:** Build scripts check which `make` is available and select the correct syntax variant.
+- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
 
-`version.mk` contains the **Ringbuffer library version** (e.g., `1.0.0`), NOT the OS version. All languages derive their version from this single file:
-- C/C++: `Makefile include version.mk` (direct)
-- Java: `version.sh` reads `version.mk`, injects into `pom.xml`
-- Go: `version.sh` generates `version.go` with typed constants
-- Python: `version.sh` generates `version.py` with module constants
-- Rust: `build.rs` reads `version.mk`, generates `src/version.rs`
+**Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. The fix required generating separate Makefile templates per OS family.
 
-### Mermaid Diagram Validation
+### tcsh Scripts for FreeBSD 14
 
-When adding or updating any mermaid diagram in the README (or any markdown file), **validate that it renders before committing**. Mermaid has strict syntax rules — parentheses `()`, at-signs `@`, and multi-line labels all cause silent parse failures that produce blank diagrams in GitHub/GitLab.
+**The Problem:** FreeBSD 14's default shell is `tcsh`, not bash or zsh. tcsh has extremely limited scripting capabilities compared to POSIX shells:
 
-**Common syntax pitfalls:**
-- **Parentheses in labels**: Must be quoted — use `["text (with parens)"]` not `[Text (with parens)]`
-- **At-signs in edge labels**: Must be quoted — use `-->|"ssh@host"| Node` not `-->|ssh@host| Node`
-- **Multi-line labels**: Use `<br>` for line breaks, but single-line labels are safer and render more consistently
-- **`direction` inside subgraphs**: Forbidden — causes Safari/GitLab rendering failures. Use only at the top level (`flowchart LR`)
-- **Node names starting with reserved words**: Avoid `SSH`, `A`, `B` as node IDs — use descriptive names like `SshRemote`, `BuildStep`
+| Feature | bash/zsh | tcsh |
+|---------|----------|------|
+| Arithmetic expansion | `$((a + b))` | `@ x = $a + $b` |
+| Error handling | `set -e` | Not supported |
+| Redirections | `2>&1` | Not supported — use `grep ---` pattern |
+| Here-strings | `<<< "text"` | Not supported |
+| Arrays | `${arr[@]}` | `$arr[*]` (no quoting support) |
+| Control flow | `if [[ ... ]]; then` | `if ( $cond ) then` (then on own line) |
 
-**Validation command:**
-```bash
-# Render a diagram to PNG and check for errors (exit 0 = success)
-mmdc -i diagram.mmd -o /tmp/diagram.png -b white
-```
+**How we solved it:**
+- **tcsh script templates:** We created dedicated `.tcsh` scripts for FreeBSD 14 operations, following strict syntax rules loaded from `rules/tcsh-syntax.md`.
+- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
+- **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
+- **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
 
-**Workflow:**
-1. Write the mermaid diagram in a standalone `.mmd` file (not inline in markdown)
-2. Run `mmdc -i diagram.mmd -o /tmp/diagram.png -b white` to validate
-3. If it renders successfully, copy the diagram into the markdown file
-4. Never commit a diagram that hasn't been validated with `mmdc`
+**Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. The `then` keyword must be on its own line (or preceded by `;`), `$((...))` arithmetic is forbidden, and `2>&1` redirection doesn't work. Each tcsh script required multiple iterations to get right.
+
+### Shell Portability: GNU vs BSD Utilities
+
+**The Problem:** macOS ships with BSD implementations of common utilities (`grep`, `sed`, `awk`), while Linux uses GNU implementations. The behavioral differences are subtle and cause silent failures:
+
+| Utility | macOS (BSD) | Linux (GNU) |
+|---------|-------------|-------------|
+| `grep -c` | Counts matching lines | Same, but `-P` (Perl regex) not available |
+| `sed -i` | Requires backup suffix: `sed -i '' 's/x/y/'` | In-place edit without suffix |
+| `awk` | BSD awk — limited features | gawk — full feature set |
+| `find -exec` | `-exec ... \;` required | GNU find supports `+` for batching |
+
+**How we solved it:**
+- **Shell Script Portability Rule (`.bionic`):** Scripts must use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely.
+- **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
+- **Makefile recipe exception:** Makefile recipes run under `/bin/sh`, so external tools are permitted there (but bash builtins like `[[ ]]` and arrays are not).
+- **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
+
+**Cost:** These bugs were insidious because they only manifested when scripts ran on a different platform. A script that worked perfectly in development (macOS) would fail silently or incorrectly on Linux containers.
+
+### Key Takeaway
+
+The common thread across all these challenges is **platform divergence in tools that appear identical**. An LLM trained on the vast majority of Linux/GNU examples will confidently generate incorrect macOS/BSD or FreeBSD/tcsh code because the surface syntax looks right — it's only at execution time that the differences matter. The solution is always:
+
+1. **Explicit per-platform templates** — never assume one syntax works everywhere
+2. **Pre-flight validation rules** — load platform-specific rule files before generating code
+3. **Container-based testing** — always verify inside the target platform, never on the host
+4. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
+
+## Prompt Execution Pattern
+Every workflow follows a consistent pattern:
+1. **Common workflow** provides structure, image/version resolution, and routing decisions
+2. **Platform-specific primary document** (`create_*.md`) is the authoritative execution guide
+3. **Common spec** (`common/cpp/*.md` or `common/<lang>/*.md`) provides technical requirements
+4. **Platform spec** (`<os>/cpp/*.md` or `<os>/<lang>/*.md`) provides platform-specific overrides
+
+When a common workflow says "execute `create_*.md` as the PRIMARY document," it means: read it for directives and immediate requirements, follow its steps as the main execution path, use the common workflow for infrastructure (image resolution, routing) only.
 
 ## Developer & Maintainer Guide
 
@@ -1409,17 +1390,17 @@ Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platfo
 - **Prerequisites**: Install the following packages via `<package_manager>`:
     - <list of required packages>
 
-## Required Tools
+### Required Tools
 - `<compiler>` (Compiler/Linker)
 - `make` (Orchestrator)
 - `<binary_analysis_tool>` (Binary Analysis — e.g., `otool` on macOS, `readelf` on Linux)
 
-## Containerized Build Environment (if applicable):
+### Containerized Build Environment (if applicable):
 - **Base Image**: `<image>:<tag>`
 - **Toolchain Installation**: Use `<package_manager> -S/--install` to install required packages
 - **Container Path**: `<os>/containers/build/Dockerfile`
 
-## macOS Skip Logic (if applicable):
+### macOS Skip Logic (if applicable):
 <If the OS has no arm64 container image, document the macOS skip behavior here>
 ```
 
@@ -1583,227 +1564,197 @@ Loaded template 'Fedora' — all fields populated with defaults.
 5. Update `.bionic` platform classification table
 6. Update implementation state to `officially_supported`
 
-## Supported Platforms
+## Project Policies
 
-| OS | Language | Version | Verified Compilers |
-| :--- | :--- | :--- | :--- |
-| **macOS** | C++ | v1.0.0 | clang++ 21.0.0, g++ 16.1.0 |
-| | Java | v1.0.0 | javac 26.x (JDK 26) |
-| | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **Debian** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
-| | Java | v1.0.0 | javac 25.x (JDK 25) |
-| | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **Fedora** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
-| | Java | v1.0.0 | javac 25.x (JDK 25) |
-| | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **Ubuntu** | C++ | v1.0.0 | g++ 13.x (clang++ unsupported — see Known Issues) |
-| | Java | v1.0.0 | javac 25.x (JDK 25) |
-| | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **ArchLinux** | C++ | v1.0.0[^2] | g++ 16.2.1, clang++ 22.1.8 |
-| | Java | v1.0.0 | javac 25.x (JDK 25) |
-| | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
-| | Java | v1.0.0 | javac 25.x (JDK 25) |
-| | Python | v1.0.0 | python 3.14.x (Pure Python only — Concurrent skipped, RPATH limitation) |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **FreeBSD 15** | C++ | TBS | — |
+> **Portable Shell Scripts (Core Feature):** This project's most impactful rule — forbidding `awk`, `sed`, `grep` and other external tools in favor of bash/zsh builtins — eliminates an entire class of cross-platform bugs. We only use the default shell for each platform (**zsh on macOS**, **bash on Linux**, **tcsh on FreeBSD**). See [LLM Challenges — Portable Shell Scripts](#portable-shell-scripts-core-feature) for the full story on why this rule exists, how it works, and what problems it solved.
 
-[^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
-[^2]: Arch Linux is a rolling-release distribution. Both g++ and clang++ are fully supported (unlike Ubuntu 24.04 where clang++ is unsupported). See [prompts/common/cpp/session_hints.md](prompts/common/cpp/session_hints.md) Section 10.
+### Shell Script Portability
 
-`*TBS: To Be Supplied | WIP: Work In Progress`
+All shell scripts in this project follow strict portability rules to ensure they work identically across macOS (BSD), Linux (GNU), and FreeBSD:
 
-> **Note:** Compiler versions shown are those verified during implementation. Actual available versions may vary by OS release. See [prompts/common/session_hints.md](prompts/common/session_hints.md) for toolchain detection and fallback logic.
+**Supported shells:**
+- **Bash (`bash`)** — primary target for all scripts
+- **Zsh (`zsh`)** — acceptable alternative (macOS default)
+- **Tcsh (`tcsh`)** — used only for FreeBSD 14 remote builds (FreeBSD default shell)
 
-### Known Issues & Toolchain Limitations
+**Forbidden in bash/zsh scripts:**
+The following external tools are **forbidden** because their behavior differs between GNU (Linux) and BSD (macOS/FreeBSD) implementations:
+- `awk` — behavior varies between `gawk`, `mawk`, BSD `awk`
+- `sed` — syntax differences between GNU `sed` and BSD `sed` (e.g., `-i` flag, extended regex)
+- `grep` — feature flags (`-P`, `-E`) and behavior differ between GNU grep and BSD grep
+- `cut`, `tr`, `sort`, `uniq` — minor behavioral differences across implementations
+- `find`, `xargs` — flag syntax and behavior differ between GNU and BSD implementations
+- **`which`** — external binary with inconsistent behavior; use `command -v` instead
+- Any other utility not provided by the shell itself whose behavior is not guaranteed to be identical across platforms
 
-| Platform | Issue | Impact | Workaround |
-|----------|-------|--------|------------|
-| **Ubuntu 24.04** | Clang 18 looks for C++ headers in `/usr/include/c++/14`, but Ubuntu ships only `g++-13` (headers in `/usr/include/c++/13`). The GCC 14 base package (`gcc-14-base`) does not include C++ headers. | `clang++` fails with `'atomic' file not found` and similar errors when compiling C++20 code. | **clang++ is unsupported on Ubuntu.** Use `g++` as the compiler for all build and test operations. The Dockerfiles include clang packages for reference but only g++ is used in practice. |
-| **FreeBSD 14** | `ld-elf.so.1` does NOT support `$ORIGIN` in RUNPATH — the dynamic linker strips it to empty at runtime. | **Dynamic library testing is not possible on FreeBSD 14.** The test binary cannot find `libswtr_ringbuffer.so` at runtime. | **Static library only.** Use the `make verify` target which builds and runs tests against the static library (`libswtr_ringbuffer.a`). All 7 regression tests pass via static library. See [freebsd-platform-analysis.md](prompts/common/appendices/freebsd-platform-analysis.md) for details. |
+**What is permitted:**
+- **Shell builtins**: `echo`, `printf`, `test`/`[`, `[[`, `read`, `export`, `source`, `local`, `declare`, arrays, parameter expansion (`${var//pattern/replacement}`, `${#array[@]}`, `${file%.txt}`), arithmetic expansion `$((...))`, globbing
+- **Standard POSIX utilities with guaranteed identical behavior**: `date` (timestamps), `cat`, `mkdir -p`, `rm -rf`, `cp`, `mv`, `chmod`
+- **`command -v`** — use this instead of `which` to check if a command exists. It is a shell builtin (not an external binary), works identically in bash, zsh, and sh, and is faster (no process fork).
 
-## Where We Are At
+**tcsh exception:**
+In tcsh scripts, `which` is a **builtin** (not the external `/usr/bin/which` binary), so it is permitted and preferred for command existence checks:
+```csh
+# tcsh — which is a builtin, perfectly portable
+csh:which gcc && echo "gcc found"
 
-### Current Status (as of 2026-08-22)
+# bash/zsh — use command -v instead (never which)
+bash:command -v gcc && echo "gcc found"
+```
 
-**Implementation:**
-- **C++ implementation complete** for macOS, Debian, Fedora, Ubuntu, Raspberry Pi OS, Arch Linux, and FreeBSD 14 — all at v1.0.0
-- **Java implementation complete** (common, platform-insensitive) — v1.0.0, built with Maven
-- **Python implementation complete** (common, platform-insensitive) — v1.0.0, pure Python
-- **Java/Python on ArchLinux** — verified via SSH remote build (Linux-hosts-only)
-- **Java/Python on FreeBSD 14** — Java verified; Python Pure Python only (Concurrent skipped due to RPATH limitation)
-- **C++ implementation complete for Arch Linux** — v1.0.0, all 7 regression tests pass on both g++ and clang++; native build via SSH to remote Linux host (no container support on Apple Silicon)
-- **Binary symmetry verified** across ALL platforms: 21 source files confirmed byte-identical between macOS, debian, fedora, ubuntu, raspios, and archlinux via automated `verify_binary_symmetry.sh` — source lives in single canonical tree (`src/common/cpp/`) with symlinks from each OS directory
-- **State tracking** operational on all C++ platforms — `.gen_state.json` tracks SHA-256 hashes of prompts, specs, and generated files for deterministic delta detection (8 platforms: macOS, debian, fedora, ubuntu, raspios, archlinux, freebsd14)
-- **Test infrastructure complete** — T001–T007 test matrix with JUnit XML report generation, pattern-driven test data (zigzag), and 4 shell variants producing byte-identical output
+**Shebang line rule:**
+All shell scripts MUST use `env` for portability:
+```bash
+#!/usr/bin/env bash    # ✅ Correct — finds bash in PATH, works on all platforms
+#!/bin/bash            # ❌ Hardcoded — may not exist on all platforms (e.g., Homebrew bash)
+```
 
-**Verification & Quality Gates:**
-- **Automated binary symmetry check** — `verify_binary_symmetry.sh` compares all 21 source files across Linux platforms; integrated into `verify_build.md` as a mandatory post-build step (step 0.5)
-- **Automated prompt linting** — `lint_prompts.sh` validates directory structure, required files per platform/language, excluded platform cleanliness, primary document naming, and common workflow completeness; integrated into `verify_build.md` as step 0.6
-- **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (FreeBSD 15 only) contain only zero-length placeholder files
-- **Multi-language verification** — `verify_build.md` dispatches to language-specific checks: Java (`mvn compile`, `mvn package`, JAR artifact, classload test), Python (syntax check, import verification, class instantiation), C/C++ (binary format, symbol visibility)
-- **Java regression testing** — Full T001–T007 test matrix executed across all 4 OSes (macOS native + 3 Linux containers); 18 assertions, 0 failures; Surefire-compatible test harness with `testAll()` method
-- **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
+**Makefile recipe exception:**
+Makefile recipes execute under `/bin/sh -c`, which is a restricted POSIX shell environment. Bash/zsh builtins like arrays, `<<<` (here-strings), and `[[ ]]` are **not available**. Makefile recipes may use external tools (`grep`, `sed`, `awk`, etc.) as needed, since the shell is already POSIX sh and cannot support bash/zsh builtins anyway.
 
-**Development Methodology:**
-- Prompt-driven development with hundreds of prompt files across 8 OSes × 6 languages (common specs)
-- Session isolation by design — each prompt file is self-contained for LLM-agent reliability
-- Incremental regeneration via `.gen_state.json` delta detection (3-phase sync: Functional → Build → Regression)
-- Two verification scripts integrated into the build workflow as mandatory gates
-- Post-commit hook (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) for changelog entry suggestions
+### SSH Authentication Policy
 
-### What Works Today
+**Golden Rule — Key-Based Authentication Only:**
+SSH remote execution requires key-based authentication only. **Password authentication is not supported and prohibited.** All remote hosts must have the user's public key installed in `~/.ssh/authorized_keys`. If password authentication is required, the workflow cannot proceed.
 
-| Capability | Status | Details |
-|------------|--------|---------|
-| C++ library (macOS) | ✅ Complete | Universal binaries (arm64 + x86_64), static + shared libs |
-| C++ library (Linux) | ✅ Complete | Byte-identical source across debian/fedora/ubuntu/raspios/archlinux — enforced by symlinks to `src/common/cpp/` |
-| C++ library (FreeBSD 14) | ✅ Complete | Static library only (RPATH limitation), all 7 tests pass |
-| Java library (all OS) | ✅ Complete | Maven build, JAR artifact, classload test verified |
-| Python library (all OS) | ✅ Complete | Pure Python, syntax/import/instantiation verified |
-| Build system | ✅ Complete | Unified `all` target pattern: `<os>/<lang>/Makefile all` (build + symlinks, no tests) |
-| Test infrastructure | ✅ Complete | Unified `verify` target pattern: `tests/Makefile verify` (T001–T007, reports) |
-| Build/test separation | ✅ Enforced | `verify_build` uses `<os>/<lang>/Makefile all`; `run_regression` uses `tests/Makefile verify` |
-| Binary symmetry | ✅ Verified | All compared source files byte-identical across macOS and all Linux platforms — enforced by symlinks to single canonical tree (`src/common/cpp/`)
-| Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
-| State tracking | ✅ Operational | `.gen_state.json` on all 8 active platforms |
-| Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
-| Java regression | ✅ Passed | 18 assertions, 0 failures across all 4 OSes (macOS native + debian/fedora/ubuntu containers) |
-| Go/Rust scaffolding | ✅ Complete | Placeholder prompts exist for all OSes (macos, fedora, debian, ubuntu, archlinux, raspios); common specs created |
-| Changelog suggestions | ✅ Operational | Post-commit hook analyzes prompt diffs and suggests entries |
+**Rationale:**
+- Automated workflows (CI pipelines, agent harnesses) cannot interactively enter passwords
+- Password-based SSH is a security risk — keys are cryptographically stronger and can be revoked without changing passwords
+- Key-based authentication enables passwordless automation, which is essential for remote build/test workflows
 
-## Where We're Going
+**Setup:**
+```bash
+# Generate a key pair (if you don't have one)
+ssh-keygen -t ed25519 -C "ringbuffer-workspace"
 
-### Near-Term (Next Iterations)
+# Install public key on remote host
+cat ~/.ssh/id_ed25519.pub | ssh <user>@<host> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
 
-- **Additional languages** — Go and Rust scaffolding is complete across all OSes (macos, fedora, debian, ubuntu, archlinux, raspios). C scaffolding is in place with common specs; per-OS overrides are placeholders (unlike C++ which has full platform-specific specs). The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (placeholder prompts, `.required_directory` markers) is already present.
-- **Additional patterns** — The test data pattern system supports adding new patterns beyond zigzag (e.g., sequential, random). Each new pattern requires a single spec file in `prompts/common/testing/patterns/` and running `create_scripts.md`.
-- **Enhanced CI/CD** — The automated verification scripts (`verify_binary_symmetry.sh`, `lint_prompts.sh`) are ready for CI integration. They can be added as pre-commit hooks or GitHub Actions to enforce quality gates before any code is committed.
-- **LLM Knowledge Package** — Versioned knowledge packages for C++, Java, and Python are in development. Distributed via Ollama Modelfile (system prompt) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) for details.
+# Verify passwordless login works
+ssh <user>@<host> "echo 'SSH key authentication working'"
+```
 
-### Medium-Term (Roadmap)
+**Verification:**
+The workflow will fail immediately if SSH requires a password. If you encounter an authentication prompt, the key is not properly installed on the remote host.
 
-- **FreeBSD 15 implementation** — Currently excluded with zero-length placeholder files. FreeBSD 14 C++ is implemented and verified (static library only, all 7 tests pass). Implementation requires writing the platform/language spec files and generating source code.
-- **Arch Linux C++ source generation** — Prompts are implemented (`prompts/archlinux/cpp/`); actual source code generation requires executing `create_functional.md`, `create_build.md`, and `create_regression.md` on a Linux host.
-- **More comprehensive test coverage** — Additional test scenarios for edge cases (concurrent access patterns, memory pressure, signal handling).
-- **Documentation expansion** — API reference generation from headers, performance benchmarking documentation, container deployment guides.
+### Git Discipline
 
-### Long-Term (Vision)
+- **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
+- **NEVER commit reports, logs, or build artifacts.** These are regenerated on every run. The `.gitignore` covers them.
+- If the user asks you to "commit" or "stage," decline and remind them they handle all commits.
+- `.gen_state.json` is also excluded from commits (tracked in `.gitignore`).
 
-- **Full multi-language library** — The architecture is designed so that each language implementation shares the same functional specification. When all 6 languages are implemented, any platform can be built in any language from the same spec.
-- **Cross-platform verification suite** — Automated comparison of behavior across all language/platform combinations, not just source-level binary symmetry.
-- **Plugin ecosystem** — The transform function abstraction (`std::function<void(std::vector<uint8_t>&, size_t&)>`) is designed to support a plugin model where users can register custom transforms without modifying the library.
+### Build vs Test Workflow Pattern (All Languages)
 
-## LLM Challenges
+Every language follows the same two-step pattern:
 
-This project was built entirely through prompt-driven LLM development. The most persistent and costly issues came from platform-specific shell and build system quirks that are easy for an LLM to get wrong because they contradict the patterns it has seen thousands of times in training data.
+1. **`verify_build`** → `<os>/<lang>/Makefile all` (build only, no tests)
+   - C/C++: `src/<os>/cpp/Makefile all` → builds static + shared libs, creates symlinks
+   - Java: `src/common/java/Makefile all` → runs Maven, creates JAR symlink
+   - Python: `src/common/python/Makefile all` → builds C++ shared lib, creates symlink
+   - **Never** runs tests — only produces build artifacts and symlinks
 
-### Portable Shell Scripts (Core Feature)
+2. **`run_regression`** → `tests/Makefile verify` (build + test matrix T001-T007)
+   - C/C++: `src/<os>/cpp/tests/Makefile verify` → runs test harness with T001-T007
+   - Java: `src/common/java/tests/Makefile verify` → runs TestRingbuffer T001-T007
+   - Python: `src/common/python/tests/Makefile verify` → runs Concurrent + Pure Python T001-T007
+   - The `tests/Makefile` has a `test: verify` target so `make test` also works
 
-**The Problem:** Across every platform we target — macOS, Linux distros, FreeBSD — the same family of utilities (`grep`, `sed`, `awk`, `find`) behave differently. An LLM will confidently generate code that works on its training data distribution (Linux/GNU) but fails silently or catastrophically elsewhere. This isn't a niche issue — it affects every script in the project, from Makefiles to test harnesses to deployment automation.
+**Golden rule:** Never use `tests/Makefile verify` for build verification. Never use `<os>/<lang>/Makefile all` for regression testing.
 
-**The Rule (enforced in `.bionic`):** Shell scripts must use only bash/zsh builtins and universally available utilities. Forbidden external tools: `awk`, `sed`, `grep`, `cut`, `tr`, `sort`, `uniq`, `find`, `xargs`.
+### Container Commands (macOS)
 
-**Default shells per platform:** We only use the default shell for each target platform — **zsh on macOS**, **bash on Linux**, and **tcsh on FreeBSD**. This is intentional: each platform's default shell has the best compatibility with that OS's toolchain, package manager, and system utilities. Scripts never assume a non-default shell is available.
+- **NEVER use `podman` on macOS.** Use only the `container` CLI (Apple Container service).
+- **Always omit `localhost/` prefix** from image names. The `container` CLI resolves images locally — prepending `localhost/` forces a network lookup that times out. Use `container run ringbuffer_debian_build:latest ...`, NOT `container run localhost/ringbuffer_debian_build:latest ...`.
+- **Debian Makefile LTO_FLAG:** The Debian container's g++ does not support `-flto=thin`. Use `-flto` instead. The Makefile's LTO_FLAG logic must reflect this.
 
-**How it works in practice:**
-- **`grep` → `case` pattern matching or `[[ "$var" == *pattern* ]]`**
-- **`sed 's/old/new/'` → `${var//old/new}` parameter expansion**
-- **`awk '{print $1}'` → `read -ra fields <<< "$data"`**
-- **`wc -l` → `${#array[@]}` or bash arithmetic**
+### Prompt Changelog Discipline
 
-**Why it matters:** This single rule eliminates an entire class of cross-platform bugs. Instead of maintaining separate script variants for macOS vs Linux, one portable script works everywhere. It also makes LLM-generated code more reliable — the model doesn't need to know which platform it's targeting because the forbidden tools are never used.
+When modifying any prompt file that affects generated code, record the change in `prompts/common/CHANGELOG.md` using this format:
 
-**Exception:** Makefile recipes run under `/bin/sh`, which lacks bash builtins like arrays and `[[ ]]`. In that context, external tools are permitted (but bash-specific features remain forbidden).
+```markdown
+### [YYYY-MM-DD] <short description>
+- **File**: `prompts/<path>/functional.md`
+- **Change**: <one-line description>
+- **Rationale**: <why this change was made>
+```
 
-### BSD Makefiles vs GNU Make
+This is a documentation discipline — no automation logic uses the changelog at this time. The `utils/bin/suggest_changelog_entry.sh` script can analyze git diffs and suggest entries for manual review.
 
-**The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
+### Prompt Deduplication Discipline
 
-| Feature | GNU Make (Linux) | BSD Make (macOS, FreeBSD) |
-|---------|-----------------|---------------------------|
-| Variable reference | `$(VAR)` or `${VAR}` | `${VAR}` only |
-| Shell command | `$(shell echo hello)` | Not supported — use `${.OBJDIR}` or external tools |
-| Conditional syntax | `ifeq`, `ifdef` | Not supported — use `.if`, `.elif`, `.else` |
-| Built-in defaults | `make` runs `/bin/sh -c` recipes | `make` may use different built-in rules |
-| Tab requirement | Required | Required (same) |
+Before adding repeated content (container runtime rules, host-target compatibility, spec precedence) to a new or existing prompt file:
+1. Check if the content already exists in `prompts/common/session_hints.md` or another shared reference document.
+2. If it does, add a relative link instead of duplicating the text.
+3. If it doesn't, add it to `prompts/common/session_hints.md` first, then reference it from the platform-specific prompt.
 
-**How we solved it:**
-- **Installed `bmake` on macOS host:** We installed BSD make (`pkg install bmake`) directly on the development Mac so we can write, test, and debug Makefiles natively without needing a container or remote host. This eliminated the guesswork — we can run `make -n` and see real errors instead of hoping the LLM got it right.
-- **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
-- **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
-- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
+### Makefile Tab Discipline
 
-**Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. Installing `bmake` locally was the turning point — it let us iterate on Makefiles interactively instead of through trial-and-error LLM prompts.
+Makefiles require **real tab characters**, not spaces, for recipe indentation. When generating Makefiles programmatically (e.g., via Python or heredocs), use explicit `\t` for tabs. This is a common source of build failures — BSD make on macOS and GNU make on Linux both reject space-indented recipes.
 
-### macOS Toolchain Quirks: sed, awk, zsh
+### Version Naming Convention
 
-**The Problem:** macOS ships with BSD-derived versions of common utilities and uses `zsh` as the default shell (since Catalina). Each has subtle differences from their GNU/Linux counterparts:
+`version.mk` contains the **Ringbuffer library version** (e.g., `1.0.0`), NOT the OS version. All languages derive their version from this single file:
+- C/C++: `Makefile include version.mk` (direct)
+- Java: `version.sh` reads `version.mk`, injects into `pom.xml`
+- Go: `version.sh` generates `version.go` with typed constants
+- Python: `version.sh` generates `version.py` with module constants
+- Rust: `build.rs` reads `version.mk`, generates `src/version.rs`
 
-| Tool | macOS (BSD) | Linux (GNU) | Gotcha |
-|------|-------------|-------------|--------|
-| `sed` | BSD sed | GNU sed | `-i` requires backup suffix: `sed -i '' 's/x/y/'` vs Linux's `sed -i 's/x/y/'` |
-| `awk` | BSD awk (old nawk) | gawk | No `gsub` with array, limited regex features, no `PROCINFO` |
-| `zsh` | Default shell (since Catalina) | bash | Different array syntax, different globbing (`**` vs `find`), different parameter expansion |
+### Mermaid Diagram Validation
 
-**How we solved it:**
-- **Shell Script Portability Rule (`.bionic`):** Scripts use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely. This sidesteps all `sed`/`awk` differences.
-- **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
-- **zsh compatibility:** Scripts use `#!/usr/bin/env bash` shebangs explicitly — never relying on the default shell. Where zsh-specific features are needed, they're documented and isolated.
-- **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
+When adding or updating any mermaid diagram in the README (or any markdown file), **validate that it renders before committing**. Mermaid has strict syntax rules — parentheses `()`, at-signs `@`, and multi-line labels all cause silent parse failures that produce blank diagrams in GitHub/GitLab.
 
-**Cost:** These bugs were insidious because they only manifested when scripts ran on a different platform. A `sed -i` command that worked perfectly in development (macOS) would silently corrupt files on Linux by treating the pattern as a backup suffix. The portability rule was the definitive fix — it eliminated the need for platform-specific script variants entirely.
+**Common syntax pitfalls:**
+- **Parentheses in labels**: Must be quoted — use `["text (with parens)"]` not `[Text (with parens)]`
+- **At-signs in edge labels**: Must be quoted — use `-->|"ssh@host"| Node` not `-->|ssh@host| Node`
+- **Multi-line labels**: Use `<br>` for line breaks, but single-line labels are safer and render more consistently
+- **`direction` inside subgraphs**: Forbidden — causes Safari/GitLab rendering failures. Use only at the top level (`flowchart LR`)
+- **Node names starting with reserved words**: Avoid `SSH`, `A`, `B` as node IDs — use descriptive names like `SshRemote`, `BuildStep`
 
-### tcsh Scripts for FreeBSD 14
+**Validation command:**
+```bash
+# Render a diagram to PNG and check for errors (exit 0 = success)
+mmdc -i diagram.mmd -o /tmp/diagram.png -b white
+```
 
-**The Problem:** FreeBSD 14's default shell is `tcsh`, not bash or zsh. tcsh has extremely limited scripting capabilities compared to POSIX shells:
+**Workflow:**
+1. Write the mermaid diagram in a standalone `.mmd` file (not inline in markdown)
+2. Run `mmdc -i diagram.mmd -o /tmp/diagram.png -b white` to validate
+3. If it renders successfully, copy the diagram into the markdown file
+4. Never commit a diagram that hasn't been validated with `mmdc`
 
-| Feature | bash/zsh | tcsh |
-|---------|----------|------|
-| Arithmetic expansion | `$((a + b))` | `@ x = $a + $b` |
-| Error handling | `set -e` | Not supported |
-| Redirections | `2>&1` | Not supported — use `grep ---` pattern |
-| Here-strings | `<<< "text"` | Not supported |
-| Arrays | `${arr[@]}` | `$arr[*]` (no quoting support) |
-| Control flow | `if [[ ... ]]; then` | `if ( $cond ) then` (then on own line) |
+## Required Tools
 
-**How we solved it:**
-- **Installed `tcsh` on macOS host:** We installed tcsh (`pkg install tcsh`) directly on the development Mac so we can write, test, and debug FreeBSD scripts locally. This eliminated the round-trip latency of SSHing into a remote FreeBSD box for every syntax error.
-- **tcsh reference scripts:** We built a reusable tcsh script library in `rules/tcsh-syntax.md` and supporting scripts that serve as a reference for all FreeBSD 14 operations. These cover the common patterns — SSH execution, tarball unpacking, make invocation, test running — so each new script doesn't start from scratch. The reference is loaded via `.bionic` pre-flight checks before any tcsh script generation, ensuring compliance.
-- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
-- **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
-- **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
+The following tools are checked at session start by `utils/bin/check_tools.zsh` (macOS) and `utils/bin/check_tools.sh` (Linux). Core development requires the tools in the table below.
 
-**Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. Installing `tcsh` locally was a game-changer — it let us iterate interactively instead of through slow SSH round-trips. The reusable tcsh reference library then prevented the same mistakes from recurring across sessions and scripts.
+| Tool | Type | Purpose |
+|------|------|---------|
+| `bmake` | Required | BSD Make — used for testing on non-FreeBSD platforms |
+| `clang` | Required | C compiler (macOS default) |
+| `clang++` | Required | C++ compiler (macOS default) |
+| `cmake` | Required | Build system — required for future language implementations |
+| `ffmpeg` | Required | Media processing — creates animated GIFs used in README |
+| `ffprobe` | Required | Media inspection — validates media assets used in README |
+| `g++` | Required | C++ compiler (Linux fallback, cross-platform) |
+| `gcc` | Required | C/C++ compiler (Linux fallback, cross-platform) |
+| `gh` | Optional | GitHub CLI — repository management workflows |
+| `glab` | Optional | GitLab CLI — repository management workflows |
+| `jq` | Required | JSON parsing — reads `config/toolchains.json` at runtime |
+| `make` | Required | GNU Make — build system for all languages |
+| `mmdc` | Required | Mermaid diagram renderer — validates diagrams before README commits |
+| `pandoc` | Required | Document conversion — generates README.pdf and other file types |
+| `tcsh` | Required | FreeBSD default shell — used for testing on non-FreeBSD platforms |
 
-### Key Takeaway
+## Initial Development Environment
+- **Operating System**: macOS 26.5.2 (Darwin 25.5.0)
+- **Hardware**: Apple M4 Pro (arm64), 14 cores, 64 GB RAM
+- **AI Tools**:
+    - **Agent Harness**: LM Studio Bionic (CLI commit: 71bd99c)
+    - **Model Name**: qwen3.6-35b-a3b-mlx
+    - **Model Specs**: 37.75 GB, 162816 context window, parallelism factor 4, Decoder-only Transformer architecture, local execution.
 
-The common thread across all these challenges is **platform divergence in tools that appear identical**. An LLM trained on the vast majority of Linux/GNU examples will confidently generate incorrect macOS/BSD or FreeBSD/tcsh code because the surface syntax looks right — it's only at execution time that the differences matter. The solution is always:
-
-1. **Install target tools on the host** — `bmake` and `tcsh` on macOS let us iterate interactively instead of through slow LLM round-trips
-2. **Shell Script Portability Rule** — forbid `awk`, `sed`, `grep` and use bash/zsh builtins instead; this single rule eliminates an entire class of cross-platform bugs
-3. **Explicit per-platform templates** — never assume one syntax works everywhere
-4. **Reusable reference libraries** — tcsh scripts and rules that persist across sessions, loaded via pre-flight checks
-5. **Container-based testing** — always verify inside the target platform, never on the host
-6. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
-
-## Known Issues
-
-- **LM Studio shell ENOENT after session compaction:** After a long session hits its first compaction, `shell_command` calls fail with `spawn ... ENOENT`. This is a bug in LM Studio Bionic — the scratchpad directory isn't materialized until a sandboxed Python or file-delivery call creates it. **Workaround:** run a trivial sandboxed Python call first, then retry the shell command. See `.bionic` Common Pitfalls #1 for details. **Remove this note once LM Studio fixes the bug.**
+> **Note:** This section documents the environment where the project was created. Development may occur on different hardware/OS configurations — see [Platform-Specific Notes](#platform-specific-notes) for build differences across platforms.
 
 ## TODO
 
@@ -1854,78 +1805,139 @@ The common thread across all these challenges is **platform divergence in tools 
 | [Raspberry Pi OS Platform Analysis](prompts/common/appendices/raspios-platform-analysis.md) | System info, Dash shell behavior, g++ 12.x arm64 toolchain, container configuration |
 | [Ubuntu Platform Analysis](prompts/common/appendices/ubuntu-platform-analysis.md) | System info, Dash shell behavior, g++ 13.x toolchain, clang++ header mismatch issue |
 
-## LLM Challenges
+## LLM Knowledge Package
 
-This project was built entirely through prompt-driven LLM development. The most persistent and costly issues came from platform-specific shell and build system quirks that are easy for an LLM to get wrong because they contradict the patterns it has seen thousands of times in training data.
+The Ringbuffer project ships versioned knowledge packages that teach LLMs how to use the library. Each package covers all implemented languages (C++, Java, Python) and is distributed in two forms for different user needs.
 
-### BSD Makefiles vs GNU Make
+### What It Contains
 
-**The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
+```
+knowledge/
+├── manifest.json                   # Version, SHA-256 checksums of every file
+├── Modelfile                       # Ollama model definition (wraps Qwen3.6-35B)
+├── system-prompt.md                # Lean core knowledge (~2KB, inline in Modelfile)
+├── api-reference/                  # Full API docs by language (external, referenced by system prompt)
+│   ├── cpp.md                      # C++ headers, types, full signatures
+│   ├── java.md                     # Java API, class hierarchy, usage patterns
+│   └── python.md                   # Python API, ctypes FFI, pure-Python impl
+├── examples/                       # Copy-pasteable code snippets by language
+│   ├── basic.cpp / .java / .py     # Construct, transform, run pipeline
+│   └── advanced.cpp / .java / .py  # Per-stage logging, checksumming, error handlers
+├── patterns/                       # Common usage patterns (all languages)
+│   ├── logging-guide.md            # Per-stage verbosity configuration
+│   └── checksumming.md             # MD5/SHA256/SHA512 per-slot
+├── instruction-dataset/            # QLoRA training data (for 14B fine-tuning)
+│   ├── train.jsonl                 # Instruction/response pairs
+│   └── eval.jsonl                  # Held-out validation set
+├── update.sh / update.zsh          # Regenerates docs + dataset from source headers
+└── build_model.sh / .zsh           # QLoRA fine-tuning script for M4 Mac mini
+```
 
-| Feature | GNU Make (Linux) | BSD Make (macOS, FreeBSD) |
-|---------|-----------------|---------------------------|
-| Variable reference | `$(VAR)` or `${VAR}` | `${VAR}` only |
-| Shell command | `$(shell echo hello)` | Not supported — use `${.OBJDIR}` or external tools |
-| Conditional syntax | `ifeq`, `ifdef` | Not supported — use `.if`, `.elif`, `.else` |
-| Built-in defaults | `make` runs `/bin/sh -c` recipes | `make` may use different built-in rules |
-| Tab requirement | Required | Required (same) |
+### Distribution Paths
 
-**How we solved it:**
-- **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
-- **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
-- **Explicit `make` detection:** Build scripts check which `make` is available and select the correct syntax variant.
-- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
+| Path | What it is | User command | Hardware needed |
+|---|---|---|---|
+| **System Prompt** (Modelfile) | Knowledge injected as text before every conversation | `ollama create swtr-ringbuffer -f Modelfile` | Any Qwen-compatible setup |
+| **Fine-Tuned** (14B GGUF) | Knowledge baked into model weights via QLoRA | `ollama create swtr-ringbuffer --from model.gguf` | ~10GB RAM (M4 Mac mini or equivalent) |
 
-**Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. The fix required generating separate Makefile templates per OS family.
+**System Prompt approach:** The Modelfile wraps a base Qwen model with a lean system prompt (~2KB) containing architecture overview, key types, and quick examples. External API reference files are referenced for deep dives. Instant to use — no training required.
 
-### tcsh Scripts for FreeBSD 14
+**Fine-Tuned approach:** A Qwen2.5-14B-Instruct model is fine-tuned (QLoRA) on an instruction dataset generated from the knowledge source. The resulting `.gguf` file has ringbuffer knowledge baked into its weights — zero context window cost at inference time. Built on the project's M4 Mac mini (64GB unified memory) and exported via llama.cpp.
 
-**The Problem:** FreeBSD 14's default shell is `tcsh`, not bash or zsh. tcsh has extremely limited scripting capabilities compared to POSIX shells:
+### Versioning
 
-| Feature | bash/zsh | tcsh |
-|---------|----------|------|
-| Arithmetic expansion | `$((a + b))` | `@ x = $a + $b` |
-| Error handling | `set -e` | Not supported |
-| Redirections | `2>&1` | Not supported — use `grep ---` pattern |
-| Here-strings | `<<< "text"` | Not supported |
-| Arrays | `${arr[@]}` | `$arr[*]` (no quoting support) |
-| Control flow | `if [[ ... ]]; then` | `if ( $cond ) then` (then on own line) |
+Knowledge packages follow the same versioning scheme as the library itself, derived from `src/*/cpp/version.mk`:
 
-**How we solved it:**
-- **tcsh script templates:** We created dedicated `.tcsh` scripts for FreeBSD 14 operations, following strict syntax rules loaded from `rules/tcsh-syntax.md`.
-- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
-- **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
-- **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
+| Component | Source | Example |
+|---|---|---|
+| MAJOR.MINOR.SUBVERSION | Auto-detected from `version.mk` | `1.0.0` |
+| BUILD_ID | Manual input to `update.sh` (no auto-increment) | `build-1`, `build-2` |
+| Full version string | `knowledge/manifest.json` | `1.0.0-build-1` |
+| GGUF filename | Generated from version string | `swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf` |
 
-**Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. The `then` keyword must be on its own line (or preceded by `;`), `$((...))` arithmetic is forbidden, and `2>&1` redirection doesn't work. Each tcsh script required multiple iterations to get right.
+The `BUILD_ID` is a manual parameter — if not supplied to `update.sh`, the current value is preserved. This gives full control over release numbering without auto-increment surprises.
 
-### Shell Portability: GNU vs BSD Utilities
+### Update Process
 
-**The Problem:** macOS ships with BSD implementations of common utilities (`grep`, `sed`, `awk`), while Linux uses GNU implementations. The behavioral differences are subtle and cause silent failures:
+When ringbuffer source code changes:
 
-| Utility | macOS (BSD) | Linux (GNU) |
-|---------|-------------|-------------|
-| `grep -c` | Counts matching lines | Same, but `-P` (Perl regex) not available |
-| `sed -i` | Requires backup suffix: `sed -i '' 's/x/y/'` | In-place edit without suffix |
-| `awk` | BSD awk — limited features | gawk — full feature set |
-| `find -exec` | `-exec ... \;` required | GNU find supports `+` for batching |
+1. Run `./knowledge/update.sh <BUILD_ID>` — regenerates API docs, examples, and instruction dataset from actual `.hpp`/`.py` headers for all three languages (C++, Java, Python)
+2. The script reads `version.mk` for MAJOR/MINOR/SUBVERSION, accepts BUILD_ID as argument (or preserves current value if omitted)
+3. Updates checksums in `manifest.json` using the existing `.gen_state.json` SHA-256 pattern
+4. Run `./knowledge/build_model.sh` on the M4 Mac mini — fine-tunes 14B, exports GGUF (~1-3 hours)
+5. Release both artifacts (`Modelfile` + `.gguf`) via GitHub Releases
 
-**How we solved it:**
-- **Shell Script Portability Rule (`.bionic`):** Scripts must use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely.
-- **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
-- **Makefile recipe exception:** Makefile recipes run under `/bin/sh`, so external tools are permitted there (but bash builtins like `[[ ]]` and arrays are not).
-- **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
+### Installation (End Users)
 
-**Cost:** These bugs were insidious because they only manifested when scripts ran on a different platform. A script that worked perfectly in development (macOS) would fail silently or incorrectly on Linux containers.
+**Path A — System Prompt (any Qwen model, instant):**
+```bash
+curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/Modelfile -o Modelfile
+ollama create swtr-ringbuffer -f Modelfile
+ollama run swtr-ringbuffer "How do I configure per-stage logging?"
+```
 
-### Key Takeaway
+**Path B — Fine-Tuned 14B (zero-context inference):**
+```bash
+curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf -o model.gguf
+ollama create swtr-ringbuffer --from model.gguf
+ollama run swtr-ringbuffer "How do I configure per-stage logging?"
+```
 
-The common thread across all these challenges is **platform divergence in tools that appear identical**. An LLM trained on the vast majority of Linux/GNU examples will confidently generate incorrect macOS/BSD or FreeBSD/tcsh code because the surface syntax looks right — it's only at execution time that the differences matter. The solution is always:
+### Development (Internal)
 
-1. **Explicit per-platform templates** — never assume one syntax works everywhere
-2. **Pre-flight validation rules** — load platform-specific rule files before generating code
-3. **Container-based testing** — always verify inside the target platform, never on the host
-4. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
+All knowledge package development happens in GitLab on private branches. The auto-replication pipeline syncs `main` to a public GitHub mirror, where releases are published. The knowledge source (`knowledge/`) is not visible on the public repo — only the built artifacts (Modelfile, GGUF) and installation instructions (README) are public.
+
+## LinkedIn Post Generator
+
+A lightweight, ad-hoc tool for generating personal LinkedIn posts about projects in this workspace. Posts follow engagement best practices: hook in the first 140 characters, short paragraphs for scannability, first-person tone, a call-to-action question at the end, and 3–5 relevant hashtags.
+
+**Location:** `prompts/common/linkedin/generate_post.py`
+
+### Usage
+
+```bash
+# Generate from a project metadata file:
+python3 prompts/common/linkedin/generate_post.py --project prompts/common/linkedin/projects/ringbuffer.json
+# (Update the `link` field in the JSON to point to your repo, e.g. https://github.com/ebruno/codesamples)
+
+# Generate inline with CLI arguments:
+python3 prompts/common/linkedin/generate_post.py \
+    --name "My Project" \
+    --description "What it does in one sentence" \
+    --features "Feature 1, Feature 2, Feature 3" \
+    --tech "C++20, Python" \
+    --link "https://github.com/youruser/repo"
+
+# Dry-run (show character count and validation warnings only):
+python3 prompts/common/linkedin/generate_post.py --project <file> --dry-run
+
+# Write to a file:
+python3 prompts/common/linkedin/generate_post.py --project <file> -o post.txt
+```
+
+### Project Metadata Files
+
+Store reusable project metadata as JSON in `prompts/common/linkedin/projects/`. Each file defines:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Project name |
+| `description` | One-sentence summary of what it does |
+| `features` | Array of key features |
+| `tech` | Tech stack (e.g., "C++20, Java, Python") |
+| `link` | Repository URL |
+| `lesson` | What building it taught you |
+| `feedback_area` | Specific area to ask for feedback on |
+
+### Post Guidelines Enforced
+
+- **Character count:** 1,000–1,500 optimal (max 3,000)
+- **Hook:** Compelling statement in the first 140 characters (before "See more")
+- **Formatting:** Single-sentence paragraphs, bullet-point features
+- **Tone:** First-person, authentic and relatable
+- **Call to action:** Ends with a question to invite comments
+- **Hashtags:** 3–5 relevant tags auto-generated from the tech stack
 
 ## License
 This project is licensed under the **BSD 3-Clause License**.
+

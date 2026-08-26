@@ -17,77 +17,34 @@ Generate a comprehensive `README.md` for the Ringbuffer project that serves as a
 
 2. **Content Structure**:
    The README MUST follow this exact section order, matching the actual README.md structure:
-
    1. **Title & Introduction** — `# Ringbuffer` with one-sentence value proposition
-   2. **## What It Does** — Three-stage pipelined architecture (Read → Transform → Write) in plain English. How each thread fills, transforms, writes slots through shared slot state machines with independent atomic index counters. `std::jthread` cooperative cancellation and `wait()` blocking behavior
-   3. **## Overview** — Three-stage pipeline (**Read $
-ightarrow$ Transform $
-ightarrow$ Write**) and binary symmetry focus. Platform classification:
-      - **Platform-Sensitive Languages (C, C++)**: Byte-identical within same OS family; cross-family differences limited to `#ifdef` guards
-      - **Platform-Insensitive Languages (Java, Python, Go, Rust)**: Byte-identical across ALL platforms
-   4. **## Primary Goal** — Prompt-driven, immediate build-and-run functionality. **Develop-then-refactor** strategy with three phases:
-      - Phase A — Platform Development (2–3 representative platforms)
-      - Phase B — Common Refactor (`src/common/<lang>/`)
-      - Phase C — Platform Rollout (remaining platforms from common spec + per-OS overrides)
-      - Current status note: C++ in Phase A; Java/Python in Phase B; C/Go/Rust pre-Phase A
-   5. **## Prompt Execution Pattern** — Four-step pattern: common workflow → platform-specific primary document (`create_*.md`) → common spec → platform spec
-   6. **## Development Methodology** — LLM-created from scratch. Interactive prompt generation, binary symmetry as deliberate instruction, incremental refinement, **prompt versioning** via `.gen_state.json` SHA-256 hashes with changelog tracking (`prompts/common/CHANGELOG.md`). Post-commit hook (`githooks/post-commit` + `utils/bin/suggest_changelog_entry.sh`) analyzes prompt diffs.
-   7. **## Key Specifications** — Multi-OS support (macOS, Fedora, Debian, Ubuntu, Raspberry Pi OS, Arch Linux, FreeBSD 14), Multi-Language support (C++, Java, Python implemented; C, Go, Rust in pipeline). **Language Standards and Classification**: version requirements per language (C23/C17, C++20/C++17, Java SE 25/SE 24-17, Go 1.24/1.23, Python 3.14/3.13-3.10, Rust 1.84.0/1.56.0). **Language-Specific Build Systems**: C/C++ GNU Make, Java Maven, Go Modules, Python interpreted/ctypes, Rust Cargo. **Unified Build/Test Pattern** (all languages): `verify_build` → `<os>/<lang>/Makefile all` (build + symlinks, no tests); `run_regression` → `tests/Makefile verify` (T001–T007, reports); main Makefile `test: all` → calls `$(MAKE) -C tests verify`. Multi-Toolchain (GCC/Clang), C++20 standards, **Library-First API Design** (~20 slot-level accessor methods intentional).
-   8. **## Core Features** — **Shared Behavioral Contract (All Languages)**: three-stage pipeline, status-driven coordination (`readyforread` → `readyfortransform` → `readyforwrite` → `readyforread`), cooperative cancellation, error handler callback (non-zero = shutdown), EOF detection (`LAST_BUFFER_TO_TRANSFORM` → `LAST_BUFFER_TO_WRITE`), transform in-place. Pipelined Architecture, Performance (Cache Alignment 64-byte, Small Binaries `-ffunction-sections`, Universal Binaries macOS `lipo -create`, Compiler Flags `-fvisibility=hidden`/`-flto=thin`), Data Integrity (MD5/SHA256/SHA512 per slot), Diagnostics (NVI Logging per-stage verbosity).
-   9. **## LLM Knowledge Package** — Versioned knowledge packages for C++, Java, Python. Subsections:
-      - **### What It Contains** — `knowledge/` directory tree (manifest.json, Modelfile, system-prompt.md, api-reference/, examples/, patterns/, instruction-dataset/)
-      - **### Distribution Paths** — System Prompt (Modelfile, any Qwen model) vs Fine-Tuned (14B GGUF, ~10GB RAM)
-      - **### Versioning** — MAJOR/MINOR/SUBVERSION from `version.mk`, BUILD_ID manual input to `update.sh`
-      - **### Update Process** — `./knowledge/update.sh <BUILD_ID>` regenerates docs/dataset, `./knowledge/build_model.sh` fine-tunes on M4 Mac mini
-      - **### Installation (End Users)** — Path A: `ollama create swtr-ringbuffer -f Modelfile`; Path B: `ollama create swtr-ringbuffer --from model.gguf`
-      - **### Development (Internal)** — GitLab private branches → auto-replication to public GitHub mirror
-   10. **## LinkedIn Post Generator** — `prompts/common/linkedin/generate_post.py`. Subsections:
-       - **### Usage** — CLI examples (from JSON project file, inline args, dry-run, write to file)
-       - **### Project Metadata Files** — JSON fields: name, description, features, tech, link, lesson, feedback_area
-       - **### Post Guidelines Enforced** — 1000-1500 chars optimal, hook in first 140 chars, single-sentence paragraphs, first-person tone, CTA question, 3-5 hashtags
-   11. **## Quick Start: End-to-End Workflow (macOS Example)** — Five-step prompt-driven process with exact prompts and outputs:
-       - **### Step 1: Generate Source Code** — `create_functional.md` → `.hpp`, `.cpp` files in `src/macos/cpp/`
-       - **### Step 2: Create Build Environment** — `create_build.md` → Makefile, version.mk, library artifacts in `src/macos/cpp/lib/`
-       - **### Step 3: Verify the Build** — `verify_build.md` → runs `<os>/<lang>/Makefile all` (build + symlinks, no tests) → Mach-O binaries, symbol visibility
-       - **### Step 4: Set Up Test Infrastructure** — `create_regression.md` → tests/ with Makefile, test data T001-T007
-       - **### Step 5: Execute Regression Tests** — `run_regression.md` → runs `tests/Makefile verify` (T001-T007, reports) → regression_report.md, JUnit XML
-       - **### Incremental Updates** — `update_functional.md`, `update_build.md`, `update_testing.md`
-   12. **## Library API Example** — Construction, transform setup, I/O configuration, pipeline execution. Subsections:
-       - **### Advanced Configuration** — Per-stage logging (`set_read_logging_enabled`, `set_transform_verbosity`), checksum algorithm selection (`set_checksum_alg`), custom error handler (plain C function pointer). Transform types: `0` (identity), `1` (uppercase), `2` (XOR 0xFF). User transforms: `std::function<void(std::vector<uint8_t>&, size_t&)>`
-       - **### Version Propagation** — All languages derive version from `version.mk`: C/C++ Makefile include, Java version.sh→pom.xml, Go version.sh→version.go, Python version.sh→version.py, Rust build.rs→src/version.rs
-       - **### Pipeline Architecture Diagram** — Mermaid flowchart showing three pipeline threads and slot state transitions. Key points: atomic index counters, slot state progression, EOF propagation
-       - **### Pipeline Animation** — `animated_graphics/pipeline_animation.gif` (45 frames, 1000ms each, ~45s cycle)
-   13. **## Initial Development Environment** — OS, Hardware (core count + RAM), AI Tools subsection: Agent Harness (name/version/commit), Model Name, Model Specs (parameter count, architecture, optimization method)
-   14. **## Project Structure** — Deterministic file mapping strategy (max 3 functions per `.cpp` file). Per-OS `src/<os>/cpp/` includes `specs/` subdirectory. **reference_linux** as canonical reference platform in `prompts/reference_linux/`. Platform-insensitive languages: Java (`src/common/java/`), Python (`src/common/python/`). FreeBSD 14 Python (`src/freebsd14/python/`), Raspberry Pi OS Java (`src/raspios/java/`).
-   15. **## Source File Layout & Symlink Usage** — C++ source deduplication via symlinks to `src/common/cpp/`. Subsections: How C++ Source Files Are Organized (directory tree, 21 shared source files), Symlink Awareness & Compatibility table (git tracking, build tools, IDE navigation, web viewers), Compatibility Matrix (macOS/Linux/FreeBSD ✅, Windows ⏳ Roadmap), Windows Support subsection, Why Symlinks Over Copying (drift prevention), How to Identify Symlinked vs Real Files (`ls -la`, `readlink -f`, `find`), Build Artifact Symlinks (versioned → unversioned in lib/).
-   16. **## Project Policies** — Operational rules for the project. Subsections:
-       - **### Shell Script Portability** — Forbidden tools (awk, sed, grep, cut, tr, sort, uniq, find, xargs, which), permitted builtins, `command -v` vs `which`, tcsh exception, shebang line rule (`#!/usr/bin/env bash`), Makefile recipe exception
-       - **### SSH Authentication Policy** — Golden rule: key-based auth only, passwords prohibited; setup and verification steps
-       - **### Git Discipline** — Never commit; user handles all commits; no reports/logs/artifacts committed
-       - **### Build vs Test Workflow Pattern** — Golden rule: never cross `verify_build` / `run_regression` boundaries
-       - **### Container Commands (macOS)** — No podman, no `localhost/` prefix, Debian LTO_FLAG exception
-       - **### Prompt Changelog Discipline** — CHANGELOG.md format for prompt changes
-       - **### Prompt Deduplication Discipline** — Check `session_hints.md` before duplicating content
-       - **### Makefile Tab Discipline** — Real tabs, not spaces
-       - **### Version Naming Convention** — `version.mk` = library version, not OS version
-       - **### Mermaid Diagram Validation** — Validate diagrams with `mmdc` before committing; common pitfalls (parentheses quoting, at-signs in edge labels, `direction` inside subgraphs)
-   17. **## Developer & Maintainer Guide** — Parts A through E:
-       - **### Part A: The Golden Rules (Coding Standards)** — Binary symmetry, file distribution (max 3 functions), include discipline, naming conventions, hierarchy, platform sync, prompt deduplication, cross-platform generation mandate
-       - **### Part B: The Prompt-Driven Workflow** — State tracking (`.gen_state.json`), 3-phase sync, delta updates, execution examples (full generation, incremental update, verification & testing), test matrix T001–T007 table, test program CLI
-       - **### Part C: Session Best Practices** — `.bionic` config, `session_hints.md`, `cpp/session_hints.md`, `implement_new_os.md` interactive workflow, test data pattern system (zigzag), directory structure
-       - **### Part D: Documentation & Media Assets** — README generation prompt, pipeline animation script, GIF to MP4 conversion, LLM knowledge package update/build scripts
-       - **### Part E: Adding a New Operating System** — OS classification table, OS identification (macOS `sw_vers`, universal kernel `uname`, Linux `/etc/os-release`, architecture `uname -m`), release naming conventions, container configuration (Dockerfile patterns for Fedora/Debian/Raspios/macOS), required prompt files (9 files per OS), reference implementations (macOS, Raspios, Arch Linux), implementation checklist (13 steps), SSH remote transfer rule, Python Makefiles by family (GNU vs BSD), common pitfalls, interactive OS setup workflow (`implement_new_os.md`)
-   18. **## Supported Platforms** — OS-grouped table (OS, Language, Version, Verified Compilers). All platforms including FreeBSD 14/15. Footnote: `*TBS: To Be Supplied | WIP: Work In Progress`. Compiler version notes with footnote references.
-   19. **## Known Issues & Toolchain Limitations** — Table: Ubuntu clang++ unsupported (headers mismatch), FreeBSD 14 RPATH limitation (static library only). LM Studio shell ENOENT bug workaround.
-   20. **## Where We Are At** — Current implementation status per platform/language, verification results (binary symmetry, prompt linting), operational capabilities. Subsections:
-       - **### Current Status (as of YYYY-MM-DD)** — C++ complete for macOS/Debian/Fedora/Ubuntu/Raspios/ArchLinux; Java/Python common implementations (including ArchLinux via SSH, FreeBSD 14 native); C/Go/Rust pre-Phase A; binary symmetry verified across all platforms; state tracking operational on 6+ platforms
-       - **### What Works Today** — Auto-generated table: C++ library (macOS + Linux), Java library, Python library, Build system (unified `all` target), Test infrastructure (unified `verify` target), Build/test separation, Binary symmetry, Prompt linting, State tracking, Multi-language verify, Java regression (18 assertions, 0 failures), Go/Rust scaffolding, Changelog suggestions
-   21. **## Where We're Going** — Static roadmap (updated manually):
-       - **### Near-Term (Next Iterations)** — Additional languages C/Go/Rust implementation, additional test patterns beyond zigzag, enhanced CI/CD integration, LLM Knowledge Package development
-       - **### Medium-Term (Roadmap)** — FreeBSD 15 implementation, Arch Linux C++ source generation on Linux host, more comprehensive test coverage (concurrent access patterns, memory pressure, signal handling), documentation expansion
-       - **### Long-Term (Vision)** — Full multi-language library with all 6 languages sharing the same functional spec, cross-platform verification suite comparing behavior across language/platform combinations (not just source-level binary symmetry), plugin ecosystem for custom transforms
-   22. **## Appendices** — Table of appendix files under `prompts/common/appendices/`: archlinux-platform-analysis.md, cpp-cross-compiler-compatibility.md, debian-platform-analysis.md, fedora-platform-analysis.md, freebsd-platform-analysis.md, freebsd14_java_verification.md, freebsd14_python_verification.md, macos-platform-analysis.md, raspios-platform-analysis.md, ubuntu-platform-analysis.md
-   23. **## License** — BSD 3-Clause License
+   2. **## What It Does** — Three-stage pipelined architecture (Read → Transform → Write). Merged with former Overview: now includes binary symmetry focus and platform classification (Platform-Sensitive vs Platform-Insensitive languages)
+   3. **## Implementation Status** — Table: 6 languages × 7 OSes with phase indicators (✅ B = implemented, ⬜ A = spec written). Link to Roadmap.
+   4. **## Roadmap** — Checklist: Phase 1 ✅, Phase 2 ✅, Phases A-B ✅, Phase 3 ☐ (C/Go/Rust), Phase 4 ☐ (verification/docs)
+   5. **## Key Specifications** — Multi-OS support, Language Standards and Classification, Language-Specific Build Systems, Unified Build/Test Pattern, Library-First API Design
+   6. **## Core Features** — Shared Behavioral Contract, Pipelined Architecture, Performance, Data Integrity, Diagnostics
+   7. **## Library API Example** — Construction, transform setup, I/O configuration, pipeline execution. Subsections: Advanced Configuration, Version Propagation, Pipeline Architecture Diagram, Pipeline Animation
+   8. **## Quick Start: End-to-End Workflow (macOS Example)** — Five-step prompt-driven process with incremental updates
+   9. **## Supported Platforms** — OS-grouped table (OS, Language, Version, Verified Compilers). Implemented languages only (C++, Java, Python).
+   10. **## Known Issues** — Ubuntu clang++ unsupported, FreeBSD 14 RPATH limitation, LM Studio shell ENOENT bug
+   11. **## Where We Are At** — Current implementation status (condensed; references Implementation Status table). Subsections: Current Status, What Works Today
+   12. **## Where We're Going** — Static roadmap: Near-Term, Medium-Term, Long-Term
+   13. **## Primary Goal** — Prompt-driven, immediate build-and-run functionality. Develop-then-refactor strategy (Phase A/B/C). Status in Implementation Status and Roadmap above.
+   14. **## Project Structure** — Deterministic file mapping strategy. reference_linux as canonical reference platform
+   15. **## Source File Layout & Symlink Usage** — C++ source deduplication via symlinks. Subsections: How C++ Source Files Are Organized, Symlink Awareness, Compatibility Matrix, Windows Support, Build Artifact Symlinks
+   16. **## Development Methodology** — LLM-created. Interactive prompt generation, binary symmetry, incremental refinement, prompt versioning via .gen_state.json, post-commit hook
+   17. **## LLM Challenges** — Portable Shell Scripts (Core Feature), BSD Makefiles vs GNU Make, macOS Toolchain Quirks, tcsh Scripts, Shell Portability, Python Multi-Compiler C++ Library Testing
+   18. **## Prompt Execution Pattern** — Four-step: common workflow → platform-specific primary document → common spec → platform spec
+   19. **## Developer & Maintainer Guide** — Parts A-E: Golden Rules, Prompt-Driven Workflow, Session Best Practices, Documentation & Media Assets, Adding a New Operating System
+   20. **## Project Policies** — Shell Script Portability, SSH Authentication, Git Discipline, Build vs Test, Container Commands, Prompt Changelog/Deduplication, Makefile Tab, Version Naming, Mermaid Validation
+   21. **## Required Tools** — Table of required/optional tools
+   22. **## Initial Development Environment** — OS, Hardware, AI Tools
+   23. **## TODO** — Pending items
+   24. **## Appendices** — Platform analysis document links
+   25. **## LLM Knowledge Package** — Versioned knowledge packages for C++, Java, Python (end of README)
+   26. **## LinkedIn Post Generator** — Ad-hoc LinkedIn post tool (end of README)
+   27. **## License** — BSD 3-Clause License
+
 
 3. **Maintenance & Workflow (Developer/Maintainer Section)**:
    This section must be split into three parts:
