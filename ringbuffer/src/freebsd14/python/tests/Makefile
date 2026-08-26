@@ -1,13 +1,10 @@
 # BSD Make-compatible Makefile for FreeBSD 14 Python regression testing
 # Uses BSD make syntax (no $(shell), no ifeq/else)
-# Source files from src/freebsd14/python/ (Pure Python only — Concurrent SKIPPED due to RPATH limitation)
-# Log file naming: t001_pure.log, T001_pure.exit (matches generate_junit_report expectations)
+
+SHELL = /bin/sh
 
 # OS name for registry lookup
 OS_NAME = freebsd14
-
-# Project root (workspace top-level directory)
-PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
 
 .PHONY: all clean dist-clean test verify deploy_utils probe-os
 
@@ -17,69 +14,94 @@ UTILS_BIN_DIR = utils/bin
 LOG_DIR = logs
 REPORT_DIR = reports/python/per_os
 
-# Test harness (Pure Python only — Concurrent tests SKIPPED on FreeBSD 14)
-TEST_HARNESS = ../test_ringbuffer_pure.py
+# Test harnesses
+TEST_CONCURRENT = ../test_ringbuffer.py
+TEST_PURE = ../test_ringbuffer_pure.py
 
-# all is an alias for verify (verify_build calls make all)
 all: verify
 
-# Deploy utility scripts for report generation
 deploy_utils:
 	@mkdir -p ${UTILS_BIN_DIR}
-	@test -f ${UTILS_PROMPT_DIR}/generate_junit_report.sh && cp ${UTILS_PROMPT_DIR}/generate_junit_report.sh ${UTILS_BIN_DIR}/ && echo "Deployed generate_junit_report.sh" || true
 	@test -f ${UTILS_PROMPT_DIR}/generate_junit_report.tcsh && cp ${UTILS_PROMPT_DIR}/generate_junit_report.tcsh ${UTILS_BIN_DIR}/ && echo "Deployed generate_junit_report.tcsh" || true
 
-# Single entry point for verify_build and run_regression
-# `make test` delegates to `verify` — matches C/C++ pattern
 test: verify
 
-# Build + run all tests + generate reports (called by `make test`)
 verify: deploy_utils
 	@mkdir -p ${LOG_DIR} ${REPORT_DIR}
-	@echo "Running Python Test Matrix (T001-T007)..."
-	@echo "=== SKIPPED: Concurrent harness (FreeBSD 14 RPATH limitation) ==="
-	@echo "`date '+%Y-%m-%d %H:%M:%S %z'` Concurrent harness SKIPPED: FreeBSD 14 RPATH limitation (ld-elf.so.1 strips \$ORIGIN from RUNPATH)" >> ${LOG_DIR}/build.log
+	@echo "Building C++ shared library..."
+	@cd ../../cpp && make shared
+	@mkdir -p ../lib
+	@rm -f ../lib/libswtr_ringbuffer.so
+	@ln -s ../../cpp/lib/libswtr_ringbuffer.so ../lib/libswtr_ringbuffer.so
+	@echo 0 > ${LOG_DIR}/_conc_fail
+	@echo 0 > ${LOG_DIR}/_pure_fail
 	@echo ""
-	@echo "=== Running Pure Python harness (test_ringbuffer_pure.py) ==="
-	@PASS=0; FAIL=0; \
-	for t in 1 2 3 4 5 6 7; do \
+	@echo "=== Concurrent harness ==="
+	-@for t in 1 2 3 4 5 6 7; do \
 		TNUM=$$(printf "T00%d" $$t); \
-		echo "  Running Pure Python $$TNUM..."; \
-		echo 'Hello, World! This is a test input for the ringbuffer pipeline.' | \
-			python3 ${TEST_HARNESS} $$t > ${LOG_DIR}/t$${TNUM#T}_pure.log 2>&1; \
-		echo $$? > ${LOG_DIR}/$${TNUM}_pure.exit; \
+		echo "  $$TNUM..."; \
+		echo "Hello, World! This is a test input for the ringbuffer pipeline." | \
+			python3 ${TEST_CONCURRENT} $$t > ${LOG_DIR}/t$${TNUM#T}_concurrent.log 2>&1; \
 		EXIT=$$?; \
-		if [ $$EXIT -ne 0 ]; then \
-			echo "    FAIL: Pure Python $$TNUM (exit code $$EXIT)"; \
-			FAIL=$$((FAIL+1)); \
+		echo $$EXIT > ${LOG_DIR}/$${TNUM}_concurrent.exit; \
+		if [ "$$TNUM" = "T005" ]; then \
+			if [ $$EXIT -eq 1 ]; then \
+				echo "    PASS: Concurrent $$TNUM (expected exit code 1)"; \
+			else \
+				echo "    FAIL: Concurrent $$TNUM (expected exit 1, got $$EXIT)"; \
+				FAIL=$$(cat ${LOG_DIR}/_conc_fail); echo $$((FAIL+1)) > ${LOG_DIR}/_conc_fail; \
+			fi; \
+		elif [ $$EXIT -ne 0 ]; then \
+			echo "    FAIL: Concurrent $$TNUM"; \
+			FAIL=$$(cat ${LOG_DIR}/_conc_fail); echo $$((FAIL+1)) > ${LOG_DIR}/_conc_fail; \
+		else \
+			echo "    PASS: Concurrent $$TNUM"; \
+		fi; \
+	done
+	@echo "=== Pure Python harness ==="
+	-@for t in 1 2 3 4 5 6 7; do \
+		TNUM=$$(printf "T00%d" $$t); \
+		echo "  $$TNUM..."; \
+		echo "Hello, World! This is a test input for the ringbuffer pipeline." | \
+			python3 ${TEST_PURE} $$t > ${LOG_DIR}/t$${TNUM#T}_pure.log 2>&1; \
+		EXIT=$$?; \
+		echo $$EXIT > ${LOG_DIR}/$${TNUM}_pure.exit; \
+		if [ "$$TNUM" = "T005" ]; then \
+			if [ $$EXIT -eq 1 ]; then \
+				echo "    PASS: Pure Python $$TNUM (expected exit code 1)"; \
+			else \
+				echo "    FAIL: Pure Python $$TNUM (expected exit 1, got $$EXIT)"; \
+				FAIL=$$(cat ${LOG_DIR}/_pure_fail); echo $$((FAIL+1)) > ${LOG_DIR}/_pure_fail; \
+			fi; \
+		elif [ $$EXIT -ne 0 ]; then \
+			echo "    FAIL: Pure Python $$TNUM"; \
+			FAIL=$$(cat ${LOG_DIR}/_pure_fail); echo $$((FAIL+1)) > ${LOG_DIR}/_pure_fail; \
 		else \
 			echo "    PASS: Pure Python $$TNUM"; \
-			PASS=$$((PASS+1)); \
 		fi; \
-	done; \
-	echo "Pure Python: $$PASS passed, $$FAIL failed"; \
-	if [ $$FAIL -ne 0 ]; then echo "PURE PYTHON HARNES FAILED"; exit 1; fi; \
-	echo "`date '+%Y-%m-%d %H:%M:%S %z'` Pure Python harness: $$PASS/7 passed" >> ${LOG_DIR}/build.log
+	done
 	@echo ""
-	@echo "=== All tests passed (Pure Python only — Concurrent skipped: FreeBSD 14 RPATH limitation) ==="
-	@echo "`date '+%Y-%m-%d %H:%M:%S %z'` All tests passed (Pure Python only — Concurrent skipped: FreeBSD 14 RPATH limitation)" >> ${LOG_DIR}/build.log
-	@# Performance comparison: SKIPPED on FreeBSD 14 (Concurrent tests skipped due to RPATH limitation)
-	@echo ""; \
-	echo "=== SKIPPED: Performance comparison (FreeBSD 14 Concurrent tests skipped — RPATH limitation) ==="; \
-	printf "%s Performance comparison SKIPPED: FreeBSD 14 Concurrent tests skipped (ld-elf.so.1 strips \$ORIGIN from RUNPATH)\n" "`date '+%Y-%m-%d %H:%M:%S %z'`" >> ${LOG_DIR}/build.log
+	@CONC_FAIL=$$(cat ${LOG_DIR}/_conc_fail); \
+	PURE_FAIL=$$(cat ${LOG_DIR}/_pure_fail); \
+	CONC_PASS=$$((7 - CONC_FAIL)); \
+	PURE_PASS=$$((7 - PURE_FAIL)); \
+	echo "Concurrent: $$CONC_PASS/7 passed"; \
+	echo "Pure Python: $$PURE_PASS/7 passed"; \
+	if [ $$CONC_FAIL -ne 0 ] || [ $$PURE_FAIL -ne 0 ]; then \
+		echo "=== SOME TESTS FAILED ==="; exit 1; \
+	fi; \
+	echo "=== All tests passed ==="
 	@echo "Generating reports..."
 	@./utils/bin/generate_junit_report.tcsh -l ${LOG_DIR} -o ${REPORT_DIR}/python_regression_report_junit.xml
 	@echo "Verification complete."
 
 clean:
 	@rm -rf ${LOG_DIR}/* ${REPORT_DIR}/* utils/bin
-
-# Probe OS/compiler availability (manual use only — not called by other rules)
-PROBE_LANG = python
-
-probe-os:
-	@echo "Probing compiler availability for ${OS_NAME}/${PROBE_LANG}..."
-	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} ${PROBE_LANG}
+	@rm -rf utils
 
 dist-clean: clean
-	@rm -rf ${LOG_DIR} ${REPORT_DIR} utils/bin
+	@rm -rf ${LOG_DIR} ${REPORT_DIR}
+
+probe-os:
+	@echo "Probing Python availability for ${OS_NAME}..."
+	@python3 --version 2>/dev/null || echo "Python3 not found"

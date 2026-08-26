@@ -100,11 +100,11 @@ ifeq ($(INSIDE_CONTAINER),yes)
 else ifeq ($(UNAME_S),Darwin)
     # macOS host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/archlinux/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),arch)
     # Non-Arch Linux host - use container for cross-OS build
     all: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/archlinux/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/archlinux/cpp $(CONTAINER_IMAGE) make all
 else
     # Arch Linux host - build natively
     all: clean static shared

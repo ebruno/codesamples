@@ -184,7 +184,7 @@ def run_test(test_number, num_slots=DEFAULT_NUM_SLOTS, buffer_size=DEFAULT_BUFFE
         elif test_number == 5:
             # T005: fatal error — pipeline stops early, partial output expected
             print("T005: Pipeline executed (partial output expected)")
-            match = True  # Just verify pipeline ran
+            match = False  # Exit code must be non-zero for fatal error mode
         elif test_number == 6:
             # T006: non-fatal error — output must equal input
             match = input_data == output_data

@@ -3,8 +3,8 @@ include ../version.mk
 # OS name for registry lookup
 OS_NAME = freebsd14
 
-# Project root (workspace top-level directory)
-PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+# Project root (workspace top-level directory) — BSD make: use :H modifier instead of GNU abspath
+PROJECT_ROOT_DIR := ${.CURDIR:H:H:H:H}
 
 CXX := clang++
 CXXFLAGS = -std=c++20 -O3 -I.. -I../src/freebsd14/cpp -pthread

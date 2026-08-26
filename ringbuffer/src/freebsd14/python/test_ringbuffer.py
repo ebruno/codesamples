@@ -283,7 +283,7 @@ def run_test005(num_slots, buffer_size):
 
         # For T005, we just verify the pipeline executed (partial output is expected)
         print("T005: Pipeline executed (partial output expected)")
-        return True
+        return False
 
     finally:
         os.unlink(fin_path)

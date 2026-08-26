@@ -49,10 +49,15 @@ set test_expected_exit = ( 0 0 0 0 1 0 0 )
 # Harness types to check (order matters for report ordering)
 set harnesses = ( concurrent pure )
 
-# Create XML template file using unquoted heredoc (tcsh doesn't support quoted markers)
-cat > /tmp/junit_template.xml << TMPL
+# Create XML template fragments using unquoted heredocs
+# NOTE: tcsh does NOT support quoted heredoc markers (<< 'EOF' fails)
+# Build file in order: header (>), test cases (>>), footer (>>), then sed-replace placeholders
+cat > /tmp/junit_header.xml << TMPL
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="__NAME__" tests="__TOTAL_TESTS__" failures="__TOTAL_FAILURES__" errors="0" time="__TOTAL_TIME__">
+TMPL
+
+cat > /tmp/junit_footer.xml << TMPL
 </testsuites>
 TMPL
 
@@ -69,6 +74,9 @@ __ERROR_OUTPUT__
     </failure>
   </testcase>
 TMPL
+
+# Write header to output file (fresh start for each run)
+cp /tmp/junit_header.xml "$output_file"
 
 # Process each harness type, then each test number
 foreach harness ( $harnesses )
@@ -87,8 +95,8 @@ foreach harness ( $harnesses )
     endif
 
     foreach test_num ( 001 002 003 004 005 006 007 )
-        # Get index (test_num - 1) for array access — tcsh arrays are 1-indexed
-        @ idx = $test_num - 1
+        # tcsh arrays are 1-indexed; test_num "001"→idx=1 maps to first element
+        @ idx = $test_num
 
         set test_id = "T${test_num}"
         set log_file = "${logs_dir}/t${test_num}_${harness}.log"
@@ -183,8 +191,8 @@ ${line}"
     end
 end
 
-# Copy template to output, then replace totals using sed (tcsh exception: external tools allowed)
-cp /tmp/junit_template.xml "$output_file"
+# Append closing footer tag
+cat /tmp/junit_footer.xml >> "$output_file"
 
 # Calculate total time in seconds
 @ total_time_sec_int = $total_time_ms / 1000
@@ -192,12 +200,13 @@ cp /tmp/junit_template.xml "$output_file"
 set total_time_str = `printf "%d.%03d" $total_time_sec_int $total_time_ms_frac`
 
 # Replace placeholders with actual totals using sed
+sed -i '' "s/__NAME__/Python Regression/g" "$output_file"
 sed -i '' "s/__TOTAL_TESTS__/$total_tests/g" "$output_file"
 sed -i '' "s/__TOTAL_FAILURES__/$total_failures/g" "$output_file"
 sed -i '' "s/__TOTAL_TIME__/$total_time_str/g" "$output_file"
 
 # Clean up temp files
-rm -f /tmp/junit_template.xml /tmp/junit_testcase_pass.xml /tmp/junit_testcase_fail.xml
+rm -f /tmp/junit_header.xml /tmp/junit_footer.xml /tmp/junit_testcase_pass.xml /tmp/junit_testcase_fail.xml
 
 echo "JUnit report generated: $output_file"
 echo "Total tests: $total_tests, Failures: $total_failures, Total time: ${total_time_str}s"

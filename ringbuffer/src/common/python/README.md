@@ -35,11 +35,26 @@ print(SwtrRingBuffer._version)  # "Concurrent" or "Pure Python"
 ## Build Requirements
 
 - **Language**: Python 3.14 (primary), with fallback to Python 3.10+
-- **Build System**: None (interpreted language)
+- **Build System**: GNU Make (`Makefile.macos` / `Makefile.linux`) — platform-specific
 - **Version Source**: `version.mk` — read by `version.sh` to generate `version.py`
 - **Dependency (Concurrent only)**: C++ shared library (`libswtr_ringbuffer.so` / `.dylib`) loaded via `ctypes`
 
 ## Building
+
+### Using Make (Recommended)
+The directory contains platform-specific Makefiles:
+- **macOS**: `Makefile.macos` (uses BSD make syntax)
+- **Linux**: `Makefile.linux` (uses GNU make syntax)
+
+```bash
+# macOS
+make -f Makefile.macos all    # Verify build and run tests
+make -f Makefile.macos clean  # Remove artifacts
+
+# Linux
+make -f Makefile.linux all    # Verify build and run tests
+make -f Makefile.linux clean  # Remove artifacts
+```
 
 ### Version Propagation
 The `version.sh` script reads `version.mk` and generates `version.py`:
@@ -66,6 +81,7 @@ python3 -c "import swtr_ringbuffer"         # Import verification
 | ABC interface | `base.py` | RingBuffer abstract base class (38 methods) |
 | Test module (Concurrent) | `test_ringbuffer.py` | T001–T007 test suite for Concurrent version |
 | Test module (Pure Python) | `test_ringbuffer_pure.py` | T001–T007 test suite for Pure Python version |
+| Benchmark script | `benchmark.py` | Performance comparison between Concurrent and Pure Python |
 
 ## Architecture
 
@@ -98,11 +114,11 @@ Both implementations verified via:
 
 | Scenario | Faster Implementation | Reason |
 |----------|----------------------|--------|
-| Small inputs (< 1KB) | Concurrent (ctypes) | Lower per-operation overhead, 1.41x faster avg |
-| Large files (> 100KB) | Pure Python | No subprocess/FFI overhead, up to 1.48x faster with transforms |
-| Stress test (1-byte buffer) | Concurrent (ctypes) | 2.63x faster, tight loop optimization in C++ |
+| Small inputs (< 1KB) | Concurrent (ctypes) | Lower per-operation overhead, ~1.4x faster avg |
+| Large files (> 100KB) | Pure Python | No subprocess/FFI overhead, up to ~1.5x faster with transforms |
+| Stress test (1-byte buffer) | Concurrent (ctypes) | ~2.6x faster, tight loop optimization in C++ |
 
-**Crossover point:** Pure Python is faster at all tested file sizes (293K+). The crossover where Concurrent becomes faster is below 1KB for identity transforms.
+**Crossover point:** Pure Python is faster at all tested file sizes. Run `python3 benchmark.py` to compare on your system. (293K+). The crossover where Concurrent becomes faster is below 1KB for identity transforms.
 
 ## Platform Notes
 

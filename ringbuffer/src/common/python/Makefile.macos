@@ -31,15 +31,15 @@ symlink: build-cpp
 	@rm -f .cpp_build_failed; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] C++ build succeeded" >> $(LOG_FILE); mkdir -p lib; if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib ]; then rm -f lib/libswtr_ringbuffer.dylib; ln -s ../$(CPP_SRC_DIR)/lib/libswtr_ringbuffer.dylib lib/libswtr_ringbuffer.dylib; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Symlinked libswtr_ringbuffer.dylib to lib/" >> $(LOG_FILE); fi
 
 # Main build target — always clean first for repeatability
-build: symlink
+build: syntax-check symlink
 	@echo "C++ build complete"
 
 # Clean + build — always starts from scratch for repeatability
 all: clean build
 
-# Syntax check (single-line)
+# Syntax check — validates all Python files before build
 syntax-check:
-	@echo "Syntax checking Python files..."; python3 -m py_compile swtr_ringbuffer_pure.py || { echo "FAIL: swtr_ringbuffer_pure.py has syntax errors"; exit 1; }; python3 -m py_compile test_ringbuffer.py || { echo "FAIL: test_ringbuffer.py has syntax errors"; exit 1; }; python3 -m py_compile test_ringbuffer_pure.py || { echo "FAIL: test_ringbuffer_pure.py has syntax errors"; exit 1; }; @echo "Syntax check passed."
+	@echo "=== Python Syntax Check ==="; failed=0; for f in swtr_ringbuffer_pure.py test_ringbuffer.py test_ringbuffer_pure.py; do if python3 -m py_compile $$f 2>/dev/null; then echo "  PASS: $$f"; else echo "  FAIL: $$f — syntax error"; failed=1; fi; done; if [ $$failed -ne 0 ]; then echo "Syntax check FAILED — aborting build."; exit 1; fi; echo "Syntax check passed."
 
 # Run tests
 test: build syntax-check

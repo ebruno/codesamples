@@ -82,10 +82,10 @@ ifeq ($(INSIDE_CONTAINER),yes)
     all: clean static shared
 else ifeq ($(UNAME_S),Darwin)
     all: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/fedora/cpp $(CONTAINER_IMAGE) make all
 else ifneq ($(HOST_DISTRO),fedora)
     all: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/fedora/cpp $(CONTAINER_IMAGE) make all
+	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/fedora/cpp $(CONTAINER_IMAGE) make all
 else
     all: clean static shared
     test: all
@@ -137,14 +137,14 @@ start_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
-		echo "Container ringbuffer_$(TARGET_OS)_test already running."; \
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_build_running"; then\
+		echo "Container ringbuffer_$(TARGET_OS)_build already running."; \
 	else\
-		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) run --detach --name "ringbuffer_$(TARGET_OS)_test_running" \
+		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_build";\
+		$(CONTAINER_CMD) run --detach --network default --name "ringbuffer_$(TARGET_OS)_build_running" \
 			-v $(CONTAINER_MOUNT_DIR):/app/ringbuffer \
 			-w /app/ringbuffer/src/$(TARGET_OS)/cpp \
-			ringbuffer_$(TARGET_OS)_test tail -f /dev/null;\
+			$(CONTAINER_IMAGE) tail -f /dev/null;\
 	fi
 
 # Stop the persistent container (image stays, container remains on disk)
@@ -152,11 +152,11 @@ stop_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
-		echo "Stopping container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_build_running"; then\
+		echo "Stopping container: ringbuffer_$(TARGET_OS)_build";\
+		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_build_running" 2>/dev/null || true;\
 	else\
-		echo "No running container found for ringbuffer_$(TARGET_OS)_test.";\
+		echo "No running container found for ringbuffer_$(TARGET_OS)_build.";\
 	fi
 
 # Remove the persistent container (image stays)
@@ -164,11 +164,11 @@ remove_container:
 	@if [ -z "$(CONTAINER_CMD)" ]; then\
 		echo "ERROR: No container runtime found."; exit 1;\
 	fi
-	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
-		echo "Removing container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_build_running"; then\
+		echo "Removing container: ringbuffer_$(TARGET_OS)_build";\
+		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_build_running" 2>/dev/null || true;\
 	else\
-		echo "No container found for ringbuffer_$(TARGET_OS)_test.";\
+		echo "No container found for ringbuffer_$(TARGET_OS)_build.";\
 	fi
 
 container-clean:

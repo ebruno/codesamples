@@ -30,50 +30,59 @@ make clean              # Remove build artifacts
 ```
 
 ### Using g++ (Manual)
+> **Note:** The compilation examples below use explicit filenames. Glob patterns like `LoggingOps_*.cpp` work in Makefiles but not in shell commands.
 
 ```bash
-g++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto=thin \
-    -I. -c Lifecycle.cpp ReadOps.cpp TransformOps.cpp WriteOps.cpp \
-       Threading.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
+g++ -std=c++20 -fPIC -flto \
+    -Wall -Wextra -O3 -fvisibility=hidden \
+    -ffunction-sections -fdata-sections \
+    -I. -c Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
+       WriteOps.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
        LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
        Accessors_Status.cpp Accessors_ChecksumAlg.cpp Accessors_ChecksumVal.cpp \
        Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp
 
 ar rcs lib/libswtr_ringbuffer-1.0.0-1.a *.o
-g++ -shared -Wl,-soname,libswtr_ringbuffer.so -o lib/libswtr_ringbuffer-1.0.0-1.so *.o
+g++ -shared -Wl,-soname,libswtr_ringbuffer.so -Wl,--gc-sections \
+    -o lib/libswtr_ringbuffer-1.0.0-1.so *.o
 ```
 
 ### Using clang++ (Manual)
-
 ```bash
-clang++ -std=c++20 -fPIC -Wall -Wextra -O3 -flto=thin \
-    -I. -c Lifecycle.cpp ReadOps.cpp TransformOps.cpp WriteOps.cpp \
-       Threading.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
+clang++ -std=c++20 -fPIC \
+    -Wall -Wextra -O3 -fvisibility=hidden \
+    -ffunction-sections -fdata-sections \
+    -I. -c Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
+       WriteOps.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
        LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
        Accessors_Status.cpp Accessors_ChecksumAlg.cpp Accessors_ChecksumVal.cpp \
        Accessors_Size_Max.cpp Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp
 
 ar rcs lib/libswtr_ringbuffer-1.0.0-1.a *.o
-clang++ -shared -Wl,-soname,libswtr_ringbuffer.so -o lib/libswtr_ringbuffer-1.0.0-1.so *.o
+clang++ -shared -Wl,-soname,libswtr_ringbuffer.so -Wl,--gc-sections \
+    -fuse-ld=lld -o lib/libswtr_ringbuffer-1.0.0-1.so *.o
 ```
 
 ## Library Artifacts
 
 | Artifact | Path | Description |
 |----------|------|-------------|
-| Static library | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
-| Shared library | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
+| Static library (versioned) | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
+| Static library (unversioned) | `lib/libswtr_ringbuffer.a` | Symlink → versioned static library |
+| Shared library (versioned) | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
+| Shared library (unversioned) | `lib/libswtr_ringbuffer.so` | Symlink → versioned shared library |
 
 ## Containerized Build
 
 ```bash
-make container          # Build the Fedora build image
-make container-clean    # Remove the build image
+make container          # Build the Fedora build image (auto-detects host OS)
+make container-clean    # Remove the build and test images
+make start_container    # Start a persistent container for test execution
 ```
 
 ## Architecture
 
-- **RingBuffer**: Abstract base class defining the public interface
+- **RingBuffer**: Abstract interface defining the public API
 - **SwtrRingBuffer**: Concrete implementation with three pipeline threads (read, transform, write)
 - **BufferSlot**: Cache-line aligned slot structure with atomic state management
 

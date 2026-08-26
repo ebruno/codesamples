@@ -3,8 +3,36 @@ include version.mk
 # OS name for registry lookup
 OS_NAME = raspios
 
+# If UNSUPPORTED.md exists, skip all build targets (GCC 12 lacks <format>)
+UNSUPPORTED := $(wildcard UNSUPPORTED.md)
+
 # Project root (workspace top-level directory)
 PROJECT_ROOT_DIR := $(abspath $(CURDIR)/../../../..)
+
+# ── Container config (always needed — Java/Python use container even when C++ is unsupported) ──
+CONTAINER_MOUNT_DIR := $(abspath $(CURDIR)/../../..)
+CONTAINER_IMAGE = ringbuffer_raspios_build
+TARGET_OS ?= raspios
+DOCKERFILE = ../containers/build/Dockerfile
+
+# Detect Container Runtime and Host OS (allow override from host via -e CONTAINER_CMD)
+UNAME_S := $(shell uname -s)
+HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
+# Raspios base image reports ID=debian; check /etc/rpi-issue to disambiguate
+ifeq ($(HOST_DISTRO),debian)
+  ifneq ($(shell test -f /etc/rpi-issue && echo yes),)
+    HOST_DISTRO := raspios
+  endif
+endif
+ifeq ($(CONTAINER_CMD),)
+    ifeq ($(UNAME_S),Darwin)
+        CONTAINER_CMD = container
+    else
+        CONTAINER_CMD = podman
+    endif
+endif
+
+ifeq ($(UNSUPPORTED),)
 
 # Toolchain
 CXX ?= g++
@@ -64,50 +92,27 @@ OBJS = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 RM = rm -rf
 JOBS ?= 1
 
-# Container Mount Directory — resolves to workspace root from any nested Makefile
-CONTAINER_MOUNT_DIR := $(abspath $(CURDIR)/../../..)
-
-# Container Configuration
-CONTAINER_IMAGE = ringbuffer_raspios_build
-DOCKERFILE = ../containers/build/Dockerfile
-
-# Detect Container Runtime and Host OS (allow override from host via -e CONTAINER_CMD)
-UNAME_S := $(shell uname -s)
-HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
-ifeq ($(CONTAINER_CMD),)
-    ifeq ($(UNAME_S),Darwin)
-        CONTAINER_CMD = container
-    else
-        CONTAINER_CMD = podman
-    endif
-endif
-
 # Detect if already inside a container (prevent nested containers)
 # Check multiple indicators: IN_CONTAINER env var, /.dockerenv, /run/.containerenv, or cgroup
 INSIDE_CONTAINER := $(shell if [ "$$IN_CONTAINER" = "1" ] || test -f /.dockerenv || test -f /run/.containerenv; then echo yes; elif grep -q 'docker\|kubepods\|containerd' /proc/1/cgroup 2>/dev/null; then echo yes; else echo no; fi)
 
 
 
-# When CONTAINER_CMD is set (called from host script), build natively — skip auto-detection
-ifeq ($(CONTAINER_CMD),)
-    # CONTAINER_CMD not set — do auto-detection
-    ifeq ($(INSIDE_CONTAINER),yes)
-        # Already in a container - build natively
-        all: clean $(STATIC_LIB) $(SHARED_LIB)
-    else ifeq ($(UNAME_S),Darwin)
-        # macOS host - use container for cross-OS build
-        all: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make all
-    else ifneq ($(HOST_DISTRO),raspios)
-        # Non-Raspios Linux host - use container for cross-OS build
-        all: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make all
-    else
-        # Raspios host - build natively
-        all: clean $(STATIC_LIB) $(SHARED_LIB)
-    endif
+# When host is not Raspios (e.g. macOS), auto-build inside container
+# This conditional logic ensures cross-OS builds use containers automatically
+ifeq ($(INSIDE_CONTAINER),yes)
+    # Already in a container - build natively
+    all: clean $(STATIC_LIB) $(SHARED_LIB)
+else ifeq ($(UNAME_S),Darwin)
+    # macOS host - use container for cross-OS build
+    all: container
+	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make all
+else ifneq ($(HOST_DISTRO),raspios)
+    # Non-Raspios Linux host - use container for cross-OS build
+    all: container
+	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make all
 else
-    # CONTAINER_CMD is set — we're called from host script, build natively
+    # Raspios host - build natively
     all: clean $(STATIC_LIB) $(SHARED_LIB)
 endif
 
@@ -139,20 +144,14 @@ $(SHARED_LIB): $(OBJS)
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-# Auto-container for test when host is not raspios (skip if CONTAINER_CMD set — called from host script)
-ifeq ($(CONTAINER_CMD),)
-    # CONTAINER_CMD not set — do auto-detection
-    ifeq ($(UNAME_S),Darwin)
-        test: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make test
-    else ifneq ($(HOST_DISTRO),raspios)
-        test: container
-	@$(CONTAINER_CMD) run --rm -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/raspios/cpp $(CONTAINER_IMAGE) make test
-    else
-        test: all
-    endif
+# Auto-container for test when host is not raspios
+ifeq ($(UNAME_S),Darwin)
+    test: container
+	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make test
+else ifneq ($(HOST_DISTRO),raspios)
+    test: container
+	@$(CONTAINER_CMD) run --rm -e IN_CONTAINER=1 -v $(CONTAINER_MOUNT_DIR):/app/ringbuffer -w /app/ringbuffer/src/raspios/cpp $(CONTAINER_IMAGE) make test
 else
-    # CONTAINER_CMD is set — called from host script, build natively
     test: all
 endif
 
@@ -217,50 +216,63 @@ format:
 	done
 	@echo "Format complete."
 
-# ── Container Lifecycle Rules (persistent container for test execution) ──
-
-# Start a persistent container for test execution (image stays)
-start_container:
-	@if [ -z "$(CONTAINER_CMD)" ]; then\
-		echo "ERROR: No container runtime found."; exit 1;\
-	fi
-	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
-		echo "Container ringbuffer_$(TARGET_OS)_test already running."; \
-	else\
-		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) run --detach --name "ringbuffer_$(TARGET_OS)_test_running" \
-			-v $(CONTAINER_MOUNT_DIR):/app/ringbuffer \
-			-w /app/ringbuffer/src/$(TARGET_OS)/cpp \
-			ringbuffer_$(TARGET_OS)_test tail -f /dev/null;\
-	fi
-
-# Stop the persistent container (image stays, container remains on disk)
-stop_container:
-	@if [ -z "$(CONTAINER_CMD)" ]; then\
-		echo "ERROR: No container runtime found."; exit 1;\
-	fi
-	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
-		echo "Stopping container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
-	else\
-		echo "No running container found for ringbuffer_$(TARGET_OS)_test.";\
-	fi
-
-# Remove the persistent container (image stays)
-remove_container:
-	@if [ -z "$(CONTAINER_CMD)" ]; then\
-		echo "ERROR: No container runtime found."; exit 1;\
-	fi
-	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_test_running"; then\
-		echo "Removing container: ringbuffer_$(TARGET_OS)_test";\
-		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_test_running" 2>/dev/null || true;\
-	else\
-		echo "No container found for ringbuffer_$(TARGET_OS)_test.";\
-	fi
-
 # Probe OS/compiler availability (manual use only — not called by other rules)
 PROBE_COMPILER ?= $(CXX)
 
 probe-os:
 	@echo "Probing compiler availability for ${OS_NAME}/cpp..."
 	@${PROJECT_ROOT_DIR}/utils/bin/probe_targets.sh ${OS_NAME} cpp $(PROBE_COMPILER)
+
+# ── Unsupported platform fallback ──
+else
+.PHONY: all test static shared clean dist-clean container container-clean container-info
+all test static shared:
+	@echo "=== C++ unsupported on raspios ==="
+	@cat UNSUPPORTED.md
+	@echo ""
+	@echo "Build skipped (unsupported platform)."
+clean dist-clean:
+	@echo "Clean skipped (unsupported platform)."
+container container-info:
+	@echo "Container runtime available (build skipped — C++ unsupported)."
+container-clean:
+	@echo "Container clean skipped (C++ unsupported)."
+endif
+
+# ── Container Lifecycle Rules (always available — needed by Java/Python even when C++ is unsupported) ──
+
+start_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_build_running"; then\
+		echo "Container ringbuffer_$(TARGET_OS)_build already running."; \
+	else\
+		echo "Starting persistent container: ringbuffer_$(TARGET_OS)_build";\
+		$(CONTAINER_CMD) run --detach --network default --name "ringbuffer_$(TARGET_OS)_build_running" \
+			-v $(CONTAINER_MOUNT_DIR):/app/ringbuffer \
+			-w /app/ringbuffer/src/$(TARGET_OS)/cpp \
+			$(CONTAINER_IMAGE) tail -f /dev/null;\
+	fi
+
+stop_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_build_running"; then\
+		echo "Stopping container: ringbuffer_$(TARGET_OS)_build";\
+		$(CONTAINER_CMD) stop "ringbuffer_$(TARGET_OS)_build_running" 2>/dev/null || true;\
+	else\
+		echo "No running container found for ringbuffer_$(TARGET_OS)_build.";\
+	fi
+
+remove_container:
+	@if [ -z "$(CONTAINER_CMD)" ]; then\
+		echo "ERROR: No container runtime found."; exit 1;\
+	fi
+	@if $(CONTAINER_CMD) list --all 2>/dev/null | grep -q "ringbuffer_$(TARGET_OS)_build_running"; then\
+		echo "Removing container: ringbuffer_$(TARGET_OS)_build";\
+		$(CONTAINER_CMD) rm "ringbuffer_$(TARGET_OS)_build_running" 2>/dev/null || true;\
+	else\
+		echo "No container found for ringbuffer_$(TARGET_OS)_build.";\
+	fi

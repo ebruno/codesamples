@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # aggregate_junit.sh - Merge all per-OS JUnit XML reports into a single aggregated report
-# Usage: ./reports/aggregate_junit.sh [workspace_root]
+# Usage: ./utils/bin/aggregate_junit.sh [workspace_root]
 #
 # Scans reports/<lang>/per_os/*_regression_report_junit.xml files and merges them
 # into reports/junit/aggregated.xml with os/lang attributes on each <testcase>.
@@ -28,7 +28,7 @@ trap 'rm -f "$MANIFEST"' EXIT
 echo '[' > "$MANIFEST"
 first=true
 for lang in python java cpp; do
-    per_os_dir="$REPORTS_DIR/$lang/per_os"
+    per_os_dir="$REPORTS_DIR/$lang/per_os/junit"
     if [ -d "$per_os_dir" ]; then
         for junit_file in "$per_os_dir"/*_regression_report_junit.xml; do
             if [ -f "$junit_file" ]; then
@@ -200,7 +200,7 @@ try:
     for os_tag in sorted(os_groups.keys()):
         html.append(f'<h2>{os_tag}</h2>')
         html.append('<table>')
-        html.append('<tr><th>Language</th><th>Test</th><th>Status</th><th>Time</th></tr>')
+        html.append('<tr><th>Language</th><th>Test</th><th>Status</th><th>Time</th><th>Report</th></tr>')
 
         for ts, lang in os_groups[os_tag]:
             for tc in ts:
@@ -216,6 +216,8 @@ try:
                     html.append(f'<td class="{status_class}">{name}</td>')
                     html.append(f'<td>{status_text}</td>')
                     html.append(f'<td>{time_val}s</td>')
+                    report_md = f'{lang}/per_os/{os_tag}_regression.md'
+                    html.append(f'<td><a href="{report_md}">Full report</a></td>')
                     html.append(f'</tr>')
 
         html.append('</table>')
@@ -230,6 +232,7 @@ except Exception as e:
     print(f"WARNING: Failed to generate HTML report: {e}", file=sys.stderr)
 PYTHON_HTML
 
+echo ""
 echo "=== Aggregation complete ==="
 echo "XML: $OUTPUT_XML"
 if [ -f "$OUTPUT_HTML" ]; then

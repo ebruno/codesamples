@@ -16,18 +16,30 @@ make clean              # Remove build artifacts
 ```
 
 ### Using g++ (Manual)
+> **Note:** The compilation examples below use explicit filenames. Glob patterns like `LoggingOps_*.cpp` work in Makefiles but not in shell commands.
+
 ```bash
 g++ -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto \
-    Lifecycle.cpp LoggingOps_*.cpp ReadOps.cpp TransformOps.cpp \
-    WriteOps.cpp Threading.cpp ErrorOps.cpp Accessors_*.cpp \
+    Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
+    WriteOps.cpp ErrorOps.cpp \
+    LoggingOps_1.cpp LoggingOps_2.cpp LoggingOps_3.cpp \
+    LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
+    Accessors_Status.cpp Accessors_ChecksumAlg.cpp \
+    Accessors_ChecksumVal.cpp Accessors_Size_Max.cpp \
+    Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp \
     -o libswtr_ringbuffer.so -shared -Wl,--gc-sections
 ```
 
 ### Using clang++ (Manual)
 ```bash
 clang++ -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic -flto=thin \
-    Lifecycle.cpp LoggingOps_*.cpp ReadOps.cpp TransformOps.cpp \
-    WriteOps.cpp Threading.cpp ErrorOps.cpp Accessors_*.cpp \
+    Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
+    WriteOps.cpp ErrorOps.cpp \
+    LoggingOps_1.cpp LoggingOps_2.cpp LoggingOps_3.cpp \
+    LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
+    Accessors_Status.cpp Accessors_ChecksumAlg.cpp \
+    Accessors_ChecksumVal.cpp Accessors_Size_Max.cpp \
+    Accessors_Size_Data.cpp Accessors_Size_Transformed.cpp \
     -o libswtr_ringbuffer.so -shared
 ```
 
@@ -40,9 +52,18 @@ sudo pacman -S --needed base-devel gcc clang make binutils
 
 | Artifact | Path | Description |
 |----------|------|-------------|
-| Static library | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
-| Shared library | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
-| Unversioned symlink | `lib/libswtr_ringbuffer.so` | Convenience symlink to shared library |
+| Static library (versioned) | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
+| Static library (unversioned) | `lib/libswtr_ringbuffer.a` | Symlink → versioned static library |
+| Shared library (versioned) | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
+| Shared library (unversioned) | `lib/libswtr_ringbuffer.so` | Symlink → versioned shared library |
+
+## Multi-Compiler Support
+Arch Linux ships both `g++` and `clang++`. The Makefile auto-detects available compilers and defaults to the first one found. You can override with `CXX=g++` or `CXX=clang++`:
+
+```bash
+make CXX=g++    # Build with GCC
+make CXX=clang++ # Build with Clang
+```
 
 ## Container Support
 Arch Linux builds run natively on Linux hosts. On Apple Silicon Macs, containers are not available because Arch Linux does not provide an official, standard container image for ARM architectures (e.g., Apple Silicon, Raspberry Pi). The official archlinux Docker images are built exclusively for the x86_64 architecture.

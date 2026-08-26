@@ -13,17 +13,20 @@ A high-performance, fixed-size circular buffer implementation for C++20. This li
 
 ### Using Make (Recommended)
 ```bash
-make                    # Build both static and shared libraries
+make                    # Build both static and shared libraries (clean first)
+make all                # Same as above — clean + build
 make static             # Build static library only (.a)
 make shared             # Build shared library only (.so)
 make clean              # Remove build artifacts
 ```
 
 ### Compilation Example (Manual)
+> **Note:** The compilation example below uses explicit filenames. Glob patterns like `LoggingOps_*.cpp` work in Makefiles but not in shell commands.
+
 ```bash
-g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
+g++ -std=c++20 -fPIC -flto \
+    -Wall -Wextra -O3 -fvisibility=hidden \
     -ffunction-sections -fdata-sections \
-    -Wall -Wextra -Werror \
     Lifecycle.cpp Threading.cpp ReadOps.cpp TransformOps.cpp \
     WriteOps.cpp ErrorOps.cpp LoggingOps_1.cpp LoggingOps_2.cpp \
     LoggingOps_3.cpp LoggingOps_4.cpp LoggingOps_5.cpp LoggingOps_6.cpp \
@@ -36,8 +39,28 @@ g++ -std=c++20 -O3 -fvisibility=hidden -fvisibility-inlines-hidden \
 
 | Artifact | Path | Description |
 |----------|------|-------------|
-| Static library | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
-| Shared library | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
+| Static library (versioned) | `lib/libswtr_ringbuffer-1.0.0-1.a` | Versioned static library |
+| Static library (unversioned) | `lib/libswtr_ringbuffer.a` | Symlink → versioned static library |
+| Shared library (versioned) | `lib/libswtr_ringbuffer-1.0.0-1.so` | Versioned shared library (soname: `libswtr_ringbuffer.so`) |
+| Shared library (unversioned) | `lib/libswtr_ringbuffer.so` | Symlink → versioned shared library |
+
+## Containerized Build Environment
+This project supports containerized builds for reproducible environments:
+
+### Building the Container Image
+```bash
+make container    # Build ringbuffer_ubuntu_build image from Dockerfile
+```
+
+### Running Builds in Container
+The Makefile automatically detects the host OS and uses the appropriate container runtime:
+- **macOS**: Uses Apple Container (`container` command)
+- **Linux (non-ubuntu)**: Uses Podman (`podman` command)
+
+### Cleaning Up Containers
+```bash
+make container-clean    # Remove the ringbuffer_ubuntu_build image
+```
 
 ## Architecture
 The implementation follows a strict separation of concerns:

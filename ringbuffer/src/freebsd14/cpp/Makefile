@@ -17,7 +17,8 @@ CXXFLAGS = -std=c++20 -O3 -fPIC -Wall -Wextra -Wpedantic ${LTO_FLAG} \
            -fvisibility=hidden -ffunction-sections -fdata-sections -I. -pthread
 
 # Linker flags: FreeBSD uses ELF, same as Linux
-LDFLAGS = -Wl,--gc-sections
+# Absolute RPATH so ctypes can load the shared library at test time
+LDFLAGS = -Wl,--gc-sections -Wl,-rpath,${.CURDIR}/lib
 
 RM = rm -rf
 

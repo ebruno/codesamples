@@ -11,7 +11,15 @@ A high-performance, thread-safe ring buffer implementation in Java. This platfor
 
 ## Building
 
-### Using Maven
+### Using Make (Recommended)
+```bash
+cd ringbuffer/src/common/java
+make all              # Compile and package JAR artifact
+make test             # Run T001–T007 regression tests
+make clean            # Remove build artifacts
+```
+
+### Using Maven (Alternative)
 ```bash
 cd ringbuffer/src/common/java
 mvn compile           # Compile source code
@@ -39,8 +47,8 @@ The `version.sh` script reads `version.mk` and injects version properties into `
 
 ## Test Results
 
-Full T001–T007 regression test matrix executed across all 4 OSes (macOS native + 3 Linux containers):
-- **18 assertions, 0 failures**
+Full T001–T007 regression test matrix executed across all supported OSes (macOS native + Linux containers):
+- All assertions pass
 - Surefire-compatible test harness with `testAll()` method
 
 ## Platform Notes

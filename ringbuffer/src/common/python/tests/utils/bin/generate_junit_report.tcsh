@@ -50,11 +50,15 @@ set test_expected_exit = ( 0 0 0 0 1 0 0 )
 # Harness types to check (order matters for report ordering)
 set harnesses = ( concurrent pure )
 
-# Create XML template files using unquoted heredocs
+# Create XML template fragments using unquoted heredocs
 # NOTE: tcsh does NOT support quoted heredoc markers (<< 'EOF' fails)
-cat > /tmp/junit_template.xml << TMPL
+# Build file in order: header (>), test cases (>>), footer (>>), then sed-replace placeholders
+cat > /tmp/junit_header.xml << TMPL
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="__NAME__" tests="__TOTAL_TESTS__" failures="__TOTAL_FAILURES__" errors="0" time="__TOTAL_TIME__">
+TMPL
+
+cat > /tmp/junit_footer.xml << TMPL
 </testsuites>
 TMPL
 
@@ -70,6 +74,9 @@ __ERROR_OUTPUT__
     </failure>
   </testcase>
 TMPL
+
+# Write header to output file (fresh start for each run)
+cp /tmp/junit_header.xml "$output_file"
 
 # Process each harness type, then each test number
 foreach harness ( $harnesses )
@@ -181,8 +188,8 @@ foreach harness ( $harnesses )
     end
 end
 
-# Copy template to output, then replace totals using sed (FreeBSD: sed -i without empty string)
-cp /tmp/junit_template.xml "$output_file"
+# Append closing footer tag
+cat /tmp/junit_footer.xml >> "$output_file"
 
 # Calculate total time in seconds
 @ total_time_sec_int = $total_time_ms / 1000
@@ -196,7 +203,7 @@ sed -i '' "s/__TOTAL_FAILURES__/$total_failures/g" "$output_file"
 sed -i '' "s/__TOTAL_TIME__/$total_time_str/g" "$output_file"
 
 # Clean up temp files
-rm -f /tmp/junit_template.xml /tmp/junit_testcase_pass.xml /tmp/junit_testcase_fail.xml
+rm -f /tmp/junit_header.xml /tmp/junit_footer.xml /tmp/junit_testcase_pass.xml /tmp/junit_testcase_fail.xml
 
 echo "JUnit report generated: $output_file"
 echo "Total tests: $total_tests, Failures: $total_failures, Total time: ${total_time_str}s"

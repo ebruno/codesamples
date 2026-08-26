@@ -54,6 +54,26 @@ bin/test001_staticlib -s 1 -b 1 -o logs/t002_out.txt -l logs/t002.log data/input
 bin/test001_staticlib -b 10 -t 1 -o logs/t003_out.txt -l logs/t003.log data/inputs/test001.txt 2> logs/t003_err.log
 ```
 
+**T004 — Small Input, Fast EOF**
+```bash
+bin/test001_staticlib -o logs/t004_out.txt -l logs/t004.log data/inputs/test004.txt 2> logs/t004_err.log
+```
+
+**T005 — Fatal Error Mode (Expected exit code 1)**
+```bash
+bin/test001_staticlib -e 1 -o logs/t005_out.txt -l logs/t005.log data/inputs/test001.txt 2> logs/t005_err.log
+```
+
+**T006 — Non-Fatal Error Mode (Expected exit code 0)**
+```bash
+bin/test001_staticlib -e 2 -o logs/t006_out.txt -l logs/t006.log data/inputs/test001.txt 2> logs/t006_err.log
+```
+
+**T007 — XOR Transform (XOR 0xFF)**
+```bash
+bin/test001_staticlib -b 10 -t 2 -o logs/t007_out.txt -l logs/t007.log data/inputs/test001.txt 2> logs/t007_err.log
+```
+
 ### Test Matrix Summary
 | Test ID | Description | Transform | Error Mode | Expected Exit Code |
 |---------|-------------|-----------|------------|-------------------|
@@ -66,20 +86,24 @@ bin/test001_staticlib -b 10 -t 1 -o logs/t003_out.txt -l logs/t003.log data/inpu
 | T007    | XOR transform | 2 (XOR 0xFF) | 0 (no error) | 0 |
 
 ## Utility Scripts
+> **Note:** Each utility script has paired `.zsh` (macOS) and `.sh` (Linux) variants. Use the variant matching your host OS.
 
 ### Test Data Generation
 ```bash
-# Generate 100 lines to test_data.txt
+# Generate 100 lines to test_data.txt (macOS)
 utils/bin/generate_test_data.zsh -l 100 data/inputs/test_new.txt
 
-# Generate to stdout
-utils/bin/generate_test_data.zsh -l 50
+# Generate to stdout (Linux)
+utils/bin/generate_test_data.sh -l 50
 ```
 
 ### Test Data Validation
 ```bash
-# Validate a single test file
+# Validate a single test file (macOS)
 utils/bin/verify_test_data.zsh data/inputs/test001.txt
+
+# Validate a single test file (Linux)
+utils/bin/verify_test_data.sh data/inputs/test001.txt
 
 # Exit code 0 = valid, non-zero = invalid
 ```
@@ -94,6 +118,7 @@ make container  # Outputs: "Container not used for macOS native build"
 ```bash
 make clean      # Remove binaries, logs, reports (preserve directories)
 make dist-clean # Full cleanup including directory removal
+make test-all   # Run all tests (static + dynamic variants)
 ```
 
 ## Requirements

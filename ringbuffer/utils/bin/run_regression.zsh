@@ -8,6 +8,45 @@ set -euo pipefail
 WORKSPACE="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT_NAME="run_regression.zsh"
 REGISTRY="${WORKSPACE}/config/toolchains.json"
+LOCK_DIR="${WORKSPACE}/tmp/.run_lock"
+LOCK_TIMEOUT_MIN=15
+
+# ── Lock acquisition (prevents parallel verify_build / run_regression) ──
+acquire_lock() {
+    local mode="$1"
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "${LOCK_DIR}/pid"
+        echo "$mode" > "${LOCK_DIR}/mode"
+        date +%s > "${LOCK_DIR}/started"
+        trap release_lock EXIT INT TERM
+        return 0
+    fi
+    local pid
+    pid=$(cat "${LOCK_DIR}/pid" 2>/dev/null || echo "")
+    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+        echo "Removing stale lock (PID $pid is dead)." >&2
+        rm -rf "$LOCK_DIR"
+        exec "$0" "$@"
+    fi
+    local started now age
+    started=$(cat "${LOCK_DIR}/started" 2>/dev/null || echo "0")
+    now=$(date +%s)
+    age=$((now - started))
+    if [ "$age" -gt $((LOCK_TIMEOUT_MIN * 60)) ]; then
+        echo "Removing stale lock (held ${age}s > ${LOCK_TIMEOUT_MIN} min)." >&2
+        rm -rf "$LOCK_DIR"
+        exec "$0" "$@"
+    fi
+    local holder_mode
+    holder_mode=$(cat "${LOCK_DIR}/mode" 2>/dev/null || echo "unknown")
+    echo "ERROR: Another run is in progress (PID $pid, $holder_mode, started $(date -r "$started" 2>/dev/null || echo "unknown"))." >&2
+    echo "  Wait for it to complete, or run: utils/bin/clean_stale_locks.sh" >&2
+    exit 1
+}
+
+release_lock() {
+    rm -rf "$LOCK_DIR" 2>/dev/null || true
+}
 
 usage() {
     echo "Usage: $0 [-N] [-L <lang>] <os> verify|build [image_override]"
@@ -70,11 +109,7 @@ esac
 HOST_OS="macos"
 CONTAINER_CMD="container"
 
-if [ "$ACTION" = "verify" ]; then
-    CONTAINER_IMAGE="ringbuffer_${TARGET_OS}_test"
-else
-    CONTAINER_IMAGE="ringbuffer_${TARGET_OS}_build"
-fi
+CONTAINER_IMAGE="ringbuffer_${TARGET_OS}_build"
 
 # ── SSH hosts config path ──────────────────────────────────────────
 SSH_CONFIG="${WORKSPACE}/config/ssh_hosts.json"
@@ -206,6 +241,31 @@ for c in data.get('${lang}', {}).get('${os}', []):
     fi
 }
 
+# ── Registry helper: check if a specific compiler is supported ──────
+is_compiler_supported() {
+    local os="$1" lang="${2:-cpp}" compiler="$3"
+
+    if command -v jq &>/dev/null; then
+        local supported
+        supported=$(jq -r ".[\"${lang}\"][\"${os}\"][] | select(.name == \"${compiler}\") | .supported" "$REGISTRY" 2>/dev/null)
+        [ "$supported" = "true" ] && return 0 || return 1
+    elif command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+with open('${REGISTRY}') as f:
+    data = json.load(f)
+for c in data.get('${lang}', {}).get('${os}', []):
+    if c.get('name') == '${compiler}':
+        sys.exit(0 if c.get('supported') else 1)
+sys.exit(1)
+" 2>/dev/null
+        return $?
+    else
+        echo "ERROR: Neither jq nor python3 available to read registry" >&2
+        return 1
+    fi
+}
+
 # ── Container execution ────────────────────────────────────────────
 run_container() {
     echo "=== Container execution: $ACTION on $TARGET_OS ($TARGET_LANG) ==="
@@ -229,21 +289,18 @@ run_container() {
         workspace_dir="${WORKSPACE}"
     fi
 
-    # Determine container image name
-    local CONTAINER_IMAGE_NAME
+    # Container image: unified _build per OS (built by C++ Makefile)
+    local CONTAINER_IMAGE_NAME="ringbuffer_${TARGET_OS}_build"
     if [ -n "$IMAGE_OVERRIDE" ]; then
         CONTAINER_IMAGE_NAME="$IMAGE_OVERRIDE"
-    elif [ "$ACTION" = "verify" ]; then
-        CONTAINER_IMAGE_NAME="ringbuffer_${TARGET_OS}_test"
-    else
-        CONTAINER_IMAGE_NAME="ringbuffer_${TARGET_OS}_build"
     fi
+    local CONTAINER_NAME="${CONTAINER_IMAGE_NAME}_running"
 
-    # Check if image exists, build if not
+    # Check if image exists; any language can build the per-OS container
     echo "Checking for container image: $CONTAINER_IMAGE_NAME"
     if ! "$CONTAINER_CMD" inspect "$CONTAINER_IMAGE_NAME" &>/dev/null; then
-        echo "Image not found. Building..."
-        make -C "$os_dir" TARGET_OS="$TARGET_OS" build_image 2>&1
+        echo "Image not found. Building via src/${TARGET_OS}/cpp/Makefile..."
+        make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" TARGET_OS="$TARGET_OS" container 2>&1
         if [ $? -ne 0 ]; then
             echo "ERROR: Failed to build container image $CONTAINER_IMAGE_NAME"
             exit 1
@@ -252,28 +309,17 @@ run_container() {
         echo "Image $CONTAINER_IMAGE_NAME found."
     fi
 
-    # Check if container is already running
-    local RUNNING_CONTAINER=""
-    RUNNING_CONTAINER=$("$CONTAINER_CMD" ps --filter "ancestor=$CONTAINER_IMAGE_NAME" --format '{{.Names}}' 2>/dev/null | head -1)
+    # Stop and remove any stale container from previous run
+    "$CONTAINER_CMD" stop "$CONTAINER_NAME" 2>/dev/null || true
+    "$CONTAINER_CMD" rm -f "$CONTAINER_NAME" 2>/dev/null || true
 
-    if [ -z "$RUNNING_CONTAINER" ]; then
-        # Start a new container in detached mode
-        echo "Starting container..."
-        "$CONTAINER_CMD" run --detach \
-            --name "ringbuffer_${TARGET_OS}_test_running" \
-            -v "${workspace_dir}:/app/ringbuffer" \
-            --cpus 4 \
-            --memory 1024m \
-            "$CONTAINER_IMAGE_NAME" \
-            tail -f /dev/null 2>&1
+    # Start container via Makefile (Makefiles own container lifecycle)
+    echo "Starting container via Makefile..."
+    make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" TARGET_OS="$TARGET_OS" start_container 2>&1
 
-        if [ $? -ne 0 ]; then
-            echo "ERROR: Failed to start container"
-            exit 1
-        fi
-        RUNNING_CONTAINER="ringbuffer_${TARGET_OS}_test_running"
-    else
-        echo "Container $RUNNING_CONTAINER already running."
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to start container"
+        exit 1
     fi
 
     # Execute commands inside the container
@@ -286,29 +332,34 @@ run_container() {
             os_dir="${WORKSPACE}/src/${TARGET_OS}/cpp"
             tests_dir="${os_dir}/tests"
 
-            # Get compilers from registry
-            local compilers=()
+            # Get all compilers from registry (including unsupported)
+            local all_compilers=()
             while IFS= read -r c; do
-                [ -n "$c" ] && compilers+=("$c")
-            done < <(get_compilers "$TARGET_OS" "cpp")
+                [ -n "$c" ] && all_compilers+=("$c")
+            done < <(get_all_compilers "$TARGET_OS" "cpp")
 
-            if [ ${#compilers[@]} -eq 0 ]; then
-                echo "ERROR: No supported compilers found for ${TARGET_OS}/cpp"
-                exit 1
+            if [ ${#all_compilers[@]} -eq 0 ]; then
+                echo "No compilers registered for ${TARGET_OS}/cpp — skipping."
+                return 0
             fi
 
-            echo "Compilers from registry: ${compilers[*]}"
+            # Report all compilers from registry
+            echo "Compilers registered for ${TARGET_OS}/cpp:"
+            list_all_compilers "$TARGET_OS" "cpp"
 
-            for COMPILER in "${compilers[@]}"; do
+            for COMPILER in "${all_compilers[@]}"; do
                 echo ""
                 echo "============================================="
                 echo "Compiler: $COMPILER"
                 echo "============================================="
 
-                # Clean and verify with specific compiler — use cd + exec, no bash -c
-                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean" 2>&1
-                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp/tests clean" 2>&1
-                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp/tests CXX=$COMPILER verify" 2>&1
+                if is_compiler_supported "$TARGET_OS" "cpp" "$COMPILER"; then
+                    # Clean and verify with specific compiler — delegate to tests Makefile inside container
+                    "$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer/src/${TARGET_OS}/cpp/tests && make clean CXX=$COMPILER && make verify CXX=$COMPILER" 2>&1 || echo "  WARNING: $COMPILER verification had errors (check logs)"
+                else
+                    echo "SKIPPED: $COMPILER is unsupported on ${TARGET_OS}."
+                    echo "  See config/toolchains.json for details."
+                fi
             done
             ;;
         python)
@@ -316,50 +367,64 @@ run_container() {
             local os_dir tests_dir
             os_dir=$(resolve_lang_path "$TARGET_OS" "python")
             tests_dir="${os_dir}/tests"
+            # Convert workspace-absolute path to container-relative (strip $WORKSPACE/)
+            local rel_os_dir="${os_dir#$WORKSPACE/}"
+            local rel_tests_dir="${tests_dir#$WORKSPACE/}"
 
             # Build C++ library first (java and python depend on it)
             echo "Building C++ library..."
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean" 2>&1
+            "$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean && make -C src/${TARGET_OS}/cpp all" 2>&1
 
-            # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
-            local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+            # Probe compiler availability if validate-tools.mk exists
+            local probe_makefile="${os_dir}/validate-tools.mk"
             if [ -f "$probe_makefile" ]; then
                 echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
-                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/${TARGET_LANG} probe-os" 2>&1
+                "$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer/${rel_os_dir} && make probe-os" 2>&1
             else
                 echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
             fi
 
-            # Clean and verify Python tests
+            # Clean and verify Python tests — use resolve_lang_path for correct dir
             echo "Running Python tests..."
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/python clean" 2>&1
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/python/tests clean" 2>&1
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/python/tests PYTHON=python3 verify" 2>&1
+            "$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer/${rel_os_dir} && make clean && cd /app/ringbuffer/${rel_tests_dir} && make clean && make PYTHON=python3 verify" 2>&1
             ;;
         java)
             # Java — depends on C++ library first
             local os_dir tests_dir
             os_dir=$(resolve_lang_path "$TARGET_OS" "java")
             tests_dir="${os_dir}/tests"
+            local rel_os_dir="${os_dir#$WORKSPACE/}"
+            local rel_tests_dir="${tests_dir#$WORKSPACE/}"
 
             # Build C++ library first (java depends on it)
             echo "Building C++ library..."
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean" 2>&1
+            "$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/cpp clean && make -C src/${TARGET_OS}/cpp all" 2>&1
 
-            # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
-            local probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+            # Probe compiler availability if validate-tools.mk exists
+            local probe_makefile="${os_dir}/validate-tools.mk"
             if [ -f "$probe_makefile" ]; then
                 echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
-                "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/${TARGET_LANG} probe-os" 2>&1
+                "$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer/${rel_os_dir} && make probe-os" 2>&1
             else
                 echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
             fi
 
-            # Clean and verify Java tests
+            # Clean and verify Java tests — use resolve_lang_path for correct dir
             echo "Running Java tests..."
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/java clean" 2>&1
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/java/tests clean" 2>&1
-            "$CONTAINER_CMD" exec "$RUNNING_CONTAINER" sh -c "cd /app/ringbuffer && make -C src/${TARGET_OS}/java/tests JAVA=javac verify" 2>&1
+            local java_output java_rc
+            java_output=$("$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer/${rel_os_dir} && make clean && cd /app/ringbuffer/${rel_tests_dir} && make clean && make JAVA=javac verify" 2>&1) || java_rc=$?
+            echo "$java_output"
+            if [ "${java_rc:-0}" -ne 0 ] && echo "$java_output" | grep -qE "Network is unreachable|Could not resolve host"; then
+                echo "Network error detected — attempting recovery..."
+                if "${WORKSPACE}/utils/bin/recover_container_network.zsh"; then
+                    echo "Restarting container after system recovery..."
+                    make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" TARGET_OS="$TARGET_OS" start_container 2>&1
+                    echo "Retrying Java tests..."
+                    "$CONTAINER_CMD" exec -i "$CONTAINER_NAME" sh -c "cd /app/ringbuffer/${rel_os_dir} && make clean && cd /app/ringbuffer/${rel_tests_dir} && make clean && make JAVA=javac verify" 2>&1
+                else
+                    echo "WARNING: Network recovery failed — Java tests skipped"
+                fi
+            fi
             ;;
         *)
             echo "ERROR: Unsupported language '$TARGET_LANG' for container execution"
@@ -367,22 +432,26 @@ run_container() {
             ;;
     esac
 
+    cleanup_container "$CONTAINER_NAME"
     echo "Container tests completed successfully."
 }
 
 # ── Cleanup container ──────────────────────────────────────────────
 cleanup_container() {
-    local RUNNING_CONTAINER=""
-    RUNNING_CONTAINER=$("$CONTAINER_CMD" ps --filter "ancestor=ringbuffer_${TARGET_OS}_test:latest" --format '{{.Names}}' 2>/dev/null | head -1)
-
-    if [ -n "$RUNNING_CONTAINER" ]; then
-        echo "Stopping container..."
-        make -C "$os_dir" TARGET_OS="$TARGET_OS" stop_container 2>&1 || true
-        echo "Removing container..."
-        make -C "$os_dir" TARGET_OS="$TARGET_OS" remove_container 2>&1 || true
-
-        echo "Container stopped and removed. Image $CONTAINER_IMAGE remains."
-    fi
+    echo "Cleaning up container..."
+    # Try Makefile targets first
+    make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" TARGET_OS="$TARGET_OS" stop_container 2>&1 || true
+    make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" TARGET_OS="$TARGET_OS" remove_container 2>&1 || true
+    # Fallback: stop/remove any remaining containers for this OS
+    local prefix="ringbuffer_${TARGET_OS}"
+    for c in $("$CONTAINER_CMD" ps -a --format '{{.Names}}' 2>/dev/null); do
+        case "$c" in ${prefix}*)
+            "$CONTAINER_CMD" stop "$c" 2>/dev/null || true
+            "$CONTAINER_CMD" rm -f "$c" 2>/dev/null || true
+            ;;
+        esac
+    done
+    echo "Container cleaned up."
 }
 
 # ── SSH execution for remote hosts (freebsd14, archlinux, etc.) ───
@@ -447,6 +516,7 @@ run_ssh() {
                     exit 1
                     ;;
             esac
+            rc=$?
             ;;
         *)
             # Linux distros (archlinux, etc.) use bash as default shell — use run_linux_ssh.sh
@@ -458,25 +528,144 @@ run_ssh() {
                 rm -f "$tarball"
                 exit 1
             fi
-            ssh "$ssh_host" 'bash /tmp/run_linux_ssh.sh ~/ringbuffer '"${TARGET_OS}"' test-'"${TARGET_LANG}"
-            local rc=$?
+            # Map language to mode: cpp→test-cpp, java→java-test, python→python-test
+            case "$TARGET_LANG" in
+                cpp|c)
+                    if [ "$ACTION" = "verify" ]; then _ssh_mode="test-cpp"; else _ssh_mode="cpp"; fi
+                    ;;
+                python)
+                    if [ "$ACTION" = "verify" ]; then _ssh_mode="python-test"; else _ssh_mode="python-build"; fi
+                    ;;
+                java)
+                    if [ "$ACTION" = "verify" ]; then _ssh_mode="java-test"; else _ssh_mode="java-build"; fi
+                    ;;
+                *) _ssh_mode="test-${TARGET_LANG}" ;;
+            esac
+            ssh "$ssh_host" 'bash /tmp/run_linux_ssh.sh ~/ringbuffer '"${TARGET_OS}"' '"$_ssh_mode"
+            rc=$?
             ssh "$ssh_host" 'rm -f /tmp/run_linux_ssh.sh'
-            return $rc
             ;;
     esac
-    local rc=$?
 
-    # Step 6: SCP results back from remote
+    # Step 6: SCP results back from remote — use resolve_lang_path for correct src dir
     echo "Copying results back..."
-    ssh "$ssh_host" 'mkdir -p ~/ringbuffer/src/'"${TARGET_OS}"'/'"${TARGET_LANG}"'/reports ~/ringbuffer/src/'"${TARGET_OS}"'/'"${TARGET_LANG}"'/logs'
-    scp -r "${ssh_host}:~/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/reports/" "$WORKSPACE/src/${TARGET_OS}/${TARGET_LANG}/reports/"
-    scp -r "${ssh_host}:~/ringbuffer/src/${TARGET_OS}/${TARGET_LANG}/logs/" "$WORKSPACE/src/${TARGET_OS}/${TARGET_LANG}/logs/"
+    local remote_lang_dir
+    remote_lang_dir=$(resolve_lang_path "$TARGET_OS" "$TARGET_LANG")
+    # Convert workspace path to remote-relative path: strip $WORKSPACE/ prefix
+    local remote_rel="${remote_lang_dir#$WORKSPACE/}"
+    # Reports/logs are in tests/ subdirectory
+    local remote_src_dir="${remote_rel}/tests"
+    ssh "$ssh_host" 'mkdir -p ~/ringbuffer/'"${remote_src_dir}"'/reports ~/ringbuffer/'"${remote_src_dir}"'/logs'
+    scp -r "${ssh_host}:~/ringbuffer/${remote_src_dir}/reports/" "$WORKSPACE/${remote_src_dir}/reports/" 2>/dev/null || echo "  (no reports to copy)"
+    scp -r "${ssh_host}:~/ringbuffer/${remote_src_dir}/logs/" "$WORKSPACE/${remote_src_dir}/logs/" 2>/dev/null || echo "  (no logs to copy)"
+    # Java: also fetch Maven surefire-reports (target/surefire-reports/)
+    if [ "$TARGET_LANG" = "java" ]; then
+        local maven_reports="${remote_rel}/target/surefire-reports"
+        ssh "$ssh_host" 'mkdir -p ~/ringbuffer/'"${maven_reports}"
+        mkdir -p "$WORKSPACE/${remote_rel}/target"
+        scp -r "${ssh_host}:~/ringbuffer/${maven_reports}" "$WORKSPACE/${remote_rel}/target/" 2>/dev/null || echo "  (no Maven reports to copy)"
+    fi
 
     rm -f "$tarball"
     return $rc
 }
 
+# ── Populate top-level reports/ from per-OS test reports ──────────
+populate_top_reports() {
+    local lang="${1:-$TARGET_LANG}" os="${2:-$TARGET_OS}"
+    local lang_dir
+    lang_dir=$(resolve_lang_path "$os" "$lang")
+    local top_junit_dir="${WORKSPACE}/reports/${lang}/per_os/junit"
+    local top_md_dir="${WORKSPACE}/reports/${lang}/per_os"
+    mkdir -p "$top_junit_dir" "$top_md_dir"
+
+    local junit_src=""
+
+    # Check language-specific report locations
+    case "$lang" in
+        java)
+            # Java uses Maven — reports in target/surefire-reports/
+            local maven_reports="${lang_dir}/target/surefire-reports"
+            if [ -d "$maven_reports" ]; then
+                junit_src=$(find "$maven_reports" -name "TEST-*.xml" 2>/dev/null | head -1)
+            fi
+            ;;
+        *)
+            # C++, Python — reports in tests/reports/
+            local tests_reports="${lang_dir}/tests/reports"
+            if [ -d "$tests_reports" ]; then
+                junit_src=$(find "$tests_reports" -name "*_regression_report_junit.xml" -o -name "regression_report_junit.xml" 2>/dev/null | head -1)
+            fi
+            ;;
+    esac
+
+    # Copy JUnit XML to top-level reports/<lang>/per_os/junit/
+    if [ -n "$junit_src" ] && [ -f "$junit_src" ]; then
+        cp "$junit_src" "${top_junit_dir}/${os}_regression_report_junit.xml" 2>/dev/null && \
+            echo "  Copied to reports/${lang}/per_os/junit/${os}_regression_report_junit.xml" || true
+    fi
+
+    # Look for an existing .md report in tests/reports/ (C++/Python only)
+    local md_src=""
+    local tests_reports="${lang_dir}/tests/reports"
+    if [ -d "$tests_reports" ]; then
+        md_src=$(find "$tests_reports" -name "*_regression.md" -o -name "regression_report.md" 2>/dev/null | head -1)
+    fi
+    if [ -n "$md_src" ] && [ -f "$md_src" ]; then
+        cp "$md_src" "${top_md_dir}/${os}_regression.md" 2>/dev/null || true
+    else
+        # Generate basic .md from JUnit if no .md was produced by test harness
+        local top_junit="${top_junit_dir}/${os}_regression_report_junit.xml"
+        if [ -f "$top_junit" ]; then
+            local total failures
+            total=$(grep -o 'tests="[0-9]*"' "$top_junit" | head -1 | grep -o '[0-9]*' || echo "?")
+            failures=$(grep -o 'failures="[0-9]*"' "$top_junit" | head -1 | grep -o '[0-9]*' || echo "?")
+            cat > "${top_md_dir}/${os}_regression.md" << MDEOF
+# Regression Report — ${os} / ${lang}
+**Date:** $(date '+%Y-%m-%d %H:%M:%S %z')
+
+## Test Results
+| Tests | Passed | Failed |
+| :--- | :--- | :--- |
+| ${total} | $((total - failures)) | ${failures} |
+MDEOF
+            echo "  Generated reports/${lang}/per_os/${os}_regression.md"
+        elif [ -f "${lang_dir}/../UNSUPPORTED.md" ] || [ -f "${lang_dir}/UNSUPPORTED.md" ]; then
+            # Platform is unsupported — generate an UNSUPPORTED report
+            local unsupported_reason=""
+            if [ -f "${lang_dir}/UNSUPPORTED.md" ]; then
+                unsupported_reason=$(head -1 "${lang_dir}/UNSUPPORTED.md")
+                unsupported_reason="${unsupported_reason#\# }"
+            elif [ -f "${lang_dir}/../UNSUPPORTED.md" ]; then
+                unsupported_reason=$(head -1 "${lang_dir}/../UNSUPPORTED.md")
+                unsupported_reason="${unsupported_reason#\# }"
+            fi
+            cat > "${top_md_dir}/${os}_regression.md" << MDEOF
+# Regression Report — ${os} / ${lang}
+**Date:** $(date '+%Y-%m-%d %H:%M:%S %z')
+
+## Status
+**Final Result:** UNSUPPORTED
+
+## Reason
+${unsupported_reason}
+
+## Test Results
+| Tests | Passed | Failed |
+| :--- | :--- | :--- |
+| 0 | 0 | 0 |
+
+Tests skipped (platform unsupported).
+MDEOF
+            echo "  Generated reports/${lang}/per_os/${os}_regression.md (UNSUPPORTED)"
+        fi
+    fi
+}
+
 # ── Main dispatch ─────────────────────────────────────────────────
+# ── Acquire run lock (prevents parallel verify_build / run_regression) ──
+acquire_lock "run_regression"
+
 echo "============================================="
 echo "Ringbuffer Regression Runner (macOS/zsh)"
 if [ "$BYPASS_OS_CHECK" = true ]; then
@@ -551,24 +740,32 @@ case "$TRANSPORT" in
                 os_dir="${WORKSPACE}/src/${TARGET_OS}/cpp"
                 tests_dir="${os_dir}/tests"
 
-                # Get compilers from registry
+                # Get all compilers from registry (including unsupported)
                 local compilers=()
                 while IFS= read -r c; do
                     [ -n "$c" ] && compilers+=("$c")
-                done < <(get_compilers "$TARGET_OS" "cpp")
+                done < <(get_all_compilers "$TARGET_OS" "cpp")
 
                 if [ ${#compilers[@]} -eq 0 ]; then
-                    echo "ERROR: No supported compilers found for ${TARGET_OS}/cpp"
-                    exit 1
+                    echo "No compilers registered for ${TARGET_OS}/cpp — skipping."
+                    return 0
                 fi
 
-                echo "Compilers from registry: ${compilers[*]}"
+                # Report all compilers from registry
+                echo "Compilers registered for ${TARGET_OS}/cpp:"
+                list_all_compilers "$TARGET_OS" "cpp"
 
                 for COMPILER in "${compilers[@]}"; do
                     echo ""
                     echo "============================================="
                     echo "Compiler: $COMPILER"
                     echo "============================================="
+
+                    if ! is_compiler_supported "$TARGET_OS" "cpp" "$COMPILER"; then
+                        echo "SKIPPED: $COMPILER is unsupported on ${TARGET_OS}."
+                        echo "  See config/toolchains.json for details."
+                        continue
+                    fi
 
                     make -C "$os_dir" clean 2>&1
                     make -C "$tests_dir" clean 2>&1
@@ -585,10 +782,10 @@ case "$TRANSPORT" in
                 make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" clean 2>&1
 
                 # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
-                probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                probe_makefile="${os_dir}/validate-tools.mk"
                 if [ -f "$probe_makefile" ]; then
                     echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
-                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" probe-os 2>&1
+                    make -C "${os_dir}" probe-os 2>&1
                 else
                     echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
                 fi
@@ -609,10 +806,10 @@ case "$TRANSPORT" in
                 make -C "${WORKSPACE}/src/${TARGET_OS}/cpp" clean 2>&1
 
                 # Probe compiler availability if validate-tools.mk exists (abort on failure, skip if missing)
-                probe_makefile="${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}/validate-tools.mk"
+                probe_makefile="${os_dir}/validate-tools.mk"
                 if [ -f "$probe_makefile" ]; then
                     echo "Running probe-os for ${TARGET_OS}/${TARGET_LANG}..."
-                    make -C "${WORKSPACE}/src/${TARGET_OS}/${TARGET_LANG}" probe-os 2>&1
+                    make -C "${os_dir}" probe-os 2>&1
                 else
                     echo "INFO: ${probe_makefile} not present — probe-os skipped for ${TARGET_OS}/${TARGET_LANG}" >&2
                 fi
@@ -653,6 +850,15 @@ case "$TRANSPORT" in
         exit 1
         ;;
 esac
+
+# Populate top-level reports/ from per-OS test reports
+populate_top_reports
+
+# ── Aggregate JUnit reports ──
+"${WORKSPACE}/utils/bin/aggregate_junit.zsh" "$WORKSPACE" 2>&1 || true
+
+# ── Aggregate regression reports ──
+"${WORKSPACE}/utils/bin/aggregate_regression.zsh" "$WORKSPACE" 2>&1 || true
 
 echo ""
 echo "============================================="

@@ -130,26 +130,52 @@ clean:
 		echo "  Nothing to clean."; \
 	fi
 
-# Always clean first for repeatability in verify_build
-# Auto-container: if on macOS or non-matching host, run inside target OS container
-ifeq ($(TARGET_OS),)
-    all: clean
-else ifeq ($(UNAME_S),Darwin)
-    all: container-build-$(TARGET_OS)
-	@$(CONTAINER_CMD) run --rm \
-		-v $(CURDIR)/src/common/java:/app \
-		-v $(CURDIR)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
-		ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+# Build: compile and package (no tests).
+# Auto-container: if on macOS or non-matching host, run inside target OS container.
+# Container images use ringbuffer_<os>_build (unified naming).
+all: clean
+	@echo "Building Java ringbuffer..."
+	@./version.sh 2>&1
+	@mvn package -DskipTests -q 2>&1 || { echo "ERROR: mvn package failed"; exit 1; }
+	@mkdir -p lib
+	@for jar in target/ringbuffer-*.jar; do \
+		case "$$jar" in *-sources*) continue ;; esac; \
+		ln -sf "../$$jar" lib/ringbuffer.jar; \
+		break; \
+	done
+	@echo "Java build complete."
+
+all-container:
+	@echo "Building Java ringbuffer in container..."
+	@./version.sh 2>&1
+	@mvn package -DskipTests -q 2>&1 || { echo "ERROR: mvn package failed"; exit 1; }
+	@mkdir -p lib
+	@for jar in target/ringbuffer-*.jar; do \
+		case "$$jar" in *-sources*) continue ;; esac; \
+		ln -sf "../$$jar" lib/ringbuffer.jar; \
+		break; \
+	done
+	@echo "Java build complete."
+
+# Cross-OS container build entry point (called by run_build scripts)
+ifeq ($(UNAME_S),Darwin)
+container-build: container-build-$(TARGET_OS)
+	@$(CONTAINER_CMD) run --rm --network default \
+		-v $(abspath ../../..):/app/ringbuffer \
+		-w /app/ringbuffer \
+		ringbuffer_$(TARGET_OS)_build sh -c "cd src/common/java && make all-container"
 else
     HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
     ifneq ($(HOST_DISTRO),$(TARGET_OS))
-        all: container-build-$(TARGET_OS)
-		@$(CONTAINER_CMD) run --rm \
-			-v $(CURDIR)/src/common/java:/app \
-			-v $(CURDIR)/src/$(TARGET_OS)/java/pom.xml:/app/pom.xml:ro \
-			ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+container-build: container-build-$(TARGET_OS)
+	@$(CONTAINER_CMD) run --rm --network default \
+		-v $(abspath ../../..):/app/ringbuffer \
+		-w /app/ringbuffer \
+		ringbuffer_$(TARGET_OS)_build sh -c "cd src/common/java && make all-container"
     else
-        all: clean
+container-build:
+	@echo "Native build (host matches target) — use 'make all' directly"
+	@$(MAKE) all
     endif
 endif
 

@@ -158,21 +158,17 @@ ifeq ($(TARGET_OS),)
 else ifeq ($(UNAME_S),Darwin)
     all: container-build-$(TARGET_OS)
 	@$(CONTAINER_CMD) run --rm \
-		-v $(CURDIR)/src/common/python:/app \
-		-v $(CURDIR)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
-		-v $(CURDIR)/src/common/cpp:/common/cpp \
-		-v $(CURDIR)/prompts:/prompts \
-		ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+		-v $(CONTAINER_MOUNT_DIR):/app/ringbuffer \
+		-w /app/ringbuffer/src/common/python \
+		ringbuffer_$(TARGET_OS)_build make all
 else
     HOST_DISTRO := $(shell cat /etc/os-release 2>/dev/null | grep '^ID=' | cut -d= -f2)
     ifneq ($(HOST_DISTRO),$(TARGET_OS))
         all: container-build-$(TARGET_OS)
 		@$(CONTAINER_CMD) run --rm \
-			-v $(CURDIR)/src/common/python:/app \
-			-v $(CURDIR)/src/$(TARGET_OS)/cpp:/$$(echo $(TARGET_OS) | tr '[:lower:]' '[:upper:]')/cpp \
-			-v $(CURDIR)/src/common/cpp:/common/cpp \
-			-v $(CURDIR)/prompts:/prompts \
-			ringbuffer_$(TARGET_OS)_build sh -c "cd /app && make all"
+			-v $(CONTAINER_MOUNT_DIR):/app/ringbuffer \
+			-w /app/ringbuffer/src/common/python \
+			ringbuffer_$(TARGET_OS)_build make all
     else
         all: clean build
     endif
@@ -180,6 +176,7 @@ endif
 
 # Build the C++ shared library - always rebuilds even if library exists
 # to ensure we have the latest build. If build fails, notes it and continues.
+# Delegates to platform-specific Makefile which runs syntax-check first.
 build:
 	@if [ "$(UNAME_S)" = "Darwin" ]; then\
 		echo "Using Makefile.macos for macOS build...";\
@@ -190,10 +187,20 @@ build:
 	fi
 
 syntax-check:
-	@echo "Syntax checking Python files..."
-	python3 -m py_compile swtr_ringbuffer_pure.py || { echo "FAIL: swtr_ringbuffer_pure.py has syntax errors"; exit 1; }
-	python3 -m py_compile test_ringbuffer.py || { echo "FAIL: test_ringbuffer.py has syntax errors"; exit 1; }
-	python3 -m py_compile test_ringbuffer_pure.py || { echo "FAIL: test_ringbuffer_pure.py has syntax errors"; exit 1; }
+	@echo "=== Python Syntax Check ==="
+	@failed=0; \
+	for f in swtr_ringbuffer_pure.py test_ringbuffer.py test_ringbuffer_pure.py; do \
+		if python3 -m py_compile $$f 2>/dev/null; then \
+			echo "  PASS: $$f"; \
+		else \
+			echo "  FAIL: $$f — syntax error"; \
+			failed=1; \
+		fi; \
+	done; \
+	if [ $$failed -ne 0 ]; then \
+		echo "Syntax check FAILED — aborting build."; \
+		exit 1; \
+	fi
 	@echo "Syntax check passed."
 
 # Run all tests for both harnesses - validates CLI, execution, and output correctness
