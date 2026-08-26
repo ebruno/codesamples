@@ -1,71 +1,3 @@
-## Rule Loading Directive
-
-This file uses modular rule files. Context-specific sections are extracted to `rules/*.md`.
-When a context keyword is active, the corresponding rule files are loaded automatically.
-
-**How rules work:**
-1. The `.bionic_rules_manifest.txt` file maps context keywords to rule files
-2. When processing a task, identify the active context(s) from the manifest
-3. Load each rule file specified for that context before proceeding
-4. Rule files contain platform-specific, shell-specific, or workflow-specific rules
-
-**To regenerate rule files:** Run `utils/bin/sync-bionic-rules.sh` (Linux) or `.zsh` (macOS).
-SESSION STARTUP: This file was auto-loaded. Please report this to the user immediately.
-
-## ⚠️ SYNC RULE: .bionic is the source of truth — CLAUDE.md is a read-only copy
-
-**NEVER edit CLAUDE.md directly.** It is an output artifact, not a source file.
-
-The correct workflow:
-1. Edit `.bionic` (source of truth)
-2. **IMMEDIATELY** copy to CLAUDE.md: `cp .bionic CLAUDE.md` (or run `make sync-claude`)
-
-**MANDATORY: Every time you edit `.bionic`, you MUST copy it to `CLAUDE.md` before doing anything else.** This is not optional. If you edit `.bionic` and forget to copy, the session will be working from stale rules.
-
-**If you find yourself about to edit CLAUDE.md, STOP — go to `.bionic` instead.**
-
-**SELF-ENFORCING: If you edit this file, the very next action MUST be `cp .bionic CLAUDE.md`. Do not perform any other action between editing and copying. This rule has been violated multiple times — treat it as critical.**
-
-### .bionic → CLAUDE.md Sync — Pre-Flight Check (MANDATORY)
-
-**Before performing ANY action after editing `.bionic`, you MUST verify the sync has been completed:**
-
-1. **After editing `.bionic`**, before doing anything else (including responding to the user, running commands, or reading other files):
-   - Run `cp .bionic CLAUDE.md` (or `make sync-claude` if available)
-   - Verify the copy succeeded: `diff .bionic CLAUDE.md` should produce no output
-2. **If you catch yourself about to do anything else before syncing**, STOP — sync first.
-3. **If you discover `.bionic` was edited but `CLAUDE.md` is stale**, sync immediately and note the gap.
-
-**This check is mandatory — not optional.** The rule exists in `.bionic` but has been violated multiple times because the sync step was forgotten. Relying on memory alone has failed.
-
-**Example — Pre-Flight Check in Action:**
-```bash
-# ❌ BEFORE pre-flight check: edited .bionic but forgot to sync
-echo "New rule" >> .bionic
-# ... proceeds to do other work with stale CLAUDE.md ...
-
-# ✅ AFTER pre-flight check: sync immediately after edit
-echo "New rule" >> .bionic
-cp .bionic CLAUDE.md  # ← MUST be the very next action
-diff .bionic CLAUDE.md  # Verify no differences
-# ... now proceed with other work ...
-```
-
-## ⚠️ MANDATORY: Read Entire .bionic File
-**Always read the ENTIRE `.bionic` file at session start. Use this exact pattern:**
-
-```python
-# Step 1: Read first 200KB (covers any reasonable file size)
-first = read_file_chars(path=".bionic", start_char=0, chars_to_read=200000)
-# Step 2: If result ends with a read_file_chars hint, read the rest
-if first ends_with "read_file_chars":
-    second = read_file_chars(path=".bionic", start_char=200000, chars_to_read=200000)
-```
-
-- **NEVER** use `read_file_lines` with the default 500-line limit — this truncates critical rules (SSH transfer, FreeBSD shell, Arch Linux CXX override, etc.) that live past line 500.
-- If you find yourself about to use `read_file_lines` on `.bionic`, STOP — use `read_file_chars` instead.
-- This rule is self-referential: if you are reading this, you have already read the entire file.
-
 # Ringbuffer Project — Session Startup Instructions
 
 ## 1. Project Structure Quick Reference
@@ -495,6 +427,40 @@ Ringbuffer is designed as a library, not an application. Every API design decisi
 - **Language standards are binding**: Each implementation must target the primary version with fallback support as specified in Section 5
 - **Version reporting is mandatory**: Every implementation MUST detect and report the actual compiler/language version in use. This enables traceability — if a platform only has Java SE 17, the implementation must report that fact rather than silently targeting Java SE 25. The version must appear in `functional.log`, `build.log`, and the implementation report.
 
+### Cross-Platform Generation Mandate
+All platform source code MUST be generated **independently** from the common specification. Do NOT copy source files, Makefiles, or Dockerfiles between platforms. Each platform generates its own artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
+
+**Allowed Makefile differences:**
+1. `CONTAINER_IMAGE` variable value
+2. Working directory path in container run commands
+3. Host distro detection check
+
+**Allowed Dockerfile differences:**
+1. `FROM` base image line
+2. Package installation RUN blocks (platform-specific package managers)
+
+### Excluded Platforms
+FreeBSD 15 is excluded from active development. Its prompt directories contain explicit exclusion messages (`build.md`, `functional.md`, `testing.md` all state: "Excluded platform — do not modify"). If any non-zero content exists beyond these exclusion messages, remove it.
+
+FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain placeholder text pointing to `prompts/freebsd/cpp/` (generic FreeBSD 14.x/15.x spec) and `prompts/common/cpp/` (common specs). Java is implemented on FreeBSD 14 — BSD make override at `src/freebsd14/java/Makefile`, source from `src/common/java/`. Python is implemented on FreeBSD 14 — Pure Python only (Concurrent skipped due to RPATH limitation). C, Go, and Rust per-OS prompt directories contain non-zero placeholder text pointing to common specs — this is allowed and recommended to prevent zero-length file confusion.
+
+<!-- RULES-LOAD: freebsd14 -> rules/freebsd-shell.md -->
+<!-- RULES-LOAD: freebsd14 -> rules/tcsh-syntax.md -->
+<!-- RULES-LOAD: archlinux -> rules/archlinux-containers.md -->
+<!-- RULES-LOAD: ssh-transfer -> rules/ssh-transfer.md -->
+
+### Python Makefiles by Family (GNU vs BSD)
+ Family (GNU vs BSD)
+The Python implementation uses different Makefile syntax for GNU make and BSD make systems:
+- **GNU make** (macOS, Linux): `src/common/python/Makefile.gnu` — uses `$(shell ...)`, `ifeq/else`
+- **BSD make** (FreeBSD 14+): `src/<os>/python/Makefile` — per-OS directory with BSD-compatible syntax (no `$(shell)`, no `ifeq/else`)
+- **Common source**: Both use the same Python source files from `src/common/python/` (swtr_ringbuffer_pure.py, test scripts, base types)
+- **Per-platform overrides**: FreeBSD 14 has `src/freebsd14/python/` with its own Makefile and copies of common source. FreeBSD 15 will use the same structure.
+- **Makefile selection**: The agent must select the correct Makefile based on the target OS family (GNU vs BSD).
+
+
+<!-- RULES-LOAD: macos -> rules/macos-containers.md -->
+<!-- RULES-LOAD: verify-build -> rules/verify-build-workflow.md -->
 ## 7. Operational Discipline
 
 ### Makefiles Are the CI/CD Contract (All OS, All Languages)
@@ -538,27 +504,6 @@ Each workflow has a defined scope. Do NOT:
 - Create test infrastructure from functional workflows
 - Modify files outside the declared scope directory
 
-### Cross-Platform Generation Mandate
-All platform source code MUST be generated **independently** from the common specification. Do NOT copy source files, Makefiles, or Dockerfiles between platforms. Each platform generates its own artifacts from the shared spec, then cross-platform verification checks for byte-identical output (minus allowed differences).
-
-**Allowed Makefile differences:**
-1. `CONTAINER_IMAGE` variable value
-2. Working directory path in container run commands
-3. Host distro detection check
-
-**Allowed Dockerfile differences:**
-1. `FROM` base image line
-2. Package installation RUN blocks (platform-specific package managers)
-
-### Excluded Platforms
-FreeBSD 15 is excluded from active development. Its prompt directories contain explicit exclusion messages (`build.md`, `functional.md`, `testing.md` all state: "Excluded platform — do not modify"). If any non-zero content exists beyond these exclusion messages, remove it.
-
-FreeBSD 14 C++ is implemented and verified (static library only). Its prompt directories contain placeholder text pointing to `prompts/freebsd/cpp/` (generic FreeBSD 14.x/15.x spec) and `prompts/common/cpp/` (common specs). Java is implemented on FreeBSD 14 — BSD make override at `src/freebsd14/java/Makefile`, source from `src/common/java/`. Python is implemented on FreeBSD 14 — Pure Python only (Concurrent skipped due to RPATH limitation). C, Go, and Rust per-OS prompt directories contain non-zero placeholder text pointing to common specs — this is allowed and recommended to prevent zero-length file confusion.
-
-<!-- RULES-LOAD: freebsd14 -> rules/freebsd-shell.md -->
-<!-- RULES-LOAD: freebsd14 -> rules/tcsh-syntax.md -->
-<!-- RULES-LOAD: archlinux -> rules/archlinux-containers.md -->
-<!-- RULES-LOAD: ssh-transfer -> rules/ssh-transfer.md -->
 ### Remote Build/Testing Workflow (Enforced)
 When building or running regression tests on a remote system via SSH, **always** follow this sequence:
 
@@ -617,22 +562,6 @@ SSH host placeholders (`<freebsd_host>`, `<archlinux_host>`) in prompts and scri
 <!-- RULES-LOAD: verify-build -> rules/verify-build-workflow.md -->
 
 
-### Python Makefiles by Family (GNU vs BSD)
-The Python implementation uses different Makefile syntax for GNU make and BSD make systems:
-- **GNU make** (macOS, Linux): `src/common/python/Makefile.gnu` — uses `$(shell ...)`, `ifeq/else`
-- **BSD make** (FreeBSD 14+): `src/<os>/python/Makefile` — per-OS directory with BSD-compatible syntax (no `$(shell)`, no `ifeq/else`)
-- **Common source**: Both use the same Python source files from `src/common/python/` (swtr_ringbuffer_pure.py, test scripts, base types)
-- **Per-platform overrides**: FreeBSD 14 has `src/freebsd14/python/` with its own Makefile and copies of common source. FreeBSD 15 will use the same structure.
-- **Makefile selection**: The agent must select the correct Makefile based on the target OS family (GNU vs BSD).
-
-### Git Discipline
-- **NEVER attempt to commit.** The user always handles all commits. Do not run `git add`, `git commit`, or any git write operation.
-- **NEVER commit reports, logs, or build artifacts.** These are regenerated on every run. The `.gitignore` covers them.
-- If the user asks you to "commit" or "stage," decline and remind them they handle all commits.
-- `.gen_state.json` is also excluded from commits (tracked in `.gitignore`).
-
-
-
 ### Common Pitfalls
 1. **Shell ENOENT after session compaction (cross-platform: macOS + Windows):** If `shell_command` fails instantly with `spawn ... ENOENT`, the harness's default cwd resolution produces a subpath under the scratchpad that was never created. **Diagnosis:** The bug is not about the shell binary being missing — it is about the harness computing a cwd path that does not exist on disk. The spawn error masquerades as a broken Git/zsh/bash install but the shell binary is fine. **Fix:** Pass an explicit `workdir` set to any existing directory (e.g., the project root). This is the primary fix — it should work on the first try. If it still fails, run one sandboxed-Python call that writes an output file first (materializes the scratchpad), then retry with explicit `workdir`. **Remove this note once LM Studio fixes the bug.**
 2. **Makefile tabs:** Makefiles require real tab characters, not spaces. Use Python or heredocs with explicit `\t` when generating Makefiles programmatically.
@@ -678,32 +607,6 @@ Before adding repeated content (container runtime rules, host-target compatibili
 
 # Session Initialization
 - At the start of every new session, your first response to the user must explicitly begin with: "✅ [.bionic configuration successfully loaded]" before addressing the user's prompt.
-
-# Tool Availability Check — Run at Session Start
-At the start of every new session, run the appropriate tool check script:
-
-- **macOS (zsh host):** `./utils/bin/check_tools.zsh`
-- **Linux distributions (bash host):** `./utils/bin/check_tools.sh`
-
-The script checks all required tools, reports what is found and missing with paths, and returns:
-- Exit code 0: all tools present
-- Exit code 1: one or more tools missing (with installation instructions)
-
-The tool list and per-OS installation commands are maintained in the scripts themselves. To add or remove a required tool, update both `utils/bin/check_tools.zsh` and `utils/bin/check_tools.sh`. No `.bionic` changes needed.
-
-# Error Handling — Shell Commands
-- If you start getting shell errors (e.g., commands failing, unexpected output, toolchain issues), report the issue to the user and **stop processing immediately**. Do not attempt to work around shell errors or continue with subsequent workflow steps.
-
-# Loop Detection and Recovery
-- If you detect that you are repeating the same action, explanation, or approach **3 times or more**, this is a sign of looping.
-- On the 1st repeat: pause, acknowledge the repetition to the user, and attempt a different approach.
-- On the 2nd repeat: try another distinct strategy. If still stuck, escalate to the user.
-- On the 3rd repeat: **stop immediately** and report the problem to the user with:
-  - What you were trying to do
-  - What approaches you tried (list them)
-  - Why each approach failed or didn't help
-  - A clear request for user guidance on how to proceed.
-- Do not continue looping past the 3rd attempt. The user's intervention is required.
 
 # Transitory Markers
 - `.dockerfile_created_by_step0` is a transitory workflow marker — add it to `.gitignore` and remove from git tracking. It has no functional purpose beyond prompt execution coordination.
@@ -1065,6 +968,25 @@ fi
 **This rule is self-referential: if you are reading this, you have already read it.**
 
 **Enforcement:** The step-by-step workflow for this rule is defined in `rules/shell-isolation-workflow.md`. You MUST follow that document's Phase 1 (Plan — list all invocations and their shells), Phase 2 (Execute — verify each call matches the caller's shell), and Phase 3 (Verify) before proceeding. See `rules/shell-isolation-workflow.md` for the full procedure.
+
+### Paired Script Sync — .zsh/.sh Variants (MANDATORY)
+
+This project has 18+ script pairs with the same base name but different shell suffixes (e.g., `run_regression.zsh` + `run_regression.sh`, `generate_test_data.zsh` + `generate_test_data.sh`). Due to the Shell Isolation Rule above, each pair represents **independent implementations of the same contract** — they cannot share code.
+
+**Applicable to ALL paired scripts in the project**, including but not limited to:
+- `utils/bin/run_regression.{zsh,sh}`, `check_tools.{zsh,sh}`, `lint_scripts.{zsh,sh}`, `sync-bionic-rules.{zsh,sh}`
+- `knowledge/build_model.{zsh,sh}`, `knowledge/update.{zsh,sh}`
+- `prompts/common/cpp/utils/bin/generate_test_data.{zsh,sh}`, `generate_junit_report.{zsh,sh}`, `verify_test_data.{zsh,sh}`, `verify_binary_symmetry.{zsh,sh}`, `lint_prompts.{zsh,sh}`, `archlinux_container.{zsh,sh}`
+- All per-OS copies in `src/<os>/cpp/tests/utils/bin/`
+
+**When you modify one variant of any pair, you MUST mirror the change in the other:**
+1. Apply the equivalent change to the other variant immediately — do not defer
+2. Verify both pass syntax checks: `<shell> -n <script>` for each
+3. Test both variants if possible (macOS for .zsh, Linux for .sh)
+4. If you cannot test one variant, note the untested change and ask the user to verify
+5. **Exception:** If the change is genuinely shell-specific (e.g., macOS-only `container` CLI vs Linux `podman`), document why the other variant should NOT be changed
+
+**This rule exists because the Shell Isolation Rule forces independent implementations.** Without it, paired scripts diverge and one platform silently breaks while the other works.
 
 ### tcsh Script Creation — Pre-Flight Check (MANDATORY)
 
