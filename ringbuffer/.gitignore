@@ -48,5 +48,9 @@ target/
 .ringbuffer_sessions/
 **/.gen_state.json
 
+# Ringbuffer tmp directory (ignore everything except .required_directory)
+ringbuffer/tmp/*
+!ringbuffer/tmp/.required_directory/
+
 # Local SSH host config (user-provided, never commit)
 config/ssh_hosts.json
