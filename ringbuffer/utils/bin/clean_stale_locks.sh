@@ -11,7 +11,6 @@ STALE_TIMEOUT_MIN="${STALE_TIMEOUT_MIN:-15}"
 STALE_TIMEOUT_SEC=$((STALE_TIMEOUT_MIN * 60))
 
 if [ ! -d "$LOCK_DIR" ]; then
-    echo "No lock directory found at $LOCK_DIR — nothing to clean."
     exit 0
 fi
 
