@@ -70,12 +70,12 @@ total=$((pass_count + fail_count + unsupported_count))
     printf '%s\n' "${rows[@]}" | sort | (
         prev_os=""
         cell=""
-        while IFS='|' read -r _ os_tag lang status link _; do
+        while IFS='|' read -r _ os_tag lang row_status link _; do
             os_tag="${os_tag# }"; os_tag="${os_tag% }"
             lang="${lang# }"; lang="${lang% }"
-            status="${status# }"; status="${status% }"
+            row_status="${row_status# }"; row_status="${row_status% }"
             link="${link# }"; link="${link% }"
-            entry="$lang — $status — $link"
+            entry="$lang — $row_status — $link"
             if [ "$os_tag" != "$prev_os" ]; then
                 if [ -n "$prev_os" ]; then
                     echo "| $prev_os | $cell |"

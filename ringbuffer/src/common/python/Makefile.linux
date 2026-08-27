@@ -39,7 +39,7 @@ check-makefile: check-dir
 
 # Build C++ library (single-line)
 build-cpp: check-makefile
-	@mkdir -p logs; echo "=== Building C++ shared library from $(CPP_SRC_DIR) ===" >> $(LOG_FILE); cd $(CPP_SRC_DIR) && make all > $(BUILD_OUTPUT) 2>&1; BUILD_EXIT=$$?; cat $(BUILD_OUTPUT); if [ $$BUILD_EXIT -ne 0 ]; then echo "WARNING: C++ build failed (exit code $$BUILD_EXIT)" >> $(LOG_FILE); echo "C++ shared library not available - running Pure Python tests only"; touch .cpp_build_failed; exit 0; fi
+	@mkdir -p logs; echo "=== Building C++ shared library from $(CPP_SRC_DIR) ===" >> $(LOG_FILE); cd $(CPP_SRC_DIR) && make all > $(BUILD_OUTPUT) 2>&1; BUILD_EXIT=$$?; if grep -qi "unsupported" $(BUILD_OUTPUT); then echo "C++ build not available on this platform - running Pure Python tests only"; touch .cpp_build_failed; exit 0; elif [ $$BUILD_EXIT -ne 0 ]; then echo "WARNING: C++ build failed (exit code $$BUILD_EXIT)" >> $(LOG_FILE); echo "C++ shared library not available - running Pure Python tests only"; touch .cpp_build_failed; exit 0; fi; cat $(BUILD_OUTPUT)
 
 # Symlink shared library (single-line)
 # Note: CPP_SRC_DIR is relative to src/common/python/, but symlink target is resolved from lib/ subdirectory
