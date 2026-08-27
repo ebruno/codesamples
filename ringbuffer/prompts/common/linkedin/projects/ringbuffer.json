@@ -9,7 +9,7 @@
         "Multi-language: C++, Java, Python — all at v1.0.0",
         "Byte-identical source across macOS, Debian, Fedora, Ubuntu, and Raspberry Pi OS",
         "Automated binary symmetry verification across all platforms",
-        "LLM Knowledge Package: versioned context docs, Ollama Modelfile, and QLoRA training data for fine-tuning"
+        "LLM Knowledge Package: versioned context docs, Ollama Modelfile, LM Studio system prompt, and QLoRA training data for fine-tuning"
     ],
     "tech": "C++20, Java, Python, GCC, Clang",
     "link": "https://github.com/ebruno/codesamples",

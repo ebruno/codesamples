@@ -573,7 +573,7 @@ def test_12_patterns_exist() -> tuple[bool, str]:
     if not patterns_dir.is_dir():
         return False, "patterns/ directory missing"
 
-    expected = {"logging-guide.md", "checksumming.md"}
+    expected = {"logging-guide.md", "checksumming.md", "build-guide.md"}
     actual = {f.name for f in patterns_dir.iterdir() if f.is_file()}
     missing = expected - actual
 
@@ -588,6 +588,15 @@ def test_12_patterns_exist() -> tuple[bool, str]:
 
     if empty:
         return False, f"Pattern files too short (<50 chars): {empty}"
+
+    # Validate build-guide has required sections
+    bg_path = patterns_dir / "build-guide.md"
+    if bg_path.exists():
+        bg_content = bg_path.read_text()
+        required_sections = ["## C++", "## Java", "## Python"]
+        missing_sections = [s for s in required_sections if s not in bg_content]
+        if missing_sections:
+            return False, f"build-guide.md missing sections: {missing_sections}"
 
     return True, "All pattern files present and non-empty"
 
@@ -657,6 +666,60 @@ def test_14_system_prompt_mentions_all_languages() -> tuple[bool, str]:
     return True, f"System prompt covers all languages (C++:{cpp_blocks}, Java:{java_blocks}, Python:{python_blocks})"
 
 
+def test_16_build_qa_pairs_have_commands() -> tuple[bool, str]:
+    """Build/setup Q&A pairs in train.jsonl contain actual build commands (not empty placeholders)."""
+    train_path = KNOWLEDGE_DIR / "instruction-dataset" / "train.jsonl"
+    if not train_path.exists():
+        return False, "train.jsonl not found"
+
+    build_questions = [
+        "minimal C++ project",
+        "static and dynamic linking",
+        "Java project with Maven",
+        "Python? What is the difference between pure and concurrent",
+    ]
+
+    results = []
+    for line in train_path.read_text().strip().split("\n"):
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        for msg in entry.get("messages", []):
+            if msg.get("role") != "user":
+                continue
+            content = msg.get("content", "")
+            for pattern in build_questions:
+                if pattern in content:
+                    # Found a build question — check the assistant's answer has real commands
+                    for am in entry.get("messages", []):
+                        if am.get("role") != "assistant":
+                            continue
+                        answer = am.get("content", "")
+                        # Should contain actual compiler calls or Makefile variable syntax, not empty
+                        has_clang = "clang++" in answer
+                        has_gpp = "g++" in answer
+                        has_makevar = "$(CXX)" in answer
+                        has_mvn = "mvn" in answer
+                        has_python = "from swtr" in answer
+                        empty_placeholder = "$STATIC_CMD" in answer and not has_clang and not has_gpp and not has_makevar
+                        if empty_placeholder:
+                            results.append(f"  Q about '{pattern[:50]}...': answer has empty $STATIC_CMD placeholder")
+                        elif not (has_clang or has_gpp or has_makevar or has_mvn or has_python):
+                            results.append(f"  Q about '{pattern[:50]}...': no actual build command found in answer")
+                    break
+
+    if results:
+        return False, f"Build Q&A validation issues ({len(results)}):\n" + "\n".join(results)
+
+    # Count build Q&As found
+    count = len([r for r in results if r])
+    return True, "Build Q&A pairs contain actual commands (not empty placeholders)"
+
+
 def test_15_api_refs_mention_key_methods() -> tuple[bool, str]:
     """API reference files mention key methods (start, stop, wait/awaitTermination)."""
     api_dir = KNOWLEDGE_DIR / "api-reference"
@@ -709,6 +772,7 @@ ALL_TESTS = [
     ("13", "Shell scripts exist with correct shebangs", test_13_scripts_exist_and_executable),
     ("14", "System prompt mentions all languages with code blocks", test_14_system_prompt_mentions_all_languages),
     ("15", "API references mention key lifecycle methods", test_15_api_refs_mention_key_methods),
+    ("16", "Build Q&A pairs contain actual commands", test_16_build_qa_pairs_have_commands),
 ]
 
 

@@ -56,3 +56,4 @@ ringbuffer/tmp/*
 
 # Local SSH host config (user-provided, never commit)
 config/ssh_hosts.json
+*.bak

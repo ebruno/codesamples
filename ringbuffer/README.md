@@ -6,6 +6,8 @@ A high-performance, cross-platform circular buffer library designed for binary s
 
 Built entirely through prompt-driven LLM development using **LM Studio Bionic** with **Qwen 3.6 35B** (local) and **DeepSeek V4 Pro** (cloud). Single canonical source tree with symlinks — byte-identical across all platforms by construction.
 
+![Pipeline Animation](animated_graphics/pipeline_animation.gif)
+
 ## Contents
 
 - [What It Does](#what-it-does)
@@ -89,6 +91,7 @@ Built entirely through prompt-driven LLM development using **LM Studio Bionic** 
   - [Versioning](#versioning)
   - [Update Process](#update-process)
   - [Installation (End Users)](#installation-end-users)
+  - [Testing the Knowledge Model](#testing-the-knowledge-model)
   - [Development (Internal)](#development-internal)
 - [LinkedIn Post Generator](#linkedin-post-generator)
   - [Usage](#usage)
@@ -201,7 +204,7 @@ C, Go, and Rust are next in the pipeline — their common specs are complete and
     - **Compiler Flags**: `-fvisibility=hidden` (hide internal symbols), `-flto=thin` (thin link-time optimization), `-ffunction-sections -fdata-sections` (enable dead code elimination).
 - **Data Integrity**: Integrated checksumming (MD5, SHA256, SHA512) for every buffer slot.
 - **Diagnostics**: Non-Virtual Public Interface (NVI) logging system with per-stage (read/transform/write) independently configurable verbosity levels.
-- **LLM Knowledge Package**: Versioned, shareable context packages that teach LLMs (Qwen family and compatible) how to use the ringbuffer library. Distributed via Ollama Modelfile (system prompt injection) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) below.
+- **LLM Knowledge Package**: Versioned, shareable context packages that teach LLMs how to use the ringbuffer library. Available as a local Ollama Modelfile (system prompt injection), LM Studio system prompt, and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) below.
 
 ## Library API Example
 
@@ -307,9 +310,7 @@ flowchart LR
 
 ### Pipeline Animation
 
-The following animation demonstrates the three-stage pipeline in action, showing how data flows through the read $\rightarrow$ transform $\rightarrow$ write stages:
-
-![Pipeline Animation](animated_graphics/pipeline_animation.gif)
+The following animation (also shown as the [pipeline animation at the top](#ringbuffer) of this README) demonstrates the three-stage pipeline in action, showing how data flows through the read $\rightarrow$ transform $\rightarrow$ write stages.
 
 ## Quick Start: End-to-End Workflow (macOS Example)
 
@@ -382,7 +383,7 @@ After the initial setup, use update prompts to synchronize with changed specific
 
 > **Go, Rust, C:** Common specs written, scaffolding complete. Implementations pending for all platforms. See [Roadmap](#roadmap).
 
-[^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
+[^1]: Arch Linux container images are amd64-only. Linux x86_64 hosts use `podman` containers natively. macOS (Apple Silicon) has no project-supported arm64 image — uses SSH to a remote Arch Linux host instead. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
 [^2]: Arch Linux is a rolling-release distribution. Both g++ and clang++ are fully supported (unlike Ubuntu 24.04 where clang++ is unsupported). See [prompts/common/cpp/session_hints.md](prompts/common/cpp/session_hints.md) Section 10.
 
 `*TBS: To Be Supplied | WIP: Work In Progress`
@@ -451,7 +452,7 @@ Implementation status is tracked in the [Implementation Status](#implementation-
 - **Additional languages** — Go and Rust scaffolding is complete across all OSes (macos, fedora, debian, ubuntu, archlinux, raspios). C scaffolding is in place with common specs; per-OS overrides are placeholders (unlike C++ which has full platform-specific specs). The multi-language/multi-OS directory structure means adding a new language requires only implementing the spec files; the scaffolding (placeholder prompts, `.required_directory` markers) is already present.
 - **Additional patterns** — The test data pattern system supports adding new patterns beyond zigzag (e.g., sequential, random). Each new pattern requires a single spec file in `prompts/common/testing/patterns/` and running `create_scripts.md`.
 - **Enhanced CI/CD** — The automated verification scripts (`verify_binary_symmetry.sh`, `lint_prompts.sh`) are ready for CI integration. They can be added as pre-commit hooks or GitHub Actions to enforce quality gates before any code is committed.
-- **LLM Knowledge Package** — Versioned knowledge packages for C++, Java, and Python are in development. Distributed via Ollama Modelfile (system prompt) and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) for details.
+- **LLM Knowledge Package** — Versioned knowledge packages for C++, Java, and Python. Available as local Ollama Modelfile, LM Studio system prompt, and fine-tuned GGUF. See [LLM Knowledge Package](#llm-knowledge-package) for details.
 
 ### Medium-Term (Roadmap)
 
@@ -823,25 +824,25 @@ Build verification confirms that source code compiles and produces correct artif
 
 ```mermaid
 flowchart TD
-    Start([Start: verify_build]) --> Build[Execute make all]
-    Build --> Artifacts{Artifacts exist?}
+    Start([Start: verify_build]) --> Transport{Transport?}
+    Transport -->|native| MakeAll[make all in os/lang/]
+    Transport -->|container| CtrMake[make all inside container]
+    Transport -->|SSH| SshMake[make all via SSH]
 
-    Artifacts -->|No| FailBuild[FAIL: Build error]
-    Artifacts -->|Yes| Checks{Run checks?}
+    MakeAll --> Result{Build result?}
+    CtrMake --> Result
+    SshMake --> Result
 
-    Checks -->|No| Report[Generate build.log]
-    Checks -->|Yes| Symmetry["Binary symmetry (Linux)"]
-    Symmetry --> Lint[Prompt linting]
+    Result -->|UNSUPPORTED| UnsupReport[Generate per-OS report: UNSUPPORTED]
+    Result -->|FAIL| FailBuild[Generate per-OS report: FAIL]
+    Result -->|PASS| PassBuild[Generate per-OS report: PASS]
 
-    Symmetry -->|Fail| FailSym[FAIL: Source drift]
-    Lint -->|Fail| FailLint[FAIL: Structural issue]
+    FailBuild --> Aggregate[Aggregate all build reports]
+    PassBuild --> Aggregate
+    UnsupReport --> Aggregate
 
-    FailBuild --> EndFail([End: FAIL])
-    FailSym --> EndFail
-    FailLint --> EndFail
-
-    Lint --> Report
-    Report --> EndOK([End: PASS])
+    Aggregate --> Summary[reports/build_verify_summary.md]
+    Summary --> EndOK([End])
 ```
 
 ##### run_regression Workflow
@@ -852,27 +853,31 @@ Regression testing executes the full T001–T007 test matrix and validates outpu
 
 ```mermaid
 flowchart TD
-    Start([Start: run_regression]) --> BuildTest["Build test harness: make all (in tests/)"]
-    BuildTest --> HarnessOK{test001 binary exists?}
+    Start([Start: run_regression]) --> Check{Platform supported?}
 
-    HarnessOK -->|No| FailHarness[FAIL: Test harness build error]
-    HarnessOK -->|Yes| RunTests[Execute T001-T007: for each test in order]
+    Check -->|No, UNSUPPORTED| UnsupSkip[Skip tests — generate UNSUPPORTED.md]
+    Check -->|Yes| Transport{Transport?}
 
-    RunTests --> TLoop{All tests complete?}
-    TLoop -->|No| NextTest[Run next test]
-    NextTest --> CollectResult[Collect result: exit code, stdout diff]
-    CollectResult --> TLoop
+    Transport -->|native| MakeVerify[make verify in tests/]
+    Transport -->|container| CtrVerify[make verify inside container]
+    Transport -->|SSH| SshVerify[make verify via SSH]
 
-    TLoop -->|Yes| Results{All tests passed?}
+    MakeVerify --> TestMatrix[Run T001-T007 test matrix]
+    CtrVerify --> TestMatrix
+    SshVerify --> TestMatrix
 
-    Results -->|No| FailTests[FAIL: Test failure - check output vs expected]
-    Results -->|Yes| JUnit[Generate JUnit XML: regression_report_junit.xml]
+    TestMatrix --> Results{All tests passed?}
 
-    FailTests --> EndFail([End: FAIL])
-    JUnit --> Markdown[Generate Markdown report: regression_report.md]
-    Markdown --> Summary[Summary: pass/fail counts, per-test timing]
-    Summary --> EndOK([End: PASS])
+    Results -->|No| FailReport[Generate per-OS report: FAIL]
+    Results -->|Yes| PassReport[Generate per-OS report: PASS<br>+ JUnit XML]
 
+    FailReport --> PerOsEnd([Per-OS done])
+    PassReport --> PerOsEnd
+    UnsupSkip --> PerOsEnd
+
+    PerOsEnd --> Aggregate[Aggregate all regression reports]
+    Aggregate --> Summary[reports/regression_summary.md]
+    Summary --> EndOK([End])
 ```
 
 ##### Execution Mode Decision Flowchart
@@ -881,29 +886,33 @@ flowchart TD
 flowchart TD
     Start([Select target]) --> Host{Host OS?}
 
-    Host -->|macOS| MacCheck{Target OS?}
-    MacCheck -->|macos| Native[Native build]
-    MacCheck -->|fedora/debian/ubuntu| Container{Container?}
-    Container -->|yes| PodmanCont[podman/container]
-    Container -->|no| Skip[SKIP: No runtime]
+    Host -->|macOS| MacTarget{Target OS?}
+    MacTarget -->|macos| MacNative[macOS native build]
+    MacTarget -->|fedora/debian/ubuntu/raspios| MacContainer["container run<br>(Apple Container)"]
+    MacTarget -->|freebsd14| MacSsh["SSH → freebsd<br>(tarball + tcsh)"]
+    MacTarget -->|archlinux| MacArchSsh["SSH → archlinux<br>(no arm64 container)"]
 
-    Host -->|Linux| LinuxCheck{Target OS?}
-    LinuxCheck -->|macos| SkipMac[SKIP: macOS native-only]
-    LinuxCheck -->|fedora/debian/ubuntu/arch| PodmanCont
-    LinuxCheck -->|archlinux| SshCheck{Remote host?}
-    SshCheck -->|Yes| SshRemote[SSH remote]
-    SshCheck -->|No| SkipArch[SKIP: No host configured]
+    Host -->|Linux| LinuxTarget{Target OS?}
+    LinuxTarget -->|same distro| LinuxNative[Linux native build]
+    LinuxTarget -->|other Linux| LinuxContainer["podman run"]
+    LinuxTarget -->|freebsd14| LinuxSsh["SSH → freebsd<br>(tarball + tcsh)"]
+    LinuxTarget -->|macos| LinuxSkip[SKIP: macOS native-only]
 
-    Host -->|FreeBSD| FBSDCheck{Target OS?}
-    FBSDCheck -->|freebsd14| Native
-    FBSDCheck -->|other| SkipMac
+    Host -->|FreeBSD| FbsdTarget{Target OS?}
+    FbsdTarget -->|freebsd14| FbsdNative[FreeBSD native build]
+    FbsdTarget -->|other| FbsdSkip[SKIP: no containers,<br>no cross-build]
 
-    Native --> End([Execute])
-    PodmanCont --> End
-    SshRemote --> End
-    Skip --> EndSkip([End: Skipped])
-    SkipMac --> EndSkip
-    SkipArch --> EndSkip
+    MacNative --> Run([Run])
+    MacContainer --> Run
+    MacSsh --> Run
+    MacArchSsh --> Run
+    LinuxNative --> Run
+    LinuxContainer --> Run
+    LinuxSsh --> Run
+    FbsdNative --> Run
+
+    LinuxSkip --> Skip
+    FbsdSkip --> Skip
 ```
 
 ##### Platform-Specific Notes
@@ -914,7 +923,7 @@ flowchart TD
 | **Fedora** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ with `-flto=thin`; dnf package manager |
 | **Debian** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ uses `-flto` (not `-flto=thin`); apt package manager |
 | **Ubuntu** | `make all` (GNU make) | `make test` | `podman` or `container` | g++ with `-flto=thin`; apt package manager |
-| **Arch Linux** | `make all` (GNU make) | `make test` | N/A — SSH only | Multi-compiler Makefile (g++/clang++ auto-detect); amd64-only container — no ARM64 variant available |
+| **Arch Linux** | `make all` (GNU make) | `make test` | `podman` (Linux) or SSH (macOS) | Multi-compiler Makefile (g++/clang++ auto-detect); amd64-only container — no ARM64 variant available on Apple Silicon |
 | **Raspberry Pi OS** | `make all` (GNU make) | `make test` | `podman` or `container` | arm64 container image; apt package manager |
 | **FreeBSD 14** | `make all` (BSD make) | `make verify` | N/A — native only | Static library only; no RPATH/$ORIGIN support |
 
@@ -1060,14 +1069,17 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 - *Requirements:* ffmpeg, ffprobe
 
 **LLM Knowledge Package (`knowledge/`)**
-Regenerates the LLM knowledge package from actual source headers. Produces API references, examples, and instruction datasets for all implemented languages (C++, Java, Python). Distributed as Ollama Modelfile (system prompt) and fine-tuned GGUF models.
+Regenerates the LLM knowledge package from actual source headers and README. Produces API references, examples, build guides, and instruction datasets for all implemented languages (C++, Java, Python). Available as local Ollama Modelfile, LM Studio system prompt, and fine-tuned GGUF.
 - *Update docs + dataset:* `./knowledge/update.sh <BUILD_ID>` (bash) or `./knowledge/update.zsh <BUILD_ID>` (zsh)
   - BUILD_ID is a manual parameter — if omitted, current value is preserved (no auto-increment)
   - MAJOR/MINOR/SUBVERSION are auto-detected from `src/*/cpp/version.mk`
+  - Auto-extracts build/setup guide from test Makefiles and README
+  - Auto-extracts LM Studio system prompt + creates `lms-chat` wrapper scripts
+- *Chat with knowledge (LM Studio):* `./knowledge/lms-chat.zsh "your question"` (model must be loaded)
 - *Build fine-tuned model:* `./knowledge/build_model.sh` (bash) or `./knowledge/build_model.zsh` (zsh)
   - Runs QLoRA fine-tuning of Qwen2.5-14B-Instruct on M4 Mac mini (~1-3 hours)
   - Exports to GGUF via llama.cpp
-- *Version tracking:* `knowledge/.gen_state.json` — SHA-256 hashes of source → generated artifacts (same pattern as prompt versioning)
+- *Version tracking:* `knowledge/.gen_state.json` — SHA-256 hashes of source → generated artifacts
 
 ### Part E: Adding a New Operating System
 
@@ -1324,7 +1336,7 @@ The following tools are checked at session start by `utils/bin/check_tools.zsh` 
 
 ## LLM Knowledge Package
 
-The Ringbuffer project ships versioned knowledge packages that teach LLMs how to use the library. Each package covers all implemented languages (C++, Java, Python) and is distributed in two forms for different user needs.
+The Ringbuffer project ships versioned knowledge packages that teach LLMs how to use the library. Each package covers all implemented languages (C++, Java, Python) and is available in three forms: LM Studio system prompt (local, instant), Ollama Modelfile (local build), and fine-tuned GGUF (zero-context).
 
 ### What It Contains
 
@@ -1332,7 +1344,10 @@ The Ringbuffer project ships versioned knowledge packages that teach LLMs how to
 knowledge/
 ├── manifest.json                   # Version, SHA-256 checksums of every file
 ├── Modelfile                       # Ollama model definition (wraps Qwen3.6-35B)
-├── system-prompt.md                # Lean core knowledge (~2KB, inline in Modelfile)
+├── system-prompt.md                # Lean core knowledge (~3KB, inline in Modelfile)
+├── lms-system-prompt.txt           # LM Studio system prompt (auto-extracted from Modelfile)
+├── lms-model.txt                   # LM Studio model name (auto-converted for LM Studio)
+├── lms-chat.zsh / .sh              # LM Studio convenience wrapper (one-shot or interactive)
 ├── api-reference/                  # Full API docs by language (external, referenced by system prompt)
 │   ├── cpp.md                      # C++ headers, types, full signatures
 │   ├── java.md                     # Java API, class hierarchy, usage patterns
@@ -1342,22 +1357,28 @@ knowledge/
 │   └── advanced.cpp / .java / .py  # Per-stage logging, checksumming, error handlers
 ├── patterns/                       # Common usage patterns (all languages)
 │   ├── logging-guide.md            # Per-stage verbosity configuration
-│   └── checksumming.md             # MD5/SHA256/SHA512 per-slot
+│   ├── checksumming.md             # MD5/SHA256/SHA512 per-slot
+│   └── build-guide.md              # Build/setup guide (auto-extracted from Makefiles + README)
 ├── instruction-dataset/            # QLoRA training data (for 14B fine-tuning)
 │   ├── train.jsonl                 # Instruction/response pairs
 │   └── eval.jsonl                  # Held-out validation set
-├── update.sh / update.zsh          # Regenerates docs + dataset from source headers
-└── build_model.sh / .zsh           # QLoRA fine-tuning script for M4 Mac mini
+├── update.sh / update.zsh          # Regenerates all docs + dataset from source headers + README
+├── build_model.sh / .zsh           # QLoRA fine-tuning script for M4 Mac mini
+└── tests/                          # Knowledge package validation (16 tests)
+    └── test_knowledge_package.py    # Validates manifest, API refs match source, build Q&A
 ```
 
 ### Distribution Paths
 
 | Path | What it is | User command | Hardware needed |
 |---|---|---|---|
-| **System Prompt** (Modelfile) | Knowledge injected as text before every conversation | `ollama create swtr-ringbuffer -f Modelfile` | Any Qwen-compatible setup |
+| **LM Studio** (system prompt) | Knowledge injected as system prompt via `lms chat -s` | `./knowledge/lms-chat.zsh "question"` | Apple Silicon Mac (model pre-loaded) |
+| **Ollama** (Modelfile) | Knowledge injected as text before every conversation | `ollama create swtr-ringbuffer -f Modelfile` | Any Qwen-compatible setup |
 | **Fine-Tuned** (14B GGUF) | Knowledge baked into model weights via QLoRA | `ollama create swtr-ringbuffer --from model.gguf` | ~10GB RAM (M4 Mac mini or equivalent) |
 
-**System Prompt approach:** The Modelfile wraps a base Qwen model with a lean system prompt (~2KB) containing architecture overview, key types, and quick examples. External API reference files are referenced for deep dives. Instant to use — no training required.
+**LM Studio approach:** The `update.zsh` script auto-extracts the system prompt from the Modelfile into `lms-system-prompt.txt` and creates `lms-chat` wrapper scripts. Load the model in LM Studio, then run `./knowledge/lms-chat.zsh "your question"` for one-shot Q&A or `./knowledge/lms-chat.zsh` for interactive chat. The wrapper passes the system prompt via `lms chat -s`. Instant to use — the model is already loaded.
+
+**Ollama System Prompt approach:** The Modelfile wraps a base Qwen model with a lean system prompt (~3KB) containing architecture overview, key types, and quick examples. External API reference files are referenced for deep dives. Instant to use — no training required.
 
 **Fine-Tuned approach:** A Qwen2.5-14B-Instruct model is fine-tuned (QLoRA) on an instruction dataset generated from the knowledge source. The resulting `.gguf` file has ringbuffer knowledge baked into its weights — zero context window cost at inference time. Built on the project's M4 Mac mini (64GB unified memory) and exported via llama.cpp.
 
@@ -1378,27 +1399,90 @@ The `BUILD_ID` is a manual parameter — if not supplied to `update.sh`, the cur
 
 When ringbuffer source code changes:
 
-1. Run `./knowledge/update.sh <BUILD_ID>` — regenerates API docs, examples, and instruction dataset from actual `.hpp`/`.py` headers for all three languages (C++, Java, Python)
-2. The script reads `version.mk` for MAJOR/MINOR/SUBVERSION, accepts BUILD_ID as argument (or preserves current value if omitted)
-3. Updates checksums in `manifest.json` using the existing `.gen_state.json` SHA-256 pattern
-4. Run `./knowledge/build_model.sh` on the M4 Mac mini — fine-tunes 14B, exports GGUF (~1-3 hours)
-5. Release both artifacts (`Modelfile` + `.gguf`) via GitHub Releases
+1. Run `./knowledge/update.sh <BUILD_ID>` — regenerates API docs, examples, build guide, and instruction dataset from source headers, test Makefiles, and README for all three languages (C++, Java, Python)
+2. Auto-extracts LM Studio system prompt from Modelfile, creates `lms-chat` wrapper scripts
+3. The script reads `version.mk` for MAJOR/MINOR/SUBVERSION, accepts BUILD_ID as argument (or preserves current value if omitted)
+4. Updates checksums in `manifest.json` using SHA-256 hashing of all knowledge files
+5. Run `./knowledge/build_model.sh` on the M4 Mac mini — fine-tunes 14B, exports GGUF (~1-3 hours)
+6. Release artifacts (`Modelfile` + `lms-system-prompt.txt` + `.gguf`) via GitHub Releases
 
 ### Installation (End Users)
 
-**Path A — System Prompt (any Qwen model, instant):**
+**Path A — LM Studio (Apple Silicon, instant):**
+```bash
+# Model must be loaded in LM Studio first (e.g., qwen3.6-35b-a3b-mlx)
+./knowledge/lms-chat.zsh "How do I configure per-stage logging?"
+# Or interactive: ./knowledge/lms-chat.zsh
+```
+
+**Path B — Ollama System Prompt (any Qwen model, instant):**
 ```bash
 curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/Modelfile -o Modelfile
 ollama create swtr-ringbuffer -f Modelfile
 ollama run swtr-ringbuffer "How do I configure per-stage logging?"
 ```
 
-**Path B — Fine-Tuned 14B (zero-context inference):**
+**Path C — Fine-Tuned 14B (zero-context inference):**
 ```bash
 curl -L https://github.com/<user>/ringbuffer/releases/download/v1.0.0-build-1/swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf -o model.gguf
 ollama create swtr-ringbuffer --from model.gguf
 ollama run swtr-ringbuffer "How do I configure per-stage logging?"
 ```
+
+### Testing the Knowledge Model
+
+Once installed, verify the model responds with correct ringbuffer knowledge rather than general LLM knowledge:
+
+**LM Studio:**
+```bash
+# One-shot questions
+./knowledge/lms-chat.zsh "What are the three pipeline stages in the ringbuffer?"
+./knowledge/lms-chat.zsh "List all BufferStatus enum values and their integer codes."
+./knowledge/lms-chat.zsh "Should I use static or dynamic linking for the C++ library on macOS?"
+
+# Interactive chat
+./knowledge/lms-chat.zsh
+```
+
+Example: *"List all BufferStatus enum values and their integer codes"*
+
+| Enum Value                  | Integer Code |
+|-----------------------------|--------------|
+| `READYFORREAD`              | 0            |
+| `READYFORTRANSFORM`         | 1            |
+| `READYFORWRITE`             | 2            |
+| `PROCESSING_READ`           | 3            |
+| `PROCESSING_TRANSFORM`      | 4            |
+| `PROCESSING_WRITE`          | 5            |
+| `EMPTY`                     | 6            |
+| `FULL`                      | 7            |
+| `LAST_BUFFER_TO_TRANSFORM`  | 8            |
+| `LAST_BUFFER_TO_WRITE`      | 9            |
+| `PENDING_READ`              | 10           |
+| `PENDING_TRANSFORM`         | 11           |
+| `PENDING_WRITE`             | 12           |
+| `STATUS_ERROR`              | 13           |
+
+Example: *"Should I use static or dynamic linking for the C++ library on macOS?"*
+
+> For most macOS projects, prefer **dynamic linking** (`.dylib`). It keeps binaries smaller, enables memory sharing across processes, and aligns with macOS conventions. Use dynamic linking unless you need a fully self-contained distribution binary or want to avoid runtime dependency resolution issues.
+>
+> If choosing **static linking** (`.a`), note that it increases executable size, may complicate code signing or universal binary builds (Apple Silicon/Intel), and requires careful handling of the C++ standard library (`libc++`). Ensure you set proper `@rpath` for any dynamic dependencies.
+>
+> **Recommendation:** Use dynamic linking for development, system integration, or shared tools. Switch to static only when distributing standalone executables where dependency availability cannot be guaranteed.
+
+**Ollama:**
+```bash
+# One-shot questions
+ollama run swtr-ringbuffer "What are the three pipeline stages?"
+ollama run swtr-ringbuffer "List all BufferStatus enum values."
+ollama run swtr-ringbuffer "How do I set up a Java project with Maven?"
+
+# Interactive chat
+ollama run swtr-ringbuffer
+```
+
+**Expected behavior:** The model should answer from the knowledge package — correct stage names, accurate enum values, and build guidance. If it hallucinates or gives vague answers, the system prompt may not be loading correctly.
 
 ### Development (Internal)
 
