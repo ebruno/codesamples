@@ -679,6 +679,24 @@ Step 4: shell_command → cat chunkA chunkB chunkC > target/path/file.md (host)
 | Modify existing file (second try fails) | Switch to chunked approach or `shell_command` heredoc |
 | Write to sandbox only | `run_python` → `/outputs/` |
 
+### Temporary File Location — MANDATORY (Learned 2026-08-27)
+
+**Use `ringbuffer/tmp/` for all project-local temporary files. Never use `/tmp`.**
+
+| Use `ringbuffer/tmp/` | Use `/tmp` only for |
+|---|---|
+| Build artifacts that are not final output (intermediate files, staging areas) | Transient tarballs/scripts for SSH transfer to remote hosts |
+| Lock files (`.run_lock/`) | One-off scratch work that is immediately discarded and not project-specific |
+| Runtime state (PID files, mode flags, timestamps) | System diagnostics unrelated to this project |
+| Temp files created by `verify_build`, `run_regression`, or any project script | Files that will be cleaned up by the OS before the next boot |
+
+**Why this matters:**
+- `/tmp` is shared across all processes and users. Files placed there can be deleted by the OS at any time, causing race conditions and silent failures.
+- `ringbuffer/tmp/` is under the project's control — it survives OS cleanup, is tracked by `make clean`, and its lock mechanism prevents parallel execution.
+- Using `/tmp` for project state has caused lost locks, stale PID files, and corrupted build runs.
+
+**Rule:** If a temp file is created by or for this project, it goes in `ringbuffer/tmp/`. Period. The only exceptions are the two SSH transfer cases listed above, which are explicitly documented in the SSH workflow rules.
+
 ## Docker vs Container Golden Rule (macOS)
 - **macOS host:** NEVER use `docker` or `podman`. Only use the `container` CLI (Apple Container).
 - **Linux host:** Use `podman` (preferred) or Docker.
