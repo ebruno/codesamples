@@ -14,6 +14,7 @@ Built entirely through prompt-driven LLM development using **LM Studio Bionic** 
 - [Implementation Status](#implementation-status)
 - [Platform Support](#platform-support)
   - [Development Host vs Target](#development-host-vs-target)
+  - [FreeBSD Conditional Compilation](#freebsd-conditional-compilation)
 - [Roadmap](#roadmap)
 - [Key Specifications](#key-specifications)
 - [Core Features](#core-features)
@@ -145,9 +146,27 @@ C, Go, and Rust are next in the pipeline — their common specs are complete and
 | **macOS** | ✅ Verified | ✅ | Native `container` CLI, `.zsh` scripts |
 | **Linux distributions** | ⚠️ Alpha | ✅ | `podman` for containers, `.sh` scripts. Development host capability not yet verified end-to-end |
 | **FreeBSD 14/15** | ❌ | ✅ | No container support — SSH deploy only. `.tcsh` scripts, BSD make |
+| **MS Windows** | ❌ | ❌ | Not supported as development host or target |
 
 - **Development host** — where code is written, scripts are verified, and containers are run. Must support containers to build/test Linux targets locally.
 - **Target** — where `verify_build` or `run_regression` executes. May be local (containers on the development host) or remote (SSH to FreeBSD/Arch Linux).
+
+### FreeBSD Conditional Compilation
+
+FreeBSD lacks `<stop_token>` (C++20) and `std::jthread`, so the ringbuffer uses conditional compilation to provide equivalent functionality:
+
+| Feature | macOS / Linux | FreeBSD |
+|---------|--------------|---------|
+| Thread stop mechanism | `std::jthread` (auto-stops via `request_stop()`) | Manual `std::atomic<bool>` flag + `while (!stop_flag_.load())` loop |
+| Thread type | `std::jthread` (RAII, auto-join) | `std::thread` + explicit `stop()` call |
+| Header availability | `<stop_token>` included | Skipped — not available in FreeBSD's libc++ |
+| Wait loop | `cv.wait_for()` with stop token predicate | `cv.wait_for()` with manual flag check in predicate |
+
+**Implementation pattern:** Every thread loop checks `stop_flag_.load()` and the condition variable predicate includes the flag. The `stop()` method sets the flag instead of calling `request_stop()`. This keeps the code identical across platforms — only the preprocessor directives differ.
+
+**Files affected:** `ReadOps.cpp`, `TransformOps.cpp`, `WriteOps.cpp`, `Threading.cpp`, `swtr_ringbuffer_impl.hpp`
+
+**Impact:** FreeBSD conditional compilation accounts for **4.5%** of the affected files (18 of 398 lines). The remaining **95.5%** is identical across all platforms.
 
 ## Roadmap
 
@@ -1070,16 +1089,20 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 
 **LLM Knowledge Package (`knowledge/`)**
 Regenerates the LLM knowledge package from actual source headers and README. Produces API references, examples, build guides, and instruction datasets for all implemented languages (C++, Java, Python). Available as local Ollama Modelfile, LM Studio system prompt, and fine-tuned GGUF.
-- *Update docs + dataset:* `./knowledge/update.sh <BUILD_ID>` (bash) or `./knowledge/update.zsh <BUILD_ID>` (zsh)
-  - BUILD_ID is a manual parameter — if omitted, current value is preserved (no auto-increment)
-  - MAJOR/MINOR/SUBVERSION are auto-detected from `src/*/cpp/version.mk`
+- *Update docs + dataset:* `./knowledge/update.zsh [-i | -b <number> | -r]` (bash: `update.sh`)
+  - `-i`: Increment BUILD_ID in `knowledge/version.mk` only (no regeneration, no tarball)
+  - `-b <number>`: Use explicit BUILD_ID for regeneration and tarball (no version.mk change)
+  - `-r`: Refresh README.md to point at latest `.tar.gz` in `knowledge/releases/`
+  - No flags: Use current BUILD_ID from `version.mk` as-is
+  - MAJOR/MINOR/SUBVERSION are read from independent `knowledge/version.mk` (not tied to ringbuffer source)
   - Auto-extracts build/setup guide from test Makefiles and README
   - Auto-extracts LM Studio system prompt + creates `lms-chat` wrapper scripts
 - *Chat with knowledge (LM Studio):* `./knowledge/lms-chat.zsh "your question"` (model must be loaded)
 - *Build fine-tuned model:* `./knowledge/build_model.sh` (bash) or `./knowledge/build_model.zsh` (zsh)
+  - Reads version from `knowledge/version.mk` (source of truth)
   - Runs QLoRA fine-tuning of Qwen2.5-14B-Instruct on M4 Mac mini (~1-3 hours)
   - Exports to GGUF via llama.cpp
-- *Version tracking:* `knowledge/.gen_state.json` — SHA-256 hashes of source → generated artifacts
+- *Version tracking:* `knowledge/version.mk` — independent MAJOR.MINOR.SUBVERSION.BUILD_ID for knowledge package
 
 ### Part E: Adding a New Operating System
 
@@ -1362,9 +1385,10 @@ knowledge/
 ├── instruction-dataset/            # QLoRA training data (for 14B fine-tuning)
 │   ├── train.jsonl                 # Instruction/response pairs
 │   └── eval.jsonl                  # Held-out validation set
-├── update.sh / update.zsh          # Regenerates all docs + dataset from source headers + README
-├── build_model.sh / .zsh           # QLoRA fine-tuning script for M4 Mac mini
-└── tests/                          # Knowledge package validation (16 tests)
+├── version.mk                      # Independent knowledge package version (MAJOR.MINOR.SUBVERSION.BUILD_ID)
+├── update.sh / update.zsh          # Regenerates all docs + dataset; creates tarball in releases/
+├── build_model.sh / .zsh           # QLoRA fine-tuning script for M4 Mac mini (reads version.mk)
+└── tests/                          # Knowledge package validation
     └── test_knowledge_package.py    # Validates manifest, API refs match source, build Q&A
 ```
 
@@ -1375,6 +1399,7 @@ knowledge/
 | **LM Studio** (system prompt) | Knowledge injected as system prompt via `lms chat -s` | `./knowledge/lms-chat.zsh "question"` | Apple Silicon Mac (model pre-loaded) |
 | **Ollama** (Modelfile) | Knowledge injected as text before every conversation | `ollama create swtr-ringbuffer -f Modelfile` | Any Qwen-compatible setup |
 | **Fine-Tuned** (14B GGUF) | Knowledge baked into model weights via QLoRA | `ollama create swtr-ringbuffer --from model.gguf` | ~10GB RAM (M4 Mac mini or equivalent) |
+| **Knowledge Tarball** | Full library knowledge package (docs, examples, datasets) | [Download Current Model](knowledge/releases/swtr-ringbuffer-knowledge-v1.0.0-build-1.tar.gz) | Any — extract and use locally |
 
 **LM Studio approach:** The `update.zsh` script auto-extracts the system prompt from the Modelfile into `lms-system-prompt.txt` and creates `lms-chat` wrapper scripts. Load the model in LM Studio, then run `./knowledge/lms-chat.zsh "your question"` for one-shot Q&A or `./knowledge/lms-chat.zsh` for interactive chat. The wrapper passes the system prompt via `lms chat -s`. Instant to use — the model is already loaded.
 
@@ -1384,27 +1409,28 @@ knowledge/
 
 ### Versioning
 
-Knowledge packages follow the same versioning scheme as the library itself, derived from `src/*/cpp/version.mk`:
+Knowledge packages use independent versioning from the ringbuffer source, tracked in `knowledge/version.mk`:
 
 | Component | Source | Example |
 |---|---|---|
-| MAJOR.MINOR.SUBVERSION | Auto-detected from `version.mk` | `1.0.0` |
-| BUILD_ID | Manual input to `update.sh` (no auto-increment) | `build-1`, `build-2` |
-| Full version string | `knowledge/manifest.json` | `1.0.0-build-1` |
+| MAJOR.MINOR.SUBVERSION | `knowledge/version.mk` | `1.0.0` |
+| BUILD_ID | `update.zsh -i` or `-b <number>` | `build-1`, `build-2` |
+| Full version string | Assembled from `version.mk` | `1.0.0-build-1` |
 | GGUF filename | Generated from version string | `swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf` |
 
-The `BUILD_ID` is a manual parameter — if not supplied to `update.sh`, the current value is preserved. This gives full control over release numbering without auto-increment surprises.
+The `BUILD_ID` is controlled via flags: `-i` increments it in `version.mk`, `-b <number>` sets an explicit value without modifying the file, and no flags uses the current value as-is. This gives full control over release numbering without auto-increment surprises.
 
 ### Update Process
 
 When ringbuffer source code changes:
 
-1. Run `./knowledge/update.sh <BUILD_ID>` — regenerates API docs, examples, build guide, and instruction dataset from source headers, test Makefiles, and README for all three languages (C++, Java, Python)
+1. Run `./knowledge/update.zsh [-i | -b <number> | -r]` — regenerates API docs, examples, build guide, and instruction dataset from source headers, test Makefiles, and README for all three languages (C++, Java, Python)
 2. Auto-extracts LM Studio system prompt from Modelfile, creates `lms-chat` wrapper scripts
-3. The script reads `version.mk` for MAJOR/MINOR/SUBVERSION, accepts BUILD_ID as argument (or preserves current value if omitted)
+3. Reads MAJOR/MINOR/SUBVERSION/BUILD_ID from `knowledge/version.mk` (independent of ringbuffer source)
 4. Updates checksums in `manifest.json` using SHA-256 hashing of all knowledge files
-5. Run `./knowledge/build_model.sh` on the M4 Mac mini — fine-tunes 14B, exports GGUF (~1-3 hours)
-6. Release artifacts (`Modelfile` + `lms-system-prompt.txt` + `.gguf`) via GitHub Releases
+5. Creates release tarball in `knowledge/releases/` (keeps only the 3 most recent)
+6. Run `./knowledge/build_model.sh` on the M4 Mac mini — fine-tunes 14B, exports GGUF (~1-3 hours)
+7. Release artifacts (`Modelfile` + `lms-system-prompt.txt` + `.gguf`) via GitHub Releases
 
 ### Installation (End Users)
 
