@@ -1,14 +1,13 @@
 #!/usr/bin/env zsh
 # build_model.sh — QLoRA fine-tuning script for M4 Mac mini (64GB)
 #
-# Usage: ./knowledge/build_model.sh [BUILD_ID]
+# Usage: ./knowledge/build_model.sh
 #   Builds a fine-tuned GGUF model from the knowledge/ instruction dataset.
 #   Requires: Python 3.10+, mlx-lm, llama-cpp-python (with Metal support)
 #   Estimated time: ~1-3 hours on M4 Mac mini (64GB)
 #
 # Examples:
-#   ./knowledge/build_model.sh 2          # Build with BUILD_ID=2
-#   ./knowledge/build_model.sh            # Uses current version from manifest.json
+#   ./knowledge/build_model.sh            # Uses current version from knowledge/version.mk
 
 set -euo pipefail
 
