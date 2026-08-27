@@ -1,12 +1,6 @@
 {
   "name": "swtr-ringbuffer-knowledge",
   "version": "1.0.0-build-1",
-  "ringbuffer_version": {
-    "major": 1,
-    "minor": 0,
-    "subversion": 0,
-    "build_id": 1
-  },
   "languages": [
     "cpp",
     "java",
@@ -19,23 +13,27 @@
   ],
   "distribution": {
     "system_prompt": "Modelfile \u2014 wraps any Qwen model, instant to use",
-    "fine_tuned": "swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf \u2014 QLoRA fine-tuned, zero-context inference"
+    "fine_tuned": "swtr-ringbuffer-qwen2.5-14b-v1.0.0-build-1.gguf \u2014 QLoRA fine-tuned, zero-context inference",
+    "download": {
+      "current": "[Download Archive](knowledge/releases/swtr-ringbuffer-knowledge-v1.0.0-build-1.tar.gz)",
+      "older_versions": "Look in `knowledge/releases/` for older versions."
+    }
   },
-  "generated_at": "2026-08-27T03:16:43Z",
+  "generated_at": "2026-08-27T21:38:32Z",
   "files": {
     "Modelfile": "ce878d0c1e17df5db41c73a2ebe94c1b17c8424dc496373bcdd086689daf3a8e",
-    "update.zsh.bak": "225de226a667b08dbcad8deb81f5fb4bd5ef49624e18bcd96356e19df69c0462",
-    ".DS_Store": "6db6d342c17af6efd5a76d801316d20fb6da3a20fe3973c0fe79f2038106309a",
-    "build_model.sh": "4a036dda3efb1ac961e39bf38e136c783b6ec70868cb82e96dd065d25dff898e",
-    "build_model.zsh": "96dd0f94d674ada9a759f7db0de1d9784f5878d636b7f6a0354537ac391c6f25",
+    ".DS_Store": "c7b119131808aec0466efd5a6bafba9fed65db29d21e93fe97f2a6d57d9f2c0c",
+    "build_model.sh": "75723c3649a2a22b26672b01a3773c2fb5fb4f2c933f799f79a4d2f6b4dc3fa7",
+    "build_model.zsh": "4627f09cfbfae54992a0fd20bdcdd7654b21d6f088e363fae9fba935da0dc847",
     "lms-model.txt": "14094d236bbe471013ae626bdbdf6f8901b475f5c1d9cf21229c42dee658c12a",
     "lms-system-prompt.txt": "83030e4397539d6e241e2e35cbe66d6ddea338a63bb574d122ecf12562fad1ea",
-    "update.sh": "9f4fef1acf264cfa32a33fb4ad49f74d7539aaab3ca369bcb70a2e8fab9dd127",
-    "lms-chat.zsh": "67bde4c7eb4576e531ee1a87f52606fd23e4847b02b4c93c7013852f51315237",
-    "update.zsh": "86118db388ef23acf0ba4038c7bac9515f7a728a522dfd3688a100c22a81324e",
+    "version.mk": "058e342c2f3278685fc9de402dce65c0475d19ee6f1bf165e072f0e9d7355aff",
+    "update.sh": "27dc4d620ae2ca837786de830a6045b656942756440221140a2b7946bd3ea255",
+    "lms-chat.zsh": "b1d8291cbbf54f3a9612fab6823c67aaf31d7d5e86a5f0e93d3c49b8a6d54ee9",
+    "update.zsh": "7fc17ecfc4f88c30a922205da56eb98553206f3eba33034d2a12213b2e0cfbf7",
     "system-prompt.md": "0f9fb91448fade1c16d912c0456a27c30136f89046ec6fa6a8026ce250e07590",
-    "lms-chat.sh": "a071864e7a3ca2214a587bc27c42585373d6c7ba5906063ea9bf192682f3c39a",
-    "patterns/build-guide.md": "04daeefe801576578afce5ffcad1806bcd04adfea9bafccaa743a0addf89db15",
+    "lms-chat.sh": "701a7504242e7bbc794c4e3ffe4a5d3723bee8ce3c56e9efc5380bba840c90c6",
+    "patterns/build-guide.md": "10e1f9c9a6296f679d4341ee626ccfc90246c63fbfcf94f12fc3ee8b0afe4a2a",
     "patterns/checksumming.md": "8686ee4b4eb5357e64b7cb9c1f3da6a6cb88420c47971e64c8b4b8a18fc723f0",
     "patterns/logging-guide.md": "c4472faa2a5591a2132d0f244cc03c7dd64b1781a26f02ebdca74ab1fb84edbe",
     "api-reference/python.md": "e5e5494d6f08a1e02939777860ab8de3246ea1e7ce091783ace2a650383935d3",

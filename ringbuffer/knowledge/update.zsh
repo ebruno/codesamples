@@ -1,21 +1,25 @@
 #!/usr/bin/env zsh
-# update.sh — Regenerates LLM knowledge package from source headers
+# update.zsh — Regenerates LLM knowledge package from source headers
 #
-# Usage: ./knowledge/update.sh [BUILD_ID]
-#   BUILD_ID is a manual parameter — if omitted, current value is preserved (no auto-increment)
-#   MAJOR/MINOR/SUBVERSION are auto-detected from src/*/cpp/version.mk
+# Usage: ./knowledge/update.zsh [-i | -b <number>]
+#   MAJOR/MINOR/SUBVERSION are read from knowledge/version.mk (independent of ringbuffer)
+#
+# Flags:
+#   -i                     Increment BUILD_ID in version.mk only (no regeneration, no tarball).
+#   -b <number>            Use this BUILD_ID for regeneration and tarball (no version.mk change).
 #
 # Examples:
-#   ./knowledge/update.sh 2          # Sets BUILD_ID to 2
-#   ./knowledge/update.sh            # Preserves current BUILD_ID
+#   ./knowledge/update.zsh -i                       # Bump BUILD_ID in version.mk only
+#   ./knowledge/update.zsh -b 5                     # Build with BUILD_ID=5 (no version.mk change)
+#   ./knowledge/update.zsh                          # Use current BUILD_ID from version.mk as-is
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# --- Read version from source (Makefile-style syntax, not shell export) ---
-VERSION_MK="$PROJECT_ROOT/src/macos/cpp/version.mk"
+# --- Read version from knowledge/version.mk (independent of ringbuffer) ---
+VERSION_MK="$SCRIPT_DIR/version.mk"
 if [[ ! -f "$VERSION_MK" ]]; then
     echo "ERROR: $VERSION_MK not found. Run this from the project root." >&2
     exit 1
@@ -32,14 +36,134 @@ while IFS= read -r line; do
 done < "$VERSION_MK"
 CURRENT_BUILD_ID="${CURRENT_BUILD_ID:-0}"
 
-# --- Accept BUILD_ID as argument, or preserve current ---
-if [[ $# -ge 1 ]]; then
-    NEW_BUILD_ID="$1"
+# --- Parse flags (getopts) ---
+INCREMENT_BUILDID=0
+EXPLICIT_BUILD_ID=""
+REFRESH_README=0
+SCRIPT_NAME="$(basename "$0")"
+
+# --- Usage ---
+usage() {
+    cat >&2 <<EOF
+Usage: $SCRIPT_NAME [-i | -b <number> | -r]
+  MAJOR/MINOR/SUBVERSION are read from knowledge/version.mk (independent of ringbuffer)
+
+Flags:
+  -i                     Increment BUILD_ID in version.mk only (no regeneration, no tarball).
+  -b <number>            Use this BUILD_ID for regeneration and tarball (no version.mk change).
+  -r                     Refresh README.md to point at latest .tar.gz in releases/.
+
+Examples:
+  $SCRIPT_NAME -i                       # Bump BUILD_ID in version.mk only
+  $SCRIPT_NAME -b 5                     # Build with BUILD_ID=5 (no version.mk change)
+  $SCRIPT_NAME -r                       # Update README.md to latest tarball in releases/
+  $SCRIPT_NAME                          # Use current BUILD_ID from version.mk as-is
+EOF
+    exit 1
+}
+
+while getopts ":hib:r" opt; do
+    case "$opt" in
+        h)
+            usage
+            ;;
+        i)
+            if [[ -n "$EXPLICIT_BUILD_ID" ]] || [[ $REFRESH_README -eq 1 ]]; then
+                echo "ERROR: -i is mutually exclusive with other flags." >&2
+                exit 1
+            fi
+            INCREMENT_BUILDID=1
+            ;;
+        b)
+            if [[ $INCREMENT_BUILDID -eq 1 ]] || [[ $REFRESH_README -eq 1 ]]; then
+                echo "ERROR: -b is mutually exclusive with other flags." >&2
+                exit 1
+            fi
+            EXPLICIT_BUILD_ID="$OPTARG"
+            ;;
+        r)
+            if [[ $INCREMENT_BUILDID -eq 1 ]] || [[ -n "$EXPLICIT_BUILD_ID" ]]; then
+                echo "ERROR: -r is mutually exclusive with other flags." >&2
+                exit 1
+            fi
+            REFRESH_README=1
+            ;;
+        :)
+            echo "ERROR: -b requires a number argument." >&2
+            exit 1
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+
+# --- Refresh README.md to latest tarball ---
+if [[ $REFRESH_README -eq 1 ]]; then
+    RELEASE_DIR="$SCRIPT_DIR/releases"
+    if [[ ! -d "$RELEASE_DIR" ]]; then
+        echo "ERROR: $RELEASE_DIR directory not found." >&2
+        exit 1
+    fi
+    # Find all tarballs, extract BUILD_ID, sort numerically, pick highest
+    LATEST_TARBALL=""
+    LATEST_ID=0
+    for f in "$RELEASE_DIR"/swtr-ringbuffer-knowledge-*.tar.gz; do
+        [[ -f "$f" ]] || continue
+        basename_f=$(basename "$f")
+        # Extract BUILD_ID from filename: v1.0.0-build-5.tar.gz → 5
+        build_num="${basename_f##*-build-}"
+        build_num="${build_num%.tar.gz}"
+        if [[ "$build_num" =~ ^[0-9]+$ ]] && (( build_num > LATEST_ID )); then
+            LATEST_ID=$build_num
+            LATEST_TARBALL="$f"
+        fi
+    done
+    if [[ -z "$LATEST_TARBALL" ]]; then
+        echo "ERROR: No tarballs found in $RELEASE_DIR." >&2
+        exit 1
+    fi
+    LATEST_FILENAME=$(basename "$LATEST_TARBALL")
+    # Update README.md
+    _tmpfile=$(mktemp)
+    while IFS= read -r line; do
+        if [[ "$line" == *"swtr-ringbuffer-knowledge-"*".tar.gz"* ]]; then
+            line="${line//swtr-ringbuffer-knowledge-*.tar.gz/$LATEST_FILENAME}"
+        fi
+        printf '%s\n' "$line"
+    done < "$PROJECT_ROOT/README.md" > "$_tmpfile"
+    if [[ -s "$PROJECT_ROOT/README.md" ]] && [[ "$(tail -c 1 "$PROJECT_ROOT/README.md" | wc -l)" -eq 0 ]]; then
+        truncate -s -1 "$_tmpfile"
+    fi
+    mv "$_tmpfile" "$PROJECT_ROOT/README.md"
+    echo "Updated README.md to point at $LATEST_FILENAME (BUILD_ID=$LATEST_ID)"
+    exit 0
+fi
+
+# --- Determine BUILD_ID ---
+if [[ $INCREMENT_BUILDID -eq 1 ]]; then
+    # Increment mode: read, increment, write back, exit
+    (( CURRENT_BUILD_ID++ )) || true
+    _tmp_mk=$(mktemp)
+    while IFS= read -r line; do
+        case "$line" in
+            BUILD_ID\ *) line="BUILD_ID = $CURRENT_BUILD_ID" ;;
+        esac
+        printf '%s\n' "$line"
+    done < "$VERSION_MK" > "$_tmp_mk"
+    mv "$_tmp_mk" "$VERSION_MK"
+    echo "BUILD_ID incremented to $CURRENT_BUILD_ID in version.mk"
+    exit 0
+elif [[ -n "$EXPLICIT_BUILD_ID" ]]; then
+    # Explicit BUILD_ID: use it but do NOT write to version.mk
+    NEW_BUILD_ID="$EXPLICIT_BUILD_ID"
 else
+    # Default: use current value from version.mk as-is (no increment)
     NEW_BUILD_ID="$CURRENT_BUILD_ID"
 fi
 
 FULL_VERSION="${MAJOR}.${MINOR}.${SUBVERSION}-build-${NEW_BUILD_ID}"
+
 echo "=== Regenerating LLM Knowledge Package ==="
 echo "Version: $FULL_VERSION (MAJOR=$MAJOR, MINOR=$MINOR, SUBVERSION=$SUBVERSION, BUILD_ID=$NEW_BUILD_ID)"
 
@@ -49,12 +173,6 @@ cat > "$SCRIPT_DIR/manifest.json" <<EOF
 {
   "name": "swtr-ringbuffer-knowledge",
   "version": "$FULL_VERSION",
-  "ringbuffer_version": {
-    "major": $MAJOR,
-    "minor": $MINOR,
-    "subversion": $SUBVERSION,
-    "build_id": $NEW_BUILD_ID
-  },
   "languages": ["cpp", "java", "python"],
   "compatible_with": [
     "qwen3.6-35b-a3b",
@@ -63,7 +181,11 @@ cat > "$SCRIPT_DIR/manifest.json" <<EOF
   ],
   "distribution": {
     "system_prompt": "Modelfile — wraps any Qwen model, instant to use",
-    "fine_tuned": "swtr-ringbuffer-qwen2.5-14b-v${MAJOR}.${MINOR}.${SUBVERSION}-build-${NEW_BUILD_ID}.gguf — QLoRA fine-tuned, zero-context inference"
+    "fine_tuned": "swtr-ringbuffer-qwen2.5-14b-v${MAJOR}.${MINOR}.${SUBVERSION}-build-${NEW_BUILD_ID}.gguf — QLoRA fine-tuned, zero-context inference",
+    "download": {
+      "current": "[Download Archive](knowledge/releases/swtr-ringbuffer-knowledge-v${MAJOR}.${MINOR}.${SUBVERSION}-build-${NEW_BUILD_ID}.tar.gz)",
+      "older_versions": "Look in \`knowledge/releases/\` for older versions."
+    }
   },
   "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "files": {}
@@ -548,9 +670,73 @@ TRAIN_FILE="$SCRIPT_DIR/instruction-dataset/train.jsonl" \
     python3 "$_py"
 rm -f "$_py"
 
+# =========================================================================
+# Create release tarball
+# =========================================================================
+echo "Creating release tarball..."
+
+RELEASE_DIR="$SCRIPT_DIR/releases"
+mkdir -p "$RELEASE_DIR"
+TARBALL="swtr-ringbuffer-knowledge-v${MAJOR}.${MINOR}.${SUBVERSION}-build-${NEW_BUILD_ID}.tar.gz"
+TARBALL_PATH="$RELEASE_DIR/$TARBALL"
+
+# Create tarball excluding releases/, .DS_Store, and .gen_state.json files
+tar czf "$TARBALL_PATH" \
+    --exclude='releases/' \
+    --exclude='.DS_Store' \
+    --exclude='.gen_state.json' \
+    -C "$SCRIPT_DIR" \
+    .
+
+TARBALL_SIZE=$(du -h "$TARBALL_PATH" | cut -f1)
+echo "  Created: $TARBALL"
+echo "  Size:    $TARBALL_SIZE"
+
+# --- Update README.md Distribution Paths table ---
+echo "Updating README.md download link..."
+_tmpfile=$(mktemp)
+while IFS= read -r line; do
+    if [[ "$line" == *"swtr-ringbuffer-knowledge-"*".tar.gz"* ]]; then
+        line="${line//swtr-ringbuffer-knowledge-*.tar.gz/$TARBALL}"
+    fi
+    printf '%s\n' "$line"
+done < "$PROJECT_ROOT/README.md" > "$_tmpfile"
+if [[ -s "$PROJECT_ROOT/README.md" ]] && [[ "$(tail -c 1 "$PROJECT_ROOT/README.md" | wc -l)" -eq 0 ]]; then
+    truncate -s -1 "$_tmpfile"
+fi
+mv "$_tmpfile" "$PROJECT_ROOT/README.md"
+echo "  Updated README.md Distribution Paths table to $TARBALL"
+
+# --- Keep only the 3 most recent tarballs ---
+echo "Cleaning old release tarballs (keeping latest 3)..."
+TARBALL_COUNT=0
+for f in "$RELEASE_DIR"/swtr-ringbuffer-knowledge-*.tar.gz; do
+    [[ -f "$f" ]] || continue
+    (( TARBALL_COUNT++ )) || true
+done
+if [[ $TARBALL_COUNT -gt 3 ]]; then
+    # Sort by BUILD_ID numerically, delete oldest beyond 3
+    KEPT=0
+    for f in $(for t in "$RELEASE_DIR"/swtr-ringbuffer-knowledge-*.tar.gz; do
+        [[ -f "$t" ]] || continue
+        bn=$(basename "$t")
+        bid="${bn##*-build-}"
+        bid="${bid%.tar.gz}"
+        echo "$bid $t"
+    done | sort -rn | awk '{print $2}'); do
+        (( KEPT++ )) || true
+        if [[ $KEPT -gt 3 ]]; then
+            rm -f "$f"
+            echo "  Removed: $(basename "$f")"
+        fi
+    done
+fi
+echo "  Kept $(( TARBALL_COUNT > 3 ? 3 : TARBALL_COUNT )) of $TARBALL_COUNT tarball(s)"
+
 echo ""
 echo "=== Done ==="
 echo "Knowledge package updated to version: $FULL_VERSION"
+echo "  Release tarball: knowledge/releases/$TARBALL ($TARBALL_SIZE)"
 echo ""
 echo "Next steps:"
 echo "  1. Review generated files in knowledge/"

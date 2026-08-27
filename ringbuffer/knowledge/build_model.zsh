@@ -12,26 +12,25 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# --- Read version from manifest ---
-MANIFEST="$SCRIPT_DIR/manifest.json"
-if [[ ! -f "$MANIFEST" ]]; then
-    echo "ERROR: $MANIFEST not found. Run update.sh first." >&2
+# --- Read version from knowledge/version.mk (source of truth) ---
+VERSION_MK="$SCRIPT_DIR/version.mk"
+if [[ ! -f "$VERSION_MK" ]]; then
+    echo "ERROR: $VERSION_MK not found. Run update.zsh first." >&2
     exit 1
 fi
 
-# Parse version from manifest.json using python3
-VERSION_INFO=$(python3 -c "
-import json
-with open('$MANIFEST') as f:
-    m = json.load(f)
-print(m['ringbuffer_version']['major'], m['ringbuffer_version']['minor'],
-      m['ringbuffer_version']['subversion'], m['ringbuffer_version']['build_id'])
-")
-
-read MAJOR MINOR SUBVERSION BUILD_ID <<< "$VERSION_INFO"
+# Parse version.mk (Makefile syntax: VAR = value)
+while IFS= read -r line; do
+    case "$line" in
+        MAJOR\ *) MAJOR="${line#MAJOR = }" ;;
+        MINOR\ *) MINOR="${line#MINOR = }" ;;
+        SUBVERSION\ *) SUBVERSION="${line#SUBVERSION = }" ;;
+        BUILD_ID\ *) BUILD_ID="${line#BUILD_ID = }" ;;
+    esac
+done < "$VERSION_MK"
 FULL_VERSION="${MAJOR}.${MINOR}.${SUBVERSION}-build-${BUILD_ID}"
 
 echo "=== Building Fine-Tuned Model ==="
