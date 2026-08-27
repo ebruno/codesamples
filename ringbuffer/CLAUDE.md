@@ -1025,7 +1025,7 @@ This project has 18+ script pairs with the same base name but different shell su
 - `utils/bin/run_regression.{zsh,sh}`, `run_build.{zsh,sh}`, `check_tools.{zsh,sh}`, `lint_scripts.{zsh,sh}`, `sync-bionic-rules.{zsh,sh}`
 - `utils/bin/aggregate_verify_build.{zsh,sh}`, `aggregate_regression.{zsh,sh}`, `aggregate_junit.{zsh,sh}`
 - `utils/bin/recover_container_network.{zsh,sh}`
-- `knowledge/build_model.{zsh,sh}`, `knowledge/update.{zsh,sh}`
+- `knowledge/build_model.{zsh,sh}`, `knowledge/update.{zsh,sh}`, `knowledge/lms-chat.{zsh,sh}`
 - `prompts/common/cpp/utils/bin/generate_test_data.{zsh,sh}`, `generate_junit_report.{zsh,sh}`, `verify_test_data.{zsh,sh}`, `verify_binary_symmetry.{zsh,sh}`, `lint_prompts.{zsh,sh}`, `archlinux_container.{zsh,sh}`
 - All per-OS copies in `src/<os>/cpp/tests/utils/bin/`
 
