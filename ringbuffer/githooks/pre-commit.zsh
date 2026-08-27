@@ -60,8 +60,37 @@ while IFS= read -r f; do
     esac
 done <<< "$STAGED_FILES"
 
-# ── Rule 1: Both-or-None (HARD BLOCK) ─────────────────────────────────
-if [ "$README_STAGED" -gt 0 ] && [ "$PROMPT_STAGED" -eq 0 ]; then
+# ── Rule 1: Auto-sync template + TOC from README.md (before block check) ───
+# When README.md is staged, automatically update readme_template.md and TOC
+SYNC_OK=0
+TOC_OK=0
+if [ "$README_STAGED" -gt 0 ]; then
+    # Sync readme_template.md
+    if [ -x "$SYNC_SCRIPT" ]; then
+        zsh "$SYNC_SCRIPT" "$SCRIPT_DIR" 2>/dev/null && {
+            git add "$TEMPLATE" 2>/dev/null || true
+            print -P "${GREEN}✓ Auto-synced readme_template.md from README.md${NC}"
+            SYNC_OK=1
+        } || {
+            print -P "${YELLOW}⚠ Warning: Could not auto-sync readme_template.md${NC}"
+        }
+    fi
+    # Sync TOC
+    TOC_SCRIPT="$SCRIPT_DIR/utils/bin/sync_readme_toc.zsh"
+    if [ -x "$TOC_SCRIPT" ]; then
+        zsh "$TOC_SCRIPT" >/dev/null 2>&1 && {
+            git add "$README" 2>/dev/null || true
+            print -P "${GREEN}✓ Auto-synced README.md Table of Contents${NC}"
+            TOC_OK=1
+        } || {
+            print -P "${YELLOW}⚠ Warning: Could not auto-sync README.md TOC${NC}"
+        }
+    fi
+fi
+
+# ── Rule 2: Both-or-None (HARD BLOCK) ─────────────────────────────────
+# Only block if README was staged, template wasn't pre-staged, AND sync failed
+if [ "$README_STAGED" -gt 0 ] && [ "$PROMPT_STAGED" -eq 0 ] && [ "$SYNC_OK" -eq 0 ]; then
     print -r -- ""
     print -P "${RED}✗ BLOCKED: README.md was modified but readme_template.md was not.${NC}"
     print -r -- ""
@@ -85,19 +114,6 @@ if [ "$PROMPT_STAGED" -gt 0 ] && [ "$README_STAGED" -eq 0 ]; then
     exit 1
 fi
 
-# ── Rule 2: Auto-sync template from README.md ────────────────────────
-# When README.md is staged, automatically update readme_template.md
-if [ "$README_STAGED" -gt 0 ]; then
-    if [ -x "$SYNC_SCRIPT" ]; then
-        zsh "$SYNC_SCRIPT" "$SCRIPT_DIR" 2>/dev/null && {
-            git add "$TEMPLATE" 2>/dev/null || true
-            print -P "${GREEN}✓ Auto-synced readme_template.md from README.md${NC}"
-        } || {
-            print -P "${YELLOW}⚠ Warning: Could not auto-sync readme_template.md${NC}"
-        }
-    fi
-fi
-
 # ── Rule 3: .bionic.d/* → CLAUDE.md sync (HARD BLOCK) ────────────────────
 # CLAUDE.md is assembled from .bionic.d/project.md + .bionic.d/rules.md
 BIONIC_MOD_STAGED=0
@@ -113,7 +129,6 @@ done <<< "$STAGED_FILES"
 
 if [ "$BIONIC_MOD_STAGED" -gt 0 ]; then
     # Rebuild expected CLAUDE.md from sources and compare against working tree
-    local expected_content claude_content
     expected_content=$(cat "$SCRIPT_DIR/.bionic.d/project.md" "$SCRIPT_DIR/.bionic.d/rules.md" 2>/dev/null)
     claude_content=$(cat "$SCRIPT_DIR/CLAUDE.md" 2>/dev/null)
     
@@ -131,7 +146,8 @@ if [ "$BIONIC_MOD_STAGED" -gt 0 ]; then
 fi
 
 # ── Rule 4: TOC verification when README.md is staged (HARD BLOCK) ────
-if [ "$README_STAGED" -gt 0 ]; then
+# Only block if sync didn't already fix it
+if [ "$README_STAGED" -gt 0 ] && [ "$TOC_OK" -eq 0 ]; then
     TOC_SCRIPT="$SCRIPT_DIR/utils/bin/sync_readme_toc.zsh"
     if [ -x "$TOC_SCRIPT" ]; then
         if ! zsh "$TOC_SCRIPT" --check "$SCRIPT_DIR" 2>/dev/null; then

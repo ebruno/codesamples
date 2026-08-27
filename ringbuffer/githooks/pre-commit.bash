@@ -60,8 +60,37 @@ while IFS= read -r f; do
     esac
 done <<< "$STAGED_FILES"
 
-# ── Rule 1: Both-or-None (HARD BLOCK) ─────────────────────────────────
-if [ "$README_STAGED" -gt 0 ] && [ "$PROMPT_STAGED" -eq 0 ]; then
+# ── Rule 1: Auto-sync template + TOC from README.md (before block check) ───
+# When README.md is staged, automatically update readme_template.md and TOC
+SYNC_OK=0
+TOC_OK=0
+if [ "$README_STAGED" -gt 0 ]; then
+    # Sync readme_template.md
+    if [ -x "$SYNC_SCRIPT" ]; then
+        bash "$SYNC_SCRIPT" "$SCRIPT_DIR" 2>/dev/null && {
+            git add "$TEMPLATE" 2>/dev/null || true
+            echo -e "${GREEN}✓ Auto-synced readme_template.md from README.md${NC}"
+            SYNC_OK=1
+        } || {
+            echo -e "${YELLOW}⚠ Warning: Could not auto-sync readme_template.md${NC}"
+        }
+    fi
+    # Sync TOC (zsh script, but callable from bash)
+    TOC_SCRIPT="$SCRIPT_DIR/utils/bin/sync_readme_toc.zsh"
+    if [ -x "$TOC_SCRIPT" ]; then
+        zsh "$TOC_SCRIPT" >/dev/null 2>&1 && {
+            git add "$README" 2>/dev/null || true
+            echo -e "${GREEN}✓ Auto-synced README.md Table of Contents${NC}"
+            TOC_OK=1
+        } || {
+            echo -e "${YELLOW}⚠ Warning: Could not auto-sync README.md TOC${NC}"
+        }
+    fi
+fi
+
+# ── Rule 2: Both-or-None (HARD BLOCK) ─────────────────────────────────
+# Only block if README was staged, template wasn't pre-staged, AND sync failed
+if [ "$README_STAGED" -gt 0 ] && [ "$PROMPT_STAGED" -eq 0 ] && [ "$SYNC_OK" -eq 0 ]; then
     echo ""
     echo -e "${RED}✗ BLOCKED: README.md was modified but readme_template.md was not.${NC}"
     echo ""
@@ -85,19 +114,6 @@ if [ "$PROMPT_STAGED" -gt 0 ] && [ "$README_STAGED" -eq 0 ]; then
     exit 1
 fi
 
-# ── Rule 2: Auto-sync template from README.md ────────────────────────
-# When README.md is staged, automatically update readme_template.md
-if [ "$README_STAGED" -gt 0 ]; then
-    if [ -x "$SYNC_SCRIPT" ]; then
-        bash "$SYNC_SCRIPT" "$SCRIPT_DIR" 2>/dev/null && {
-            git add "$TEMPLATE" 2>/dev/null || true
-            echo -e "${GREEN}✓ Auto-synced readme_template.md from README.md${NC}"
-        } || {
-            echo -e "${YELLOW}⚠ Warning: Could not auto-sync readme_template.md${NC}"
-        }
-    fi
-fi
-
 # ── Rule 3: .bionic.d/* → CLAUDE.md sync (HARD BLOCK) ────────────────────
 # CLAUDE.md is assembled from .bionic.d/project.md + .bionic.d/rules.md
 BIONIC_MOD_STAGED=0
@@ -112,24 +128,37 @@ while IFS= read -r f; do
 done <<< "$STAGED_FILES"
 
 if [ "$BIONIC_MOD_STAGED" -gt 0 ]; then
-    # Compare staged CLAUDE.md against the concatenation of its sources
-    PROJECT_HASH=$(git show :ringbuffer/.bionic.d/project.md 2>/dev/null | md5sum)
-    RULES_HASH=$(git show :ringbuffer/.bionic.d/rules.md 2>/dev/null | md5sum)
-    COMBINED_HASH=$(printf '%s%s' "$PROJECT_HASH" "$RULES_HASH" | md5sum)
-    CLAUDE_HASH=$(git show :ringbuffer/CLAUDE.md 2>/dev/null | md5sum)
-    
-    # Reconstruct what CLAUDE.md should be and compare
-    EXPECTED=$(git show :ringbuffer/.bionic.d/project.md :ringbuffer/.bionic.d/rules.md 2>/dev/null | md5sum)
-    
-    if [ "$EXPECTED" != "$CLAUDE_HASH" ]; then
+    # Rebuild expected CLAUDE.md from sources and compare against working tree
+    expected_content=$(cat "$SCRIPT_DIR/.bionic.d/project.md" "$SCRIPT_DIR/.bionic.d/rules.md" 2>/dev/null)
+    claude_content=$(cat "$SCRIPT_DIR/CLAUDE.md" 2>/dev/null)
+
+    if [ "$expected_content" != "$claude_content" ]; then
         echo ""
         echo -e "${RED}✗ BLOCKED: .bionic.d/project.md or .bionic.d/rules.md was modified but CLAUDE.md is not in sync.${NC}"
         echo ""
         echo "  CLAUDE.md = cat .bionic.d/project.md .bionic.d/rules.md"
         echo "  Run: cat .bionic.d/project.md .bionic.d/rules.md > CLAUDE.md"
-        echo "  Then re-stage CLAUDE.md and retry the commit."
+        echo "  Then: git add .bionic.d/project.md .bionic.d/rules.md CLAUDE.md"
+        echo "  (Re-stage ALL three files — bionic files may have unstaged edits.)"
         echo ""
         exit 1
+    fi
+fi
+
+# ── Rule 4: TOC verification when README.md is staged (HARD BLOCK) ────
+# Only block if sync didn't already fix it
+if [ "$README_STAGED" -gt 0 ] && [ "$TOC_OK" -eq 0 ]; then
+    TOC_SCRIPT="$SCRIPT_DIR/utils/bin/sync_readme_toc.zsh"
+    if [ -x "$TOC_SCRIPT" ]; then
+        if ! zsh "$TOC_SCRIPT" --check "$SCRIPT_DIR" 2>/dev/null; then
+            echo ""
+            echo -e "${RED}✗ BLOCKED: README.md was modified but the Table of Contents is stale.${NC}"
+            echo ""
+            echo "  Run: utils/bin/sync_readme_toc.zsh"
+            echo "  Then re-stage README.md and retry the commit."
+            echo ""
+            exit 1
+        fi
     fi
 fi
 
