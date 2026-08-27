@@ -107,7 +107,7 @@ dist-clean: clean
 	rm -rf .ringbuffer_sessions/; \
 	echo "Removing container images..."; \
 	if [ -n "$(CONTAINER_CMD)" ]; then \
-		$(foreach img,$(CONTAINER_IMAGES),$(CONTAINER_CMD) image rm -f $(img) 2>/dev/null || true; ); \
+		$(foreach img,$(CONTAINER_IMAGES),$(CONTAINER_CMD) image rm -f $(img) 2>/dev/null || true; ) \
 		echo "  Container images removed."; \
 	else \
 		echo "  No container runtime found — skipping image cleanup."; \
