@@ -146,10 +146,9 @@ def build_hashtags(tech: str, features: list) -> str:
 
     # Extract language/tech keywords
     tech_upper = tech.upper()
-    for keyword in ["C++", "CPP", "JAVA", "PYTHON", "GO", "RUST", "C", "OPEN SOURCE"]:
+    for keyword, display in [("C++", "Cpp"), ("CPP", "Cpp"), ("JAVA", "Java"), ("PYTHON", "Python"), ("GO", "Go"), ("RUST", "Rust"), ("OPEN SOURCE", "OpenSource")]:
         if keyword in tech_upper:
-            tag = keyword.replace("+", "").replace(" ", "")
-            tags.add(f"#{tag}")
+            tags.add(f"#{display}")
 
     # Add generic dev tags if we have fewer than 3
     generic = ["#SoftwareEngineering", "#OpenSource", "#DeveloperCommunity", "#Coding"]
