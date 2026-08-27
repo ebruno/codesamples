@@ -2,6 +2,100 @@
 
 A high-performance, cross-platform circular buffer library designed for binary symmetry and deterministic execution.
 
+**Implemented:** C++, Java, Python &nbsp;|&nbsp; **7 target OSes:** macOS, Fedora, Debian, Ubuntu, Arch Linux, FreeBSD 14, Raspberry Pi OS &nbsp;|&nbsp; **Pipeline:** Read → Transform → Write with lock-free atomic coordination
+
+Built entirely through prompt-driven LLM development using **LM Studio Bionic** with **Qwen 3.6 35B** (local) and **DeepSeek V4 Pro** (cloud). Single canonical source tree with symlinks — byte-identical across all platforms by construction.
+
+## Contents
+
+- [What It Does](#what-it-does)
+- [Implementation Status](#implementation-status)
+- [Platform Support](#platform-support)
+  - [Development Host vs Target](#development-host-vs-target)
+- [Roadmap](#roadmap)
+- [Key Specifications](#key-specifications)
+- [Core Features](#core-features)
+- [Library API Example](#library-api-example)
+  - [Advanced Configuration](#advanced-configuration)
+  - [Version Propagation](#version-propagation)
+  - [Pipeline Architecture Diagram](#pipeline-architecture-diagram)
+  - [Pipeline Animation](#pipeline-animation)
+- [Quick Start: End-to-End Workflow (macOS Example)](#quick-start-end-to-end-workflow-macos-example)
+  - [Step 1: Generate Source Code](#step-1-generate-source-code)
+  - [Step 2: Create Build Environment](#step-2-create-build-environment)
+  - [Step 3: Verify the Build](#step-3-verify-the-build)
+  - [Step 4: Set Up Test Infrastructure](#step-4-set-up-test-infrastructure)
+  - [Step 5: Execute Regression Tests](#step-5-execute-regression-tests)
+  - [Incremental Updates](#incremental-updates)
+- [Supported Platforms](#supported-platforms)
+  - [Known Issues & Toolchain Limitations](#known-issues-toolchain-limitations)
+- [Known Issues](#known-issues)
+- [Where We Are At](#where-we-are-at)
+  - [Current Status (as of 2026-08-26)](#current-status-as-of-2026-08-26)
+  - [What Works Today](#what-works-today)
+- [Where We're Going](#where-were-going)
+  - [Near-Term (Next Iterations)](#near-term-next-iterations)
+  - [Medium-Term (Roadmap)](#medium-term-roadmap)
+  - [Long-Term (Vision)](#long-term-vision)
+- [Primary Goal](#primary-goal)
+- [Project Structure](#project-structure)
+- [Source File Layout & Symlink Usage](#source-file-layout-symlink-usage)
+  - [How C++ Source Files Are Organized](#how-c-source-files-are-organized)
+  - [Symlink Awareness & Compatibility](#symlink-awareness-compatibility)
+  - [Compatibility Matrix](#compatibility-matrix)
+  - [Windows Support (Roadmap)](#windows-support-roadmap)
+  - [Why Symlinks Over Copying?](#why-symlinks-over-copying)
+  - [How to Identify Symlinked vs Real Files](#how-to-identify-symlinked-vs-real-files)
+  - [Build Artifact Symlinks (Separate from Source)](#build-artifact-symlinks-separate-from-source)
+- [Development Methodology](#development-methodology)
+- [LLM Challenges](#llm-challenges)
+  - [Portable Shell Scripts (Core Feature)](#portable-shell-scripts-core-feature)
+  - [BSD Makefiles vs GNU Make](#bsd-makefiles-vs-gnu-make)
+  - [macOS Toolchain Quirks: sed, awk, zsh](#macos-toolchain-quirks-sed-awk-zsh)
+  - [tcsh Scripts for FreeBSD 14](#tcsh-scripts-for-freebsd-14)
+  - [Key Takeaway](#key-takeaway)
+- [Prompt Execution Pattern](#prompt-execution-pattern)
+- [Developer & Maintainer Guide](#developer-maintainer-guide)
+  - [Part A: The Golden Rules (Coding Standards)](#part-a-the-golden-rules-coding-standards)
+  - [Part B: The Prompt-Driven Workflow](#part-b-the-prompt-driven-workflow)
+    - [Prompt-Driven Incremental Regeneration](#prompt-driven-incremental-regeneration)
+    - [Execution Examples](#execution-examples)
+    - [Build & Test Workflows](#build-test-workflows)
+    - [Test Data Pattern System](#test-data-pattern-system)
+    - [Part C: Session Best Practices](#part-c-session-best-practices)
+    - [Test Matrix (T001–T007)](#test-matrix-t001t007)
+    - [Part D: Documentation & Media Assets](#part-d-documentation-media-assets)
+  - [Part E: Adding a New Operating System](#part-e-adding-a-new-operating-system)
+- [Project Policies](#project-policies)
+  - [Shell Script Portability](#shell-script-portability)
+  - [SSH Authentication Policy](#ssh-authentication-policy)
+  - [Git Discipline](#git-discipline)
+  - [Build vs Test Workflow Pattern (All Languages)](#build-vs-test-workflow-pattern-all-languages)
+  - [Container Commands (macOS)](#container-commands-macos)
+  - [Prompt Changelog Discipline](#prompt-changelog-discipline)
+  - [Prompt Deduplication Discipline](#prompt-deduplication-discipline)
+  - [Makefile Tab Discipline](#makefile-tab-discipline)
+  - [Version Naming Convention](#version-naming-convention)
+  - [Mermaid Diagram Validation](#mermaid-diagram-validation)
+- [Required Tools](#required-tools)
+- [Initial Development Environment](#initial-development-environment)
+- [TODO](#todo)
+  - [Host-to-Target Routing Configuration](#host-to-target-routing-configuration)
+  - [Python Multi-Compiler C++ Library Testing](#python-multi-compiler-c-library-testing)
+- [Appendices](#appendices)
+- [LLM Knowledge Package](#llm-knowledge-package)
+  - [What It Contains](#what-it-contains)
+  - [Distribution Paths](#distribution-paths)
+  - [Versioning](#versioning)
+  - [Update Process](#update-process)
+  - [Installation (End Users)](#installation-end-users)
+  - [Development (Internal)](#development-internal)
+- [LinkedIn Post Generator](#linkedin-post-generator)
+  - [Usage](#usage)
+  - [Project Metadata Files](#project-metadata-files)
+  - [Post Guidelines Enforced](#post-guidelines-enforced)
+- [License](#license)
+
 ## What It Does
 
 The Ringbuffer library implements a **three-stage pipelined architecture** (Read → Transform → Write) that connects independent threads through a fixed-size array of shared slots. Each slot carries its own state machine, checksum, and data buffer, enabling lock-free concurrent processing with cache-line-aligned counters to prevent false sharing.
@@ -27,7 +121,7 @@ The core focus of the project is **binary symmetry within OS families**, with mi
 
 | Language | Phase | macOS | Fedora | Debian | Ubuntu | Arch Linux | FreeBSD 14 | Raspios |
 |----------|-------|-------|--------|--------|--------|------------|------------|---------|
-| C++      | ✅ B  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| C++      | ✅ B  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ |
 | Java     | ✅ B  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Python   | ✅ B  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | C        | ⬜ A  | — | — | — | — | — | — | — |
@@ -36,6 +130,8 @@ The core focus of the project is **binary symmetry within OS families**, with mi
 
 **Phases:** A = common spec written, B = implemented + passes 7-test matrix (T001-T007)  
 C, Go, and Rust are next in the pipeline — their common specs are complete and the dispatcher prompt (`add_language.md`) can generate implementations on demand. See [Roadmap](#roadmap).
+
+> ⚠️ Raspios C++ is **UNSUPPORTED** — GCC 12 (the only compiler available via official Raspberry Pi OS repositories) lacks the `<format>` C++20 header required by the ringbuffer library. See `src/raspios/cpp/UNSUPPORTED.md` for details.
 
 ## Platform Support
 
@@ -264,37 +360,27 @@ After the initial setup, use update prompts to synchronize with changed specific
 | **macOS** | C++ | v1.0.0 | clang++ 21.0.0, g++ 16.1.0 |
 | | Java | v1.0.0 | javac 26.x (JDK 26) |
 | | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
 | **Debian** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
 | **Fedora** | C++ | v1.0.0 | g++ 14.x, clang++ 18.x |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
 | **Ubuntu** | C++ | v1.0.0 | g++ 13.x (clang++ unsupported — see Known Issues) |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
-| **Raspberry Pi OS** | C++ | v1.0.0 | g++ 12.x (arm64) |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
+| **Raspberry Pi OS** | C++ | v1.0.0 | ⚠️ UNSUPPORTED — GCC 12 lacks `<format>` (see `src/raspios/cpp/UNSUPPORTED.md`) |
+| | Java | v1.0.0 | javac 25.x (JDK 25) |
+| | Python | v1.0.0 | python 3.14.x (Pure Python only — Concurrent skipped, no C++ lib) |
 | **ArchLinux** | C++ | v1.0.0[^2] | g++ 16.2.1, clang++ 22.1.8 |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
 | **FreeBSD 14** | C++ | v1.0.0 | clang++ 19.x (static library only — see Known Issues) |
 | | Java | v1.0.0 | javac 25.x (JDK 25) |
 | | Python | v1.0.0 | python 3.14.x (Pure Python only — Concurrent skipped, RPATH limitation) |
-| | Go | placeholder | scaffolding complete, implementation pending |
-| | Rust | placeholder | scaffolding complete, implementation pending |
 | **FreeBSD 15** | C++ | TBS | — |
+
+> **Go, Rust, C:** Common specs written, scaffolding complete. Implementations pending for all platforms. See [Roadmap](#roadmap).
 
 [^1]: Arch Linux container images are amd64-only. Source code generation works on all platforms; build/test requires a Linux host with `podman` or `docker`. See [prompts/common/session_hints.md](prompts/common/session_hints.md) Section 3 for details.
 [^2]: Arch Linux is a rolling-release distribution. Both g++ and clang++ are fully supported (unlike Ubuntu 24.04 where clang++ is unsupported). See [prompts/common/cpp/session_hints.md](prompts/common/cpp/session_hints.md) Section 10.
@@ -316,7 +402,7 @@ After the initial setup, use update prompts to synchronize with changed specific
 
 ## Where We Are At
 
-### Current Status (as of 2026-08-25)
+### Current Status (as of 2026-08-26)
 
 **Implementation:**
 
@@ -327,8 +413,8 @@ Implementation status is tracked in the [Implementation Status](#implementation-
 - **Automated prompt linting** — `lint_prompts.sh` validates directory structure, required files per platform/language, excluded platform cleanliness, primary document naming, and common workflow completeness; integrated into `verify_build.md` as step 0.6
 - **Prompt directory integrity** — All platform/language directories follow established conventions; excluded platforms (FreeBSD 15 only) contain only zero-length placeholder files
 - **Multi-language verification** — `verify_build.md` dispatches to language-specific checks: Java (`mvn compile`, `mvn package`, JAR artifact, classload test), Python (syntax check, import verification, class instantiation), C/C++ (binary format, symbol visibility)
-- **Java regression testing** — Full T001–T007 test matrix executed across all 4 OSes (macOS native + 3 Linux containers); 18 assertions, 0 failures; Surefire-compatible test harness with `testAll()` method
-- **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 4 OSes; no compilation required
+- **Java regression testing** — Full T001–T007 test matrix executed across all 7 OSes; Surefire-compatible test harness with `testAll()` method
+- **Python build verification** — Pure Python implementation verified via `py_compile`, module import, and class instantiation across all 7 OSes; no compilation required
 
 **Development Methodology:**
 - Prompt-driven development with hundreds of prompt files across 8 OSes × 6 languages (common specs)
@@ -353,7 +439,8 @@ Implementation status is tracked in the [Implementation Status](#implementation-
 | Prompt linting | ✅ Operational | 10/13 checks pass (3 warnings for excluded platforms) |
 | State tracking | ✅ Operational | `.gen_state.json` on all 8 active platforms |
 | Multi-language verify | ✅ Operational | `verify_build.md` dispatches to Java, Python, C/C++ checks |
-| Java regression | ✅ Passed | 18 assertions, 0 failures across 7 OSes (see [Implementation Status](#implementation-status)) |
+| Java regression | ✅ Passed | Full T001-T007 test matrix across 7 OSes (see [Implementation Status](#implementation-status)) |
+| Python regression | ✅ Passed | Pure Python T001-T007 across 7 OSes; Concurrent skipped on raspios/freebsd14 |
 | Go/Rust scaffolding | ✅ Complete | Common specs written; next in pipeline (see [Roadmap](#roadmap)) |
 | Changelog suggestions | ✅ Operational | Post-commit hook analyzes prompt diffs and suggests entries |
 
@@ -573,6 +660,8 @@ This project was built entirely through prompt-driven LLM development. The most 
 
 **Exception:** Makefile recipes run under `/bin/sh`, which lacks bash builtins like arrays and `[[ ]]`. In that context, external tools are permitted (but bash-specific features remain forbidden).
 
+> 📋 For the formal portability rules enforced across the project, see [Project Policies → Shell Script Portability](#shell-script-portability).
+
 ### BSD Makefiles vs GNU Make
 
 **The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
@@ -644,76 +733,7 @@ The common thread across all these challenges is **platform divergence in tools 
 5. **Container-based testing** — always verify inside the target platform, never on the host
 6. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
 
-This project was built entirely through prompt-driven LLM development. The most persistent and costly issues came from platform-specific shell and build system quirks that are easy for an LLM to get wrong because they contradict the patterns it has seen thousands of times in training data.
-
-### BSD Makefiles vs GNU Make
-
-**The Problem:** macOS ships with `make` that is actually BSD make, not GNU make. The syntax differences are subtle but fatal:
-
-| Feature | GNU Make (Linux) | BSD Make (macOS, FreeBSD) |
-|---------|-----------------|---------------------------|
-| Variable reference | `$(VAR)` or `${VAR}` | `${VAR}` only |
-| Shell command | `$(shell echo hello)` | Not supported — use `${.OBJDIR}` or external tools |
-| Conditional syntax | `ifeq`, `ifdef` | Not supported — use `.if`, `.elif`, `.else` |
-| Built-in defaults | `make` runs `/bin/sh -c` recipes | `make` may use different built-in rules |
-| Tab requirement | Required | Required (same) |
-
-**How we solved it:**
-- **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
-- **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
-- **Explicit `make` detection:** Build scripts check which `make` is available and select the correct syntax variant.
-- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
-
-**Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. The fix required generating separate Makefile templates per OS family.
-
-### tcsh Scripts for FreeBSD 14
-
-**The Problem:** FreeBSD 14's default shell is `tcsh`, not bash or zsh. tcsh has extremely limited scripting capabilities compared to POSIX shells:
-
-| Feature | bash/zsh | tcsh |
-|---------|----------|------|
-| Arithmetic expansion | `$((a + b))` | `@ x = $a + $b` |
-| Error handling | `set -e` | Not supported |
-| Redirections | `2>&1` | Not supported — use `grep ---` pattern |
-| Here-strings | `<<< "text"` | Not supported |
-| Arrays | `${arr[@]}` | `$arr[*]` (no quoting support) |
-| Control flow | `if [[ ... ]]; then` | `if ( $cond ) then` (then on own line) |
-
-**How we solved it:**
-- **tcsh script templates:** We created dedicated `.tcsh` scripts for FreeBSD 14 operations, following strict syntax rules loaded from `rules/tcsh-syntax.md`.
-- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
-- **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
-- **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
-
-**Cost:** tcsh scripting was the second most expensive issue. The syntax is so different from every other shell that even experienced developers make mistakes. The `then` keyword must be on its own line (or preceded by `;`), `$((...))` arithmetic is forbidden, and `2>&1` redirection doesn't work. Each tcsh script required multiple iterations to get right.
-
-### Shell Portability: GNU vs BSD Utilities
-
-**The Problem:** macOS ships with BSD implementations of common utilities (`grep`, `sed`, `awk`), while Linux uses GNU implementations. The behavioral differences are subtle and cause silent failures:
-
-| Utility | macOS (BSD) | Linux (GNU) |
-|---------|-------------|-------------|
-| `grep -c` | Counts matching lines | Same, but `-P` (Perl regex) not available |
-| `sed -i` | Requires backup suffix: `sed -i '' 's/x/y/'` | In-place edit without suffix |
-| `awk` | BSD awk — limited features | gawk — full feature set |
-| `find -exec` | `-exec ... \;` required | GNU find supports `+` for batching |
-
-**How we solved it:**
-- **Shell Script Portability Rule (`.bionic`):** Scripts must use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely.
-- **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
-- **Makefile recipe exception:** Makefile recipes run under `/bin/sh`, so external tools are permitted there (but bash builtins like `[[ ]]` and arrays are not).
-- **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
-
-**Cost:** These bugs were insidious because they only manifested when scripts ran on a different platform. A script that worked perfectly in development (macOS) would fail silently or incorrectly on Linux containers.
-
-### Key Takeaway
-
-The common thread across all these challenges is **platform divergence in tools that appear identical**. An LLM trained on the vast majority of Linux/GNU examples will confidently generate incorrect macOS/BSD or FreeBSD/tcsh code because the surface syntax looks right — it's only at execution time that the differences matter. The solution is always:
-
-1. **Explicit per-platform templates** — never assume one syntax works everywhere
-2. **Pre-flight validation rules** — load platform-specific rule files before generating code
-3. **Container-based testing** — always verify inside the target platform, never on the host
-4. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
+> 📋 The authoritative policy reference is in [Project Policies](#project-policies). The sections above are the background and rationale (the "why"); Project Policies is the reference (the "what").
 
 ## Prompt Execution Pattern
 Every workflow follows a consistent pattern:
@@ -1051,526 +1071,13 @@ Regenerates the LLM knowledge package from actual source headers. Produces API r
 
 ### Part E: Adding a New Operating System
 
-This section provides the reference guide for implementing support for a new operating system in the Ringbuffer project. It covers OS classification, identification methods, release naming conventions, container configuration, and the required prompt files. Review the existing implementations for **macOS**, **Raspberry Pi OS (raspios)**, and **Arch Linux** as reference examples — each represents a distinct deployment pattern.
+> 📄 The full reference guide for adding a new OS — including OS classification, detection methods, release naming conventions, container configuration, prompt file templates, implementation checklist, and common pitfalls — has been moved to [prompts/common/adding_new_os.md](prompts/common/adding_new_os.md).
+>
+> For the interactive setup wizard, see [prompts/common/implement_new_os.md](prompts/common/implement_new_os.md).
 
-#### 1. OS Classification — Container vs. Native
+**Quick summary:** Every new OS requires classification (native-only, containerized, or Linux-hosts-only), detection logic (`sw_vers` for macOS, `/etc/os-release` for Linux, `/etc/rpi-issue` for Raspios), a Dockerfile (if containerized), and 9 prompt files in `prompts/<os>/cpp/`. The interactive wizard automates scaffolding; the reference guide documents the full decision matrix.
 
-Every new OS must be classified by its **container support model** and **host architecture compatibility**. This classification determines how build workflows execute and whether container images are needed.
-
-| Category | Description | Container Support | Example Platforms |
-|----------|-------------|-------------------|-------------------|
-| **Native-only** | Builds run directly on the host OS using native toolchains. No containers, no Dockerfiles. | None — never use containers | macOS |
-| **Containerized (amd64)** | Runs inside a container on Linux hosts. May or may not work on Apple Silicon depending on architecture. | `podman` on Linux hosts; `container` on macOS (if arm64 image available) | Fedora, Debian, Ubuntu |
-| **Containerized (arm64 native on Apple Silicon)** | Container image is arm64-only, which matches Apple Silicon natively. No emulation needed on M-series Macs. | `podman`/`container` with native arm64 — works on Apple Silicon without skip logic | Raspberry Pi OS |
-| **Linux-hosts-only** | Container image is amd64-only with no ARM64 variant available. Arch Linux does not provide an official, standard container image for ARM architectures (e.g., Apple Silicon, Raspberry Pi). The official archlinux Docker images are built exclusively for the x86_64 architecture. Source code generation works everywhere; build/test requires a Linux host. | `podman` on Linux hosts only — macOS must skip gracefully with logging | Arch Linux |
-| **Excluded** | Placeholder directories with zero-length spec files. No active development. | None | FreeBSD 15 only |
-
-**Decision flow for a new OS:**
-
-```
-Is the OS macOS? ──────────────► YES → Native-only (no containers)
-                                    │
-Is the OS Linux? ───────────────► YES → Does an arm64 container image exist?
-                                    │                        ├─ Yes → Containerized (arm64 native on Apple Silicon)
-                                    │                        └─ No  → Does an amd64 image exist?
-                                    │                                 ├─ Yes → Linux-hosts-only (macOS skip)
-                                    │                                 └─ No  → Cannot containerize — evaluate native build
-                                    │
-Is the OS FreeBSD? ─────────────► YES → Is it FreeBSD 14? → Implemented (native-only) / FreeBSD 15 → Excluded (zero-length files only)
-```
-
-#### 2. OS Identification — How to Detect and Document an Operating System
-
-Every OS implementation needs reliable detection methods. The following tools and files are the standard approach.
-
-##### 2a. macOS Detection — `sw_vers`
-
-macOS ships with the `sw_vers` command. This is the **only** supported method for macOS version detection.
-
-```bash
-# Get product version (e.g., "26.5.2")
-sw_vers --productVersion
-
-# Get product name (e.g., "macOS")
-sw_vers --productName
-
-# Get build version (e.g., "25F84")
-sw_vers --buildVersion
-```
-
-**Sample output:**
-```bash
-$ sw_vers --productVersion
-26.5.2
-$ sw_vers --productName
-macOS
-```
-
-**Parsing in scripts:**
-```bash
-# Extract major version number (e.g., "26" from "26.5.2")
-macos_version=$(sw_vers --productVersion)
-macos_major=${macos_version%%.*}
-
-# Validate minimum version (e.g., must be 15 or higher)
-if (( macos_major < 15 )); then
-    echo "ERROR: macOS $macos_version detected, minimum required is 15"
-    exit 1
-fi
-```
-
-> **Note:** Valid macOS versions for this project are **15 (Sequoia) and above**. `sw_vers` is macOS-only — never use on Linux targets.
-
-##### 2b. Universal Kernel Detection — `uname`
-
-The `uname` command works on all Unix-like systems and provides the kernel name.
-
-```bash
-# Returns "Darwin" on macOS, "Linux" on Linux distributions
-uname -s
-```
-
-| Return Value | Host OS | Container Runtime |
-|-------------|---------|-------------------|
-| `Darwin` | macOS | `container` (Apple Container) |
-| `Linux` | Linux distro | `podman` |
-
-**Parsing example:**
-```bash
-host_os=$(uname -s)
-if [[ "$host_os" == "Darwin" ]]; then
-    echo "macOS host detected"
-elif [[ "$host_os" == "Linux" ]]; then
-    # Read distro ID from /etc/os-release (see 2c below)
-    host_os=$(grep '^ID=' /etc/os-release | cut -d= -f2)
-    echo "Linux host: $os_id"
-fi
-```
-
-##### 2c. Linux Distribution Detection — `/etc/os-release`
-
-The `/etc/os-release` file is the **standard** for Linux distribution identification. It uses `VARIABLE="value"` pairs.
-
-**Primary fields for workflow detection:**
-
-| Field | Purpose | Examples |
-|-------|---------|----------|
-| `ID` | Lower-case short OS identifier, safe for scripts | `fedora`, `debian`, `ubuntu`, `arch` |
-| `VERSION_ID` | Version number — may be `MAJOR`, `MAJOR.MINOR`, or `MAJOR.MINOR.SUBVERSION` | `44`, `13`, `24.04` |
-| `NAME` | Human-readable OS name (without version) | `Ubuntu`, `Fedora`, `Debian GNU/Linux` |
-| `ID_LIKE` | Space-separated list of parent/base distributions | `debian`, `arch` |
-| `VERSION_CODENAME` | Release codename (Debian-based) | `bookworm`, `trixie`, `noble` |
-
-**Sample `/etc/os-release` files for reference:**
-
-**macOS** — does not have `/etc/os-release`. Use `sw_vers` instead.
-
-```bash
-# macOS has no /etc/os-release — sw_vers is the detection method
-sw_vers --productVersion   # e.g., "26.5.2"
-```
-
-**Raspberry Pi OS (Debian-based, arm64):**
-```text
-PRETTY_NAME="Raspberry Pi OS bookworm (Debian 12)"
-NAME="Debian GNU/Linux"
-VERSION_ID="12"
-VERSION="12 (bookworm)"
-VERSION_CODENAME=bookworm
-ID=debian
-ID_LIKE=debian
-HOME_URL="http://www.raspbian.org/"
-SUPPORT_URL="http://www.raspbian.org/raspberrypi/"
-BUG_REPORT_URL="https://www.raspbian.org/bugreport/"
-```
-
-> **Key differentiator:** Raspberry Pi OS has `ID=debian` (same as stock Debian) but also includes `/etc/rpi-issue`. Detection requires a two-step check: `ID=debian` **plus** presence of `/etc/rpi-issue`.
-
-**Arch Linux (rolling release):**
-```text
-NAME="Arch Linux"
-ID=arch
-BUILD_ID=rolling
-PRETTY_NAME="Arch Linux"
-ANSI_COLOR="38;2;23;14;235"
-HOME_URL="https://archlinux.org/"
-DOCUMENTATION_URL="https://wiki.archlinux.org/"
-SUPPORT_URL="https://bbs.archlinux.org/"
-BUG_REPORT_URL="https://bugs.archlinux.org/"
-```
-
-> **Key characteristic:** Arch Linux has no `VERSION_ID` — it is a rolling release. Always identify by `ID=arch` alone.
-
-**Fedora:**
-```text
-NAME="Fedora Linux"
-VERSION="44 (Workstation Edition)"
-ID=fedora
-VERSION_ID=44
-VERSION_CODENAME=
-PRETTY_NAME="Fedora Linux 44"
-```
-
-**Ubuntu:**
-```text
-NAME="Ubuntu"
-VERSION="24.04.3 LTS (Noble Numbat)"
-ID=ubuntu
-VERSION_ID="24.04"
-VERSION_CODENAME=noble
-```
-
-**Detection script (unified — handles all cases):**
-```bash
-# Step 1: Detect host OS kernel
-host_os=$(uname -s)
-
-if [[ "$host_os" == "Darwin" ]]; then
-    # macOS — use sw_vers
-    macos_version=$(sw_vers --productVersion)
-    echo "macOS $macos_version"
-elif [[ "$host_os" == "Linux" ]]; then
-    # Linux — read /etc/os-release
-    os_id=$(grep '^ID=' /etc/os-release | cut -d= -f2)
-    
-    # Special case: distinguish stock Debian from Raspberry Pi OS
-    if [[ "$os_id" == "debian" ]] && [[ -f /etc/rpi-issue ]]; then
-        os_id="raspios"
-    fi
-    
-    # Fallback to ID_LIKE if ID not recognized
-    if [[ ! "fedora debian ubuntu rhel arch raspios" =~ $os_id ]]; then
-        os_id=$(grep '^ID_LIKE=' /etc/os-release | cut -d= -f2 | awk '{print $1}')
-    fi
-    
-    echo "Linux: $os_id"
-fi
-```
-
-##### 2d. Architecture Detection — `uname -m`
-
-```bash
-# Returns the machine hardware name
-uname -m
-```
-
-| Return Value | Architecture | Notes |
-|-------------|-------------|-------|
-| `arm64` / `aarch64` | ARM 64-bit | Apple Silicon, Raspberry Pi |
-| `x86_64` / `amd64` | x86 64-bit | Intel/AMD processors |
-
-> **Important for containers:** When pulling arm64 images on x86_64 hosts, use `--platform linux/arm64` with podman. On Apple Silicon (native arm64), no platform flag is needed.
-
-#### 3. Release Naming Conventions
-
-Different OS families use different versioning strategies. This affects container image pinning and build reproducibility.
-
-| OS Family | Version Model | `VERSION_ID` Format | Container Tag Strategy |
-|-----------|--------------|---------------------|------------------------|
-| **macOS** | Point releases (e.g., 26.5.2) | N/A — use `sw_vers --productVersion` | N/A (native-only) |
-| **Debian-based** (Debian, Ubuntu, Raspberry Pi OS) | Point releases or LTS | `MAJOR` (Debian), `MAJOR.MINOR` (Ubuntu) | Semver: `debian:13`, `ubuntu:24.04` |
-| **Fedora** | Point releases (annual) | `MAJOR` only | Semver: `fedora:44` |
-| **Arch Linux** | Rolling release (continuous) | No `VERSION_ID` — use `BUILD_ID=rolling` | Datestamp: `archlinux:2026.08.01` |
-| **Raspberry Pi OS** | Debian-based with datestamps | `MAJOR` (inherits from Debian) | Datestamp: `raspios:arm64-bookworm-20251204` |
-
-**Container tag pinning rules:**
-- **Semver-based distros (Debian, Ubuntu, Fedora):** Pin to the version number (e.g., `debian:13`). These tags are stable and do not change.
-- **Datestamp-based distros (Arch Linux, Raspberry Pi OS):** Pin to a specific date 3 months in the past for reproducible builds. Never use `latest`.
-- **Rolling releases:** Always treat as "always latest" — no version pinning is meaningful.
-
-#### 4. Container Configuration — Dockerfile Structure
-
-If the OS supports containerized builds, you need a Dockerfile at `<os>/containers/build/Dockerfile`. The following patterns are established.
-
-##### 4a. Linux Distro Dockerfile (Fedora/Debian/Ubuntu pattern)
-
-```dockerfile
-ARG BASE_IMAGE=fedora:44
-FROM ${BASE_IMAGE}
-
-# Avoid interactive prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive   # For Debian-based; use equivalent for RPM distros
-
-# Install required toolchains and utilities
-RUN dnf install -y --setopt=timeout=300 \
-        gcc gcc-c++ make cmake doxygen clang procps-ng coreutils findutils file patchelf vim-minimal strace python3 && \
-    dnf clean all
-
-# Set working directory
-WORKDIR /app
-```
-
-##### 4b. Raspberry Pi OS Dockerfile (arm64, Debian-based)
-
-```dockerfile
-# Raspberry Pi OS (Bookworm) arm64 — Datestamp-tagged for reproducible builds
-# Base image: debian:13 (trixie) — Bookworm GCC 12 lacks C++20 <format> support
-# Debian 13 provides GCC 14.2 with full C++20 support
-
-ARG BASE_IMAGE=debian:13
-FROM ${BASE_IMAGE}
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake doxygen clang clang-tidy clang-format procps coreutils findutils \
-    which file patchelf vim strace emacs-nox python3 openjdk-21-jdk-headless maven && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-```
-
-##### 4c. macOS — No Dockerfile
-
-macOS is **native-only**. Do not create a Dockerfile or container directory. The `create_build.md` prompt must log:
-```
-[timestamp] Dockerfile handling skipped — macOS is a native-only platform.
-```
-
-##### 4d. Container Runtime Selection
-
-| Host OS | Command | Notes |
-|---------|---------|-------|
-| macOS | `container` (Apple Container) | Must check service status with `container system status` before use |
-| Linux | `podman` | Stateless, no daemon management needed |
-
-**macOS pre-flight pattern:**
-```bash
-# 1. Check if container command exists
-command -v container >/dev/null || { echo "ERROR: 'container' not found"; exit 1; }
-
-# 2. Check service status and start if needed
-container system status
-if ! container system status | grep -q "active"; then
-    container system start
-fi
-```
-
-#### 5. Required Prompt Files
-
-Every new OS requires a directory at `prompts/<os>/cpp/` with the following files. Each file serves a specific role in the prompt-driven workflow.
-
-| File | Purpose | Content |
-|------|---------|---------|
-| `create_functional.md` | **PRIMARY** — Full functional implementation workflow | References common spec + platform-specific overrides; defines source generation steps |
-| `create_build.md` | **PRIMARY** — Build environment creation workflow | References common build spec + platform-specific requirements; defines Makefile/Dockerfile generation |
-| `create_regression.md` | **PRIMARY** — Test infrastructure setup workflow | References common testing spec + platform-specific test requirements |
-| `functional.md` | Platform-specific functional requirements | API notes, libc differences, toolchain specifics, license info |
-| `build.md` | Platform-specific build requirements | Prerequisites, container image details, toolchain specifics |
-| `testing.md` | Platform-specific test requirements | Test execution notes, platform-specific considerations |
-| `update_functional.md` | Incremental functional update workflow | Delta-based source regeneration |
-| `update_build.md` | Incremental build update workflow | Delta-based build config regeneration |
-| `update_testing.md` | Incremental test update workflow | Delta-based test infrastructure regeneration |
-
-**Minimal `functional.md` template:**
-```markdown
-# Functional Requirements - Ringbuffer (<OS Name>, C++)
-
-**Implementation Directive:**
-This implementation MUST follow the common functional specification exactly to ensure cross-platform symmetry.
-Refer to the common specification for all architectural, interface, and implementation details:
-[prompts/common/cpp/functional.md](../../common/cpp/functional.md)
-
-**Platform Specifics:**
-- **Target OS**: <OS Name> (<version or "rolling release" if applicable)
-- **OS Identification**: `ID=<id>` in `/etc/os-release` (or `sw_vers --productVersion` for macOS)
-- **Architecture**: <arm64/x86_64/both> — <notes on Apple Silicon compatibility>
-- **Toolchains**: <Clang/GCC/both> (default compiler)
-- **License**: BSD 3-Clause License. The `LICENSE` file must be created in `src/<os>/cpp`.
-
-**Platform-Specific API Notes:**
-- <Any libc differences, POSIX feature availability, or platform-specific behaviors>
-
-**Tooling and Recovery:** See `prompts/common/cpp/functional.md` for the authoritative tooling and recovery directives.
-```
-
-**Minimal `build.md` template:**
-```markdown
-# Build Requirements - Ringbuffer (<OS Name>, C++)
-
-**Implementation Directive:**
-This build specification MUST follow the common build specification exactly to ensure binary symmetry.
-
-Refer to [prompts/common/cpp/build.md](../../common/cpp/build.md) for the Platform and Container Runtime Reference.
-
-**Platform Specifics:**
-- **Target Environment**: <OS Name> (<version or "rolling release">)
-- **Prerequisites**: Install the following packages via `<package_manager>`:
-    - <list of required packages>
-
-### Required Tools
-- `<compiler>` (Compiler/Linker)
-- `make` (Orchestrator)
-- `<binary_analysis_tool>` (Binary Analysis — e.g., `otool` on macOS, `readelf` on Linux)
-
-### Containerized Build Environment (if applicable):
-- **Base Image**: `<image>:<tag>`
-- **Toolchain Installation**: Use `<package_manager> -S/--install` to install required packages
-- **Container Path**: `<os>/containers/build/Dockerfile`
-
-### macOS Skip Logic (if applicable):
-<If the OS has no arm64 container image, document the macOS skip behavior here>
-```
-
-#### 6. Reference Implementations to Review
-
-When implementing a new OS, review these existing implementations as patterns:
-
-##### macOS (`prompts/macos/cpp/`) — Native-Only Pattern
-
-**Key characteristics:**
-- No containers, no Dockerfiles
-- Universal binaries (fat binaries) with `arm64` + `x86_64` slices via `lipo -create`
-- Uses Clang as default compiler
-- macOS-specific binary analysis tools: `lipo`, `otool` (not `readelf`)
-- Uses `@rpath` for install names; `-dead_strip` for dead code elimination
-- Host detection via `sw_vers --productName`
-- **Files to review:** `create_functional.md`, `create_build.md`, `functional.md` (platform-specific API notes), `build.md` (Universal Binary requirements)
-
-##### Raspberry Pi OS (`prompts/raspios/cpp/`) — arm64 Container on Apple Silicon Pattern
-
-**Key characteristics:**
-- Shares `ID=debian` with stock Debian — distinguished by `/etc/rpi-issue`
-- arm64-only architecture, runs **natively on Apple Silicon** (no skip logic needed)
-- Container image uses datestamp tags: `vascoguita/raspios:arm64-bookworm-YYYYMMDD`
-- Uses `apt-get` for package management (Debian-based)
-- First Linux distro in the project that runs natively on Apple Silicon
-- **Files to review:** `create_functional.md`, `create_build.md`, `functional.md` (two-step detection), `build.md` (macOS compatibility notes)
-
-##### Arch Linux (`prompts/archlinux/cpp/`) — Linux-Hosts-Only Pattern
-
-**Key characteristics:**
-- Rolling release with no `VERSION_ID` — identified by `ID=arch`
-- Container images are **amd64-only** with no ARM64 variant — Arch Linux does not provide an official, standard container image for ARM architectures (e.g., Apple Silicon, Raspberry Pi). The official archlinux Docker images are built exclusively for the x86_64 architecture.
-- macOS skip logic required: source generation works, build/test requires Linux host
-- Uses datestamp container tags: `archlinux:YYYY.MM.DD`
-- Uses `pacman` for package management
-- **Files to review:** `create_functional.md`, `create_build.md`, `functional.md` (rolling release notes), `build.md` (macOS skip logic, pacman prerequisites)
-
-#### 7. Implementation Checklist
-
-When adding a new OS, follow this checklist:
-
-1. **Classify the OS** — Determine container support model (native-only, arm64 container, amd64 container, Linux-hosts-only)
-2. **Create `prompts/<os>/cpp/` directory** with all 9 prompt files
-3. **Write `functional.md`** — Document platform-specific API notes, libc differences, toolchain info
-4. **Write `build.md`** — Document prerequisites, container image details (if applicable), macOS skip logic (if applicable)
-5. **Write `testing.md`** — Document platform-specific test considerations
-6. **Create `create_functional.md`, `create_build.md`, `create_regression.md`** — Reference common specs + platform-specific files
-7. **Create update prompts** (`update_functional.md`, `update_build.md`, `update_testing.md`)
-8. **If containerized:** Create Dockerfile at `<os>/containers/build/Dockerfile` with appropriate base image and package installation
-9. **If containerized:** Ensure macOS compatibility (skip logic for Linux-hosts-only, native support for arm64)
-10. **Build/Test Pattern** — Every new OS/language MUST include:
-    - `<os>/<lang>/Makefile all` — Build target (creates artifacts + symlinks, **never** runs tests)
-    - `<os>/<lang>/tests/Makefile verify` — Test target (runs T001–T007, generates reports)
-    - Main Makefile must have `test: all` → calls `$(MAKE) -C tests verify`
-    - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for full details
-11. **Verify** — Run `lint_prompts.sh` to validate directory structure and required files
-12. **Update `.bionic`** — Add the new OS to the platform classification table and implementation phases
-13. **Update README.md** — Add the new OS to the Supported Platforms table and this Developer & Maintainer Guide section
-
-#### 7.5 SSH Remote Transfer Rule (All Platforms)
-When testing on a remote system via SSH, the following files must be transferred to the remote host **before** running `verify_build.md` or `run_regression.md`:
-- **C++ source files**: Copy the target-host-specific C++ directory (e.g., `src/archlinux/cpp/` for the archlinux remote). These files are per-OS — only copy the directory matching the target OS.
-- **Python source files**: Copy `src/common/python/` (the common Python implementation).
-- **Clean first**: Remove any existing files in the destination on the remote host before copying from the host. Use `ssh <host> "rm -rf <dest>/src/<os>/cpp/*"` and `ssh <host> "rm -rf <dest>/src/common/python/*"` before the transfer.
-- **Transfer**: Use `scp -r` or `rsync -avz` to copy the cleaned directories from the host to the remote.
-- **Verify**: After transfer, confirm file counts and sizes match between host and remote.
-
-#### 7.6 Python Makefiles by Family (GNU vs BSD)
-The Python implementation uses different Makefile syntax for GNU make and BSD make systems:
-- **GNU make** (macOS, Linux): `src/common/python/Makefile.gnu` — uses `$(shell ...)`, `ifeq/else`
-- **BSD make** (FreeBSD 14+): `src/<os>/python/Makefile` — per-OS directory with BSD-compatible syntax (no `$(shell)`, no `ifeq/else`)
-- **Common source**: Both use the same Python source files from `src/common/python/` (swtr_ringbuffer_pure.py, test scripts, base types)
-- **Per-platform overrides**: FreeBSD 14 has `src/freebsd14/python/` with its own Makefile and copies of common source. FreeBSD 15 will use the same structure.
-
-#### 8. Common Pitfalls to Avoid
-
-- **Do not copy source files between platforms.** Each platform generates independently from the common specification.
-- **Makefiles require real tab characters**, not spaces. Use heredocs with explicit `\t` when generating Makefiles programmatically.
-- **Always `mkdir -p` before writing to a directory** (e.g., `reports/`, `logs/`).
-- **`version.mk` contains the Ringbuffer library version** (e.g., 1.0.0), NOT the OS version.
-- **FreeBSD platforms must contain only zero-length files.** Do not add non-zero content to FreeBSD directories.
-- **Container images must be pinned** — never use `latest` tags in Dockerfiles for reproducible builds.
-- **macOS skip logic must exit 0 (success), not error.** When skipping on macOS, log the reason and continue gracefully.
-- **Timestamps must include timezone offset:** `[YYYY-MM-DD HH:MM:SS +/-HHMM]` — use `date '+%Y-%m-%d %H:%M:%S %z'` on both macOS and Linux.
-
-#### 9. Interactive OS Setup Workflow (`prompts/common/implement_new_os.md`)
-
-The project includes an interactive workflow for adding new operating systems. This workflow provides session persistence, template loading, dry-run mode, and multi-language support.
-
-**Key features:**
-- **Session management**: Save/restore sessions with `:q`, `:wq`, `:ls`, `:rm`, `:status`, `:state` commands
-- **Template loading**: Start from pre-built distribution templates (`:templates`, `:load-template fedora`)
-- **Dry-run mode**: Preview scaffolding without creating files
-- **Multi-language support**: Comma-separated language list (e.g., `cpp, c`)
-- **Implementation state tracking**: `scaffolded → functional_implemented → build_tested → regression_passed → officially_supported`
-- **Template management**: `:save-template` to create new templates, `:update-template` with diff-based change selection
-- **Help**: List all available commands at any time with `:help`
-
-**Session storage:** `.ringbuffer_sessions/` (gitignored, cleaned by `dist-clean`)
-**Template storage:** `prompts/common/templates/` (git-tracked, one file per family)
-
-**Session management commands (available at any step):**
-
-| Command | Action |
-|---------|--------|
-| `:q` | Quit — ask if user wants to save current state |
-| `:wq` | Quit and save — save session with description, then exit (no extra prompt) |
-| `:ls` | List all sessions for the current OS name (filename, step, state, description) |
-| `:rm <index>` | Delete a session by its index from the :ls listing |
-| `:rm *` | Delete all sessions for the current OS name |
-| `:status` | Show current session state (all fields, implementation_state) without advancing |
-| `:state <new_state>` | Manually update the implementation state (e.g., `:state functional_implemented`) |
-| `:templates` | List all available templates (filename, name, description, source) |
-| `:load-template <name>` | Load a template by name (e.g., fedora) — available at any step |
-| `:save-template [name]` | Save current session as a new template |
-| `:update-template` | Update the source template with changed fields (diff-based) — only available if session was loaded from a template |
-| `:help` | Show all available session management commands with descriptions |
-
-**`:help` output:**
-```
-> :help
-
-Session Management Commands:
-  :q                  Quit — ask if user wants to save current state
-  :wq                 Quit and save — save session with description, then exit
-  :ls                 List all sessions for the current OS name
-  :rm <index>         Delete a session by its index from the :ls listing
-  :rm *               Delete all sessions for the current OS name
-  :status             Show current session state without advancing
-  :state <new_state>  Update implementation state (e.g., functional_implemented)
-  :templates          List all available templates
-  :load-template <n>  Load a template by name (e.g., fedora)
-  :save-template [n]  Save current session as a new template
-  :update-template    Update the source template with changed fields (diff-based)
-
-Enter any command at any step to access these features.
-```
-
-**Usage example:**
-```
-> "Use prompts/common/implement_new_os.md to add rocky-linux"
-
-[Session check] No existing session for 'rocky-linux'.
-Would you like to start from a template? (y/n) y
-
-Available templates:
-  [0] Fedora — RPM-based, dnf package manager, semver versioning (source: fedora)
-  [1] Debian — DEB-based, apt package manager, semver versioning (source: debian)
-
-Choose a template (0-1) or press Enter to skip: 0
-Loaded template 'Fedora' — all fields populated with defaults.
-...
-```
-
-**After scaffolding completes:**
-1. Run `create_functional.md` for each language to generate source code
-2. Run `create_build.md` for each language to create the build environment
-3. Run `create_regression.md` for each language to set up test infrastructure
-4. After all tests pass, regenerate README.md via `readme_template.md`
-5. Update `.bionic` platform classification table
-6. Update implementation state to `officially_supported`
+---
 
 ## Project Policies
 
@@ -1578,7 +1085,7 @@ Loaded template 'Fedora' — all fields populated with defaults.
 
 ### Shell Script Portability
 
-All shell scripts in this project follow strict portability rules to ensure they work identically across macOS (BSD), Linux (GNU), and FreeBSD:
+All shell scripts in this project follow strict portability rules to ensure they work identically across macOS (BSD), Linux (GNU), and FreeBSD. See [LLM Challenges → Portable Shell Scripts](#portable-shell-scripts-core-feature) for the background story and rationale behind these rules.
 
 **Supported shells:**
 - **Bash (`bash`)** — primary target for all scripts
@@ -1731,6 +1238,8 @@ mmdc -i diagram.mmd -o /tmp/diagram.png -b white
 2. Run `mmdc -i diagram.mmd -o /tmp/diagram.png -b white` to validate
 3. If it renders successfully, copy the diagram into the markdown file
 4. Never commit a diagram that hasn't been validated with `mmdc`
+
+> ⭐ **Key diagrams to keep accurate:** The [`verify_build` Workflow](#verify_build-workflow) and [`run_regression` Workflow](#run_regression-workflow) flowcharts are the most important mermaid diagrams in this document. They define the canonical build and test execution paths. When workflows evolve (new transport methods, new language support, container lifecycle changes), update these diagrams first — they serve as the executable specification for `utils/bin/run_build.*` and `utils/bin/run_regression.*`.
 
 ## Required Tools
 

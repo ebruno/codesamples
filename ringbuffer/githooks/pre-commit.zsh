@@ -112,24 +112,37 @@ while IFS= read -r f; do
 done <<< "$STAGED_FILES"
 
 if [ "$BIONIC_MOD_STAGED" -gt 0 ]; then
-    # Compare staged CLAUDE.md against the concatenation of its sources
-    PROJECT_HASH=$(git show :ringbuffer/.bionic.d/project.md 2>/dev/null | md5sum)
-    RULES_HASH=$(git show :ringbuffer/.bionic.d/rules.md 2>/dev/null | md5sum)
-    COMBINED_HASH=$(printf '%s%s' "$PROJECT_HASH" "$RULES_HASH" | md5sum)
-    CLAUDE_HASH=$(git show :ringbuffer/CLAUDE.md 2>/dev/null | md5sum)
+    # Rebuild expected CLAUDE.md from sources and compare against working tree
+    local expected_content claude_content
+    expected_content=$(cat "$SCRIPT_DIR/.bionic.d/project.md" "$SCRIPT_DIR/.bionic.d/rules.md" 2>/dev/null)
+    claude_content=$(cat "$SCRIPT_DIR/CLAUDE.md" 2>/dev/null)
     
-    # Reconstruct what CLAUDE.md should be and compare
-    EXPECTED=$(git show :ringbuffer/.bionic.d/project.md :ringbuffer/.bionic.d/rules.md 2>/dev/null | md5sum)
-    
-    if [ "$EXPECTED" != "$CLAUDE_HASH" ]; then
+    if [ "$expected_content" != "$claude_content" ]; then
         print -r -- ""
         print -r -- "${RED}✗ BLOCKED: .bionic.d/project.md or .bionic.d/rules.md was modified but CLAUDE.md is not in sync.${NC}"
         print -r -- ""
         print -r -- "  CLAUDE.md = cat .bionic.d/project.md .bionic.d/rules.md"
         print -r -- "  Run: cat .bionic.d/project.md .bionic.d/rules.md > CLAUDE.md"
-        print -r -- "  Then re-stage CLAUDE.md and retry the commit."
+        print -r -- "  Then: git add .bionic.d/project.md .bionic.d/rules.md CLAUDE.md"
+        print -r -- "  (Re-stage ALL three files — bionic files may have unstaged edits.)"
         print -r -- ""
         exit 1
+    fi
+fi
+
+# ── Rule 4: TOC verification when README.md is staged (HARD BLOCK) ────
+if [ "$README_STAGED" -gt 0 ]; then
+    TOC_SCRIPT="$SCRIPT_DIR/utils/bin/sync_readme_toc.zsh"
+    if [ -x "$TOC_SCRIPT" ]; then
+        if ! zsh "$TOC_SCRIPT" --check "$SCRIPT_DIR" 2>/dev/null; then
+            print -r -- ""
+            print -P "${RED}✗ BLOCKED: README.md was modified but the Table of Contents is stale.${NC}"
+            print -r -- ""
+            print -r -- "  Run: utils/bin/sync_readme_toc.zsh"
+            print -r -- "  Then re-stage README.md and retry the commit."
+            print -r -- ""
+            exit 1
+        fi
     fi
 fi
 

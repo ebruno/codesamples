@@ -704,4 +704,12 @@ When an OS/language combination cannot build or test, it must be documented via 
 
 **Summary displays:** Both `build_verify_summary.md` and `regression_summary.md` show UNSUPPORTED entries in the Per-OS Results table with `UNSUPPORTED` status and a link to the full report.
 
-<!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md --># test hook
+<!-- RULES-LOAD: freebsd14 -> rules/freebsd-ssh.md -->
+
+### README Table of Contents Maintenance
+
+When modifying `README.md` (adding, removing, or renaming any `##`/`###`/`####` section):
+- **After any section change:** Run `utils/bin/sync_readme_toc.zsh` to regenerate the `## Contents` section.
+- **Pre-commit hook:** A verification check blocks commits where README.md is staged but the TOC is stale. The hook uses `sync_readme_toc.zsh --check`.
+- **This applies to the agent:** If you edit README.md, run the sync script before declaring work complete. The pre-commit hook will block if you forget.
+- **The sync script is idempotent:** running it when TOC is current exits 0 without modifying the file.
