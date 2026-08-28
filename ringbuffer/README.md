@@ -1087,6 +1087,16 @@ Converts animated GIFs to MP4 format for embedding in documentation or presentat
 - *Output:* `images/<basename>_720p.mp4` and/or `images/<basename>_1080p.mp4`
 - *Requirements:* ffmpeg, ffprobe
 
+**swtr_ringbuffer Man Page (`prompts/common/cpp/swtr_ringbuffer.md`)**
+Regenerates the C++ ringbuffer man page markdown from source headers and Makefiles. Structured for pandoc conversion to man pages.
+- *Path:* `prompts/common/cpp/swtr_ringbuffer.md`
+- *Prompt:* `prompts/common/cpp/implement_manpage.md`
+- *Syntax Example:*
+  - User: `"regenerate the swtr_ringbuffer man page"`
+  - Agent reads `implement_manpage.md` → reads source headers/Makefiles → regenerates `swtr_ringbuffer.md`
+- *Sections:* NAME, SYNOPSIS, DESCRIPTION, API REFERENCE, ENUMERATIONS, TRANSFORMS, ERROR HANDLING, COMPILATION PER OS, LINKING PER OS, EXAMPLES, SEE ALSO
+- *Per-OS coverage:* macOS (clang++), Linux/g++ (Fedora/Debian/Ubuntu/Arch), FreeBSD (clang++)
+
 **LLM Knowledge Package (`knowledge/`)**
 Regenerates the LLM knowledge package from actual source headers and README. Produces API references, examples, build guides, and instruction datasets for all implemented languages (C++, Java, Python). Available as local Ollama Modelfile, LM Studio system prompt, and fine-tuned GGUF.
 - *Update docs + dataset:* `./knowledge/update.zsh [-i | -b <number> | -r]` (bash: `update.sh`)

@@ -1,5 +1,10 @@
 .include "version.mk"
 
+# Man page generation (BSD make)
+PANDOC_CMD = pandoc
+MAN_SRC = ${PROJECT_ROOT_DIR}/prompts/common/cpp/swtr_ringbuffer.md
+MAN_OUT = swtr_ringbuffer.1
+
 # OS name for registry lookup
 OS_NAME = freebsd14
 
@@ -38,7 +43,7 @@ VERSIONED_STATIC = ${LIB_DIR}/libswtr_ringbuffer-${VERSION}.a
 VERSIONED_SHARED = ${LIB_DIR}/libswtr_ringbuffer-${VERSION}.so
 
 .SUFFIXES: .cpp
-.PHONY: test  all static shared clean dist-clean test-all
+.PHONY: test  all static shared clean dist-clean test-all man-page
 
 all: static shared
 
@@ -65,12 +70,24 @@ test: all
 clean:
 	${RM} ${BUILD_DIR} ${LIB_DIR} *.o *~ #*#
 	@find . -name '*.o.tmp' | xargs rm -f 2>/dev/null || true
+	@rm -f ${MAN_OUT}
 
 dist-clean: clean
 .if exists(tests)
 	${MAKE} -C tests dist-clean
 .endif
-	${RM} reports ../reports logs
+	${RM} reports ../reports logs ${MAN_OUT}
+
+man-page: ${MAN_OUT}
+	@if command -v ${PANDOC_CMD} >/dev/null 2>&1; then \
+		echo "Generating man page: ${MAN_OUT}"; \
+		${PANDOC_CMD} ${MAN_SRC} -t man -o ${MAN_OUT}; \
+	else \
+		echo "WARNING: pandoc not found — skipping man page generation"; \
+	fi
+
+${MAN_OUT}: ${MAN_SRC}
+	@true
 
 # Probe OS/compiler availability (manual use only — not called by other rules)
 PROBE_COMPILER ?= $(CXX)

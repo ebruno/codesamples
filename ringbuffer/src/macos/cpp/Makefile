@@ -56,7 +56,7 @@ BUILD_DIR = build
 VERSIONED_STATIC = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/libswtr_ringbuffer-$(VERSION).dylib
 
-.PHONY: test  all static shared clean dist-clean test-all
+.PHONY: test  all static shared clean dist-clean test-all man-page
 
 # Always clean first for repeatability in verify_build
 all: clean static shared
@@ -110,7 +110,9 @@ test: all
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
 	@find . -name '*.o.tmp' -delete 2>/dev/null || true
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man
 
 dist-clean: clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 	@$(RM) reports ../reports logs
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man

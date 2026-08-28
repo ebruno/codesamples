@@ -51,7 +51,7 @@ LIB_NAME = libswtr_ringbuffer
 VERSIONED_STATIC = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).a
 VERSIONED_SHARED = $(LIB_DIR)/$(LIB_NAME)-$(VERSION).so
 
-.PHONY: test  all static shared clean dist-clean container container-clean start_container stop_container remove_container test-all probe-os
+.PHONY: test  all static shared clean dist-clean container container-clean start_container stop_container remove_container test-all probe-os man-page
 
 # Container Mount Directory — resolves to workspace root from any nested Makefile
 CONTAINER_MOUNT_DIR := $(abspath $(CURDIR)/../../..)
@@ -114,10 +114,12 @@ test: all
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
 	@find . -name '*.o.tmp' -delete 2>/dev/null || true
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man
 
 dist-clean: clean container-clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 	@$(RM) reports ../reports logs
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man
 
 # Container Management
 container:

@@ -118,7 +118,7 @@ endif
 
 
 
-.PHONY: test  all static shared clean dist-clean container container-clean lint format test-all probe-os
+.PHONY: test  all static shared clean dist-clean container container-clean lint format test-all probe-os man-page
 
 # Static Library Target
 static: $(STATIC_LIB)
@@ -158,10 +158,12 @@ endif
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o "*.o" "*~" "#*#"
 	@find . -name '*.o.tmp' -delete 2>/dev/null || true
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man
 
 dist-clean: clean container-clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 	@$(RM) reports ../reports logs
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man
 
 # Container Management
 container:

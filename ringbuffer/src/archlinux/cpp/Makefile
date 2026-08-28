@@ -110,7 +110,7 @@ else
     all: clean static shared
 endif
 
-.PHONY: test  all static shared clean dist-clean verify test-all container container-clean probe-os
+.PHONY: test  all static shared clean dist-clean verify test-all container container-clean probe-os man-page
 
 # Always clean first for repeatability in verify_build
 static: $(LIB_DIR) $(VERSIONED_STATIC)
@@ -146,10 +146,12 @@ test: all
 clean:
 	@$(RM) $(BUILD_DIR) $(LIB_DIR) *.o *~ #*#
 	@find . -name '*.o.tmp' -delete 2>/dev/null || true
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man
 
 dist-clean: clean container-clean
 	@if [ -d tests ]; then $(MAKE) -C tests dist-clean; fi
 	@$(RM) reports ../reports logs
+	@$(MAKE) -C ../../../prompts/common/cpp clean-man
 
 verify: all
 	@echo "=== Static Library ==="
