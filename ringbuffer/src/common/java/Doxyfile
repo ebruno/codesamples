@@ -1,15 +1,19 @@
 # Doxygen configuration for swtr_ringbuffer Java class diagrams
 
 PROJECT_NAME           = "swtr_ringbuffer Java"
+PROJECT_BRIEF          = "High-performance, cross-platform circular buffer library with pipelined Read→Transform→Write architecture"
 PROJECT_NUMBER         = 1.0.0-1
 OUTPUT_DIRECTORY       = ../../../docs/ringbuffer/java/html
 # Main page overview (Doxygen 1.17+ uses @mainpage in source)
 CREATE_SUBDIRS         = NO
 ALLOW_UNICODE_NAMES    = YES
 
-# Input — Java source files + main page overview
+# Input — Java source files + main page
 INPUT                  = swtr \
-                         ../../../prompts/common/cpp/swtr_ringbuffer_overview.md
+                         ../../../prompts/common/cpp/.docs/swtr_ringbuffer_overview.md
+
+# Main page — use markdown file as main page (in .docs to avoid treeview entry)
+USE_MDFILE_AS_MAINPAGE = ../../../prompts/common/cpp/.docs/swtr_ringbuffer_overview.md
 
 # Only include Java source and markdown files
 FILE_PATTERNS          = *.java *.md
@@ -27,10 +31,12 @@ HTML_OUTPUT            = .
 HTML_FILE_EXTENSION    = .html
 GENERATE_HTMLHELP      = NO
 GENERATE_QHP           = NO
+SEARCHENGINE           = YES
 
-# Standalone landing page with brief descriptions
+# Standalone landing page with brief descriptions and search
 GENERATE_TREEVIEW      = YES
 FULL_PATH_NAMES        = NO
+TREEVIEW_WIDTH         = 250
 
 # Diagrams — PNG format via Graphviz DOT tool
 HAVE_DOT               = YES
@@ -39,8 +45,9 @@ CLASS_DIAGRAMS         = YES
 UML_LOOK               = YES
 COLLABORATION_GRAPH    = YES
 CLASS_GRAPH            = YES
-CALL_GRAPH             = NO
-CALLER_GRAPH           = NO
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+MEMBER_GRAPH           = YES
 INCLUDE_GRAPH          = YES
 INCLUDED_BY_GRAPH      = YES
 
@@ -71,3 +78,6 @@ ALPHABETICAL_INDEX     = YES
 
 # Generate a standalone index.html with project overview
 GENERATE_LATEX         = NO
+
+# Custom footer with license info
+HTML_FOOTER            = ../../../prompts/common/.docs/footer.html

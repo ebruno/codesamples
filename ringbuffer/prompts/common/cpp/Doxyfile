@@ -7,15 +7,12 @@ OUTPUT_DIRECTORY       = ../../../docs/ringbuffer/cpp/html
 CREATE_SUBDIRS         = NO
 ALLOW_UNICODE_NAMES    = YES
 
-# Input — scan all C++ source directories (future-proof)
+# Input — only document from common source (symlinks cause duplication)
 INPUT                  = ../../../src/common/cpp \
-                         ../../../src/macos/cpp \
-                         ../../../src/fedora/cpp \
-                         ../../../src/debian/cpp \
-                         ../../../src/ubuntu/cpp \
-                         ../../../src/raspios/cpp \
-                         ../../../src/archlinux/cpp \
-                         swtr_ringbuffer_overview.md
+                         .docs/swtr_ringbuffer_overview.md
+
+# Main page — use markdown file as main page (in .docs to avoid treeview entry)
+USE_MDFILE_AS_MAINPAGE = .docs/swtr_ringbuffer_overview.md
 
 # Only include C++ source, header, and markdown files
 FILE_PATTERNS          = *.cpp *.hpp *.md
@@ -23,10 +20,18 @@ FILE_PATTERNS          = *.cpp *.hpp *.md
 # Recurse into subdirectories (for src/*/cpp/)
 RECURSIVE              = YES
 
-# Exclude test files and build artifacts
+# Exclude test files, build artifacts, and symlinked OS directories
 EXCLUDE_PATTERNS       = */tests/* \
                          *.o \
                          *~
+
+# Exclude symlinked OS directories to avoid duplicate file entries
+EXCLUDE                = ../../../src/macos/cpp \
+                         ../../../src/fedora/cpp \
+                         ../../../src/debian/cpp \
+                         ../../../src/ubuntu/cpp \
+                         ../../../src/raspios/cpp \
+                         ../../../src/archlinux/cpp
 
 # Output — HTML only (standalone landing page)
 GENERATE_HTML          = YES
@@ -34,10 +39,12 @@ HTML_OUTPUT            = .
 HTML_FILE_EXTENSION    = .html
 GENERATE_HTMLHELP      = NO
 GENERATE_QHP           = NO
+SEARCHENGINE           = YES
 
-# Standalone landing page with brief descriptions
+# Standalone landing page with brief descriptions and search
 GENERATE_TREEVIEW      = YES
 FULL_PATH_NAMES        = NO
+TREEVIEW_WIDTH         = 250
 
 # Diagrams — PNG format via Graphviz DOT tool
 HAVE_DOT               = YES
@@ -45,10 +52,14 @@ DOT_IMAGE_FORMAT       = png
 UML_LOOK               = YES
 COLLABORATION_GRAPH    = YES
 CLASS_GRAPH            = YES
-CALL_GRAPH             = NO
-CALLER_GRAPH           = NO
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+MEMBER_GRAPH           = YES
 INCLUDE_GRAPH          = YES
 INCLUDED_BY_GRAPH      = YES
+
+# Project brief for main page header
+PROJECT_BRIEF          = "High-performance, cross-platform circular buffer library with pipelined Read→Transform→Write architecture"
 
 # Document everything — public and private
 EXTRACT_ALL            = YES
@@ -87,3 +98,6 @@ IGNORE_PREFIX          =
 
 # Generate a standalone index.html with project overview
 GENERATE_LATEX         = NO
+
+# Custom footer with license info
+HTML_FOOTER            = ../.docs/footer.html
