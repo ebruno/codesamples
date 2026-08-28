@@ -1,0 +1,73 @@
+# Doxygen configuration for swtr_ringbuffer Java class diagrams
+
+PROJECT_NAME           = "swtr_ringbuffer Java"
+PROJECT_NUMBER         = 1.0.0-1
+OUTPUT_DIRECTORY       = ../../../docs/ringbuffer/java/html
+# Main page overview (Doxygen 1.17+ uses @mainpage in source)
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = YES
+
+# Input — Java source files + main page overview
+INPUT                  = swtr \
+                         ../../../prompts/common/cpp/swtr_ringbuffer_overview.md
+
+# Only include Java source and markdown files
+FILE_PATTERNS          = *.java *.md
+
+# Recurse into subdirectories
+RECURSIVE              = YES
+
+# Exclude test files and build artifacts
+EXCLUDE_PATTERNS       = */test/* \
+                         target/*
+
+# Output — HTML only (standalone landing page)
+GENERATE_HTML          = YES
+HTML_OUTPUT            = .
+HTML_FILE_EXTENSION    = .html
+GENERATE_HTMLHELP      = NO
+GENERATE_QHP           = NO
+
+# Standalone landing page with brief descriptions
+GENERATE_TREEVIEW      = YES
+FULL_PATH_NAMES        = NO
+
+# Diagrams — PNG format via Graphviz DOT tool
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = png
+CLASS_DIAGRAMS         = YES
+UML_LOOK               = YES
+COLLABORATION_GRAPH    = YES
+CLASS_GRAPH            = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+
+# Document everything — public and private
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL          = YES
+EXTRACT_PACKAGE        = NO
+
+# Show undocumented relations in diagrams (not hide them)
+HIDE_UNDOC_RELATIONS   = NO
+
+# Limit diagram size to prevent huge graphs
+DOT_GRAPH_MAX_NODES    = 50
+MAX_DOT_GRAPH_DEPTH    = 1000
+
+# UML-style formatting
+UML_LIMIT_NUM_FIELDS   = 50
+TEMPLATE_RELATIONS     = YES
+
+# Brief descriptions in landing page (Javadoc auto-brief)
+SHORT_NAMES            = NO
+JAVADOC_AUTOBRIEF      = YES
+
+# Alphabetical index
+ALPHABETICAL_INDEX     = YES
+
+# Generate a standalone index.html with project overview
+GENERATE_LATEX         = NO

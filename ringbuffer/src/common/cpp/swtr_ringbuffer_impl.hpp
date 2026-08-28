@@ -13,9 +13,14 @@
 #include "ringbuffer.hpp"
 #include "status.hpp"
 
+// Symbol visibility macro for shared library exports
+#ifndef SWTR_EXPORT
+#define SWTR_EXPORT __attribute__((visibility("default")))
+#endif
+
 namespace swtr {
 
-class __attribute__((visibility("default"))) SwtrRingBuffer : public RingBuffer {
+class SWTR_EXPORT SwtrRingBuffer : public RingBuffer {
 public:
     SwtrRingBuffer(size_t num_slots = MIN_NUMBER_SLOTS,
                   BufferStatus initial_status = BufferStatus::readyforread,
