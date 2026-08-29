@@ -1,6 +1,18 @@
 """Ringbuffer package — pure Python implementation.
 
-Exports the public API for the three-stage pipeline ring buffer.
+A high-performance, cross-platform circular buffer library implementing a
+three-stage pipelined architecture (Read → Transform → Write) with lock-free
+atomic coordination.
+
+Usage:
+    from ringbuffer import SwtrRingBuffer, BufferStatus, ChecksumAlgorithm
+
+    rb = SwtrRingBuffer(num_slots=4)
+    rb.set_read_fd(0)   # stdin
+    rb.set_write_fd(1)  # stdout
+    rb.start()
+    rb.wait()           # blocks until all data flows through pipeline
+    rb.stop()
 """
 
 from swtr_ringbuffer import (

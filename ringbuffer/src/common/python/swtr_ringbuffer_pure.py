@@ -44,16 +44,39 @@ except ImportError:
 # === Constants ===
 
 MIN_NUMBER_SLOTS = 1
+"""Minimum number of buffer slots allowed."""
 DEFAULT_BUFFER_SIZE = 4096
+"""Default buffer size per slot in bytes (4 KiB)."""
 MIN_BUFFER_SIZE = 1
+"""Minimum buffer size per slot in bytes."""
 
 
 # === BufferSlot (pure Python with thread-safe access) ===
 
 class BufferSlot:
-    """A single buffer slot with data, status, and checksum."""
+    """A single buffer slot with data, status, and checksum.
+
+    Each slot cycles through the pipeline stages (read → transform → write)
+    using a state machine driven by BufferStatus values.
+
+    Attributes:
+        index: Position in the slot pool (0-based).
+        buffer_size: Allocated capacity of this slot's data buffer.
+        data: Byte buffer holding the raw or transformed data.
+        status: Current state in the pipeline lifecycle.
+        data_size: Number of valid bytes after read stage.
+        transformed_data_size: Number of valid bytes after transform stage.
+        checksum_alg: Checksum algorithm configured for this slot.
+        checksum_val: Computed checksum value (set by transform stage).
+    """
 
     def __init__(self, index: int, buffer_size: int):
+        """Initialize a new buffer slot.
+
+        Args:
+            index: Position in the slot pool (0-based).
+            buffer_size: Allocated capacity of this slot's data buffer in bytes.
+        """
         self.index = index
         self.buffer_size = buffer_size
         self.data: bytearray = bytearray(buffer_size)
@@ -64,7 +87,10 @@ class BufferSlot:
         self.checksum_val: int = 0
 
     def reset(self):
-        """Reset slot to initial state."""
+        """Reset slot to initial READYFORREAD state.
+
+        Clears data buffer, resets size counters and checksum to zero.
+        """
         self.data = bytearray(self.buffer_size)
         self.status = BufferStatus.READYFORREAD
         self.data_size = 0
@@ -72,33 +98,74 @@ class BufferSlot:
         self.checksum_val = 0
 
     def get_status(self) -> BufferStatus:
+        """Get the current status of this slot."""
         return self.status
 
     def set_status(self, status: BufferStatus):
+        """Set the current status of this slot.
+
+        Args:
+            status: New BufferStatus value for this slot.
+        """
         self.status = status
 
     def get_data_size(self) -> int:
+        """Get the number of valid bytes in this slot (after read stage)."""
         return self.data_size
 
     def set_data_size(self, size: int):
+        """Set the number of valid bytes in this slot.
+
+        Called by the read stage after filling the buffer. Must not exceed
+        buffer_size.
+
+        Args:
+            size: Number of valid bytes in the data buffer.
+        """
         self.data_size = size
 
     def get_transformed_data_size(self) -> int:
+        """Get the number of valid bytes after transform stage."""
         return self.transformed_data_size
 
     def set_transformed_data_size(self, size: int):
+        """Set the number of valid bytes after transform stage.
+
+        Called by the transform stage. May differ from data_size if the
+        transform changes buffer size.
+
+        Args:
+            size: Number of valid bytes after transformation.
+        """
         self.transformed_data_size = size
 
     def get_checksum_alg(self) -> ChecksumAlgorithm:
+        """Get the checksum algorithm configured for this slot."""
         return self.checksum_alg
 
     def set_checksum_alg(self, alg: ChecksumAlgorithm):
+        """Set the checksum algorithm for this slot.
+
+        The transform stage will compute this checksum when processing.
+
+        Args:
+            alg: ChecksumAlgorithm to use (NONE, MD5, SHA256, or SHA512).
+        """
         self.checksum_alg = alg
 
     def get_checksum_val(self) -> int:
+        """Get the computed checksum value for this slot."""
         return self.checksum_val
 
     def set_checksum_val(self, val: int):
+        """Set the checksum value for this slot.
+
+        Normally computed automatically by the transform stage. Directly
+        setting is supported for testing and manual override.
+
+        Args:
+            val: The checksum value to store.
+        """
         self.checksum_val = val
 
 
@@ -127,6 +194,26 @@ class SwtrRingBufferPure(RingBuffer):
                  buffer_size: int = DEFAULT_BUFFER_SIZE,
                  error_handler: Optional[ErrorHandler] = None,
                  transform_fn: Optional[TransformFn] = None):
+        """Initialize the Pure Python ring buffer.
+
+        Args:
+            num_slots: Number of buffer slots in the pool. Must be >= 1.
+                More slots improve throughput by allowing stages to operate
+                concurrently on different slots (4+ recommended).
+            initial_status: Initial status for all new slots. Defaults to
+                READYFORREAD.
+            buffer_size: Size of each slot's data buffer in bytes. Must be
+                >= 1. Defaults to DEFAULT_BUFFER_SIZE (4096).
+            error_handler: Optional callback for handling errors. Called with
+                (stage_number, BufferStatus) — return non-zero to stop the
+                pipeline. Defaults to None.
+            transform_fn: Optional function applied during the transform stage.
+                Called with (data: bytearray, size: List[int]) — modifies data
+                in-place. Defaults to None (no transformation).
+
+        Raises:
+            ValueError: If num_slots < 1 or buffer_size < MIN_BUFFER_SIZE.
+        """
         # Validate parameters
         if num_slots < 1:
             raise ValueError(f"num_slots must be >= 1, got {num_slots}")
@@ -188,71 +275,125 @@ class SwtrRingBufferPure(RingBuffer):
         self._started: bool = False
 
     def set_read_fd(self, fd: int):
+        """Set the file descriptor for read input.
+
+        The read thread will read data from this fd into buffer slots.
+        On EOF, the last slot is marked with LAST_BUFFER_TO_TRANSFORM
+        to propagate end-of-stream through all pipeline stages.
+
+        Args:
+            fd: File descriptor to read from (e.g., 0 for stdin).
+        """
         self.read_fd = fd
 
     def get_read_fd(self) -> int:
+        """Get the file descriptor for read input.
+
+        Returns:
+            The current read fd, or -1 if not set.
+        """
         return self.read_fd
 
     def set_write_fd(self, fd: int):
+        """Set the file descriptor for write output.
+
+        The write thread will flush transformed data to this fd.
+        On the last buffer, fsync is called before signaling completion.
+
+        Args:
+            fd: File descriptor to write to (e.g., 1 for stdout).
+        """
         self.write_fd = fd
 
     def get_write_fd(self) -> int:
+        """Get the file descriptor for write output.
+
+        Returns:
+            The current write fd, or -1 if not set.
+        """
         return self.write_fd
 
     # === Logging configuration (full parity with ctypes) ===
 
     def set_logging_enabled(self, enabled: bool):
+        """Enable or disable all logging across all pipeline stages."""
         self.logging_enabled = enabled
 
     def get_logging_enabled(self) -> bool:
+        """Check if logging is globally enabled."""
         return self.logging_enabled
 
     def set_output_stream(self, stream: io.IOBase):
+        """Set the output stream for log messages.
+
+        Args:
+            stream: IOBase-compatible stream (default is sys.stdout).
+        """
         self.output_stream = stream
 
     def get_output_stream(self) -> io.IOBase:
+        """Get the current output stream for log messages."""
         return self.output_stream
 
     def set_read_logging_enabled(self, enabled: bool):
+        """Enable or disable logging for the read stage only."""
         self.read_logging_enabled = enabled
 
     def get_read_logging_enabled(self) -> bool:
+        """Check if read stage logging is enabled."""
         return self.read_logging_enabled
 
     def set_read_verbosity(self, level: LogLevel):
+        """Set the verbosity level for read stage logging."""
         self.read_verbosity = level
 
     def get_read_verbosity(self) -> LogLevel:
+        """Get the verbosity level for read stage logging."""
         return self.read_verbosity
 
     def set_transform_logging_enabled(self, enabled: bool):
+        """Enable or disable logging for the transform stage only."""
         self.transform_logging_enabled = enabled
 
     def get_transform_logging_enabled(self) -> bool:
+        """Check if transform stage logging is enabled."""
         return self.transform_logging_enabled
 
     def set_transform_verbosity(self, level: LogLevel):
+        """Set the verbosity level for transform stage logging."""
         self.transform_verbosity = level
 
     def get_transform_verbosity(self) -> LogLevel:
+        """Get the verbosity level for transform stage logging."""
         return self.transform_verbosity
 
     def set_write_logging_enabled(self, enabled: bool):
+        """Enable or disable logging for the write stage only."""
         self.write_logging_enabled = enabled
 
     def get_write_logging_enabled(self) -> bool:
+        """Check if write stage logging is enabled."""
         return self.write_logging_enabled
 
     def set_write_verbosity(self, level: LogLevel):
+        """Set the verbosity level for write stage logging."""
         self.write_verbosity = level
 
     def get_write_verbosity(self) -> LogLevel:
+        """Get the verbosity level for write stage logging."""
         return self.write_verbosity
 
     # === Slot accessors (full parity with ctypes — real behavior, no no-ops) ===
 
     def _validate_slot(self, slot_idx: int):
-        """Validate slot index; return True if valid."""
+        """Validate that a slot index is within bounds.
+
+        Args:
+            slot_idx: Index to validate.
+
+        Returns:
+            True if 0 <= slot_idx < num_slots, False otherwise.
+        """
         if slot_idx < 0 or slot_idx >= self.num_slots:
             return False
         return True
@@ -378,7 +519,15 @@ class SwtrRingBufferPure(RingBuffer):
     # === Thread Control (full parity with ctypes) ===
 
     def start(self):
-        """Start the three-stage pipeline threads."""
+        """Start the three-stage pipeline threads (read, transform, write).
+
+        Launches independent daemon threads for each stage. The pipeline begins
+        processing data immediately after this call. Safe to call only once;
+        duplicate calls are ignored with a warning.
+
+        Raises:
+            RuntimeError: If the pipeline is already started (logged as warning).
+        """
         with self._lock:
             if self._started:
                 self._log(LogLevel.WARNING, "Pipeline already started — ignoring duplicate start() call")
@@ -407,7 +556,14 @@ class SwtrRingBufferPure(RingBuffer):
                       f"transform={self.transform_thread.name}, write={self.write_thread.name}")
 
     def stop(self):
-        """Stop the pipeline and wait for threads to terminate."""
+        """Stop the pipeline and wait for threads to terminate.
+
+        Signals all stages to stop processing, flushes any remaining data,
+        and joins threads cleanly. Safe to call multiple times.
+
+        After calling stop(), the pipeline cannot be restarted — create a new
+        SwtrRingBufferPure instance for additional runs.
+        """
         with self._lock:
             self._running = False
 
@@ -430,7 +586,14 @@ class SwtrRingBufferPure(RingBuffer):
         self._log(LogLevel.INFO, "Pipeline stop signal sent")
 
     def wait(self):
-        """Wait for all pipeline threads to complete (non-blocking)."""
+        """Wait for all pipeline threads to complete.
+
+        Blocks until the read thread has consumed all input, the transform
+        stage has processed all data, and the write thread has flushed everything.
+        Returns only when the entire pipeline has finished processing.
+
+        This is equivalent to calling join() on all three threads sequentially.
+        """
         if self.read_thread:
             self.read_thread.join()
         if self.transform_thread:
@@ -440,7 +603,11 @@ class SwtrRingBufferPure(RingBuffer):
         self._log(LogLevel.INFO, "All pipeline threads terminated")
 
     def is_stopped(self) -> bool:
-        """Check if stop signal has been received."""
+        """Check if stop signal has been received.
+
+        Returns:
+            True if the pipeline has been stopped, False otherwise.
+        """
         with self._lock:
             return not self._running
 
@@ -633,7 +800,12 @@ class SwtrRingBufferPure(RingBuffer):
                     self.stop()
 
     def join(self, timeout: Optional[float] = None):
-        """Wait for all pipeline stages to complete."""
+        """Wait for all pipeline threads to complete with optional timeout.
+
+        Args:
+            timeout: Maximum time in seconds to wait for each thread. None means
+                wait indefinitely.
+        """
         if self.read_thread:
             self.read_thread.join(timeout)
         if self.transform_thread:
@@ -642,7 +814,19 @@ class SwtrRingBufferPure(RingBuffer):
             self.write_thread.join(timeout)
 
     def run(self, input_fd: int = 0, output_fd: int = 1):
-        """Run the pipeline synchronously (convenience method)."""
+        """Run the pipeline synchronously (convenience method).
+
+        Combines set_read_fd, set_write_fd, start, and join into a single call.
+        Useful for simple scripts where the full lifecycle management is not needed.
+
+        Args:
+            input_fd: File descriptor to read from (default 0 = stdin).
+            output_fd: File descriptor to write to (default 1 = stdout).
+
+        Example:
+            >>> rb = SwtrRingBufferPure(num_slots=4, transform_fn=my_transform)
+            >>> rb.run(input_fd=0, output_fd=1)  # stdin → stdout
+        """
         self.set_read_fd(input_fd)
         self.set_write_fd(output_fd)
         self.start()

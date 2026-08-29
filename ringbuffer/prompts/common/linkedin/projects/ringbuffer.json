@@ -14,5 +14,5 @@
     "tech": "C++20, Java, Python, GCC, Clang",
     "link": "https://github.com/ebruno/codesamples",
     "lesson": "prompt-driven development, binary symmetry across operating systems, building a library-first API with lock-free concurrent data structures, and packaging knowledge for LLM fine-tuning",
-    "feedback_area": "the pipelined architecture, the cross-platform binary symmetry approach, or the LLM knowledge package design"
+    "feedback_area": "the pipelined architecture, the cross-platform binary symmetry approach, documentation or the LLM knowledge package design"
 }

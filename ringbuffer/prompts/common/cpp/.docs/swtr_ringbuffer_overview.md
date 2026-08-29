@@ -70,6 +70,129 @@ swtr.BufferSlot, swtr.BufferStatus, swtr.ChecksumAlgorithm, swtr.LogLevel
 
 ---
 
+## What is a Circular Buffer?
+
+A **circular buffer** (also called a ring buffer) is a fixed-size data structure that uses a single, pre-allocated array to store streaming data. When the buffer fills up, new data overwrites the oldest entries — hence "circular."
+
+**Why use one?**
+- **Zero-allocation streaming**: No dynamic memory allocation during operation — critical for real-time systems, audio processing, and network packet handling
+- **Bounded memory usage**: Predictable memory footprint regardless of data volume
+- **Lock-free concurrency**: Multiple threads can read/write simultaneously without mutexes when using proper slot-based designs
+- **Deterministic latency**: No garbage collection pauses or heap fragmentation
+
+**Common use cases:**
+- Audio/video streaming pipelines (capture → process → output)
+- Network packet buffers (receive → parse → dispatch)
+- Log aggregation systems (collect → transform → persist)
+- Real-time sensor data processing
+
+The Ringbuffer library implements a **pipelined circular buffer** — extending the basic concept with three independent processing stages (Read → Transform → Write) that operate concurrently on shared slots.
+
+---
+
+## Why Ringbuffer?
+
+### Performance Characteristics
+- **Throughput**: Pipelined architecture achieves near-linear scaling with slot count (4+ slots recommended)
+- **Latency**: Single-pass processing — data flows through all stages without intermediate storage
+- **Memory efficiency**: Fixed-size allocation, no fragmentation, cache-line aligned (64-byte boundaries)
+
+### Reliability Features
+- **Data integrity**: Per-slot checksums (MD5/SHA256/SHA512) detect corruption
+- **Graceful shutdown**: Cooperative cancellation via `std::jthread` or equivalent
+- **Error recovery**: Custom error handlers can inspect slot state and decide whether to continue
+
+### Developer Experience
+- **Simple API**: Basic usage requires 5 lines of code; advanced features are opt-in
+- **Cross-platform**: Same source compiles on 7 OSes with identical behavior
+- **Multi-language**: C++, Java, and Python implementations share the same functional specification
+
+### When to Use Ringbuffer
+- ✅ Real-time data processing pipelines (audio, video, network)
+- ✅ High-throughput ETL operations (extract → transform → load)
+- ✅ Systems requiring deterministic memory usage
+- ❌ Variable-size data with frequent resize operations (use `std::vector` instead)
+- ❌ Single-threaded batch processing (overhead not justified)
+
+---
+
+## Ringbuffer vs Alternatives
+
+| Feature | Ringbuffer | std::vector | std::queue (deque) | Custom FIFO |
+|---------|------------|-------------|-------------------|-------------|
+| Fixed memory | ✅ Yes | ❌ No (grows) | ⚠️ Dynamic | ✅ Yes |
+| Lock-free multi-threaded | ✅ Yes | ❌ No | ⚠️ Requires mutex | ⚠️ Depends on impl |
+| Zero allocation (runtime) | ✅ Yes | ❌ No | ⚠️ Sometimes | ✅ Yes |
+| Backpressure support | ✅ Built-in | ❌ No | ⚠️ Manual | ⚠️ Manual |
+| Pipeline support | ✅ 3-stage | ❌ No | ❌ No | ❌ No |
+| Checksum verification | ✅ Built-in | ❌ No | ❌ No | ❌ No |
+| Cross-platform | ✅ 7 OSes | ⚠️ Platform-specific | ⚠️ Platform-specific | ❌ Custom |
+
+---
+
+## Extending the Pipeline
+
+The ringbuffer's class-based design makes it easy to extend beyond the default three-stage pipeline (Read → Transform → Write). Since `RingBuffer` is an abstract base class and the slot state machine is well-defined, you can add custom processing stages.
+
+### Add Custom Pipeline Stages (C++)
+
+```cpp
+// Read → Transform → Validate → Write (4 stages)
+class ValidatingRingBuffer : public SwtrRingBuffer {
+public:
+    ValidatingRingBuffer(size_t num_slots, size_t buffer_size)
+        : SwtrRingBuffer(num_slots, BufferStatus::readyforread, buffer_size) {}
+
+protected:
+    // Override transform stage to add validation between transform and write
+    void do_transform(size_t slot_idx) override {
+        SwtrRingBuffer::do_transform(slot_idx);  // Run standard transform
+        
+        // Add validation logic
+        BufferStatus status = get_status(slot_idx);
+        if (status == BufferStatus::readyforwrite) {
+            // Validate data integrity before write stage
+            if (!validate_slot_data(slot_idx)) {
+                handle_error(slot_idx, BufferStatus::STATUS_ERROR);
+            }
+        }
+    }
+
+private:
+    bool validate_slot_data(size_t slot_idx) {
+        // Custom validation logic here
+        return true;  // Simplified for example
+    }
+};
+```
+
+### Common Extension Patterns
+
+| Pattern | Description | Use Case |
+|---------|-------------|----------|
+| **Read → Transform → Validate → Write** | Add checksum verification or data integrity checks before output | Financial transactions, medical data |
+| **Read → Transform → Encrypt → Write** | Insert encryption stage for secure transmission | Secure messaging, payment processing |
+| **Read → Transform → Split → Merge → Write** | Fan-out/fan-in for parallel processing | Video frame processing, batch jobs |
+| **Read → Transform → Cache → Write** | Add caching layer for retry logic | Unreliable networks, intermittent storage |
+| **Read → Transform → Audit → Write** | Add logging/audit trail without affecting data flow | Compliance, debugging |
+
+### How It Works
+
+The slot state machine (`BufferStatus` enum) defines the transitions between stages. Each stage:
+1. Reads slots in `readyfor<stage>` state
+2. Processes data and updates slot size/checksum
+3. Transitions slot to `readyfor<next_stage>` state
+
+By implementing additional stage methods that follow this pattern, you can insert new processing steps without modifying the core pipeline logic.
+
+### When to Extend vs Use Built-in Features
+
+- **Extend** when you need custom processing logic not covered by the transform function
+- **Use built-in features** for standard operations (the transform function handles most data manipulation needs)
+- **Consider composition** — wrap a `SwtrRingBuffer` instance rather than subclassing for complex scenarios
+
+---
+
 ## Quick Example (C++)
 
 ```cpp

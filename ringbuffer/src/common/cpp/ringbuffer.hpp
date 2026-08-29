@@ -7,11 +7,20 @@
 #include <string>
 #include "status.hpp"
 
+/// @brief Core ringbuffer library namespace.
+/// Contains the pipeline types, enums, and class hierarchy for the swtr ringbuffer implementation.
 namespace swtr {
 
+/// @brief Error handler callback signature.
+/// Invoked when a pipeline error occurs. Return non-zero to trigger pipeline shutdown.
 using ErrorHandler = int (*)(size_t slot_idx, BufferStatus status);
+
+/// @brief User-supplied transform function signature.
+/// Applied to each buffer slot's data by the transform thread. Modifies `data` in-place and updates `size`.
 using TransformFn = std::function<void(std::vector<uint8_t>&, size_t&)>;
 
+/// @brief Shared slot in the pipeline with its own state machine, checksum, and data buffer.
+/// Each slot is cache-line aligned (64 bytes) to prevent false sharing between threads.
 struct BufferSlot {
     alignas(64) size_t buffer_idx;                                    // non-atomic: slot index
     alignas(64) std::atomic<BufferStatus> status;                     // atomic: current buffer state
@@ -33,20 +42,30 @@ struct BufferSlot {
           data(max_size) {}
 };
 
+/// @brief Minimum number of pipeline slots allowed (1).
 constexpr size_t MIN_NUMBER_SLOTS = 1;
+
+/// @brief Default per-slot data buffer capacity in bytes (4096).
 constexpr size_t DEFAULT_BUFFER_SIZE = 4096;
 
+/// @brief Abstract base class defining the ringbuffer pipeline interface.
+/// Provides thread control, configuration, logging, and accessor methods for all implementations.
 class RingBuffer {
 public:
     virtual ~RingBuffer() = default;
 
     // Thread Control
+    /// @brief Launch read/transform/write threads and begin pipeline processing.
     virtual void start() = 0;
+    /// @brief Signal all threads to stop cooperatively.
     virtual void stop() = 0;
+    /// @brief Block until pipeline completes and all threads have joined.
     virtual void wait() = 0;
 
     // Configuration
+    /// @brief Set input file descriptor for the read thread.
     virtual void set_read_fd(int fd) = 0;
+    /// @brief Set output file descriptor for the write thread.
     virtual void set_write_fd(int fd) = 0;
 
     // Logging
@@ -92,6 +111,7 @@ protected:
         }
     }
 
+    /// @brief Internal logging dispatch. Called by log_message template when logging is enabled.
     virtual void do_log(LogLevel level, const std::string& message) = 0;
 };
 

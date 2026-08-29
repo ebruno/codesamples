@@ -10,10 +10,10 @@ ALLOW_UNICODE_NAMES    = YES
 
 # Input — Java source files + main page
 INPUT                  = swtr \
-                         ../../../prompts/common/cpp/.docs/swtr_ringbuffer_overview.md
+                         ../../../prompts/common/java/.docs/swtr_ringbuffer_overview.md
 
 # Main page — use markdown file as main page (in .docs to avoid treeview entry)
-USE_MDFILE_AS_MAINPAGE = ../../../prompts/common/cpp/.docs/swtr_ringbuffer_overview.md
+USE_MDFILE_AS_MAINPAGE = ../../../prompts/common/java/.docs/swtr_ringbuffer_overview.md
 
 # Only include Java source and markdown files
 FILE_PATTERNS          = *.java *.md

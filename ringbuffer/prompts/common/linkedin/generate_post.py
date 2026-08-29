@@ -202,7 +202,7 @@ def generate_post(meta: dict) -> str:
 
     # Build the call-to-action question from feedback area
     cta_question = (
-        f"If you have a chance to look at the code, I'd love your feedback on {feedback_area}?"
+        f"If you have a chance to look at the code and documentation, I'd would appreciate your feedback on {feedback_area}?"
     )
 
     # Pick a hook (rotate based on name hash for variety)

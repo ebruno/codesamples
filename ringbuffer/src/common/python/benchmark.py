@@ -33,7 +33,14 @@ TESTS = [
 
 
 def create_test_input() -> str:
-    """Create a test input file with standard zigzag pattern."""
+    """Create a test input file with standard zigzag pattern.
+
+    Generates 25 lines of 48-character payloads with a moving space position,
+    used as consistent input for all benchmark tests.
+
+    Returns:
+        The generated content string (not written to disk).
+    """
     content = ""
     for i in range(1, 26):
         prefix = f"{i:04d}"
@@ -48,9 +55,15 @@ def create_test_input() -> str:
 
 
 def run_ctypes_test(test: dict, input_file: str) -> Tuple[float, int]:
-    """Run a test using the existing ctypes implementation.
+    """Run a single test using the ctypes (Concurrent) implementation.
 
-    Returns (elapsed_seconds, exit_code).
+    Args:
+        test: Test configuration dict with keys 'id', 'name', 'slots',
+              'bufsize', 'transform', 'error'.
+        input_file: Path to the test input file.
+
+    Returns:
+        Tuple of (elapsed_seconds, exit_code).
     """
     cmd = [
         sys.executable, 'test_ringbuffer.py',
@@ -69,9 +82,15 @@ def run_ctypes_test(test: dict, input_file: str) -> Tuple[float, int]:
 
 
 def run_pure_test(test: dict, input_file: str) -> Tuple[float, int]:
-    """Run a test using the pure Python implementation.
+    """Run a single test using the pure Python implementation.
 
-    Returns (elapsed_seconds, exit_code).
+    Args:
+        test: Test configuration dict with keys 'id', 'name', 'slots',
+              'bufsize', 'transform', 'error'.
+        input_file: Path to the test input file.
+
+    Returns:
+        Tuple of (elapsed_seconds, exit_code).
     """
     cmd = [
         sys.executable, 'test_ringbuffer_pure.py',
@@ -90,7 +109,15 @@ def run_pure_test(test: dict, input_file: str) -> Tuple[float, int]:
 
 
 def run_benchmark(iterations: int = 10):
-    """Run the full benchmark comparing both implementations."""
+    """Run the full benchmark comparing Concurrent vs Pure Python implementations.
+
+    Executes all 7 test cases (T001-T007) on both implementations,
+    collecting timing statistics and computing speedup ratios.
+
+    Args:
+        iterations: Number of times to run each test (default 10). More
+            iterations produce more stable averages.
+    """
 
     # Create test input file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:

@@ -4,11 +4,17 @@ package swtr;
  * Log level enum — 6 values with explicit ordinal assignments.
  */
 public enum LogLevel {
+    /** Verbose internal state transitions */
     TRACE(0),
+    /** Detailed operational information */
     DEBUG(1),
+    /** General pipeline events (default) */
     INFO(2),
+    /** Non-fatal conditions that may indicate issues */
     WARNING(3),
+    /** Recoverable error conditions */
     ERROR(4),
+    /** Fatal errors requiring pipeline shutdown */
     CRITICAL(5);
 
     private final int value;

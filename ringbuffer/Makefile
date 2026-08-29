@@ -58,6 +58,22 @@ OS_CPP_DIRS := $(patsubst %/Makefile,%,$(OS_DIRS))
 JAVA_DIR  := src/common/java
 PYTHON_DIR := src/common/python
 
+# Documentation output directories for hosting platforms
+GITHUB_PAGES_DIR = ../docs
+GITLAB_PAGES_DIR  = ../pages
+
+# Documentation directories (Doxygen output)
+DOCS_BASE_DIR       := docs/ringbuffer
+CPP_DOCS_BASE_DIR   := $(DOCS_BASE_DIR)/cpp/html
+JAVA_DOCS_BASE_DIR  := $(DOCS_BASE_DIR)/java/html
+
+# Documentation tools
+DOXYGEN_CMD = doxygen
+PYTHON3_CMD = python3
+
+# Python documentation backend (override from command line: make create-doc PYTHON_DOCS=docs-sphinx)
+PYTHON_DOCS ?= docs-breathe
+
 # Container images managed by this project
 CONTAINER_IMAGES := ringbuffer_debian_build ringbuffer_debian_test \
                    ringbuffer_fedora_build ringbuffer_fedora_test \
@@ -118,3 +134,61 @@ dist-clean: clean
 	MM=$$(printf "%02d" $$((ELAPSED % 3600 / 60))); \
 	SS=$$(printf "%02d" $$((ELAPSED % 60))); \
 	echo "Dist-clean completed in $${HH}:$${MM}:$${SS}"
+
+.PHONY: clean-docs create-doc docs-cpp docs-java docs-breathe docs-sphinx
+
+clean-docs:
+	@echo "Cleaning Doxygen documentation artifacts..."
+	@if [ -d $(DOCS_BASE_DIR) ]; then \
+		find $(DOCS_BASE_DIR) -mindepth 1 ! -name '.required_directory' -exec rm -rf {} + 2>/dev/null || true; \
+	fi
+	@echo "Documentation artifacts cleaned."
+
+# Generate C++ Doxygen documentation (with Types section fixup)
+docs-cpp:
+	@echo "=== Generating C++ Doxygen documentation ==="
+	@if ! command -v $(DOXYGEN_CMD) > /dev/null 2>&1; then \
+		echo "ERROR: $(DOXYGEN_CMD) not found. Please install Doxygen." >&2; \
+		exit 1; \
+	fi
+	mkdir -p $(CPP_DOCS_BASE_DIR)
+	cd prompts/common/cpp && $(DOXYGEN_CMD) Doxyfile
+	$(PYTHON3_CMD) utils/bin/generate_docs.py src/common/cpp/status.hpp
+
+# Generate Java Doxygen documentation
+docs-java:
+	@echo "=== Generating Java Doxygen documentation ==="
+	@if ! command -v $(DOXYGEN_CMD) > /dev/null 2>&1; then \
+		echo "ERROR: $(DOXYGEN_CMD) not found. Please install Doxygen." >&2; \
+		exit 1; \
+	fi
+	mkdir -p $(JAVA_DOCS_BASE_DIR)
+	cd src/common/java && $(DOXYGEN_CMD) Doxyfile
+
+# Generate Python documentation using Doxygen + Breathe
+docs-breathe:
+	@echo "=== Setting up documentation venv ==="
+	@if [ ! -d venv_doc ]; then python3 -m venv venv_doc; fi
+	venv_doc/bin/pip install -q -r requirements-doc.txt
+	@echo "=== Running Doxygen on Python source ==="
+	doxygen docs/ringbuffer/python/Doxyfile
+	@echo "=== Generating Sphinx+Breathe documentation ==="
+	venv_doc/bin/sphinx-build -b html docs/ringbuffer/python/sphinx docs/ringbuffer/python/html
+	@echo "=== Cleaning up venv ==="
+	rm -rf venv_doc
+	@echo "Breathe docs generated at docs/ringbuffer/python/html"
+
+# Generate Python documentation using Sphinx-only (autodoc + napoleon, no Doxygen)
+docs-sphinx:
+	@echo "=== Setting up documentation venv ==="
+	@if [ ! -d venv_doc ]; then python3 -m venv venv_doc; fi
+	venv_doc/bin/pip install -q -r requirements-doc.txt
+	@echo "=== Generating Sphinx documentation ==="
+	venv_doc/bin/sphinx-build -b html docs/ringbuffer/python/sphinx docs/ringbuffer/python/html
+	@echo "=== Cleaning up venv ==="
+	rm -rf venv_doc
+	@echo "Sphinx docs generated at docs/ringbuffer/python/html"
+
+# Unified create-doc — generates C++, Java, and Python documentation
+create-doc: docs-cpp docs-java $(PYTHON_DOCS)
+	@echo "=== All documentation generated ==="

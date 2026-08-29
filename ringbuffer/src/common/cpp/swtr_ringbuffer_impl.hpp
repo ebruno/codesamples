@@ -20,8 +20,16 @@
 
 namespace swtr {
 
+/// @brief Concrete implementation of the pipelined ringbuffer with lock-free atomic coordination.
+/// Uses three independent threads (read → transform → write) operating on shared slots with atomic index counters.
 class SWTR_EXPORT SwtrRingBuffer : public RingBuffer {
 public:
+    /// @brief Construct a new SwtrRingBuffer.
+    /// @param num_slots Number of pipeline slots (minimum 1).
+    /// @param initial_status Initial state for all slots.
+    /// @param buffer_size Per-slot data buffer capacity in bytes.
+    /// @param err_handler Optional error callback; return non-zero to abort pipeline on error.
+    /// @param transform_fn User-supplied function applied to each buffer slot's data by the transform thread.
     SwtrRingBuffer(size_t num_slots = MIN_NUMBER_SLOTS,
                   BufferStatus initial_status = BufferStatus::readyforread,
                   size_t buffer_size = DEFAULT_BUFFER_SIZE,
@@ -80,16 +88,23 @@ protected:
 private:
     // Pipelines
 #ifdef __FreeBSD__
+    /// @brief Read thread: fills slots from input fd, marks readyfortransform on EOF.
     void read_loop();
+    /// @brief Transform thread: applies user function, computes checksum.
     void transform_loop();
+    /// @brief Write thread: writes transformed data, clears slots.
     void write_loop();
 #else
+    /// @brief Read thread: fills slots from input fd, marks readyfortransform on EOF.
     void read_loop(std::stop_token st);
+    /// @brief Transform thread: applies user function, computes checksum.
     void transform_loop(std::stop_token st);
+    /// @brief Write thread: writes transformed data, clears slots.
     void write_loop(std::stop_token st);
 #endif
 
     // Error Handling
+    /// @brief Error handler: invokes callback and triggers pipeline shutdown.
     void handle_error(size_t slot_idx, BufferStatus status);
 
     // Members

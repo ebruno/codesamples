@@ -25,8 +25,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SwtrRingBuffer implements RingBuffer {
 
     // === Constants (from common spec) ===
+    /** Minimum number of pipeline slots allowed (1) */
     public static final int MIN_NUMBER_SLOTS = 1;
+    /** Default per-slot data buffer capacity in bytes (4096) */
     public static final int DEFAULT_BUFFER_SIZE = 4096;
+    /** Minimum allowed buffer size per slot (1) */
     public static final int MIN_BUFFER_SIZE = 1;
 
     // === Slot storage ===
