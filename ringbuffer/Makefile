@@ -36,6 +36,13 @@ else
   OS_VERSION := unknown
 endif
 
+# Shell script extension based on host OS (golden rule: zsh on macOS, sh elsewhere)
+ifeq ($(OS_NAME),macos)
+  SHELL_EXT := zsh
+else
+  SHELL_EXT := sh
+endif
+
 # Container runtime detection — prefer the right tool per OS
 ifeq ($(OS_NAME),macos)
   CONTAINER_CMD := $(shell command -v container 2>/dev/null || echo "")
@@ -66,13 +73,14 @@ GITLAB_PAGES_DIR  = ../pages
 DOCS_BASE_DIR       := docs/ringbuffer
 CPP_DOCS_BASE_DIR   := $(DOCS_BASE_DIR)/cpp/html
 JAVA_DOCS_BASE_DIR  := $(DOCS_BASE_DIR)/java/html
+PYTHON_BREATHE_DIR  := $(DOCS_BASE_DIR)/python/breathe-html
+PYTHON_SPHINX_DIR   := $(DOCS_BASE_DIR)/python/sphinx-html
 
 # Documentation tools
 DOXYGEN_CMD = doxygen
 PYTHON3_CMD = python3
 
-# Python documentation backend (override from command line: make create-doc PYTHON_DOCS=docs-sphinx)
-PYTHON_DOCS ?= docs-breathe
+
 
 # Container images managed by this project
 CONTAINER_IMAGES := ringbuffer_debian_build ringbuffer_debian_test \
@@ -135,7 +143,7 @@ dist-clean: clean
 	SS=$$(printf "%02d" $$((ELAPSED % 60))); \
 	echo "Dist-clean completed in $${HH}:$${MM}:$${SS}"
 
-.PHONY: clean-docs create-doc docs-cpp docs-java docs-breathe docs-sphinx
+.PHONY: clean-docs create-doc docs-cpp docs-java docs-breathe docs-sphinx docs-with-index
 
 clean-docs:
 	@echo "Cleaning Doxygen documentation artifacts..."
@@ -170,13 +178,15 @@ docs-breathe:
 	@echo "=== Setting up documentation venv ==="
 	@if [ ! -d venv_doc ]; then python3 -m venv venv_doc; fi
 	venv_doc/bin/pip install -q -r requirements-doc.txt
+	@echo "=== Creating Python docs output directory ==="
+	mkdir -p $(DOCS_BASE_DIR)/python/doxygen
 	@echo "=== Running Doxygen on Python source ==="
-	doxygen docs/ringbuffer/python/Doxyfile
+	cd src/common/python && doxygen Doxyfile
 	@echo "=== Generating Sphinx+Breathe documentation ==="
-	venv_doc/bin/sphinx-build -b html docs/ringbuffer/python/sphinx docs/ringbuffer/python/html
+	venv_doc/bin/sphinx-build -b html src/common/python/sphinx $(PYTHON_BREATHE_DIR)
 	@echo "=== Cleaning up venv ==="
 	rm -rf venv_doc
-	@echo "Breathe docs generated at docs/ringbuffer/python/html"
+	@echo "Breathe docs generated at $(PYTHON_BREATHE_DIR)"
 
 # Generate Python documentation using Sphinx-only (autodoc + napoleon, no Doxygen)
 docs-sphinx:
@@ -184,11 +194,16 @@ docs-sphinx:
 	@if [ ! -d venv_doc ]; then python3 -m venv venv_doc; fi
 	venv_doc/bin/pip install -q -r requirements-doc.txt
 	@echo "=== Generating Sphinx documentation ==="
-	venv_doc/bin/sphinx-build -b html docs/ringbuffer/python/sphinx docs/ringbuffer/python/html
+	venv_doc/bin/sphinx-build -b html src/common/python/sphinx-solo $(PYTHON_SPHINX_DIR)
 	@echo "=== Cleaning up venv ==="
 	rm -rf venv_doc
-	@echo "Sphinx docs generated at docs/ringbuffer/python/html"
+	@echo "Sphinx docs generated at $(PYTHON_SPHINX_DIR)"
 
 # Unified create-doc — generates C++, Java, and Python documentation
-create-doc: docs-cpp docs-java $(PYTHON_DOCS)
+create-doc: docs-cpp docs-java docs-breathe docs-sphinx
 	@echo "=== All documentation generated ==="
+
+# Generate all documentation AND create top-level index page with links to available language docs
+docs-with-index: create-doc
+	@echo "=== Generating docs index page ==="
+	@./utils/bin/generate_docs_index.$(SHELL_EXT)

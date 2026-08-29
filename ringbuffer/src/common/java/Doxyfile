@@ -12,6 +12,10 @@ ALLOW_UNICODE_NAMES    = YES
 INPUT                  = swtr \
                          ../../../prompts/common/java/.docs/swtr_ringbuffer_overview.md
 
+# Strip leading path from file paths in documentation (relative to Doxyfile location)
+STRIP_FROM_PATH        = swtr \
+                         ../../../prompts/common/java/.docs
+
 # Main page — use markdown file as main page (in .docs to avoid treeview entry)
 USE_MDFILE_AS_MAINPAGE = ../../../prompts/common/java/.docs/swtr_ringbuffer_overview.md
 

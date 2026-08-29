@@ -11,6 +11,10 @@ ALLOW_UNICODE_NAMES    = YES
 INPUT                  = ../../../src/common/cpp \
                          .docs/swtr_ringbuffer_overview.md
 
+# Strip leading path from file paths in documentation (relative to Doxyfile location)
+STRIP_FROM_PATH        = ../../../src/common/cpp \
+                         .docs
+
 # Main page — use markdown file as main page (in .docs to avoid treeview entry)
 USE_MDFILE_AS_MAINPAGE = .docs/swtr_ringbuffer_overview.md
 

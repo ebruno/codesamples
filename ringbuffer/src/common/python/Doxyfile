@@ -1,0 +1,32 @@
+# Doxygen configuration for Python ringbuffer documentation
+
+PROJECT_NAME           = "swtr_ringbuffer Python"
+PROJECT_NUMBER         = 1.0.0-1
+
+# Output to docs directory (Breathe consumes XML from here)
+OUTPUT_DIRECTORY       = ../../../docs/ringbuffer/python/doxygen
+
+# Input — scan Python source and include overview markdown as main page
+INPUT                  = . \
+                         ../../../prompts/common/python/.docs/swtr_ringbuffer_overview.md
+
+# Strip leading path from file paths in documentation (relative to Doxyfile location)
+STRIP_FROM_PATH        = . \
+                         ../../../prompts/common/python/.docs
+
+FILE_PATTERNS          = *.py *.md
+RECURSIVE              = YES
+
+# Generate XML only (HTML is handled by Sphinx+Breathe)
+GENERATE_HTML          = NO
+GENERATE_XML           = YES
+
+# No preprocessing needed for Python
+ENABLE_PREPROCESSING   = NO
+
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+
+# Main page — use markdown file as main page (in prompts/common/python/.docs/ to avoid treeview entry)
+USE_MDFILE_AS_MAINPAGE = ../../../prompts/common/python/.docs/swtr_ringbuffer_overview.md
