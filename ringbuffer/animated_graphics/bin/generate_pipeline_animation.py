@@ -85,27 +85,31 @@ def _draw_text(draw, text, x, y, size, fill):
 def draw_thread_box(draw, x, y, title, bg_color, status_text, active_color):
     """Draw a thread-status pill at the top of the frame."""
     draw.rounded_rectangle(
-        [x, y, x + 200, y + 60], radius=10,
+        [x, y, x + 210, y + 75], radius=10,
         fill=bg_color, outline=C["border"], width=2,
     )
-    _draw_text(draw, title, x + 10, y + 10, 16, C["dark_text"])
+    _draw_text(draw, title, x + 10, y + 10, 24, C["dark_text"])
     status_color = active_color if status_text == "ACTIVE" else C["gray_text"]
-    _draw_text(draw, f"Status: {status_text}", x + 10, y + 35, 14, status_color)
+    _draw_text(draw, f"Status: {status_text}", x + 10, y + 45, 18, status_color)
 
 
 def draw_slots_area(draw, active_slot: int):
     """Draw the shared-slots container with 5 slot boxes."""
+    # Container aligned with thread boxes (50 to 1140 = Write Thread right edge)
+    container_w = 1140 - 50
     draw.rounded_rectangle(
-        [50, 200, 1330, 350], radius=10,
+        [50, 200, 1140, 340], radius=10,
         fill=C["bg_alt"], outline=C["border"], width=2,
     )
 
-    slot_w, slot_h = 180, 80
+    slot_w, slot_h = 180, 75
     spacing = 20
+    total_slots_w = 5 * slot_w + 4 * spacing  # 980
+    start_x = 50 + (container_w - total_slots_w) // 2  # centered ≈ 105
 
     for i in range(5):
-        sx = 80 + i * (slot_w + spacing)
-        sy = 230
+        sx = start_x + i * (slot_w + spacing)
+        sy = 225
 
         if i == active_slot:
             fill = C["purple"]
@@ -118,60 +122,83 @@ def draw_slots_area(draw, active_slot: int):
             [sx, sy, sx + slot_w, sy + slot_h], radius=10,
             fill=fill, outline=C["border"], width=2,
         )
-        _draw_text(draw, f"Slot {i}", sx + 10, sy + 10, 14, C["dark_text"])
-        _draw_text(draw, f"State: {state}", sx + 10, sy + 35, 12, C["gray_text"])
+        # Vertically centered text: 75px box, 20px+16px=36px text, pad=(75-36)/2=19
+        _draw_text(draw, f"Slot {i}", sx + 10, sy + 18, 20, C["dark_text"])
+        _draw_text(draw, f"State: {state}", sx + 10, sy + 42, 16, C["gray_text"])
 
 
 def draw_legend_area(draw):
-    """Draw the legend + key-facts panel."""
+    """Draw the legend + key-facts panel — compact 3-column layout."""
     draw.rounded_rectangle(
-        [50, 400, 1330, 600], radius=10,
+        [50, 390, 1140, 580], radius=10,
         fill=C["bg_alt"], outline=C["border"], width=2,
     )
 
-    _draw_text(draw, "Pipeline Legend", 70, 420, 16, C["dark_text"])
+    _draw_text(draw, "Pipeline Legend", 70, 405, 20, C["dark_text"])
 
-    items = [
+    col_w = (1140 - 50 - 40) // 3  # ~350px per column
+
+    # Threads row
+    thread_items = [
         (C["legend_read"],   "Read Thread"),
         (C["legend_transform"], "Transform Thread"),
         (C["legend_write"],  "Write Thread"),
+    ]
+    for idx, (color, label) in enumerate(thread_items):
+        lx = 70 + idx * col_w
+        ly = 440
+        draw.rectangle([lx, ly, lx + 16, ly + 16], fill=color)
+        _draw_text(draw, label, lx + 22, ly, 16, C["dark_text"])
+
+    # State colors row
+    state_items = [
         (C["legend_ready_transform"], "ready for transform"),
         (C["legend_ready_write"],     "ready for write"),
         (C["legend_ready_read"],      "ready for read"),
     ]
+    for idx, (color, label) in enumerate(state_items):
+        lx = 70 + idx * col_w
+        ly = 470
+        draw.rectangle([lx, ly, lx + 16, ly + 16], fill=color)
+        _draw_text(draw, label, lx + 22, ly, 16, C["dark_text"])
 
-    for idx, (color, label) in enumerate(items):
-        col = idx % 3
-        row = idx // 3
-        lx = 70 + col * 400
-        ly = 450 + row * 30
-        draw.rectangle([lx, ly, lx + 15, ly + 15], fill=color)
-        _draw_text(draw, label, lx + 20, ly + 3, 12, C["dark_text"])
-
-    _draw_text(draw, "Key Facts:", 70, 530, 16, C["dark_text"])
+    # Key Facts header
+    _draw_text(draw, "Key Facts:", 70, 508, 18, C["dark_text"])
 
     facts = [
-        "* 3 independent threads",
-        "* Per-slot checksums (MD5/SHA256)",
-        "* Cache-line aligned slots",
-        "* NVML logging per stage",
-        "* Atomic index counters",
-        "* Lock-free ringbuffer",
+        "3 independent threads",
+        "Per-slot checksums (MD5/SHA256)",
+        "Cache-line aligned slots",
+        "Per-stage logging",
+        "Atomic index counters",
+        "Lock-free ringbuffer",
     ]
 
     for idx, fact in enumerate(facts):
         col = idx % 3
         row = idx // 3
-        fx = 70 + col * 400
-        fy = 560 + row * 20
-        _draw_text(draw, fact, fx, fy, 12, C["dark_text"])
+        fx = 70 + col * col_w
+        fy = 535 + row * 22
+        _draw_text(draw, f"\u2022 {fact}", fx, fy, 16, C["dark_text"])
 
 
 def draw_index_counters(draw, read_idx, transform_idx, write_idx):
-    """Draw the three index counters at the bottom."""
-    _draw_text(draw, f"read_index: {read_idx}", 50, HEIGHT - 60, 24, C["read_active"])
-    _draw_text(draw, f"transform_index: {transform_idx}", WIDTH // 2 - 100, HEIGHT - 60, 24, C["transform_active"])
-    _draw_text(draw, f"write_index: {write_idx}", WIDTH - 250, HEIGHT - 60, 24, C["write_active"])
+    """Draw the three index counters at the bottom — aligned with thread boxes."""
+    font = _font(26)
+    base_y = HEIGHT - 75
+
+    # Read — left-aligned with Read Thread box (x=50)
+    draw.text((50, base_y), f"read_index: {read_idx}", font=font, fill=C["read_active"])
+
+    # Transform — centered on Transform Thread box (center x=595)
+    xform_text = f"transform_index: {transform_idx}"
+    tw = draw.textlength(xform_text, font=font)
+    draw.text((595 - tw / 2, base_y), xform_text, font=font, fill=C["transform_active"])
+
+    # Write — right-aligned with Write Thread box right edge (x=1140)
+    write_text = f"write_index: {write_idx}"
+    tw = draw.textlength(write_text, font=font)
+    draw.text((1140 - tw, base_y), write_text, font=font, fill=C["write_active"])
 
 
 # ─── Frame Builder ───────────────────────────────────────────────────────────
@@ -182,13 +209,13 @@ def build_frame(phase: dict) -> Image.Image:
     draw = ImageDraw.Draw(img)
 
     # Title + subtitle
-    _draw_text(draw, "Ringbuffer Pipeline - Data Flow Animation", WIDTH // 2 - 300, 20, 20, C["dark_text"])
-    _draw_text(draw, phase["subtitle"], WIDTH // 2 - 150, 50, 16, C["gray_text"])
+    _draw_text(draw, "Ringbuffer Pipeline - Data Flow Animation", WIDTH // 2 - 320, 15, 28, C["dark_text"])
+    _draw_text(draw, phase["subtitle"], WIDTH // 2 - 180, 52, 20, C["gray_text"])
 
-    # Thread boxes
-    draw_thread_box(draw, 50, 80, "Read Thread", C["read_bg"], phase["read_status"], C["read_active"])
-    draw_thread_box(draw, 500, 80, "Transform Thread", C["transform_bg"], phase["transform_status"], C["transform_active"])
-    draw_thread_box(draw, 950, 80, "Write Thread", C["write_bg"], phase["write_status"], C["write_active"])
+    # Thread boxes (wider for larger fonts, adjusted x spacing)
+    draw_thread_box(draw, 50, 85, "Read Thread", C["read_bg"], phase["read_status"], C["read_active"])
+    draw_thread_box(draw, 490, 85, "Transform Thread", C["transform_bg"], phase["transform_status"], C["transform_active"])
+    draw_thread_box(draw, 930, 85, "Write Thread", C["write_bg"], phase["write_status"], C["write_active"])
 
     # Slots
     draw_slots_area(draw, phase["active_slot"])
