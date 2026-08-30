@@ -6,10 +6,31 @@ A high-performance, cross-platform circular buffer library designed for binary s
 
 Built entirely through prompt-driven LLM development using **LM Studio Bionic** with **Qwen 3.6 35B** (local) and **DeepSeek V4 Pro** (cloud). Single canonical source tree with symlinks — byte-identical across all platforms by construction.
 
-![Pipeline Animation](animated_graphics/pipeline_animation.gif)
+<div align="center">
+  <img src="animated_graphics/pipeline_animation.gif" alt="Pipeline Animation" width="800">
+</div>
+
+## What is a Circular Buffer?
+
+A **circular buffer** (also called a ring buffer) is a fixed-size data structure that uses a single, pre-allocated array to store streaming data. When the buffer fills up, new data overwrites the oldest entries — hence "circular."
+
+**Why use one?**
+- **Zero-allocation streaming**: No dynamic memory allocation during operation — critical for real-time systems, audio processing, and network packet handling
+- **Bounded memory usage**: Predictable memory footprint regardless of data volume
+- **Lock-free concurrency**: Multiple threads can read/write simultaneously without mutexes when using proper slot-based designs
+- **Deterministic latency**: No garbage collection pauses or heap fragmentation
+
+**Common use cases:**
+- Audio/video streaming pipelines (capture → process → output)
+- Network packet buffers (receive → parse → dispatch)
+- Log aggregation systems (collect → transform → persist)
+- Real-time sensor data processing
+
+The Ringbuffer library implements a **pipelined circular buffer** — extending the basic concept with three independent processing stages (Read → Transform → Write) that operate concurrently on shared slots.
 
 ## Contents
 
+- [What is a Circular Buffer?](#what-is-a-circular-buffer)
 - [What It Does](#what-it-does)
 - [Implementation Status](#implementation-status)
 - [Platform Support](#platform-support)
@@ -18,6 +39,20 @@ Built entirely through prompt-driven LLM development using **LM Studio Bionic** 
 - [Roadmap](#roadmap)
 - [Key Specifications](#key-specifications)
 - [Core Features](#core-features)
+- [Why Ringbuffer?](#why-ringbuffer)
+  - [Performance Characteristics](#performance-characteristics)
+  - [Reliability Features](#reliability-features)
+  - [Developer Experience](#developer-experience)
+  - [When to Use Ringbuffer](#when-to-use-ringbuffer)
+- [Ringbuffer vs Alternatives](#ringbuffer-vs-alternatives)
+  - [C++](#c)
+  - [Java](#java)
+  - [Python](#python)
+- [Extending the Pipeline](#extending-the-pipeline)
+  - [Add Custom Pipeline Stages](#add-custom-pipeline-stages)
+  - [Common Extension Patterns](#common-extension-patterns)
+  - [How It Works](#how-it-works)
+  - [When to Extend vs Use Built-in Features](#when-to-extend-vs-use-built-in-features)
 - [Library API Example](#library-api-example)
   - [Advanced Configuration](#advanced-configuration)
   - [Version Propagation](#version-propagation)
@@ -34,9 +69,12 @@ Built entirely through prompt-driven LLM development using **LM Studio Bionic** 
   - [Known Issues & Toolchain Limitations](#known-issues-toolchain-limitations)
 - [Known Issues](#known-issues)
 - [Where We Are At](#where-we-are-at)
-  - [Current Status (as of 2026-08-26)](#current-status-as-of-2026-08-26)
+  - [Current Status (as of 2026-08-29)](#current-status-as-of-2026-08-29)
   - [What Works Today](#what-works-today)
 - [Where We're Going](#where-were-going)
+  - [C Implementation Strategy](#c-implementation-strategy)
+  - [Go Implementation Strategy](#go-implementation-strategy)
+  - [Rust Implementation Strategy](#rust-implementation-strategy)
   - [Near-Term (Next Iterations)](#near-term-next-iterations)
   - [Medium-Term (Roadmap)](#medium-term-roadmap)
   - [Long-Term (Vision)](#long-term-vision)
@@ -58,6 +96,12 @@ Built entirely through prompt-driven LLM development using **LM Studio Bionic** 
   - [tcsh Scripts for FreeBSD 14](#tcsh-scripts-for-freebsd-14)
   - [Key Takeaway](#key-takeaway)
 - [Prompt Execution Pattern](#prompt-execution-pattern)
+- [Documentation Generation](#documentation-generation)
+  - [Makefile Targets](#makefile-targets)
+  - [Output Layout](#output-layout)
+  - [Python: Two Documentation Backends](#python-two-documentation-backends)
+  - [Path Handling](#path-handling)
+  - [Doxygen Main Page Regeneration (C++/Java)](#doxygen-main-page-regeneration-cjava)
 - [Developer & Maintainer Guide](#developer-maintainer-guide)
   - [Part A: The Golden Rules (Coding Standards)](#part-a-the-golden-rules-coding-standards)
   - [Part B: The Prompt-Driven Workflow](#part-b-the-prompt-driven-workflow)
@@ -103,6 +147,11 @@ Built entirely through prompt-driven LLM development using **LM Studio Bionic** 
 ## What It Does
 
 The Ringbuffer library implements a **three-stage pipelined architecture** (Read → Transform → Write) that connects independent threads through a fixed-size array of shared slots. Each slot carries its own state machine, checksum, and data buffer, enabling lock-free concurrent processing with cache-line-aligned counters to prevent false sharing.
+
+**Why pipeline?** A pipelined circular buffer achieves higher throughput than sequential processing by allowing stages to operate concurrently:
+- While the **read thread** fills slot N, the **transform thread** processes slot N-1, and the **write thread** flushes slot N-2
+- Each stage works on independent slots, eliminating contention
+- The fixed-size slot pool provides backpressure — if the transform stage is slow, the read thread naturally slows down
 
 **How the pipeline works:**
 
@@ -174,7 +223,7 @@ FreeBSD lacks `<stop_token>` (C++20) and `std::jthread`, so the ringbuffer uses 
 - [x] **Phase 2** — Dispatcher prompt (`add_language.md`) routes any language to any OS
 - [x] **Phases A–B** — C++, Java, Python implemented and tested across 7 OSes
 - [ ] **Phase 3** — Implement C, Go, Rust from existing specs (dispatcher-ready)
-- [ ] **Phase 4** — Cross-language verification, unified README, PDF docs
+- [ ] **Phase 4** — Cross-language verification, unified README
 
 ## Key Specifications
 - **Multi-OS Support**: Seamless deployment across macOS, Linux distributions (Fedora, Debian, Ubuntu, Raspberry Pi OS), Arch Linux, and FreeBSD 14.
@@ -224,6 +273,178 @@ FreeBSD lacks `<stop_token>` (C++20) and `std::jthread`, so the ringbuffer uses 
 - **Data Integrity**: Integrated checksumming (MD5, SHA256, SHA512) for every buffer slot.
 - **Diagnostics**: Non-Virtual Public Interface (NVI) logging system with per-stage (read/transform/write) independently configurable verbosity levels.
 - **LLM Knowledge Package**: Versioned, shareable context packages that teach LLMs how to use the ringbuffer library. Available as a local Ollama Modelfile (system prompt injection), LM Studio system prompt, and fine-tuned GGUF models. See [LLM Knowledge Package](#llm-knowledge-package) below.
+
+## Why Ringbuffer?
+
+### Performance Characteristics
+- **Throughput**: Pipelined architecture achieves near-linear scaling with slot count (4+ slots recommended)
+- **Latency**: Single-pass processing — data flows through all stages without intermediate storage
+- **Memory efficiency**: Fixed-size allocation, no fragmentation, cache-line aligned
+
+### Reliability Features
+- **Data integrity**: Per-slot checksums (MD5/SHA256/SHA512) detect corruption
+- **Graceful shutdown**: Cooperative cancellation via `std::jthread` or equivalent
+- **Error recovery**: Custom error handlers can inspect slot state and decide whether to continue
+
+### Developer Experience
+- **Simple API**: Basic usage requires 5 lines of code; advanced features are opt-in
+- **Cross-platform**: Same source compiles on 7 OSes with identical behavior
+- **Multi-language**: C++, Java, and Python implementations share the same functional specification
+
+### When to Use Ringbuffer
+- ✅ Real-time data processing pipelines (audio, video, network)
+- ✅ High-throughput ETL operations (extract → transform → load)
+- ✅ Systems requiring deterministic memory usage
+- ❌ Variable-size data with frequent resize operations (use std::vector instead)
+- ❌ Single-threaded batch processing (overhead not justified)
+
+## Ringbuffer vs Alternatives
+
+### C++
+
+| Feature | Ringbuffer | std::vector | std::queue (deque) | Custom FIFO |
+|---------|------------|-------------|-------------------|-------------|
+| Fixed memory | ✅ Yes | ❌ No (grows) | ⚠️ Dynamic | ✅ Yes |
+| Lock-free multi-threaded | ✅ Yes | ❌ No | ⚠️ Requires mutex | ⚠️ Depends on impl |
+| Zero allocation (runtime) | ✅ Yes | ❌ No | ⚠️ Sometimes | ✅ Yes |
+| Backpressure support | ✅ Built-in | ❌ No | ⚠️ Manual | ⚠️ Manual |
+| Pipeline support | ✅ 3-stage | ❌ No | ❌ No | ❌ No |
+| Checksum verification | ✅ Built-in | ❌ No | ❌ No | ❌ No |
+| Cross-platform | ✅ 7 OSes | ⚠️ Platform-specific | ⚠️ Platform-specific | ❌ Custom |
+
+### Java
+
+| Feature | Ringbuffer | ArrayList/LinkedList | ArrayBlockingQueue | Custom FIFO |
+|---------|------------|---------------------|-------------------|-------------|
+| Fixed memory | ✅ Yes | ❌ No (grows) | ✅ Yes | ✅ Yes |
+| Lock-free multi-threaded | ✅ Yes | ❌ No | ⚠️ Thread-safe only | ⚠️ Depends on impl |
+| Zero allocation (runtime) | ✅ Yes | ❌ No | ⚠️ Sometimes | ✅ Yes |
+| Backpressure support | ✅ Built-in | ❌ No | ⚠️ Bounded only | ⚠️ Manual |
+| Pipeline support | ✅ 3-stage | ❌ No | ❌ No | ❌ No |
+| Checksum verification | ✅ Built-in | ❌ No | ❌ No | ❌ No |
+| Cross-platform | ✅ 7 OSes | ⚠️ JVM only | ⚠️ JVM only | ❌ Custom |
+
+### Python
+
+| Feature | Ringbuffer | list (dynamic) | collections.deque | Custom FIFO |
+|---------|------------|----------------|-------------------|-------------|
+| Fixed memory | ✅ Yes | ❌ No (grows) | ⚠️ Unbounded | ✅ Yes |
+| Lock-free multi-threaded | ✅ Yes | ❌ No | ⚠️ Requires lock | ⚠️ Depends on impl |
+| Zero allocation (runtime) | ✅ Yes | ❌ No | ⚠️ Sometimes | ✅ Yes |
+| Backpressure support | ✅ Built-in | ❌ No | ⚠️ Manual | ⚠️ Manual |
+| Pipeline support | ✅ 3-stage | ❌ No | ❌ No | ❌ No |
+| Checksum verification | ✅ Built-in | ❌ No | ❌ No | ❌ No |
+| Cross-platform | ✅ 7 OSes | ⚠️ Python only | ⚠️ Python only | ❌ Custom |
+
+## Extending the Pipeline
+
+The ringbuffer's class-based design makes it easy to extend beyond the default three-stage pipeline (Read → Transform → Write). Since `RingBuffer` is an abstract base class and the slot state machine is well-defined, you can add custom processing stages while maintaining cross-platform compatibility.
+
+### Add Custom Pipeline Stages
+
+**C++ Example:**
+```cpp
+// Read → Transform → Validate → Write (4 stages)
+class ValidatingRingBuffer : public SwtrRingBuffer {
+public:
+    ValidatingRingBuffer(size_t num_slots, size_t buffer_size)
+        : SwtrRingBuffer(num_slots, BufferStatus::readyforread, buffer_size) {}
+
+protected:
+    // Override transform stage to add validation between transform and write
+    void do_transform(size_t slot_idx) override {
+        SwtrRingBuffer::do_transform(slot_idx);  // Run standard transform
+        
+        // Add validation logic
+        BufferStatus status = get_status(slot_idx);
+        if (status == BufferStatus::readyforwrite) {
+            // Validate data integrity before write stage
+            if (!validate_slot_data(slot_idx)) {
+                handle_error(slot_idx, BufferStatus::STATUS_ERROR);
+            }
+        }
+    }
+
+private:
+    bool validate_slot_data(size_t slot_idx) {
+        // Custom validation logic here
+        return true;  // Simplified for example
+    }
+};
+```
+
+**Java Example:**
+```java
+// Read → Transform → Validate → Write (4 stages)
+public class ValidatingRingBuffer extends SwtrRingBuffer {
+
+    public ValidatingRingBuffer(int numSlots, int bufferSize) {
+        super(numSlots, BufferStatus.READYFORREAD, bufferSize, null, null);
+    }
+
+    @Override
+    protected void transformSlot(int slotIdx) {
+        super.transformSlot(slotIdx);  // Run standard transform
+        
+        // Add validation logic after transform
+        if (getSlotStatus(slotIdx) == BufferStatus.READYFORWRITE) {
+            if (!validateSlotData(slotIdx)) {
+                handleError(slotIdx, BufferStatus.STATUS_ERROR);
+            }
+        }
+    }
+
+    private boolean validateSlotData(int slotIdx) {
+        // Custom validation logic here
+        return true;  // Simplified for example
+    }
+}
+```
+
+**Python Example:**
+```python
+# Read → Transform → Validate → Write (4 stages)
+class ValidatingRingBuffer(SwtrRingBuffer):
+    def __init__(self, num_slots: int, buffer_size: int = 4096):
+        super().__init__(num_slots=num_slots, buffer_size=buffer_size)
+
+    def _transform_slot(self, slot_idx: int):
+        super()._transform_slot(slot_idx)  # Run standard transform
+        
+        # Add validation logic after transform
+        if self.get_slot_status(slot_idx) == BufferStatus.READYFORWRITE:
+            if not self._validate_slot_data(slot_idx):
+                self.handle_error(slot_idx, BufferStatus.STATUS_ERROR)
+
+    def _validate_slot_data(self, slot_idx: int) -> bool:
+        # Custom validation logic here
+        return True  # Simplified for example
+```
+
+### Common Extension Patterns
+
+| Pattern | Description | Use Case |
+|---------|-------------|----------|
+| **Read → Transform → Validate → Write** | Add checksum verification or data integrity checks before output | Financial transactions, medical data |
+| **Read → Transform → Encrypt → Write** | Insert encryption stage for secure transmission | Secure messaging, payment processing |
+| **Read → Transform → Split → Merge → Write** | Fan-out/fan-in for parallel processing | Video frame processing, batch jobs |
+| **Read → Transform → Cache → Write** | Add caching layer for retry logic | Unreliable networks, intermittent storage |
+| **Read → Transform → Audit → Write** | Add logging/audit trail without affecting data flow | Compliance, debugging |
+
+### How It Works
+
+The slot state machine (`BufferStatus` enum) defines the transitions between stages. Each stage:
+1. Reads slots in `readyfor<stage>` state
+2. Processes data and updates slot size/checksum
+3. Transitions slot to `readyfor<next_stage>` state
+
+By implementing additional stage methods that follow this pattern, you can insert new processing steps without modifying the core pipeline logic.
+
+### When to Extend vs Use Built-in Features
+
+- **Extend** when you need custom processing logic not covered by the transform function
+- **Use built-in features** for standard operations (the transform function handles most data manipulation needs)
+- **Consider composition** — wrap a `SwtrRingBuffer` instance rather than subclassing for complex scenarios
 
 ## Library API Example
 
@@ -422,7 +643,7 @@ After the initial setup, use update prompts to synchronize with changed specific
 
 ## Where We Are At
 
-### Current Status (as of 2026-08-26)
+### Current Status (as of 2026-08-29)
 
 **Implementation:**
 
@@ -463,8 +684,75 @@ Implementation status is tracked in the [Implementation Status](#implementation-
 | Python regression | ✅ Passed | Pure Python T001-T007 across 7 OSes; Concurrent skipped on raspios/freebsd14 |
 | Go/Rust scaffolding | ✅ Complete | Common specs written; next in pipeline (see [Roadmap](#roadmap)) |
 | Changelog suggestions | ✅ Operational | Post-commit hook analyzes prompt diffs and suggests entries |
+| Documentation generation | ✅ Operational | C++, Java (Doxygen), Python Breathe + Sphinx; auto-index page at docs/index.html |
 
 ## Where We're Going
+
+### C Implementation Strategy
+
+The C implementation targets **C17/C18 (ISO/IEC 9899:2018)** as the universal baseline to ensure compatibility across all seven target platforms, including Raspberry Pi OS (GCC 12).
+
+**Conditional C23 Enhancements:**
+Where available, the code uses `#if __STDC_VERSION__ >= 202311L` guards to enable C23 features strictly for **code quality** (e.g., `__VA_OPT__` in logging macros, `char8_t` for diagnostics).
+
+**Compiler Availability:**
+- **Full C23 Support:** Fedora (GCC 16), Arch Linux (GCC 16)
+- **Mostly Complete:** Debian (GCC 14), macOS (Clang 21), FreeBSD (Clang 19)
+- **Limited:** Ubuntu (GCC 13), Raspberry Pi OS (GCC 12) — *requires C17 fallback*
+
+**The Reality Check:**
+C23 will not significantly improve the ringbuffer's performance. The library's high-speed architecture relies on:
+1. **C11 `<stdatomic.h>`** for lock-free coordination (already universally available).
+2. **C11 `alignas`** for cache-line optimization (already universally available).
+3. **Algorithmic design** (pipelining, slot state machines) rather than language features.
+
+New C23 features like `_BitInt` or `#embed` do not apply to the core ringbuffer logic.
+
+### Go Implementation Strategy
+
+The Go implementation targets **Go 1.22+** as the minimum version to ensure compatibility across all seven target platforms, with **Go 1.24+** recommended for optimal performance.
+
+**Platform Availability:**
+- **Go 1.27+:** macOS, Arch Linux (latest)
+- **Go 1.26:** Fedora
+- **Go 1.25:** FreeBSD 14
+- **Go 1.24:** Debian
+- **Go 1.22:** Ubuntu 24.04 (minimum supported)
+- **Go 1.19:** Raspberry Pi OS (*requires manual Go installation for full feature support*)
+
+**Key Design Decisions:**
+1. **Generics over Channels** — Use `sync/atomic` with pre-allocated slot arrays (like C/C++), not Go channels, to avoid GC overhead in the hot path
+2. **Cache-Line Alignment** — Use `unsafe` to ensure 64-byte alignment for false-sharing prevention
+3. **GC Mitigation** — Pre-allocate all slots at construction; avoid heap allocations in the pipeline
+
+**The Reality Check:**
+Go's goroutines and `sync/atomic` make it an excellent fit for the pipelined architecture, but **Go will not match C/C++ performance** due to:
+- Garbage collection pauses (non-deterministic latency)
+- No inline assembly (can't use CPU-specific instructions like POPCNT/TZCNT)
+- Runtime overhead from the Go scheduler
+
+**Best use case:** High-throughput, non-real-time pipelines where developer productivity and maintainability matter more than microsecond latency.
+
+### Rust Implementation Strategy
+
+The Rust implementation targets **Rust 1.96+** as the minimum version to ensure compatibility across all seven target platforms, with **Rust 1.98+** recommended for optimal performance.
+
+**Platform Availability:**
+- **Rust 1.98+:** macOS, Arch Linux, Fedora, Debian, Ubuntu, Raspberry Pi OS (all via rustup)
+- **Rust 1.96:** FreeBSD 14 (built from source tarball)
+
+**Key Design Decisions:**
+1. **`const` Generics over Channels** — Use `AtomicUsize` with pre-allocated slot arrays (like C/C++), not Rust channels, to avoid runtime overhead in the hot path
+2. **Cache-Line Alignment** — Use `#[repr(align(64))]` for false-sharing prevention
+3. **Zero-Copy Buffers** — Use `MaybeUninit` to avoid zeroing overhead during slot allocation
+
+**The Reality Check:**
+Rust's zero-cost abstractions and `std::sync::atomic` make it an excellent fit for the pipelined architecture, but **Rust will not significantly outperform C/C++** due to:
+- No inline assembly (stable) — can't use CPU-specific instructions like POPCNT/TZCNT
+- Slightly more overhead in `std::sync` vs raw C11 atomics (negligible)
+- Compile-time overhead (doesn't affect runtime performance)
+
+**Best use case:** High-performance, memory-safe pipelines where developer productivity and correctness matter more than microsecond latency gains over C/C++.
 
 ### Near-Term (Next Iterations)
 
@@ -478,7 +766,7 @@ Implementation status is tracked in the [Implementation Status](#implementation-
 - **FreeBSD 15 implementation** — Currently excluded with zero-length placeholder files. FreeBSD 14 C++ is implemented and verified (static library only, all 7 tests pass). Implementation requires writing the platform/language spec files and generating source code.
 - **Arch Linux C++ source generation** — Prompts are implemented (`prompts/archlinux/cpp/`); actual source code generation requires executing `create_functional.md`, `create_build.md`, and `create_regression.md` on a Linux host.
 - **More comprehensive test coverage** — Additional test scenarios for edge cases (concurrent access patterns, memory pressure, signal handling).
-- **Documentation expansion** — API reference generation from headers, performance benchmarking documentation, container deployment guides.
+- **Documentation improvements** — Man page generation (pandoc → .1), Doxygen main page regeneration workflow, performance benchmarking documentation, container deployment guides.
 
 ### Long-Term (Vision)
 
@@ -506,6 +794,20 @@ Each platform directory (`src/<os>/cpp/`) includes a `specs/` subdirectory conta
 **reference_linux**: A canonical reference platform in `src/reference_linux/cpp/` used for cross-platform verification. Contains test infrastructure (Makefile, Dockerfile, test data) but no generated source code — it serves as the authoritative spec against which other platforms are compared.
 
 **Platform-Insensitive Languages**: Java and Python implementations live in `src/common/` (not per-OS), as they are platform-independent. Each language has its own build system: Maven for Java, pure Python with `py_compile` for verification.
+
+**Generated Documentation (`docs/ringbuffer/`)**: API documentation is generated by `make create-doc` and stored in `docs/ringbuffer/`. The directory structure is:
+
+```
+docs/ringbuffer/
+├── cpp/html/              ← C++ Doxygen output
+├── java/html/             ← Java Doxygen output
+└── python/
+    ├── breathe-html/      ← Python (Doxygen + Breathe)
+    ├── sphinx-html/       ← Python (Sphinx autodoc only)
+    └── doxygen/           ← Intermediate Doxygen XML (Breathe input)
+```
+
+The top-level `docs/index.html` is auto-generated by `make docs-with-index`. All Doxyfiles use `STRIP_FROM_PATH` to ensure relative paths in generated output. The entire `docs/` directory is gitignored (except `.required_directory`) — it contains only generated artifacts, no source files.
 
 ## Source File Layout & Symlink Usage
 
@@ -763,6 +1065,60 @@ Every workflow follows a consistent pattern:
 4. **Platform spec** (`<os>/cpp/*.md` or `<os>/<lang>/*.md`) provides platform-specific overrides
 
 When a common workflow says "execute `create_*.md` as the PRIMARY document," it means: read it for directives and immediate requirements, follow its steps as the main execution path, use the common workflow for infrastructure (image resolution, routing) only.
+
+## Documentation Generation
+
+All documentation is generated via Makefile targets. Run `make create-doc` to generate C++, Java, and Python docs; run `make docs-with-index` to also create a top-level index page.
+
+### Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make docs-cpp` | Generate C++ Doxygen documentation (with Types section fixup) |
+| `make docs-java` | Generate Java Doxygen documentation |
+| `make docs-breathe` | Generate Python docs via Doxygen + Breathe (Doxygen XML → Sphinx) |
+| `make docs-sphinx` | Generate Python docs via pure Sphinx autodoc/napoleon (no Doxygen) |
+| `make create-doc` | Generate all four: C++, Java, Python Breathe, Python Sphinx |
+| `make docs-with-index` | Generate all docs + top-level index page at `docs/index.html` |
+| `make clean-docs` | Remove all documentation artifacts |
+
+### Output Layout
+
+```
+docs/ringbuffer/
+├── cpp/html/              ← C++ Doxygen output
+├── java/html/             ← Java Doxygen output
+└── python/
+    ├── breathe-html/      ← Python (Doxygen + Breathe)
+    ├── sphinx-html/       ← Python (Sphinx autodoc only)
+    └── doxygen/           ← Intermediate Doxygen XML (Breathe input)
+```
+
+The top-level `docs/index.html` is auto-generated by `make docs-with-index`. It detects which language documentation exists and creates cards with links to each.
+
+### Python: Two Documentation Backends
+
+Python has two parallel documentation generation paths that produce side-by-side output:
+
+- **`docs-breathe`** (Doxygen + Breathe): Doxygen scans Python source → generates XML → Breathe reads XML → Sphinx renders HTML. Produces `docs/ringbuffer/python/breathe-html/`. Consistent with C++/Java toolchain.
+- **`docs-sphinx`** (Pure Sphinx): Sphinx reads Python source directly via autodoc → napoleon parses docstrings → Sphinx renders HTML. Produces `docs/ringbuffer/python/sphinx-html/`. Better Python docstring support (Google/NumPy styles).
+
+Both are generated by `make create-doc`. Use whichever produces better output for your needs.
+
+### Path Handling
+
+All Doxyfiles use `STRIP_FROM_PATH` to ensure generated documentation contains relative paths (e.g., `src/common/cpp/...`) rather than absolute system paths. This makes documentation portable and clean.
+
+### Doxygen Main Page Regeneration (C++/Java)
+
+The Doxygen main page is generated from a curated overview extracted from `README.md`. When the README changes, regenerate:
+
+```
+User: "regenerate the swtr_ringbuffer man page"
+Agent: Reads prompts/common/cpp/regenerate_doxygen_overview.md → reads README.md → regenerates swtr_ringbuffer_overview.md
+```
+
+See `prompts/common/cpp/regenerate_doxygen_overview.md` for the full workflow.
 
 ## Developer & Maintainer Guide
 
@@ -1060,6 +1416,33 @@ The test suite validates functional correctness, error handling, transform opera
 
 #### Part D: Documentation & Media Assets
 
+**Documentation Generation (`Makefile`)**
+All documentation is generated via Makefile targets. Run `make create-doc` to generate C++, Java, and Python docs; run `make docs-with-index` to also create a top-level index page.
+
+| Target | Description |
+|--------|-------------|
+| `make docs-cpp` | Generate C++ Doxygen documentation (with Types section fixup) |
+| `make docs-java` | Generate Java Doxygen documentation |
+| `make docs-breathe` | Generate Python docs via Doxygen + Breathe (Doxygen XML → Sphinx) |
+| `make docs-sphinx` | Generate Python docs via pure Sphinx autodoc/napoleon (no Doxygen) |
+| `make create-doc` | Generate all four: C++, Java, Python Breathe, Python Sphinx |
+| `make docs-with-index` | Generate all docs + top-level index page at `docs/index.html` |
+| `make clean-docs` | Remove all documentation artifacts |
+
+Python has two parallel backends: `docs-breathe` (Doxygen + Breathe, consistent with C++/Java) and `docs-sphinx` (pure Sphinx autodoc, better Python docstring support). Both are generated by `make create-doc` and live side-by-side in `docs/ringbuffer/python/breathe-html/` and `docs/ringbuffer/python/sphinx-html/`.
+
+All Doxyfiles use `STRIP_FROM_PATH` to ensure generated documentation contains relative paths rather than absolute system paths.
+
+**Doxygen Main Page Regeneration (C++/Java)**
+The Doxygen main page is generated from a curated overview extracted from `README.md`. When the README changes, regenerate:
+
+```
+User: "regenerate the swtr_ringbuffer man page"
+Agent: Reads prompts/common/cpp/regenerate_doxygen_overview.md → reads README.md → regenerates swtr_ringbuffer_overview.md
+```
+
+See `prompts/common/cpp/regenerate_doxygen_overview.md` for the full workflow.
+
 **README Template (`prompts/common/templates/readme_template.md`)**
 The README template is an outline and hint document describing every section `README.md` should contain. It can be used as a reference to recreate the README if lost, or as a starting point for a new project.
 - *Path:* `prompts/common/templates/readme_template.md`
@@ -1206,7 +1589,7 @@ The workflow will fail immediately if SSH requires a password. If you encounter 
 
 ### Build vs Test Workflow Pattern (All Languages)
 
-Every language follows the same two-step pattern:
+Every language follows the same three-step pattern:
 
 1. **`verify_build`** → `<os>/<lang>/Makefile all` (build only, no tests)
    - C/C++: `src/<os>/cpp/Makefile all` → builds static + shared libs, creates symlinks
@@ -1219,6 +1602,14 @@ Every language follows the same two-step pattern:
    - Java: `src/common/java/tests/Makefile verify` → runs TestRingbuffer T001-T007
    - Python: `src/common/python/tests/Makefile verify` → runs Concurrent + Pure Python T001-T007
    - The `tests/Makefile` has a `test: verify` target so `make test` also works
+
+3. **Documentation generation** → `make create-doc` or `make docs-with-index`
+   - C/C++: Doxygen from source headers → `docs/ringbuffer/cpp/html/`
+   - Java: Doxygen from source headers → `docs/ringbuffer/java/html/`
+   - Python (Breathe): Doxygen XML → Breathe → Sphinx → `docs/ringbuffer/python/breathe-html/`
+   - Python (Sphinx): Pure autodoc → `docs/ringbuffer/python/sphinx-html/`
+   - Top-level index: Auto-generated at `docs/index.html` with links to all language docs
+   - Man page: pandoc from `prompts/common/cpp/swtr_ringbuffer.md` → `.1` man page
 
 **Golden rule:** Never use `tests/Makefile verify` for build verification. Never use `<os>/<lang>/Makefile all` for regression testing.
 
@@ -1305,8 +1696,11 @@ The following tools are checked at session start by `utils/bin/check_tools.zsh` 
 | `jq` | Required | JSON parsing — reads `config/toolchains.json` at runtime |
 | `make` | Required | GNU Make — build system for all languages |
 | `mmdc` | Required | Mermaid diagram renderer — validates diagrams before README commits |
-| `pandoc` | Required | Document conversion — generates README.pdf and other file types |
+| `pandoc` | Required | Document conversion — generates man pages from `swtr_ringbuffer.md` |
 | `tcsh` | Required | FreeBSD default shell — used for testing on non-FreeBSD platforms |
+| `doxygen` | Optional (docs) | API documentation generation — C++, Java, and Python Breathe docs |
+| `sphinx` | Optional (docs) | Python documentation — pure Sphinx autodoc backend (`make docs-sphinx`) |
+| `breathe` | Optional (docs) | Bridge between Doxygen XML and Sphinx — Python Breathe docs (`make docs-breathe`) |
 
 ## Initial Development Environment
 - **Operating System**: macOS 26.5.2 (Darwin 25.5.0)
