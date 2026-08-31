@@ -1,0 +1,40 @@
+{
+  "language": "cpp",
+  "version": "1.0.0-1",
+  "compiler_version": "Apple clang 21.0.0",
+  "build_status": {
+    "macos": {
+      "route": "native",
+      "status": "PASS",
+      "timestamp": "2026-08-20T16:18:56-0700"
+    }
+  },
+  "artifacts": {
+    "static_lib": "lib/libswtr_ringbuffer-1.0.0-1.a",
+    "shared_lib": "lib/libswtr_ringbuffer-1.0.0-1.dylib"
+  },
+  "sha256": {
+    "version_mk": "829f1bb41d5b81c73316302ef4003747bc9d3ddda8f7f477078d3d6a8b7adec6",
+    "LoggingOps_5.cpp": "a162cb32bc1486a44b0bb0d151c15451bebe0bc8e4c30ba45c55e101f1f7d6b0",
+    "Accessors_ChecksumVal.cpp": "af1067656910afc5780589f05f11610771661fe01618a7fbf17b1f977b4b992d",
+    "ringbuffer.hpp": "9bae114d96201e7e70c02b153e62580b39484b3e963624f5c15c6be70d8d7997",
+    "LoggingOps_4.cpp": "a26e7b44ae54e883575dbfefae2cb852e98b24ff2d791de5df0798b3dc5ea654",
+    "Accessors_ChecksumAlg.cpp": "cda567c9f96adff830b78ca548be8e00dbf15ce9feaf7df0df45a7855a82ef20",
+    "LoggingOps_6.cpp": "7e4157984a58ed182aa05ea7048b07094f1309ed10a1244fee91f30d80a3092e",
+    "Accessors_Size_Transformed.cpp": "133e34e82c43af7e933d9bc5fd5af5be1e5f5bd4bd61879cb1c43fa6c39c1073",
+    "LoggingOps_3.cpp": "9de02b196e07e231ca1bb2ad74040601973248547fbd80d45272d5a9b5782c0c",
+    "LoggingOps_2.cpp": "bb42c7318f8018634255b68f7d9013b089099f640b0e0f56aad2ce1a93ddb7b9",
+    "Accessors_Status.cpp": "24a37e639a07dfd502cfd73588d480f8295564ed1420d5920b215ce6080c616b",
+    "LoggingOps_1.cpp": "046dc0f83d4220b7793e5ed3ca8e9891be2ee724f323f213a77fefa6ca59bc29",
+    "ReadOps.cpp": "789860e893e7de8248d776fdbd772b2f25ce9179182dd30da5ac5f0b09731d4d",
+    "Accessors_Size_Data.cpp": "f1c42c6b80db98f555b9214ecb75ceab65467cb1b60e9a46cf550e9394e829d2",
+    "Lifecycle.cpp": "10788df98585c2c6dda60b5a9185bfdb639f7f95fff2f095cbadc780500efefa",
+    "TransformOps.cpp": "f7fb4abd41d4e0c3ace96abe45dea00da28ba62c87212f1e166c482e54d35441",
+    "status.hpp": "c91cbda5df318cd50626e1fe1c14c1f20f70660beafa2b9dc9eea3fbde0f974f",
+    "ErrorOps.cpp": "3f7d24c6b67e222db677f08fd7c9f4b6a7669ed48e1678634dde17e4e0a337a9",
+    "Accessors_Size_Max.cpp": "c80a5b89b1cfdbaaa796ba3cb77d1630cdf35f375ef2dd29806839b77f14f405",
+    "Threading.cpp": "383dee7a7addf4f827228726dcc551ea0196eca8302cf33db62f037cd8730076",
+    "swtr_ringbuffer_impl.hpp": "e4ca77e0d1924ccf4fa47d523c29db7c4c4158a0ea9978b3d17db2b965f68564",
+    "WriteOps.cpp": "6ce4807b860938c272bfc8b18d02ad4771ae558dccda94463f251aab4c39e41d"
+  }
+}

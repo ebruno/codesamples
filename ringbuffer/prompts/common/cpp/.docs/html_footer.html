@@ -1,0 +1,14 @@
+<!-- Custom footer for Doxygen HTML output -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var doc = document.getElementById('doc-content');
+    if (doc) {
+        var footer = document.createElement('div');
+        footer.style.marginTop = '20px';
+        footer.style.paddingTop = '10px';
+        footer.style.borderTop = '1px solid #ccc';
+        footer.innerHTML = '<small>BSD 3-Clause License &copy; 2019, Eric Bruno All rights reserved.</small>';
+        doc.appendChild(footer);
+    }
+});
+</script>

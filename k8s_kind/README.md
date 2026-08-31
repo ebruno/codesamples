@@ -1,21 +1,22 @@
-# K8s Demo #
+# Kubernetes (kind) Demo
 
-Demostration of a nginx server using [kind](https://kind.sigs.k8s.io) and k8.
+Demonstration of an nginx server using [kind](https://kind.sigs.k8s.io) and Kubernetes.
 
 This has been tested on the following environments
 
- * Debian 12 and 13 requires kind, kubectl and docker to be installed on the system.
- * RHEL 10 requires kind, kubectl and podman to be installed on the system.
- * MacOS X Sequoia M4 requires kind, kubectl and docker to be installed on the system.
+ * Debian 12/13 requires kind, kubectl, and Docker.
+ * RHEL 10 requires kind, kubectl, and podman.
+ * macOS requires kind, kubectl, and Docker.
 
-## Running the demo ##
+## Running the Demo
 
-	 ./setup_cluster.sh
-	 ./run_cluster.sh
+```bash
+./setup_cluster.sh
+./run_cluster.sh
 
-	 # When you are done.
-
-	 ./cleanup.sh
+# When you are done:
+./cleanup.sh
+```
 
 
 Sample Run

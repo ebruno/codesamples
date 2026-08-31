@@ -1,0 +1,32 @@
+{
+  "is_template": true,
+  "template_name": "Fedora",
+  "template_description": "RPM-based, dnf package manager, semver versioning",
+  "source_distro": "fedora",
+
+  "classification": "containerized_amd64",
+  "os_family": "redhat",
+
+  "detection_method": "Linux — /etc/os-release (ID= field)",
+  "os_id": "fedora",
+  "version_model": "semver",
+  "package_manager": "dnf",
+
+  "architecture": "x86_64",
+  "base_image": "fedora:44",
+  "has_arm64_container": false,
+
+  "compiler": "g++",
+  "binary_analysis_tool": "readelf",
+  "default_languages": ["cpp"],
+
+  "prerequisite_packages": [
+    "gcc", "gcc-c++", "binutils", "make", "cmake", "doxygen",
+    "clang", "procps-ng", "coreutils", "findutils",
+    "file", "patchelf", "vim-minimal", "strace", "python3"
+  ],
+
+  "api_notes": "Standard glibc, full POSIX support",
+
+  "notes": "RPM-based distribution. Container images are amd64-only."
+}

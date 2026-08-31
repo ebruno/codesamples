@@ -1,0 +1,1 @@
+../../../../../common/cpp/tests/utils/bin/lint_prompts.sh

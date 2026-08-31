@@ -1,144 +1,81 @@
-# fizzbuzz #
-Fizzbuzz written in go.
-Process the numbers 1 - 100.
-Writes fizz when the number is modulo 3
-Writes buzz when the number is modulo 5
-Writes fizzbuzz when the number is both modulo 3 and 5
-Otherwise just writes the number.
+# FizzBuzz
 
-## Tested environments ##
+FizzBuzz written in Go. Processes numbers 1 to 100:
+- Multiple of 3 → "Fizz"
+- Multiple of 5 → "Buzz"
+- Multiple of both → "FizzBuzz"
+- Otherwise → the number itself
 
- * Fedora 43 bazel 9
- * MacOS 26 bazel 8
+## Tested Environments
 
-## Build fizzbuzz  ##
+- Fedora 43 (Bazel 9)
+- macOS 26 (Bazel 8)
 
-Either make or bazel can be used to build the sample application.
+## Build
 
-### Using make ###
+Either Make or Bazel can be used.
 
-	  make
+### Using Make
 
-to clean up the directory
+```bash
+make
+```
 
-	  make clean|dist-clean
+To clean up:
 
-### Using bazel ###
+```bash
+make clean
+make dist-clean
+```
 
-	. ./setup_bazel_env.sh
-	bazel build //:fizzbuzz
+### Using Bazel
 
-to clean up the directory:
+```bash
+. ./setup_bazel_env.sh
+bazel build //:fizzbuzz
+```
 
-    ./clean_bazel.sh
+To clean up:
 
-### Run fuzzbuzz build by make ###
+```bash
+./clean_bazel.sh
+```
 
-	  ./fuzzbuzz
+## Run
 
-### Run fuzzbuzz build by bazel ###
+### Make
 
-	bazel run //:fizzbuzz
+```bash
+./fizzbuzz
+```
+
+### Bazel
+
+```bash
+bazel run //:fizzbuzz
+```
 
 ## Sample Output
 
-	  1
-	  2
-	  fizz
-	  4
-	  buzz
-	  fizz
-	  7
-	  8
-	  fizz
-	  buzz
-	  11
-	  fizz
-	  13
-	  14
-	  fizzbuzz
-	  16
-	  17
-	  fizz
-	  19
-	  buzz
-	  fizz
-	  22
-	  23
-	  fizz
-	  buzz
-	  26
-	  fizz
-	  28
-	  29
-	  fizzbuzz
-	  31
-	  32
-	  fizz
-	  34
-	  buzz
-	  fizz
-	  37
-	  38
-	  fizz
-	  buzz
-	  41
-	  fizz
-	  43
-	  44
-	  fizzbuzz
-	  46
-	  47
-	  fizz
-	  49
-	  buzz
-	  fizz
-	  52
-	  53
-	  fizz
-	  buzz
-	  56
-	  fizz
-	  58
-	  59
-	  fizzbuzz
-	  61
-	  62
-	  fizz
-	  64
-	  buzz
-	  fizz
-	  67
-	  68
-	  fizz
-	  buzz
-	  71
-	  fizz
-	  73
-	  74
-	  fizzbuzz
-	  76
-	  77
-	  fizz
-	  79
-	  buzz
-	  fizz
-	  82
-	  83
-	  fizz
-	  buzz
-	  86
-	  fizz
-	  88
-	  89
-	  fizzbuzz
-	  91
-	  92
-	  fizz
-	  94
-	  buzz
-	  fizz
-	  97
-	  98
-	  fizz
-	  buzz
+```text
+  1
+  2
+  fizz
+  4
+  buzz
+  fizz
+  7
+  8
+  fizz
+  buzz
+  11
+  fizz
+  13
+  14
+  fizzbuzz
+  ...
+  97
+  98
+  fizz
+  buzz
+```

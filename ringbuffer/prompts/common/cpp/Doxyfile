@@ -1,0 +1,107 @@
+# Doxygen configuration for swtr_ringbuffer C++ class diagrams
+
+PROJECT_NAME           = "swtr_ringbuffer C++"
+PROJECT_NUMBER         = 1.0.0-1
+OUTPUT_DIRECTORY       = ../../../docs/ringbuffer/cpp/html
+# Main page overview (Doxygen 1.17+ uses @mainpage in source)
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = YES
+
+# Input — only document from common source (symlinks cause duplication)
+INPUT                  = ../../../src/common/cpp \
+                         .docs/swtr_ringbuffer_overview.md
+
+# Strip leading path from file paths in documentation (relative to Doxyfile location)
+STRIP_FROM_PATH        = ../../../src/common/cpp \
+                         .docs
+
+# Main page — use markdown file as main page (in .docs to avoid treeview entry)
+USE_MDFILE_AS_MAINPAGE = .docs/swtr_ringbuffer_overview.md
+
+# Only include C++ source, header, and markdown files
+FILE_PATTERNS          = *.cpp *.hpp *.md
+
+# Recurse into subdirectories (for src/*/cpp/)
+RECURSIVE              = YES
+
+# Exclude test files, build artifacts, and symlinked OS directories
+EXCLUDE_PATTERNS       = */tests/* \
+                         *.o \
+                         *~
+
+# Exclude symlinked OS directories to avoid duplicate file entries
+EXCLUDE                = ../../../src/macos/cpp \
+                         ../../../src/fedora/cpp \
+                         ../../../src/debian/cpp \
+                         ../../../src/ubuntu/cpp \
+                         ../../../src/raspios/cpp \
+                         ../../../src/archlinux/cpp
+
+# Output — HTML only (standalone landing page)
+GENERATE_HTML          = YES
+HTML_OUTPUT            = .
+HTML_FILE_EXTENSION    = .html
+GENERATE_HTMLHELP      = NO
+GENERATE_QHP           = NO
+SEARCHENGINE           = YES
+
+# Standalone landing page with brief descriptions and search
+GENERATE_TREEVIEW      = YES
+FULL_PATH_NAMES        = NO
+TREEVIEW_WIDTH         = 250
+
+# Diagrams — PNG format via Graphviz DOT tool
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = png
+UML_LOOK               = YES
+COLLABORATION_GRAPH    = YES
+CLASS_GRAPH            = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+MEMBER_GRAPH           = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+
+# Project brief for main page header
+PROJECT_BRIEF          = "High-performance, cross-platform circular buffer library with pipelined Read→Transform→Write architecture"
+
+# Document everything — public and private
+EXTRACT_ALL            = YES
+
+# Preprocessor defines for Doxygen (so it can expand macros)
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+PREDEFINED             = "SWTR_EXPORT=__attribute__((visibility(\"default\")))"
+                         "__attribute__(x)="
+SKIP_FUNCTION_MACROS   = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_PACKAGE        = NO
+
+# Show undocumented relations in diagrams (not hide them)
+HIDE_UNDOC_RELATIONS   = NO
+
+# Limit diagram size to prevent huge graphs
+DOT_GRAPH_MAX_NODES    = 50
+MAX_DOT_GRAPH_DEPTH    = 1000
+
+# UML-style formatting
+UML_LIMIT_NUM_FIELDS   = 50
+TEMPLATE_RELATIONS     = YES
+
+# Brief descriptions in landing page
+SHORT_NAMES            = NO
+JAVADOC_AUTOBRIEF      = YES
+
+# Alphabetical index
+ALPHABETICAL_INDEX     = YES
+
+# Ignore common system headers
+IGNORE_PREFIX          = 
+
+# Generate a standalone index.html with project overview
+GENERATE_LATEX         = NO
+
+# Custom footer with license info
+HTML_FOOTER            = ../.docs/footer.html

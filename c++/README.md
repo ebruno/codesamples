@@ -1,132 +1,62 @@
-## fizzbuzz ##
-Fizzbuzz written in C++ 2020.
+## FizzBuzz
+
+FizzBuzz written in C++20.
 Process the numbers 1 - 100.
 Writes fizz when the number is modulo 3
 Writes buzz when the number is modulo 5
 Writes fizzbuzz when the number is both modulo 3 and 5
 Otherwise just writes the number.
 
-## Build fizzbuzz ##
+## Build
 
-      make
+```bash
+make
+```
 
-to clean up the directory
+To clean up the directory:
 
-      make clean|dist-clean
+```bash
+make clean
+make dist-clean
+```
 
-## Run fuzzbuzz ##
+## Run
 
-      ./fuzzbuzz
+```bash
+./fizzbuzz
+```
 
-### Sample Output ###
+## Sample Output
 
-	  1
-	  2
-	  fizz
-	  4
-	  buzz
-	  fizz
-	  7
-	  8
-	  fizz
-	  buzz
-	  11
-	  fizz
-	  13
-	  14
-	  fizzbuzz
-	  16
-	  17
-	  fizz
-	  19
-	  buzz
-	  fizz
-	  22
-	  23
-	  fizz
-	  buzz
-	  26
-	  fizz
-	  28
-	  29
-	  fizzbuzz
-	  31
-	  32
-	  fizz
-	  34
-	  buzz
-	  fizz
-	  37
-	  38
-	  fizz
-	  buzz
-	  41
-	  fizz
-	  43
-	  44
-	  fizzbuzz
-	  46
-	  47
-	  fizz
-	  49
-	  buzz
-	  fizz
-	  52
-	  53
-	  fizz
-	  buzz
-	  56
-	  fizz
-	  58
-	  59
-	  fizzbuzz
-	  61
-	  62
-	  fizz
-	  64
-	  buzz
-	  fizz
-	  67
-	  68
-	  fizz
-	  buzz
-	  71
-	  fizz
-	  73
-	  74
-	  fizzbuzz
-	  76
-	  77
-	  fizz
-	  79
-	  buzz
-	  fizz
-	  82
-	  83
-	  fizz
-	  buzz
-	  86
-	  fizz
-	  88
-	  89
-	  fizzbuzz
-	  91
-	  92
-	  fizz
-	  94
-	  buzz
-	  fizz
-	  97
-	  98
-	  fizz
-	  buzz
+```text
+  1
+  2
+  fizz
+  4
+  buzz
+  fizz
+  7
+  8
+  fizz
+  buzz
+  11
+  fizz
+  13
+  14
+  fizzbuzz
+  ...
+  97
+  98
+  fizz
+  buzz
+```
 
-## Using the AI Prompts ##
+## Using the AI Prompts
 
 Copy the file fizzbuzz.cpp.orig to fizzbuzz.cpp and then use the AI tools to see it update the source code.
 The LLM used was Gemma 4 31B QAT
 
-## Assemble Prompts ##
+## Assemble Prompts
 
 The `assemble_prompt.sh` and `assemble_prompt.zsh` scripts are used to create prompts for LLMs to refactor C++ files. They combine a system prompt and a template with the content of the specified files.
 
@@ -141,7 +71,7 @@ Options:
 Example:
       ./assemble_prompt.sh fizzbuzz.cpp
 
-## Prompt Engine ##
+## Prompt Engine
 
 The `prompt_engine.py` script is a Python-based version of the prompt assembler. It not only combines the system and template prompts but also parses YAML configuration frontmatter from the template and prints the assembled prompt directly to the console.
 

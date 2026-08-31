@@ -1,0 +1,79 @@
+{
+  "macos": {
+    "targets": [
+      {"target": "macos", "transports": ["native"]},
+      {"target": "fedora", "transports": ["container", "ssh"]},
+      {"target": "debian", "transports": ["container", "ssh"]},
+      {"target": "ubuntu", "transports": ["container", "ssh"]},
+      {"target": "raspios", "transports": ["container", "ssh"]},
+      {"target": "archlinux", "transports": ["ssh"]},
+      {"target": "freebsd14", "transports": ["ssh"]}
+    ]
+  },
+  "fedora": {
+    "targets": [
+      {"target": "fedora", "transports": ["native"]},
+      {"target": "debian", "transports": ["container", "ssh"]},
+      {"target": "ubuntu", "transports": ["container", "ssh"]},
+      {"target": "raspios", "transports": ["container", "ssh"]},
+      {"target": "archlinux", "transports": ["container", "ssh"]},
+      {"target": "macos", "transports": ["skip"]},
+      {"target": "freebsd14", "transports": ["ssh"]}
+    ]
+  },
+  "debian": {
+    "targets": [
+      {"target": "debian", "transports": ["native"]},
+      {"target": "fedora", "transports": ["container", "ssh"]},
+      {"target": "ubuntu", "transports": ["container", "ssh"]},
+      {"target": "raspios", "transports": ["container", "ssh"]},
+      {"target": "archlinux", "transports": ["container", "ssh"]},
+      {"target": "macos", "transports": ["skip"]},
+      {"target": "freebsd14", "transports": ["ssh"]}
+    ]
+  },
+  "ubuntu": {
+    "targets": [
+      {"target": "ubuntu", "transports": ["native"]},
+      {"target": "fedora", "transports": ["container", "ssh"]},
+      {"target": "debian", "transports": ["container", "ssh"]},
+      {"target": "raspios", "transports": ["container", "ssh"]},
+      {"target": "archlinux", "transports": ["container", "ssh"]},
+      {"target": "macos", "transports": ["skip"]},
+      {"target": "freebsd14", "transports": ["ssh"]}
+    ]
+  },
+  "raspios": {
+    "targets": [
+      {"target": "raspios", "transports": ["native"]},
+      {"target": "fedora", "transports": ["container", "ssh"]},
+      {"target": "debian", "transports": ["container", "ssh"]},
+      {"target": "ubuntu", "transports": ["container", "ssh"]},
+      {"target": "archlinux", "transports": ["container", "ssh"]},
+      {"target": "macos", "transports": ["skip"]},
+      {"target": "freebsd14", "transports": ["ssh"]}
+    ]
+  },
+  "archlinux": {
+    "targets": [
+      {"target": "archlinux", "transports": ["native"]},
+      {"target": "fedora", "transports": ["container", "ssh"]},
+      {"target": "debian", "transports": ["container", "ssh"]},
+      {"target": "ubuntu", "transports": ["container", "ssh"]},
+      {"target": "raspios", "transports": ["container", "ssh"]},
+      {"target": "macos", "transports": ["skip"]},
+      {"target": "freebsd14", "transports": ["ssh"]}
+    ]
+  },
+  "freebsd14": {
+    "targets": [
+      {"target": "freebsd14", "transports": ["native"]},
+      {"target": "macos", "transports": ["skip"]},
+      {"target": "fedora", "transports": ["skip"]},
+      {"target": "debian", "transports": ["skip"]},
+      {"target": "ubuntu", "transports": ["skip"]},
+      {"target": "raspios", "transports": ["skip"]},
+      {"target": "archlinux", "transports": ["skip"]}
+    ]
+  }
+}

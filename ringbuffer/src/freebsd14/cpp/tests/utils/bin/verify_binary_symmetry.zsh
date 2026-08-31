@@ -1,0 +1,1 @@
+../../../../../common/cpp/tests/utils/bin/verify_binary_symmetry.zsh
