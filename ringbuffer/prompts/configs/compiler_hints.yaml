@@ -1,0 +1,49 @@
+# Compiler and Toolchain Hints
+
+# These hints provide guidance to the LLM on the preferred 
+# flags, standards, and toolchain settings for each language.
+
+c:
+  flags: "-Wall -Wextra -Wpedantic -O3"
+  standards: "-std=c11"
+  recommended_compiler: "gcc/clang"
+  binary_optimization:
+    compiler_flags: 
+      - "-ffunction-sections"
+      - "-fdata-sections"
+    linker_flags: 
+      - "--gc-sections" # Linux/most systems
+      - "--print-gc-sections" # Optional: prints removed sections
+    goal: "Enable dead code elimination for smaller static binaries by placing each function/data item in its own section."
+
+cpp:
+  flags: "-Wall -Wextra -Wpedantic -O3"
+  standards: "-std=c++20"
+  recommended_compiler: "gcc/clang"
+  binary_optimization:
+    compiler_flags: 
+      - "-ffunction-sections"
+      - "-fdata-sections"
+    linker_flags: 
+      - "--gc-sections" # Linux/most systems
+      - "--print-gc-sections" # Optional: prints removed sections
+    goal: "Enable dead code elimination for smaller static binaries by placing each function/data item in its own section."
+
+rust:
+  flags: "" # Managed via Cargo.toml
+  target_profile: "release"
+  recommended_toolchain: "stable"
+
+go:
+  flags: "" # Managed by the Go toolchain
+  recommended_toolchain: "latest"
+
+python:
+  version: "3.10+"
+  linter: "flake8/mypy"
+  type_checking: "true"
+
+java:
+  version: "17+"
+  compiler: "javac"
+  flags: "-Xlint:all"

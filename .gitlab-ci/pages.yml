@@ -1,0 +1,17 @@
+# .gitlab-ci/pages.yml — Publish ringbuffer docs to GitLab Pages
+
+pages:
+  stage: publish
+  image: ubuntu:24.04
+  before_script:
+    - apt-get update && apt-get install -y doxygen graphviz python3 python3-pip python3-venv
+  script:
+    - make publish-to-gitlab-pages
+    - ls -l pages
+    - ls -l pages/ringbuffer
+    - cat pages/index.html
+  publish: pages
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - ringbuffer/**

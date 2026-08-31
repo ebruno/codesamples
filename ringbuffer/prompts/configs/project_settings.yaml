@@ -1,0 +1,29 @@
+# Project Structural Settings
+
+base_source_dir: "ringbuffer/src"
+
+# Directory layout for generated code
+# The LLM should use this pattern to determine where to place files
+layout_pattern: "{base_source_dir}/{os}/{language}/"
+
+# Prefix for classes, namespaces, and functions to avoid collisions
+# Default is swtr
+naming_prefix:
+  c: "swtr_"
+  cpp: "swtr_"
+
+# File naming conventions
+naming_conventions:
+  c: "snake_case"
+  cpp: "snake_case" # For files, PascalCase for classes
+  rust: "snake_case"
+  go: "snake_case"
+  python: "snake_case"
+  java: "PascalCase" # For files and classes
+
+# Required accompanying files for each implementation
+required_artifacts:
+  - "Makefile"
+  - "CMakeLists.txt"
+  - "README.md"
+  - "test_suite" # Specific test file name per language convention

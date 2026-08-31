@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Ringbuffer — Post-commit hook: suggest CHANGELOG entry for prompt changes
+#
+# This is a sample hook. See githooks/INSTALL.md for installation instructions.
+#
+# IMPORTANT: This repo contains multiple projects. The hook only triggers
+# for changes under ringbuffer/prompts/ — not prompts/ in other projects.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+SUGGEST_SCRIPT="$SCRIPT_DIR/utils/bin/suggest_changelog_entry.sh"
+
+# Only run if suggest script exists and is executable
+if [ ! -x "$SUGGEST_SCRIPT" ]; then
+    exit 0
+fi
+
+# Run the suggestion script (passes HEAD as default commit)
+"$SUGGEST_SCRIPT" "$(git rev-parse HEAD)"

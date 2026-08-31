@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0",
+  "cpp": {
+    "fedora": [
+      {"name": "g++", "min_version": "13.0.0", "supported": true, "description": "GNU C++ compiler — requires GCC 13+ for <format> header (C++20)"},
+      {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "LLVM C++ compiler — requires Clang 15+ for <format> header (C++20)"}
+    ],
+    "debian": [
+      {"name": "g++", "min_version": "13.0.0", "supported": true, "description": "GNU C++ compiler — requires GCC 13+ for <format> header (C++20)"},
+      {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "LLVM C++ compiler — requires Clang 15+ for <format> header (C++20)"}
+    ],
+    "ubuntu": [
+      {"name": "g++", "min_version": "13.0.0", "supported": true, "description": "GNU C++ compiler — requires GCC 13+ for <format> header (C++20)"},
+      {"name": "clang++", "min_version": "15.0.0", "supported": false, "description": "LLVM C++ compiler — Ubuntu clang looks for headers in GCC 14 path which doesn't exist (see README Known Issues)"}
+    ],
+    "raspios": [
+      {"name": "g++", "min_version": "13.0.0", "installed_version": "12.2.0", "supported": false, "description": "GNU C++ compiler — Bookworm ships GCC 12.2, lacks <format> header (C++20)"},
+      {"name": "clang++", "min_version": "15.0.0", "installed_version": "14.0.6", "supported": false, "description": "LLVM C++ compiler — Bookworm ships Clang 14.0, lacks <format> header (C++20)"}
+    ],
+    "archlinux": [
+      {"name": "g++", "min_version": "13.0.0", "supported": true, "description": "GNU C++ compiler — rolling release provides recent GCC"},
+      {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "LLVM C++ compiler — rolling release provides recent Clang"}
+    ],
+    "macos": [
+      {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "Apple Clang — ships with Xcode 15+ (Clang 15+)"},
+      {"name": "g++-16", "min_version": "13.0.0", "supported": true, "description": "Homebrew GCC — must be installed separately via brew install gcc"}
+    ],
+    "freebsd14": [
+      {"name": "clang++", "min_version": "15.0.0", "supported": true, "description": "LLVM C++ compiler — FreeBSD 14 ships with Clang 15"}
+    ]
+  },
+  "c": {
+    "fedora": [
+      {"name": "gcc", "min_version": "13.0.0", "supported": false, "description": "GNU C compiler — not yet implemented"},
+      {"name": "clang", "min_version": "15.0.0", "supported": false, "description": "LLVM C compiler — not yet implemented"}
+    ],
+    "debian": [
+      {"name": "gcc", "min_version": "13.0.0", "supported": false, "description": "GNU C compiler — not yet implemented"},
+      {"name": "clang", "min_version": "15.0.0", "supported": false, "description": "LLVM C compiler — not yet implemented"}
+    ],
+    "ubuntu": [
+      {"name": "gcc", "min_version": "13.0.0", "supported": false, "description": "GNU C compiler — not yet implemented"},
+      {"name": "clang", "min_version": "15.0.0", "supported": false, "description": "LLVM C compiler — not yet implemented"}
+    ],
+    "raspios": [
+      {"name": "gcc", "min_version": "13.0.0", "supported": false, "description": "GNU C compiler — not yet implemented"},
+      {"name": "clang", "min_version": "15.0.0", "supported": false, "description": "LLVM C compiler — not yet implemented"}
+    ],
+    "archlinux": [
+      {"name": "gcc", "min_version": "13.0.0", "supported": false, "description": "GNU C compiler — not yet implemented"},
+      {"name": "clang", "min_version": "15.0.0", "supported": false, "description": "LLVM C compiler — not yet implemented"}
+    ],
+    "macos": [
+      {"name": "clang", "min_version": "15.0.0", "supported": false, "description": "Apple Clang — not yet implemented"},
+      {"name": "gcc", "min_version": "13.0.0", "supported": false, "description": "Homebrew GCC — not yet implemented"}
+    ],
+    "freebsd14": [
+      {"name": "cc", "min_version": "13.0.0", "supported": false, "description": "FreeBSD cc — not yet implemented"},
+      {"name": "clang", "min_version": "15.0.0", "supported": false, "description": "LLVM C compiler — not yet implemented"}
+    ]
+  },
+  "java": {
+    "fedora": [
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — available on Fedora"}
+    ],
+    "debian": [
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — available via Debian repos"}
+    ],
+    "ubuntu": [
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — available via Ubuntu repos"}
+    ],
+    "raspios": [
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17 — latest available on Bookworm (raspios base)"}
+    ],
+    "archlinux": [
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — rolling release provides recent JDK"}
+    ],
+    "macos": [
+      {"name": "javac", "min_version": "17.0.0", "supported": true, "description": "OpenJDK 17+ — must be installed via brew install openjdk@17"}
+    ]
+  },
+  "python": {
+    "fedora": [
+      {"name": "python3", "min_version": "3.12.0", "supported": true, "description": "Python 3.12+ — required for f-string debugging features"}
+    ],
+    "debian": [
+      {"name": "python3", "min_version": "3.12.0", "supported": true, "description": "Python 3.12+ — required for f-string debugging features"}
+    ],
+    "ubuntu": [
+      {"name": "python3", "min_version": "3.12.0", "supported": true, "description": "Python 3.12+ — required for f-string debugging features"}
+    ],
+    "raspios": [
+      {"name": "python3", "min_version": "3.12.0", "supported": true, "description": "Python 3.12+ — required for f-string debugging features"}
+    ],
+    "archlinux": [
+      {"name": "python3", "min_version": "3.12.0", "supported": true, "description": "Python 3.12+ — required for f-string debugging features"}
+    ],
+    "macos": [
+      {"name": "python3", "min_version": "3.12.0", "supported": true, "description": "Python 3.12+ — ships with macOS or install via brew"}
+    ],
+    "freebsd14": [
+      {"name": "python3", "min_version": "3.12.0", "supported": true, "description": "Python 3.12+ — required for f-string debugging features"}
+    ]
+  },
+  "go": {
+    "fedora": [
+      {"name": "go", "min_version": "1.23.0", "supported": false, "description": "Go 1.23+ — not yet implemented"}
+    ],
+    "debian": [
+      {"name": "go", "min_version": "1.23.0", "supported": false, "description": "Go 1.23+ — not yet implemented"}
+    ],
+    "ubuntu": [
+      {"name": "go", "min_version": "1.23.0", "supported": false, "description": "Go 1.23+ — not yet implemented"}
+    ],
+    "raspios": [
+      {"name": "go", "min_version": "1.23.0", "supported": false, "description": "Go 1.23+ — not yet implemented"}
+    ],
+    "archlinux": [
+      {"name": "go", "min_version": "1.23.0", "supported": false, "description": "Go 1.23+ — not yet implemented"}
+    ],
+    "macos": [
+      {"name": "go", "min_version": "1.23.0", "supported": false, "description": "Go 1.23+ — not yet implemented"}
+    ],
+    "freebsd14": [
+      {"name": "go", "min_version": "1.23.0", "supported": false, "description": "Go 1.23+ — not yet implemented"}
+    ]
+  },
+  "rust": {
+    "fedora": [
+      {"name": "rustc", "min_version": "1.75.0", "supported": false, "description": "Rust 1.75+ — not yet implemented"}
+    ],
+    "debian": [
+      {"name": "rustc", "min_version": "1.75.0", "supported": false, "description": "Rust 1.75+ — not yet implemented"}
+    ],
+    "ubuntu": [
+      {"name": "rustc", "min_version": "1.75.0", "supported": false, "description": "Rust 1.75+ — not yet implemented"}
+    ],
+    "raspios": [
+      {"name": "rustc", "min_version": "1.75.0", "supported": false, "description": "Rust 1.75+ — not yet implemented"}
+    ],
+    "archlinux": [
+      {"name": "rustc", "min_version": "1.75.0", "supported": false, "description": "Rust 1.75+ — not yet implemented"}
+    ],
+    "macos": [
+      {"name": "rustc", "min_version": "1.75.0", "supported": false, "description": "Rust 1.75+ — not yet implemented"}
+    ],
+    "freebsd14": [
+      {"name": "rustc", "min_version": "1.75.0", "supported": false, "description": "Rust 1.75+ — not yet implemented"}
+    ]
+  }
+}

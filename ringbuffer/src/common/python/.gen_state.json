@@ -1,0 +1,37 @@
+{
+  "language": "python",
+  "version": "1.0.0-1",
+  "python_version": "3.14.6",
+  "build_status": {
+    "macos": {
+      "route": "native",
+      "status": "PASS",
+      "timestamp": "2026-08-20T16:11:38-0700"
+    },
+    "raspios": {
+      "route": "container",
+      "status": "PASS",
+      "timestamp": "2026-08-20T17:23:08-0700"
+    }
+  },
+  "artifacts": {
+    "concurrent_module": "swtr_ringbuffer/swtr_ringbuffer_concurrent.py",
+    "pure_python_module": "swtr_ringbuffer_pure.py",
+    "test_script_concurrent": "test_ringbuffer.py",
+    "test_script_pure": "test_ringbuffer_pure.py"
+  },
+  "sha256": {
+    "version_mk": "829f1bb41d5b81c73316302ef4003747bc9d3ddda8f7f477078d3d6a8b7adec6",
+    "version.py": "7956fcef096568ed2098abac279c329b40e7023ad6ef34ab08ca63430a157fdd",
+    "benchmark.py": "e17b6daebba38a356104418f5e7eb040cdc7178a4d85626c4ebd8037d3e553fe",
+    "__init__.py": "5a48c7ca9cf72f403749fa575b2f8849a8d58ef10cd582d8b802fd775d8e71fa",
+    "test_ringbuffer_pure.py": "c0f5679243247372ee770eef3f5b6179ebaf0c6c827c977c0cc92e2256d2887e",
+    "swtr_ringbuffer.py": "275ee8df7f8fcdd05e40a2598d03b07410934b5eb700542004ccf14e4da5ec31",
+    "test_ringbuffer.py": "a385ed71ee0d27003b49ba9c267f08fe70b255fd5b778effa4dc0105bedd721e",
+    "base.py": "b36d62e49c63eb44dba2518f28d4169ba573664eb14909b51e20bda3179d8974",
+    "swtr_ringbuffer_pure.py": "0ffedbd302bcf7f4879d947ff792d989814344f94cf1496b0c27e29e4b9f43e5",
+    "swtr_ringbuffer/__init__.py": "8a6d89a3f26ed26a92beb565960ff6b04ba956c7749d9e36a513f7d9dd757108",
+    "swtr_ringbuffer/swtr_ringbuffer_concurrent.py": "a892178c52d851d219b1bfac81816d4b5b0c54340105369b15d208422059ba6c",
+    "swtr_ringbuffer/generate_large_test.py": "1b51ddad92c969ec07f9a587a26b8134abfbbba43cc407e69566a02606883217"
+  }
+}

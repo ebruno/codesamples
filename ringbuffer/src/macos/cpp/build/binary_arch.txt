@@ -1,0 +1,1 @@
+[INFO] Universal binary: arm64-only (compiler does not support -arch x86_64 on Apple Silicon)

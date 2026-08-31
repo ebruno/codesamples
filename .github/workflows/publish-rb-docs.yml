@@ -1,0 +1,52 @@
+name: Publish Ringbuffer Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ringbuffer/**
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codesamples repo
+        uses: actions/checkout@v7.0.1
+
+      - name: Install documentation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz python3 python3-pip python3-venv
+
+      - name: Generate and publish documentation
+        run: make publish-to-github-pages
+
+      - name: Debug output
+        run: |
+          cat ./docs/index.html
+          ls -l ./docs/ringbuffer/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload ephemeral docs artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: './docs'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

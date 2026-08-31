@@ -5,16 +5,14 @@ on:
     branches:
       - '**'
     paths:
-         - .github/workflows/**
-         - packer/aws_create_ami/*.hcl
-         - packer/aws_create_ami/**/*.sh
+      - packer/aws_create_ami/**
 jobs:
   build_aws_ams:
     runs-on: ubuntu-latest
     environment: BUILD_AMI_CI_CD # change to an environment with AWS KEY's defined as secrets.
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
       - name: Setup Packer
         uses: hashicorp/setup-packer@main
         with:

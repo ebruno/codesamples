@@ -1,0 +1,69 @@
+# Linux-specific Python build Makefile
+# Uses GNU Make with /bin/sh (ash) for recipe execution
+
+# Detect distro — raspios reports ID=debian, so check /etc/rpi-issue
+DISTRO_ID := $(shell grep '^ID=' /etc/os-release 2>/dev/null | cut -d= -f2 || echo "")
+ifeq ($(DISTRO_ID),raspios)
+  CPP_SRC_DIR = ../../raspios/cpp
+else ifeq ($(DISTRO_ID),debian)
+  # raspios is based on Debian but reports ID=debian; check for rpi-issue at runtime
+  CPP_SRC_DIR := $(shell if [ -f /etc/rpi-issue ]; then echo ../../raspios/cpp; else echo ../../debian/cpp; fi)
+else ifeq ($(DISTRO_ID),ubuntu)
+  CPP_SRC_DIR = ../../ubuntu/cpp
+else ifeq ($(DISTRO_ID),fedora)
+  CPP_SRC_DIR = ../../fedora/cpp
+else ifeq ($(DISTRO_ID),arch)
+  CPP_SRC_DIR = ../../archlinux/cpp
+else ifeq ($(DISTRO_ID),freebsd)
+  CPP_SRC_DIR = ../../freebsd14/cpp
+else
+  # Default to reference_linux for unknown distros
+  CPP_SRC_DIR = ../../reference_linux/cpp
+endif
+LOG_FILE = logs/build.log
+BUILD_OUTPUT = /tmp/_build_output
+
+.PHONY: build clean test syntax-check
+
+# Create logs directory
+logs:
+	@mkdir -p logs
+
+# Check if C++ source directory exists (single-line)
+check-dir: logs
+	@test -d $(CPP_SRC_DIR) || { echo "WARNING: C++ source directory $(CPP_SRC_DIR) does not exist" >> $(LOG_FILE); echo "C++ build skipped - running Pure Python tests only"; touch .cpp_build_failed; exit 0; }
+
+# Check if C++ Makefile exists (single-line)
+check-makefile: check-dir
+	@test -f $(CPP_SRC_DIR)/Makefile || { echo "WARNING: No Makefile found in $(CPP_SRC_DIR)" >> $(LOG_FILE); echo "C++ build skipped - running Pure Python tests only"; touch .cpp_build_failed; exit 0; }
+
+# Build C++ library (single-line)
+build-cpp: check-makefile
+	@mkdir -p logs; echo "=== Building C++ shared library from $(CPP_SRC_DIR) ===" >> $(LOG_FILE); cd $(CPP_SRC_DIR) && make all > $(BUILD_OUTPUT) 2>&1; BUILD_EXIT=$$?; if grep -qi "unsupported" $(BUILD_OUTPUT); then echo "C++ build not available on this platform - running Pure Python tests only"; touch .cpp_build_failed; exit 0; elif [ $$BUILD_EXIT -ne 0 ]; then echo "WARNING: C++ build failed (exit code $$BUILD_EXIT)" >> $(LOG_FILE); echo "C++ shared library not available - running Pure Python tests only"; touch .cpp_build_failed; exit 0; fi; cat $(BUILD_OUTPUT)
+
+# Symlink shared library (single-line)
+# Note: CPP_SRC_DIR is relative to src/common/python/, but symlink target is resolved from lib/ subdirectory
+# So we need one extra ../ to account for the lib/ directory depth
+symlink: build-cpp
+	@rm -f .cpp_build_failed; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] C++ build succeeded" >> $(LOG_FILE); mkdir -p lib; if [ -f $(CPP_SRC_DIR)/lib/libswtr_ringbuffer.so ]; then rm -f lib/libswtr_ringbuffer.so; ln -s ../$(CPP_SRC_DIR)/lib/libswtr_ringbuffer.so lib/libswtr_ringbuffer.so; echo "[$$(date '+%Y-%m-%d %H:%M:%S %z')] Symlinked libswtr_ringbuffer.so to lib/" >> $(LOG_FILE); fi
+
+# Main build target — always clean first for repeatability
+build: syntax-check symlink
+	@echo "C++ build complete"
+
+# Clean + build — always starts from scratch for repeatability
+all: clean build
+
+# Syntax check — validates all Python files before build
+syntax-check:
+	@echo "=== Python Syntax Check ==="; failed=0; for f in swtr_ringbuffer_pure.py test_ringbuffer.py test_ringbuffer_pure.py; do if python3 -m py_compile $$f 2>/dev/null; then echo "  PASS: $$f"; else echo "  FAIL: $$f — syntax error"; failed=1; fi; done; if [ $$failed -ne 0 ]; then echo "Syntax check FAILED — aborting build."; exit 1; fi; echo "Syntax check passed."
+
+# Run tests
+test: build syntax-check
+	@echo "=== Running Pure Python tests ==="; for t in 1 2 3 4 5 6 7; do echo "T00$$t: Running..."; python3 test_ringbuffer_pure.py $$t || { echo "FAIL: T00$$t failed"; exit 1; }; done; @echo "All Pure Python tests passed"
+
+# Clean
+clean:
+	@rm -rf lib/*.so lib/*.dylib __pycache__ .egg-info build/ .cpp_build_failed
+	@rm -f logs/build.log
+

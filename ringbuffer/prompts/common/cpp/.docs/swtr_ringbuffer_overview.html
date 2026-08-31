@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Ringbuffer Library</title></head>
+<body>
+
+<h1 id="ringbuffer-library">Ringbuffer Library</h1>
+
+<p>A high-performance, cross-platform circular buffer library designed for binary symmetry and deterministic execution.</p>
+
+<p><strong>Implemented:</strong> C++, Java, Python &nbsp;|&nbsp; <strong>7 target OSes:</strong> macOS, Fedora, Debian, Ubuntu, Arch Linux, FreeBSD 14, Raspberry Pi OS &nbsp;|&nbsp; <strong>Pipeline:</strong> Read → Transform → Write with lock-free atomic coordination</p>
+
+<hr />
+
+<h2 id="what-it-does">What It Does</h2>
+
+<p>The Ringbuffer library implements a <strong>three-stage pipelined architecture</strong> (Read → Transform → Write) that connects independent threads through a fixed-size array of shared slots. Each slot carries its own state machine, checksum, and data buffer, enabling lock-free concurrent processing with cache-line-aligned counters to prevent false sharing.</p>
+
+<h3 id="how-the-pipeline-works">How the Pipeline Works</h3>
+
+<ol type="1">
+<li><strong>Read thread</strong> fills slots from an input file descriptor, marking each slot <code>readyfortransform</code> when full. On EOF, it marks the final slot with <code>LAST_BUFFER_TO_TRANSFORM</code>.</li>
+<li><strong>Transform thread</strong> applies a user-supplied function to each slot's data, computes an atomic checksum (MD5/SHA256/SHA512), and marks the slot <code>readyforwrite</code>.</li>
+<li><strong>Write thread</strong> writes transformed data to an output file descriptor, clears the slot buffer, and resets it to <code>readyforread</code>. On the last buffer, it flushes (<code>fsync</code>) before signaling completion.</li>
+</ol>
+
+<p>Each stage uses its own independent atomic index counter, so threads operate on slots without contention. The <code>wait()</code> method blocks until all data has flowed through the entire pipeline and threads have joined cleanly.</p>
+
+<hr />
+
+<h2 id="core-features">Core Features</h2>
+
+<ul>
+<li><strong>Pipelined Architecture</strong> — Decoupled read, transform, and write loops for maximum throughput</li>
+<li><strong>Performance</strong> — Cache-line alignment (64-byte), dead code elimination, thin link-time optimization</li>
+<li><strong>Data Integrity</strong> — Integrated checksumming (MD5, SHA256, SHA512) per buffer slot</li>
+<li><strong>Diagnostics</strong> — Per-stage (read/transform/write) independently configurable logging verbosity</li>
+<li><strong>Cooperative Cancellation</strong> — Graceful shutdown via stop signal or equivalent mechanism</li>
+<li><strong>Error Handling</strong> — Error handler callback that returns non-zero to trigger pipeline shutdown</li>
+<li><strong>EOF Detection</strong> — Automatic propagation of <code>LAST_BUFFER_*</code> status through all stages</li>
+</ul>
+
+<hr />
+
+<h2 id="platform-support">Platform Support</h2>
+
+<table>
+<thead>
+<tr>
+<th>OS</th>
+<th>C++</th>
+<th>Java</th>
+<th>Python</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Fedora</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Debian</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Ubuntu</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Arch Linux</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>FreeBSD 14</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Raspberry Pi OS</td>
+<td>⚠️ Unsupported (GCC 12 lacks C++20 <code>&lt;format&gt;</code>)</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Binary symmetry:</strong> Source code is byte-identical across platforms within the same OS family via symlinks to a single canonical source tree.</p>
+
+<hr />
+
+<h2 id="architecture-overview">Architecture Overview</h2>
+
+<h3 id="c-class-hierarchy">C++ Class Hierarchy</h3>
+
+<pre><code>swtr::RingBuffer (abstract base class)
+    └── swtr::SwtrRingBuffer (concrete implementation)
+
+swtr::BufferSlot (struct — shared slot with state machine, checksum, data buffer)
+</code></pre>
+
+<h3 id="java-class-hierarchy">Java Class Hierarchy</h3>
+
+<pre><code>swtr.RingBuffer (interface)
+    └── swtr.SwtrRingBuffer (concrete implementation)
+
+swtr.BufferSlot, swtr.BufferStatus, swtr.ChecksumAlgorithm, swtr.LogLevel
+</code></pre>
+
+<hr />
+
+<h2 id="quick-example-c">Quick Example (C++)</h2>
+
+<pre><code class="language-cpp">#include "ringbuffer.hpp"
+#include "swtr_ringbuffer_impl.hpp"
+using namespace swtr;
+
+int main() {
+    auto transform = [](std::vector&lt;uint8_t&gt;&amp; data, size_t&amp; size) {
+        for (size_t i = 0; i &lt; size; ++i)
+            if (data[i] &gt;= 'a' &amp;&amp; data[i] &lt;= 'z') data[i] -= 32;
+    };
+
+    auto rb = std::make_unique&lt;SwtrRingBuffer&gt;(4, BufferStatus::readyforread, 4096, nullptr, transform);
+    rb-&gt;set_read_fd(STDIN_FILENO);
+    rb-&gt;set_write_fd(STDOUT_FILENO);
+    rb-&gt;start();
+    rb-&gt;wait();   // blocks until all data flows through read → transform → write
+    rb-&gt;stop();
+}
+</code></pre>
+
+<hr />
+
+<h2 id="build--test-pattern-all-languages">Build &amp; Test Pattern (All Languages)</h2>
+
+<ul>
+<li><strong>Build:</strong> <code>verify_build</code> → <code>&lt;os&gt;/&lt;lang&gt;/Makefile all</code> — builds artifacts</li>
+<li><strong>Test:</strong> <code>run_regression</code> → <code>tests/Makefile verify</code> — runs T001–T007 test matrix</li>
+</ul>
+
+<hr />
+
+<h2 id="license">License</h2>
+
+<p><strong>BSD 3-Clause License</strong></p>
+
+<p>Copyright (c) 2019, Eric Bruno<br />
+All rights reserved.</p>
+
+<p>Redistribution and use in source and binary forms, with or without<br />
+modification, are permitted provided that the following conditions are met:</p>
+
+<ol type="1">
+<li>Redistributions of source code must retain the above copyright notice, this<br />
+list of conditions and the following disclaimer.</li>
+<li>Redistributions in binary form must reproduce the above copyright notice,<br />
+this list of conditions and the following disclaimer in the documentation<br />
+and/or other materials provided with the distribution.</li>
+<li>Neither the name of the copyright holder nor the names of its<br />
+contributors may be used to endorse or promote products derived from<br />
+this software without specific prior written permission.</li>
+</ol>
+
+<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"<br />
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE<br />
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE<br />
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE<br />
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL<br />
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR<br />
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER<br />
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,<br />
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE<br />
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+
+</body>
+</html>

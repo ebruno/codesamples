@@ -1,0 +1,1 @@
+../../../../../common/cpp/tests/utils/bin/generate_test_data.sh

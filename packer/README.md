@@ -1,9 +1,9 @@
-# Packer Examples #
+# Packer Examples
 
-Various examples using packer.
+Various examples using [HashiCorp Packer](https://www.packer.io/) to build machine images.
 
-  * archlinux - create a qcow2 image and kvm vm.
-  * aws\_create\_ami - Create a AWS image and store on AWS.
-  * vmware - create a OVA from an ISO using an ESXI Server or vCenter.
-  
-  
+| Directory | Description |
+|-----------|-------------|
+| [`archlinux/`](archlinux/) | Build an Arch Linux qcow2 image and KVM VM |
+| [`aws_create_ami/`](aws_create_ami/) | Build an AWS AMI and store on AWS |
+| [`vmware/`](vmware/) | Build an OVA from an ISO using ESXi or vCenter |

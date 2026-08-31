@@ -8,7 +8,7 @@ This directory contains Lua coding samples.
 A Lua implementation of the classic FizzBuzz problem. It prints numbers from a start value to an end value, replacing multiples of 3 with "Fizz", multiples of 5 with "Buzz", and multiples of both with "FizzBuzz".
 
 **Usage:**
-```lua
+```bash
 # Run with default values (1 to 100)
 lua fizzbuzz.lua
 

@@ -1,7 +1,9 @@
-## Terraform Examples ##
+# Terraform Examples
 
-Terraform examples for the following cloud platforms:
+Infrastructure-as-code examples using [HashiCorp Terraform](https://www.terraform.io/).
 
-  * GCP
-  * AWS
-  * Azure
+| Directory | Cloud | Description |
+|-----------|-------|-------------|
+| [`aws/`](aws/) | AWS | AWS infrastructure examples |
+| [`azure/`](azure/) | Azure | Azure infrastructure examples |
+| [`gcp/`](gcp/) | GCP | Google Cloud Platform — containerized service deployment on Cloud Run |
