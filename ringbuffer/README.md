@@ -247,7 +247,7 @@ FreeBSD lacks `<stop_token>` (C++20) and `std::jthread`, so the ringbuffer uses 
   - `verify_build` → `<os>/<lang>/Makefile all` — builds artifacts and creates symlinks (no tests)
   - `run_regression` → `tests/Makefile verify` — runs T001–T007 test matrix, generates reports
   - Main Makefile must have `test: all` → calls `$(MAKE) -C tests verify`
-  - See `.bionic` section "Build vs Test Workflow Pattern (All Languages)" for full details
+  - See `AGENTS.md` section "Build vs Test Workflow Pattern (All Languages)" for full details
 - **Multi-Language Support**: C++, Java, Python implementations with shared functional specifications; C, Go, Rust in development pipeline.
 - **Multi-Toolchain Compatibility**: Fully buildable using both **GCC** and **Clang**.
 - **C++20 Standard**: Leverages `std::jthread`, cooperative cancellation, and advanced synchronization primitives.
@@ -639,7 +639,7 @@ After the initial setup, use update prompts to synchronize with changed specific
 
 ## Known Issues
 
-- **LM Studio shell ENOENT after session compaction:** After a long session hits its first compaction, `shell_command` calls fail with `spawn ... ENOENT`. This is a bug in LM Studio Bionic — the scratchpad directory isn't materialized until a sandboxed Python or file-delivery call creates it. **Workaround:** run a trivial sandboxed Python call first, then retry the shell command. See `.bionic` Common Pitfalls #1 for details. **Remove this note once LM Studio fixes the bug.**
+- **LM Studio shell ENOENT after session compaction:** After a long session hits its first compaction, `shell_command` calls fail with `spawn ... ENOENT`. This is a bug in LM Studio Bionic — the scratchpad directory isn't materialized until a sandboxed Python or file-delivery call creates it. **Workaround:** run a trivial sandboxed Python call first, then retry the shell command. See `AGENTS.md` Common Pitfalls #1 for details. **Remove this note once LM Studio fixes the bug.**
 
 ## Where We Are At
 
@@ -968,7 +968,7 @@ This project was built entirely through prompt-driven LLM development. The most 
 
 **The Problem:** Across every platform we target — macOS, Linux distros, FreeBSD — the same family of utilities (`grep`, `sed`, `awk`, `find`) behave differently. An LLM will confidently generate code that works on its training data distribution (Linux/GNU) but fails silently or catastrophically elsewhere. This isn't a niche issue — it affects every script in the project, from Makefiles to test harnesses to deployment automation.
 
-**The Rule (enforced in `.bionic`):** Shell scripts must use only bash/zsh builtins and universally available utilities. Forbidden external tools: `awk`, `sed`, `grep`, `cut`, `tr`, `sort`, `uniq`, `find`, `xargs`.
+**The Rule (enforced in `AGENTS.md`):** Shell scripts must use only bash/zsh builtins and universally available utilities. Forbidden external tools: `awk`, `sed`, `grep`, `cut`, `tr`, `sort`, `uniq`, `find`, `xargs`.
 
 **Default shells per platform:** We only use the default shell for each target platform — **zsh on macOS**, **bash on Linux**, and **tcsh on FreeBSD**. This is intentional: each platform's default shell has the best compatibility with that OS's toolchain, package manager, and system utilities. Scripts never assume a non-default shell is available.
 
@@ -1000,7 +1000,7 @@ This project was built entirely through prompt-driven LLM development. The most 
 - **Installed `bmake` on macOS host:** We installed BSD make (`pkg install bmake`) directly on the development Mac so we can write, test, and debug Makefiles natively without needing a container or remote host. This eliminated the guesswork — we can run `make -n` and see real errors instead of hoping the LLM got it right.
 - **Per-OS Makefiles:** Each OS directory gets its own `Makefile` with the correct syntax. macOS uses BSD make syntax (`${VAR}`), Linux distros use GNU make syntax (`$(VAR)`).
 - **Common source, separate builds:** Source files live in `src/common/cpp/` and are symlinked to each OS directory. The Makefile is the only per-OS file that differs in syntax.
-- **`.bionic` rule:** The shell script portability rules in `.bionic` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
+- **`AGENTS.md` rule:** The shell script portability rules in `AGENTS.md` explicitly forbid `$(shell ...)` and `ifeq/else` in any context that might run on macOS.
 
 **Cost:** This was one of the most expensive bugs in the project. A Makefile generated with GNU make syntax would silently fail on macOS with errors like `undefined variable` or `missing separator`. Installing `bmake` locally was the turning point — it let us iterate on Makefiles interactively instead of through trial-and-error LLM prompts.
 
@@ -1015,7 +1015,7 @@ This project was built entirely through prompt-driven LLM development. The most 
 | `zsh` | Default shell (since Catalina) | bash | Different array syntax, different globbing (`**` vs `find`), different parameter expansion |
 
 **How we solved it:**
-- **Shell Script Portability Rule (`.bionic`):** Scripts use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely. This sidesteps all `sed`/`awk` differences.
+- **Shell Script Portability Rule (`AGENTS.md`):** Scripts use only bash/zsh builtins (`printf`, `[[ ]]`, parameter expansion `${var//pattern/replacement}`) and avoid external tools entirely. This sidesteps all `sed`/`awk` differences.
 - **`command -v` instead of `which`:** Tool detection uses POSIX-compatible `command -v`.
 - **zsh compatibility:** Scripts use `#!/usr/bin/env bash` shebangs explicitly — never relying on the default shell. Where zsh-specific features are needed, they're documented and isolated.
 - **Container testing:** OS-specific Makefiles and shell scripts are always tested inside the target OS container, never on the macOS host.
@@ -1037,8 +1037,8 @@ This project was built entirely through prompt-driven LLM development. The most 
 
 **How we solved it:**
 - **Installed `tcsh` on macOS host:** We installed tcsh (`pkg install tcsh`) directly on the development Mac so we can write, test, and debug FreeBSD scripts locally. This eliminated the round-trip latency of SSHing into a remote FreeBSD box for every syntax error.
-- **tcsh reference scripts:** We built a reusable tcsh script library in `rules/tcsh-syntax.md` and supporting scripts that serve as a reference for all FreeBSD 14 operations. These cover the common patterns — SSH execution, tarball unpacking, make invocation, test running — so each new script doesn't start from scratch. The reference is loaded via `.bionic` pre-flight checks before any tcsh script generation, ensuring compliance.
-- **Pre-flight check:** Before creating any tcsh script, the `.bionic` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
+- **tcsh reference scripts:** We built a reusable tcsh script library in `rules/tcsh-syntax.md` and supporting scripts that serve as a reference for all FreeBSD 14 operations. These cover the common patterns — SSH execution, tarball unpacking, make invocation, test running — so each new script doesn't start from scratch. The reference is loaded via `AGENTS.md` pre-flight checks before any tcsh script generation, ensuring compliance.
+- **Pre-flight check:** Before creating any tcsh script, the `AGENTS.md` rules require loading `rules/tcsh-syntax.md` and verifying every line against its constraints.
 - **Shell wrapper pattern:** For complex operations, we use a bash script on the host that SSHes into FreeBSD and runs a minimal tcsh wrapper, avoiding inline tcsh complexity.
 - **`tcsh /tmp/run_freebsd_native_or_ssh.tcsh ~/ringbuffer <os> <mode>`:** A single entry-point script handles all FreeBSD 14 operations (cpp, test-cpp, python-build, python-test, java-build, java-test).
 
@@ -1053,7 +1053,7 @@ The common thread across all these challenges is **platform divergence in tools 
 3. **Explicit per-platform templates** — never assume one syntax works everywhere
 4. **Reusable reference libraries** — tcsh scripts and rules that persist across sessions, loaded via pre-flight checks
 5. **Container-based testing** — always verify inside the target platform, never on the host
-6. **Documentation of gotchas** — capture lessons learned in `.bionic` and `rules/` so they persist across sessions
+6. **Documentation of gotchas** — capture lessons learned in `AGENTS.md` and `rules/` so they persist across sessions
 
 > 📋 The authoritative policy reference is in [Project Policies](#project-policies). The sections above are the background and rationale (the "why"); Project Policies is the reference (the "what").
 
@@ -1379,15 +1379,14 @@ prompts/common/testing/
 #### Part C: Session Best Practices
 The agent harness uses two key configuration files to maintain consistency across development sessions. These are **not** part of the generated README — they are operational files that guide how the agent behaves.
 
-- **`.bionic`** — Session startup configuration loaded automatically at the beginning of every session. It contains:
-  - Project structure quick-reference and path resolution rules
-  - Workflow naming conventions (`implement_*`, `run_*`, `verify_*`)
-  - Platform classification (native-only vs. containerized)
-  - Operational discipline rules (read-before-write, logging format, scope boundaries)
-  - Tool availability check and error handling / loop detection policies
-  - Transitory markers for workflow coordination
+- **`AGENTS.md`** — Session startup configuration loaded automatically at the beginning of every session. It contains:
+  - Critical rules (git discipline, Makefile contract, loop detection)
+  - Table of contents pointing to detailed reference files in `.bionic.d/`
+  - Session initialization checklist and tool availability check
 
-  > **Note:** LM Studio Bionic does not always reliably auto-load `.bionic`. If you do not see the **Tool Availability Report** at session start, manually ask the agent to read `.bionic` to reinitialize session context.
+- **`.bionic.d/project.md`** — Detailed project structure, platform classification, language versions, and implementation phases (loaded on demand).
+
+- **`.bionic.d/rules.md`** — Detailed operational rules, pre-flight checks, and workflow discipline (loaded on demand).
 
 - **`prompts/common/session_hints.md`** — Host-level quick-reference covering OS detection, macOS/Linux versioning, container runtime configuration, and memory calculation.
 
@@ -1397,7 +1396,7 @@ The agent harness uses two key configuration files to maintain consistency acros
   - Shared library linking conventions per platform
   - Common pitfalls and gotchas (e.g., macOS Make built-in defaults)
 
-**Best practice:** Always review `.bionic` at session start to confirm tool availability and operational rules. Reference `session_hints.md` for host-level context, and `prompts/common/cpp/session_hints.md` when working on C++-specific tasks to avoid platform-specific gotchas.
+**Best practice:** Always review `AGENTS.md` at session start to confirm tool availability and operational rules. Reference `.bionic.d/` files for detailed project context, `session_hints.md` for host-level information, and `prompts/common/cpp/session_hints.md` when working on C++-specific tasks to avoid platform-specific gotchas.
 
 #### Test Matrix (T001–T007)
 The test suite validates functional correctness, error handling, transform operations, and stress conditions:

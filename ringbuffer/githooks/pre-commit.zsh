@@ -114,36 +114,10 @@ if [ "$PROMPT_STAGED" -gt 0 ] && [ "$README_STAGED" -eq 0 ]; then
     exit 1
 fi
 
-# ── Rule 3: .bionic.d/* → CLAUDE.md sync (HARD BLOCK) ────────────────────
-# CLAUDE.md is assembled from .bionic.d/project.md + .bionic.d/rules.md
-BIONIC_MOD_STAGED=0
-CLAUDE_STAGED=0
-while IFS= read -r f; do
-    nf=$(normalize_path "$f")
-    case "$nf" in
-        .bionic.d/project.md) BIONIC_MOD_STAGED=1 ;;
-        .bionic.d/rules.md) BIONIC_MOD_STAGED=1 ;;
-        CLAUDE.md) CLAUDE_STAGED=1 ;;
-    esac
-done <<< "$STAGED_FILES"
-
-if [ "$BIONIC_MOD_STAGED" -gt 0 ]; then
-    # Rebuild expected CLAUDE.md from sources and compare against working tree
-    expected_content=$(cat "$SCRIPT_DIR/.bionic.d/project.md" "$SCRIPT_DIR/.bionic.d/rules.md" 2>/dev/null)
-    claude_content=$(cat "$SCRIPT_DIR/CLAUDE.md" 2>/dev/null)
-    
-    if [ "$expected_content" != "$claude_content" ]; then
-        print -r -- ""
-        print -r -- "${RED}✗ BLOCKED: .bionic.d/project.md or .bionic.d/rules.md was modified but CLAUDE.md is not in sync.${NC}"
-        print -r -- ""
-        print -r -- "  CLAUDE.md = cat .bionic.d/project.md .bionic.d/rules.md"
-        print -r -- "  Run: cat .bionic.d/project.md .bionic.d/rules.md > CLAUDE.md"
-        print -r -- "  Then: git add .bionic.d/project.md .bionic.d/rules.md CLAUDE.md"
-        print -r -- "  (Re-stage ALL three files — bionic files may have unstaged edits.)"
-        print -r -- ""
-        exit 1
-    fi
-fi
+# ── Rule 3: AGENTS.md is the single source of truth (no sync needed) ──────
+# AGENTS.md contains all critical rules. .bionic.d/project.md and rules.md
+# are detailed references loaded on demand. CLAUDE.md is a thin wrapper.
+# No sync mechanism — no hard block needed.
 
 # ── Rule 4: TOC verification when README.md is staged (HARD BLOCK) ────
 # Only block if sync didn't already fix it
