@@ -48,8 +48,8 @@ If `README.md` is staged but `prompts/common/templates/readme_template.md` is no
 ### Rule 2: Auto-Sync Template
 When README.md is staged, the hook automatically runs sync_readme_template to update readme_template.md's Content Structure section to match. The updated template is auto-staged.
 
-### Rule 3: .bionic.d/* → CLAUDE.md Sync (Hard Block)
-If `.bionic.d/project.md` or `.bionic.d/rules.md` is staged, `CLAUDE.md` must be in sync (CLAUDE.md = cat .bionic.d/project.md .bionic.d/rules.md). This ensures the LM Studio Bionic agent always has the latest rules. Run `cat .bionic.d/project.md .bionic.d/rules.md > CLAUDE.md` to fix.
+### Rule 3: AGENTS.md is the Single Source of Truth
+`AGENTS.md` contains all critical rules. `.bionic.d/project.md` and `rules.md` are detailed references loaded on demand. `CLAUDE.md` is a thin wrapper that imports `AGENTS.md`. No sync mechanism — no hard block needed.
 
 ## How the Post-Commit Hook Works
 
@@ -89,7 +89,7 @@ ls -la .git/hooks/pre-commit
 
 ### Pre-commit hook blocks a commit I want to make?
 - **If the README change is real**: Also stage `prompts/common/templates/readme_template.md` and retry.
-- **If `.bionic` was modified but CLAUDE.md is out of sync**: Run `make sync-claude`, then re-stage `CLAUDE.md` and retry.
+- **If `.bionic.d/` files were modified**: No sync needed — `AGENTS.md` is the single source of truth.
 - **If the README change was accidental**: Revert it, or use `git commit --no-verify` (bypasses all hooks — use sparingly).
 
 ### Post-commit hook not running?

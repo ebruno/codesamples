@@ -546,7 +546,7 @@ fi
 This project has 18+ script pairs with the same base name but different shell suffixes (e.g., `run_regression.zsh` + `run_regression.sh`, `generate_test_data.zsh` + `generate_test_data.sh`). Due to the Shell Isolation Rule above, each pair represents **independent implementations of the same contract** — they cannot share code.
 
 **Applicable to ALL paired scripts in the project**, including but not limited to:
-- `utils/bin/run_regression.{zsh,sh}`, `run_build.{zsh,sh}`, `check_tools.{zsh,sh}`, `lint_scripts.{zsh,sh}`, `sync-bionic-rules.{zsh,sh}`
+- `utils/bin/run_regression.{zsh,sh}`, `run_build.{zsh,sh}`, `check_tools.{zsh,sh}`, `lint_scripts.{zsh,sh}`
 - `utils/bin/aggregate_verify_build.{zsh,sh}`, `aggregate_regression.{zsh,sh}`, `aggregate_junit.{zsh,sh}`
 - `utils/bin/recover_container_network.{zsh,sh}`
 - `knowledge/build_model.{zsh,sh}`, `knowledge/update.{zsh,sh}`, `knowledge/lms-chat.{zsh,sh}`
