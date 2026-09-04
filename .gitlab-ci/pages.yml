@@ -4,7 +4,10 @@ pages:
   stage: publish
   image: ubuntu:24.04
   before_script:
-    - apt-get update && apt-get install -y doxygen graphviz python3 python3-pip python3-venv
+    - |
+       if grep -qiE "docker|kubepods|containerd" /proc/self/cgroup; then
+         apt-get update && apt-get install -y --no-install-recommends doxygen graphviz python3 python3-pip python3-venv;
+       fi;
   script:
     - make publish-to-gitlab-pages
     - ls -l pages
