@@ -5,8 +5,11 @@ pages:
   image: ubuntu:24.04
   before_script:
     - |
-       if grep -qiE "docker|kubepods|containerd" /proc/self/cgroup; then
-         apt-get update && apt-get install -y --no-install-recommends doxygen graphviz python3 python3-pip python3-venv;
+       if [ "$CI_DISPOSABLE_ENVIRONMENT" = "true" ]; then
+         apt-get update && apt-get install -y --no-install-recommends doxygen graphviz make \
+         python3 python3-pip python3-venv; 
+       else
+          echo "Running in shell runner, skip apt install";
        fi;
   script:
     - make publish-to-gitlab-pages
