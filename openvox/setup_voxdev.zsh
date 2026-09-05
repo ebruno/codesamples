@@ -52,7 +52,7 @@ VOX_CLIENT_NAME="vox_client"
 VOX_CLIENT_HOST_NAME="vox-client"
 WAIT_TIME=30
 WAIT_TIME_CLIENT=30
-VALID_PROVIDERS=(virtualbox vmware_fusion vmware_desktop libvirt)
+VALID_PROVIDERS=(virtualbox vmware_desktop libvirt)
 
 # ── Argument parsing ──────────────────────────────────────────────────────
 
@@ -60,25 +60,28 @@ PROVIDER="virtualbox"
 DO_STATUS=0
 DO_DESTROY=0
 DO_QUICK=0
+DO_GUI=0
 
 usage() {
     print "Usage: setup_voxdev.zsh [options]"
     print ""
     print "  -h            Display this message"
-    print "  -p provider   Provider: virtualbox, vmware_fusion, vmware_desktop, libvirt"
+    print "  -p provider   Provider: virtualbox, vmware_desktop, libvirt"
     print "  -s            Show VM status and exit"
     print "  -d            Destroy all VMs and exit"
     print "  -q            Quick run — skip provisioning (VMs must already be up)"
+    print "  -g            Show VMware VM GUI windows (vmware_desktop only)"
     exit 0
 }
 
-while getopts ":hp:sdq" opt; do
+while getopts ":hp:sdqg" opt; do
     case $opt in
         h) usage ;;
         p) PROVIDER="$OPTARG" ;;
         s) DO_STATUS=1 ;;
         d) DO_DESTROY=1 ;;
         q) DO_QUICK=1 ;;
+        g) DO_GUI=1 ;;
         :) error "Option -$OPTARG requires an argument."; exit 1 ;;
         \?) error "Invalid option: -$OPTARG"; exit 1 ;;
     esac
@@ -123,10 +126,70 @@ fi
 
 # ── --destroy: tear down VMs and exit ─────────────────────────────────────
 
+if (( DO_GUI )); then
+    export VOX_VMWARE_GUI=true
+    info "VMware GUI mode enabled."
+fi
+
 if (( DO_DESTROY )); then
     info "Destroying all VMs..."
     $VAGRANT destroy -f || { error "Destroy failed."; exit 1; }
     info "VMs destroyed."
+    # Clean up stale Vagrant state and global-status cache
+    rm -rf .vagrant/machines 2>/dev/null || true
+    $VAGRANT global-status --prune 2>/dev/null || true
+    # For VMware: remove stale entries from Fusion inventory
+    if [[ "$PROVIDER" == vmware_desktop && "$(uname)" == Darwin ]]; then
+        inventory="$HOME/Library/Application Support/VMware Fusion/vmInventory"
+        if [[ -f "$inventory" ]]; then
+            tmp_inv=$(mktemp)
+            # Find all vmlist/index prefixes associated with our VMs
+            # by searching for vox_server or vox_client in any line
+            vox_prefixes=$(grep -i 'vox_server\|vox_client' "$inventory" 2>/dev/null | grep -o '^[a-z]*[0-9]*' | sort -u || true)
+            # Remove all lines starting with any tracked prefix
+            while IFS= read -r line; do
+                skip=0
+                for pfx in ${=vox_prefixes}; do
+                    [[ "$line" == "$pfx."* ]] && skip=1 && break
+                done
+                [[ "$line" == *".vagrant/machines/vox_server"* ]] && skip=1
+                [[ "$line" == *".vagrant/machines/vox_client"* ]] && skip=1
+                (( skip )) || echo "$line" >> "$tmp_inv"
+            done < "$inventory"
+            # Remove orphaned index entries (those without .id field)
+            tmp_inv2=$(mktemp)
+            # Find index numbers that still have an .id field
+            valid_indexes=$(grep '^index[0-9]*\.id' "$tmp_inv" 2>/dev/null | grep -o '^index[0-9]*' | sort -u || true)
+            while IFS= read -r line; do
+                skip=0
+                if [[ "$line" =~ ^index[0-9]+\. ]] && ! [[ "$line" =~ ^index\.count ]]; then
+                    idx=$(echo "$line" | grep -o '^index[0-9]*')
+                    skip=1
+                    for vi in ${=valid_indexes}; do
+                        [[ "$idx" == "$vi" ]] && skip=0 && break
+                    done
+                fi
+                (( skip )) || echo "$line" >> "$tmp_inv2"
+            done < "$tmp_inv"
+            # Rebuild index.count
+            count=$(grep -c '^index[0-9]' "$tmp_inv2" 2>/dev/null || true)
+            count=$(echo "$count" | head -1 | tr -d '[:space:]')
+            [[ -z "$count" || "$count" != [0-9]* ]] && count=0
+            grep -v '^index\.count =' "$tmp_inv2" > "${tmp_inv2}.new"
+            printf 'index.count = "%s"\n' "$count" >> "${tmp_inv2}.new"
+            mv "${tmp_inv2}.new" "$tmp_inv2"
+            mv "$tmp_inv2" "$inventory"
+            rm -f "$tmp_inv"
+            info "VMware Fusion inventory cleaned."
+            # Also clean Fusion preferences plist
+            plist="$HOME/Library/Preferences/com.vmware.fusion.plist"
+            if [[ -f "$plist" ]]; then
+                defaults delete com.vmware.fusion "PLInventory Selection" 2>/dev/null || true
+                info "VMware Fusion preferences cleaned."
+            fi
+        fi
+    fi
+    info "Cleanup complete."
     exit 0
 fi
 
@@ -162,7 +225,7 @@ case "$PROVIDER" in
             warn "  Name it 'OpenVox0' with DHCP enabled."
         fi
         ;;
-    vmware_fusion|vmware_desktop)
+    vmware_desktop)
         check_plugin vagrant-vmware-desktop
         if ! command -v vmrun &>/dev/null; then
             error "VMware Fusion not found."
@@ -270,10 +333,6 @@ configure_server_hosts() {
             printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s puppet\n%s %s\nHOSTS\n' \
                 "$VOX_SERVER_IP" "$VOX_CLIENT_IP" "$VOX_CLIENT_HOST_NAME" > "$tmp"
             ;;
-        vmware_fusion)
-            printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s puppet\n%s %s\nHOSTS\n' \
-                "$VOX_SERVER_IP" "$VOX_CLIENT_IP" "$VOX_CLIENT_HOST_NAME" > "$tmp"
-            ;;
         vmware_desktop)
             printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s puppet\n%s %s\nHOSTS\n' \
                 "$VOX_SERVER_IP" "$VOX_CLIENT_IP" "$VOX_CLIENT_HOST_NAME" > "$tmp"
@@ -299,7 +358,7 @@ configure_server_hosts() {
 configure_client_hosts() {
     local tmp domain
     tmp=$(mktempfile)
-    domain="$VOX_SERVER_HOST_NAME"   # default; vmware_fusion overrides below
+    domain="$VOX_SERVER_HOST_NAME"   # default
 
     # Build the generated bash script using printf for precise control.
     case "$PROVIDER" in
@@ -307,14 +366,10 @@ configure_client_hosts() {
             printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s %s puppet\nHOSTS\n' \
                 "$VOX_SERVER_IP" "$VOX_SERVER_HOST_NAME" > "$tmp"
             ;;
-        vmware_fusion)
+        vmware_desktop)
             printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s %s puppet %s.localdomain\nHOSTS\n' \
                 "$VOX_SERVER_IP" "$VOX_SERVER_HOST_NAME" "$VOX_SERVER_HOST_NAME" > "$tmp"
             domain="${VOX_SERVER_HOST_NAME}.localdomain"
-            ;;
-        vmware_desktop)
-            printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s %s puppet\nHOSTS\n' \
-                "$VOX_SERVER_IP" "$VOX_SERVER_HOST_NAME" > "$tmp"
             ;;
         *)
             printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s %s puppet\nHOSTS\n' \
@@ -408,10 +463,33 @@ fi
 # ── Verify manifest applied ───────────────────────────────────────────────
 
 info "Verifying manifest was applied..."
-$VAGRANT ssh "$VOX_CLIENT_NAME" -c "which emacs && systemctl is-active systemd-timesyncd && cat /etc/motd" || {
-    error "Manifest verification failed."
+
+info "  Checking emacs-nox package..."
+emacs_path=$($VAGRANT ssh "$VOX_CLIENT_NAME" -c "which emacs" 2>&1) || true
+if [[ "$emacs_path" == /usr/bin/emacs* ]]; then
+    info "  ✓ emacs-nox: installed"
+else
+    error "  ✗ emacs-nox: not found"
     exit 1
-}
+fi
+
+info "  Checking systemd-timesyncd service..."
+timesync_status=$($VAGRANT ssh "$VOX_CLIENT_NAME" -c "systemctl is-active systemd-timesyncd" 2>&1) || true
+if [[ "$timesync_status" == *active* ]]; then
+    info "  ✓ systemd-timesyncd: active"
+else
+    error "  ✗ systemd-timesyncd: not active"
+    exit 1
+fi
+
+info "  Checking /etc/motd..."
+motd=$($VAGRANT ssh "$VOX_CLIENT_NAME" -c "cat /etc/motd" 2>&1) || true
+if [[ "$motd" == *"Managed by OpenVox"* ]]; then
+    info "  ✓ /etc/motd: updated"
+else
+    error "  ✗ /etc/motd: not updated"
+    exit 1
+fi
 
 elapsed=$(( SECONDS - start_time ))
 printf -v elapsed_fmt '%dm %ds' $(( elapsed / 60 )) $(( elapsed % 60 ))

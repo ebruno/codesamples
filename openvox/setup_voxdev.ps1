@@ -49,7 +49,7 @@ if ($IsWindows) {
     $WAIT_TIME_CLIENT = 30
 }
 
-$VALID_PROVIDERS = @("virtualbox", "vmware_fusion", "vmware_desktop", "libvirt")
+$VALID_PROVIDERS = @("virtualbox", "vmware_desktop", "libvirt")
 
 # ── Argument parsing ──────────────────────────────────────────────────────
 
@@ -57,15 +57,17 @@ $PROVIDER = "virtualbox"
 $DO_STATUS = $false
 $DO_DESTROY = $false
 $DO_QUICK = $false
+$DO_GUI = $false
 
 function Show-Help {
     Write-Host "Usage: setup_voxdev.ps1 [options]"
     Write-Host ""
     Write-Host "  -h            Display this message"
-    Write-Host "  -p provider   Provider: virtualbox, vmware_fusion, vmware_desktop, libvirt"
+    Write-Host "  -p provider   Provider: virtualbox, vmware_desktop, libvirt"
     Write-Host "  -s            Show VM status and exit"
     Write-Host "  -d            Destroy all VMs and exit"
     Write-Host "  -q            Quick run — skip provisioning (VMs must already be up)"
+    Write-Host "  -g            Show VMware VM GUI windows (vmware_desktop only)"
     exit 0
 }
 
@@ -134,11 +136,55 @@ if ($DO_STATUS) {
 
 # ── --destroy: tear down VMs and exit ─────────────────────────────────────
 
+if ($DO_GUI) {
+    $env:VOX_VMWARE_GUI = "true"
+    Write-Info "VMware GUI mode enabled."
+}
+
 if ($DO_DESTROY) {
     Write-Info "Destroying all VMs..."
     & $VAGRANT destroy -f
     if ($LASTEXITCODE -ne 0) { Write-ErrorMsg "Destroy failed."; exit 1 }
     Write-Info "VMs destroyed."
+    # Clean up stale Vagrant state and global-status cache
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ".vagrant/machines"
+    & $VAGRANT global-status --prune 2>$null
+    # For VMware: remove stale entries from Fusion inventory
+    if ($PROVIDER -eq "vmware_desktop" -and $IsMacOS) {
+        $inventory = "$env:HOME/Library/Application Support/VMware Fusion/vmInventory"
+        if (Test-Path $inventory) {
+            $allLines = Get-Content $inventory
+            # Find vmlist numbers for our VMs
+            $vmlistNums = ($allLines | Select-String 'vmlist(\d+)\.config.*vagrant/machines/vox_' | ForEach-Object { $_.Matches.Groups[1].Value } | Sort-Object -Unique)
+            # Find index numbers referencing our VMs
+            $indexNums = ($allLines | Select-String 'index(\d+)\.id.*vagrant/machines/vox_' | ForEach-Object { $_.Matches.Groups[1].Value } | Sort-Object -Unique)
+            # Filter out matching lines
+            $lines = @()
+            foreach ($line in $allLines) {
+                $skip = $false
+                foreach ($n in $vmlistNums) {
+                    if ($line -match "^vmlist$n\.") { $skip = $true; break }
+                }
+                foreach ($n in $indexNums) {
+                    if ($line -match "^index$n\.") { $skip = $true; break }
+                }
+                if ($line -match '\.vagrant/machines/vox_server' -or $line -match '\.vagrant/machines/vox_client') { $skip = $true }
+                if (-not $skip) { $lines += $line }
+            }
+            # Rebuild index count
+            $indexCount = ($lines | Select-String "^index\d").Count
+            $lines = $lines -replace "^index\.count = .*", "index.count = `"$indexCount`""
+            $lines | Set-Content $inventory -Encoding UTF8
+            Write-Info "VMware Fusion inventory cleaned."
+            # Also clean Fusion preferences plist
+            $plistPath = "$env:HOME/Library/Preferences/com.vmware.fusion.plist"
+            if (Test-Path $plistPath) {
+                & defaults delete com.vmware.fusion "PLInventory Selection" 2>$null
+                Write-Info "VMware Fusion preferences cleaned."
+            }
+        }
+    }
+    Write-Info "Cleanup complete."
     Set-Location $origLocation
     Remove-TempFiles
     exit 0
@@ -177,7 +223,7 @@ switch ($PROVIDER) {
             Write-Warn "  Name it 'OpenVox0' with DHCP enabled."
         }
     }
-    { $_ -in @("vmware_fusion", "vmware_desktop") } {
+    { $_ -eq "vmware_desktop" } {
         Check-Plugin vagrant-vmware-desktop
         if (-not (Get-Command vmrun -ErrorAction SilentlyContinue)) {
             Write-ErrorMsg "VMware Fusion not found."
@@ -315,9 +361,6 @@ switch ($PROVIDER) {
     { $_ -in @("virtualbox", "libvirt") } {
         Write-HostsScript $serverTmp "$VOX_SERVER_IP puppet`n$VOX_CLIENT_IP $VOX_CLIENT_HOST_NAME"
     }
-    "vmware_fusion" {
-        Write-HostsScript $serverTmp "$VOX_SERVER_IP puppet`n$VOX_CLIENT_IP $VOX_CLIENT_HOST_NAME"
-    }
     "vmware_desktop" {
         Write-HostsScript $serverTmp "$VOX_SERVER_IP puppet`n$VOX_CLIENT_IP $VOX_CLIENT_HOST_NAME"
     }
@@ -335,12 +378,9 @@ switch ($PROVIDER) {
     { $_ -in @("virtualbox", "libvirt") } {
         Write-HostsScript $clientTmp "$VOX_SERVER_IP $VOX_SERVER_HOST_NAME puppet"
     }
-    "vmware_fusion" {
+    "vmware_desktop" {
         Write-HostsScript $clientTmp "$VOX_SERVER_IP $VOX_SERVER_HOST_NAME puppet ${VOX_SERVER_HOST_NAME}.localdomain"
         $VOX_SERVER_DOMAIN_NAME = "${VOX_SERVER_HOST_NAME}.localdomain"
-    }
-    "vmware_desktop" {
-        Write-HostsScript $clientTmp "$VOX_SERVER_IP $VOX_SERVER_HOST_NAME puppet"
     }
     default {
         Write-HostsScript $clientTmp "$VOX_SERVER_IP $VOX_SERVER_HOST_NAME puppet"
@@ -417,9 +457,31 @@ if ($agentRc -ne 0 -and $agentRc -ne 2) {
 # ── Verify manifest applied ───────────────────────────────────────────────
 
 Write-Info "Verifying manifest was applied..."
-& $VAGRANT ssh $VOX_CLIENT_NAME -c "which emacs && systemctl is-active systemd-timesyncd && cat /etc/motd"
-if ($LASTEXITCODE -ne 0) {
-    Write-ErrorMsg "Manifest verification failed."
+
+Write-Info "  Checking emacs-nox package..."
+$emacsResult = & $VAGRANT ssh $VOX_CLIENT_NAME -c "which emacs" 2>&1 | Out-String
+if ($emacsResult -match "/usr/bin/emacs") {
+    Write-Info "  ✓ emacs-nox: installed"
+} else {
+    Write-ErrorMsg "  ✗ emacs-nox: not found"
+    exit 1
+}
+
+Write-Info "  Checking systemd-timesyncd service..."
+$timesyncResult = & $VAGRANT ssh $VOX_CLIENT_NAME -c "systemctl is-active systemd-timesyncd" 2>&1 | Out-String
+if ($timesyncResult -match "active") {
+    Write-Info "  ✓ systemd-timesyncd: active"
+} else {
+    Write-ErrorMsg "  ✗ systemd-timesyncd: not active"
+    exit 1
+}
+
+Write-Info "  Checking /etc/motd..."
+$motdResult = & $VAGRANT ssh $VOX_CLIENT_NAME -c "cat /etc/motd" 2>&1 | Out-String
+if ($motdResult -match "Managed by OpenVox") {
+    Write-Info "  ✓ /etc/motd: updated"
+} else {
+    Write-ErrorMsg "  ✗ /etc/motd: not updated"
     exit 1
 }
 
