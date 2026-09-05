@@ -1,141 +1,401 @@
 #!/usr/bin/env bash
-declare -i exit_status=0;
-if [ -x /usr/bin/sw_vers ]; then
-    OS_TYPE="$(sw_vers -productName)";
-    OS_VERSION="$(sw_vers -productVersion)";
-    NAME_STRING="${OS_TYPE} ${OS_VERSION}";
-elif [ -f /etc/os-release ]; then
-    . /etc/os-release
-    OS_TYPE="${ID}";
-    NAME_STRING="${PRETTY_NAME}";
-fi;
-# Use the provider environment variable
-# group does not support the provider switch.
+set -euo pipefail
+
+# =========================================================================
+# setup_voxdev.sh — OpenVox dev environment
 #
-VAGRANT_DEFAULT_PROVIDER="virtualbox";
-VALID_OPTIONS=":hp:"
+# Usage:
+#   ./setup_voxdev.sh -p virtualbox          # Full setup
+#   ./setup_voxdev.sh -s                     # Show VM status
+#   ./setup_voxdev.sh -d -p virtualbox       # Destroy VMs
+#   ./setup_voxdev.sh -q -p virtualbox       # Quick run (skip provisioning)
+#
+# Features:
+#   - Dynamic interface detection (no hardcoded eth1)
+#   - Pre-flight checks (plugins, provider, network)
+#   - Polling cert detection instead of fixed sleep
+#   - --status, --destroy, --quick flags
+#   - Vagrantfile.local.rb override support
+#   - Elapsed time reporting
+# =========================================================================
 
-VOX_SERVER_IP="";
-VOX_SERVER_NAME="vox_server";
-VOX_SERVER_HOST_NAME="vox-server";
-VOX_CLIENT_NAME="vox_client";
-VOX_CLIENT_HOST_NAME="vox-client";
-WAIT_TIME=30;
-WAIT_TIME_CLIENT=30;
-declare -a valid_providers=("virtualbox" "vmware_fusion" "vmware_desktop" "libvirt");
-VAGRANT=$(which vagrant);
-display_help() {
-    echo "setup_voxdev.sh [h] [p provider]";
-    echo "-h - display this message";
-    echo "-p - provider (virtualbox, vmware_fusion, vmware_desktop, libvirt)."
-};
+# ── Helpers ───────────────────────────────────────────────────────────────
 
-while getopts "${VALID_OPTIONS}" cur_opt;
-do
-    case ${cur_opt} in
-	 h)
-	     display_help;
-	     exit_status=2;
-	     break;
-	   ;;
-	\?)
-	    echo "Invalid option: -$OPTARG" >&2
-	    exit_status=1
-	    break
-	    ;;
-	p)
-	    VAGRANT_DEFAULT_PROVIDER="$OPTARG";
-	    ;;
-       :)
-	   echo "Option -$OPTARG requires an argument." >&2
-	   exit_status=1
-	   break
-	   ;;
-    esac;
-done;
-shift $((OPTIND - 1));
-if [ -n "${VAGRANT}" ]  && [ ${exit_status} -eq 0 ]; then
-    pattern="(^| )($VAGRANT_DEFAULT_PROVIDER)( |$)";
-    provider_valid=1;
-    if [[ " ${valid_providers[@]} " =~ $pattern ]]; then
-	echo "[INFO] Using provider: ${VAGRANT_DEFAULT_PROVIDER}" 1>&2;
-	export VAGRANT_DEFAULT_PROVIDER;
-	provider_valid=0;
+TMP_FILES=()
+
+info()  { echo "[INFO]  $*" >&2; }
+warn()  { echo "[WARN]  $*" >&2; }
+error() { echo "[ERROR] $*" >&2; }
+
+cleanup() {
+    for f in "${TMP_FILES[@]}"; do
+        rm -f "$f"
+    done
+}
+trap cleanup EXIT
+
+mktempfile() {
+    local f
+    f=$(mktemp) || { error "mktemp failed"; exit 1; }
+    TMP_FILES+=("$f")
+    echo "$f"
+}
+
+# ── Configuration ─────────────────────────────────────────────────────────
+
+VOX_SERVER_NAME="vox_server"
+VOX_SERVER_HOST_NAME="vox-server"
+VOX_CLIENT_NAME="vox_client"
+VOX_CLIENT_HOST_NAME="vox-client"
+WAIT_TIME=30
+WAIT_TIME_CLIENT=30
+VALID_PROVIDERS=(virtualbox vmware_fusion vmware_desktop libvirt)
+
+# ── Argument parsing ──────────────────────────────────────────────────────
+
+PROVIDER="virtualbox"
+DO_STATUS=0
+DO_DESTROY=0
+DO_QUICK=0
+
+usage() {
+    echo "Usage: setup_voxdev.sh [options]"
+    echo ""
+    echo "  -h            Display this message"
+    echo "  -p provider   Provider: virtualbox, vmware_fusion, vmware_desktop, libvirt"
+    echo "  -s            Show VM status and exit"
+    echo "  -d            Destroy all VMs and exit"
+    echo "  -q            Quick run — skip provisioning (VMs must already be up)"
+    exit 0
+}
+
+while getopts ":hp:sdq" opt; do
+    case $opt in
+        h) usage ;;
+        p) PROVIDER="$OPTARG" ;;
+        s) DO_STATUS=1 ;;
+        d) DO_DESTROY=1 ;;
+        q) DO_QUICK=1 ;;
+        :) error "Option -$OPTARG requires an argument."; exit 1 ;;
+        \?) error "Invalid option: -$OPTARG"; exit 1 ;;
+    esac
+done
+
+# ── Validate prerequisites ─────────────────────────────────────────────────
+
+VAGRANT=$(command -v vagrant) || { error "vagrant command not found."; exit 1; }
+
+provider_valid=1
+for p in "${VALID_PROVIDERS[@]}"; do
+    if [[ "$p" == "$PROVIDER" ]]; then
+        provider_valid=0
+        break
+    fi
+done
+if (( provider_valid != 0 )); then
+    error "Provider '$PROVIDER' is not valid/supported."
+    exit 1
+fi
+
+export VAGRANT_DEFAULT_PROVIDER=$PROVIDER
+
+# ── Change to correct directory for libvirt ───────────────────────────────
+
+if [[ "$PROVIDER" == "libvirt" ]]; then
+    if [[ -d libvirt ]]; then
+        pushd libvirt > /dev/null
     else
-	echo "[ERROR] Provider: '$VAGRANT_DEFAULT_PROVIDER' is not valid/supported." 1>&2;
-    fi;
-    if [ "${VAGRANT_DEFAULT_PROVIDER}" == "libvirt" ]; then
-       cd libvirt;
-    fi;
-    if [ ${provider_valid} -eq 0 ]; then
-       ${VAGRANT} group up voxdevelopment;
-       VOX_SERVER_IP=$(${VAGRANT} ssh ${VOX_SERVER_NAME} -- ip -4 addr show eth1 | grep inet | awk '{print $2}' | cut -d/ -f1);
-       if [ -n "${VOX_SERVER_IP}" ]; then
-	   VOX_CLIENT_IP=$(${VAGRANT} ssh ${VOX_CLIENT_NAME} -- ip -4 addr show eth1 | grep inet | awk '{print $2}' | cut -d/ -f1);
-	   echo "[INFO] vox server host only ip address: ${VOX_SERVER_IP}" 1>&2;
-	   tmp_file="$(mktemp)";
-	   case "${VAGRANT_DEFAULT_PROVIDER}" in
-	       virtualbox|libvirt)
-		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} puppet\\\n${VOX_CLIENT_IP} ${VOX_CLIENT_HOST_NAME}\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
-		   ;;
-	       vmware_fusion)
-		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} puppet\\\n${VOX_CLIENT_IP} ${VOX_CLIENT_HOST_NAME}\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
-		   ;;
-	       *)
-		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} puppet\\\n${VOX_CLIENT_IP} ${VOX_CLIENT_HOST_NAME}\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
-		   ;;
-	   esac;
-	   ${VAGRANT} scp "${tmp_file}" ${VOX_SERVER_NAME}:./configure_hosts.sh;
-	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "chmod a+x ./configure_hosts.sh";
-	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "sudo ./configure_hosts.sh";
-	   rm -f "${tmp_file}";
-	   tmp_file="$(mktemp)";
-	   # Configure Client
-	   VOX_SERVER_DOMAIN_NAME="${VOX_SERVER_HOST_NAME}";
-	   #
-	   # VMware Fusion and virtualbox hand internal DNS and hosts names differently.
-	   #
-	   case "${VAGRANT_DEFAULT_PROVIDER}" in
-	       virtualbox|libvirt)
-		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} ${VOX_SERVER_HOST_NAME} puppet\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
-		   ;;
-	       vmware_fusion)
-		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} ${VOX_SERVER_HOST_NAME} puppet ${VOX_SERVER_HOST_NAME}.localdomain\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
-		   VOX_SERVER_DOMAIN_NAME="${VOX_SERVER_HOST_NAME}.localdomain";
-		   ;;
-	       *)
-		   printf "#!/usr/bin/env bash\nprintf \"${VOX_SERVER_IP} ${VOX_SERVER_HOST_NAME} puppet\\\n\" >> /etc/hosts\n" >> "${tmp_file}";
-		   ;;
-	   esac;
-	   ${VAGRANT} scp "${tmp_file}" ${VOX_CLIENT_NAME}:./configure_hosts.sh;
-	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "chmod a+x ./configure_hosts.sh";
-	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "sudo ./configure_hosts.sh";
-	   rm -f "${tmp_file}";
-	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "sudo puppet config set server ${VOX_SERVER_DOMAIN_NAME} --section agent";
-	   # Restart the puppet agent service so that it requests a certificate.
-	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "sudo systemctl restart puppet;"
-	   echo "[INFO] Wait ${WAIT_TIME} seconds for client system to contact server." 1>&2;
-	   sleep ${WAIT_TIME};
-	   echo "[INFO] Checking Server for cert siging request." 1>&2;
-	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "sudo puppetserver ca list --all";
-	   ${VAGRANT} ssh ${VOX_SERVER_NAME} -c "sudo puppetserver ca sign --all";
-	   echo "[INFO] Wait ${WAIT_TIME_CLIENT} seconds for client system to sync with server." 1>&2;
-	   sleep ${WAIT_TIME_CLIENT};
-	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "sudo puppet agent --test";
-	   echo "[INFO] Checking that emacs is installed." 1>&2;
-	   ${VAGRANT} ssh ${VOX_CLIENT_NAME} -c "which emacs";
-	   echo "[INFO] The development environment is now ready to use." 1>&2;
-	   exit_status=0;
-       else
-	   echo "[ERROR] Unable to locate vox server host only ip address." 1>&2;
-       fi;
-    fi;
+        error "libvirt/ directory not found."
+        exit 1
+    fi
+fi
+
+restore_dir() {
+    if [[ "$PROVIDER" == "libvirt" ]]; then
+        popd > /dev/null 2>&1 || true
+    fi
+}
+trap 'cleanup; restore_dir' EXIT
+
+# ── --status: show VM state and exit ──────────────────────────────────────
+
+if (( DO_STATUS )); then
+    info "VM status:"
+    $VAGRANT status
+    exit 0
+fi
+
+# ── --destroy: tear down VMs and exit ─────────────────────────────────────
+
+if (( DO_DESTROY )); then
+    info "Destroying all VMs..."
+    $VAGRANT destroy -f || { error "Destroy failed."; exit 1; }
+    info "VMs destroyed."
+    exit 0
+fi
+
+# ── Pre-flight checks ─────────────────────────────────────────────────────
+
+info "Using provider: $PROVIDER"
+
+check_plugin() {
+    local plugin="$1"
+    if ! $VAGRANT plugin list 2>/dev/null | grep -q "$plugin"; then
+        error "Required Vagrant plugin not installed: $plugin"
+        error "Install with: vagrant plugin install $plugin"
+        exit 1
+    fi
+}
+
+info "Running pre-flight checks..."
+
+# Common plugins
+check_plugin vagrant-scp
+check_plugin vagrant-group
+
+# Provider-specific checks
+case "$PROVIDER" in
+    virtualbox)
+        if ! command -v VBoxManage &>/dev/null; then
+            error "VirtualBox not found. Install from https://www.virtualbox.org/"
+            exit 1
+        fi
+        # Check if OpenVox0 host-only network exists
+        if VBoxManage list hostonlynets 2>/dev/null | grep -q "OpenVox0"; then
+            info "  Host-only network 'OpenVox0' found."
+        else
+            warn "  Host-only network 'OpenVox0' not found in VirtualBox."
+            warn "  Create it: VirtualBox → File → Host Network Manager → Create"
+            warn "  Name it 'OpenVox0' with DHCP enabled."
+        fi
+        ;;
+    vmware_fusion|vmware_desktop)
+        check_plugin vagrant-vmware-desktop
+        if ! command -v vmrun &>/dev/null; then
+            error "VMware Fusion not found. Install from https://www.vmware.com/"
+            exit 1
+        fi
+        ;;
+    libvirt)
+        check_plugin vagrant-libvirt
+        if ! command -v virsh &>/dev/null; then
+            error "libvirt not found. Install libvirt and virt-manager."
+            exit 1
+        fi
+        ;;
+esac
+
+info "Pre-flight checks passed."
+
+# ── Track elapsed time ────────────────────────────────────────────────────
+
+start_time=$SECONDS
+
+# ── Bring up VMs (skip if --quick) ────────────────────────────────────────
+
+if (( DO_QUICK )); then
+    info "Quick mode — skipping provisioning. VMs must already be running."
 else
-if [ ${exit_status} -ne 2 ]; then
-    echo "[ERROR] vagrant command not found." 1>&2;
-fi;
-fi;
-if [ ${exit_status} -eq 2 ]; then
-    exit_status=0;
-fi;
-exit ${exit_status};
+    info "Bringing up VMs via 'vagrant group up voxdevelopment'..."
+    $VAGRANT group up voxdevelopment || {
+        error "Failed to bring up VMs. Check 'vagrant status' for details."
+        exit 1
+    }
+fi
+
+# ── Discover private network IPs dynamically ───────────────────────────────
+
+get_private_ip() {
+    local vm_name="$1"
+    local tmp output default_iface ip
+
+    tmp=$(mktempfile)
+    {
+        printf '%s\n' '#!/usr/bin/env bash'
+        printf '%s\n' '# Find the default-route interface (the one after "dev")'
+        printf '%s\n' 'default_iface=""'
+        printf '%s\n' 'while read -r _ _ _ _ iface _; do default_iface="$iface"; break; done < <(ip -4 route show default)'
+        printf '%s\n' 'echo "DEFAULT:$default_iface"'
+        printf '%s\n' '# Find first non-lo, non-default interface with an IPv4 address'
+        printf '%s\n' 'ip -4 -o addr show | while read -r _ iface _ addr _; do'
+        printf '%s\n' '  [[ "$iface" == "lo" ]] && continue'
+        printf '%s\n' '  [[ "$iface" == "$default_iface" ]] && continue'
+        printf '%s\n' '  echo "IP:${addr%/*}"'
+        printf '%s\n' '  break'
+        printf '%s\n' 'done'
+    } > "$tmp"
+
+    $VAGRANT scp "$tmp" "${vm_name}:./_get_ip.sh" > /dev/null 2>&1 || {
+        error "scp to $vm_name failed. Is the VM running?"
+        exit 1
+    }
+
+    output=$($VAGRANT ssh "$vm_name" -c "bash ./_get_ip.sh" 2>/dev/null) || {
+        error "Failed to run IP detection on $vm_name"
+        exit 1
+    }
+    $VAGRANT ssh "$vm_name" -c "rm -f ./_get_ip.sh" > /dev/null 2>&1 || true
+
+    default_iface="${output#*DEFAULT:}"
+    default_iface="${default_iface%%$'\n'*}"
+    ip="${output#*IP:}"
+    ip="${ip%%$'\n'*}"
+
+    if [[ -z "$default_iface" ]]; then
+        error "Failed to determine default-route interface on $vm_name"
+        exit 1
+    fi
+
+    info "  $vm_name default-route interface: $default_iface"
+
+    if [[ -z "$ip" ]]; then
+        error "No private-interface IP found on $vm_name (only default route and lo detected)"
+        exit 1
+    fi
+
+    echo "$ip"
+}
+
+VOX_SERVER_IP=$(get_private_ip "$VOX_SERVER_NAME")
+VOX_CLIENT_IP=$(get_private_ip "$VOX_CLIENT_NAME")
+
+info "vox server private IP: $VOX_SERVER_IP"
+info "vox client private IP: $VOX_CLIENT_IP"
+
+# ── Configure /etc/hosts on both VMs ──────────────────────────────────────
+
+configure_server_hosts() {
+    local tmp
+    tmp=$(mktempfile)
+
+    case "$PROVIDER" in
+        virtualbox|libvirt|vmware_fusion|vmware_desktop|*)
+            printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s puppet\n%s %s\nHOSTS\n' \
+                "$VOX_SERVER_IP" "$VOX_CLIENT_IP" "$VOX_CLIENT_HOST_NAME" > "$tmp"
+            ;;
+    esac
+
+    info "Uploading hosts script to ${VOX_SERVER_NAME}..."
+    $VAGRANT scp "$tmp" "${VOX_SERVER_NAME}:./configure_hosts.sh" || {
+        error "scp to server failed."
+        exit 1
+    }
+    $VAGRANT ssh "$VOX_SERVER_NAME" -c "chmod a+x ./configure_hosts.sh" || true
+    $VAGRANT ssh "$VOX_SERVER_NAME" -c "sudo ./configure_hosts.sh" || {
+        error "Failed to configure /etc/hosts on server."
+        exit 1
+    }
+}
+
+configure_client_hosts() {
+    local tmp domain
+    tmp=$(mktempfile)
+    domain="$VOX_SERVER_HOST_NAME"
+
+    case "$PROVIDER" in
+        virtualbox|libvirt|vmware_desktop|*)
+            printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s %s puppet\nHOSTS\n' \
+                "$VOX_SERVER_IP" "$VOX_SERVER_HOST_NAME" > "$tmp"
+            ;;
+        vmware_fusion)
+            printf '#!/usr/bin/env bash\ncat >> /etc/hosts <<HOSTS\n%s %s puppet %s.localdomain\nHOSTS\n' \
+                "$VOX_SERVER_IP" "$VOX_SERVER_HOST_NAME" "$VOX_SERVER_HOST_NAME" > "$tmp"
+            domain="${VOX_SERVER_HOST_NAME}.localdomain"
+            ;;
+    esac
+
+    info "Uploading hosts script to ${VOX_CLIENT_NAME}..."
+    $VAGRANT scp "$tmp" "${VOX_CLIENT_NAME}:./configure_hosts.sh" || {
+        error "scp to client failed."
+        exit 1
+    }
+    $VAGRANT ssh "$VOX_CLIENT_NAME" -c "chmod a+x ./configure_hosts.sh" || true
+    $VAGRANT ssh "$VOX_CLIENT_NAME" -c "sudo ./configure_hosts.sh" || {
+        error "Failed to configure /etc/hosts on client."
+        exit 1
+    }
+
+    echo "$domain"
+}
+
+configure_server_hosts
+VOX_SERVER_DOMAIN_NAME=$(configure_client_hosts)
+info "Server domain name used by client: $VOX_SERVER_DOMAIN_NAME"
+
+# ── Configure puppet agent ─────────────────────────────────────────────────
+
+info "Configuring puppet agent to use server: ${VOX_SERVER_DOMAIN_NAME}..."
+$VAGRANT ssh "$VOX_CLIENT_NAME" -c \
+    "sudo puppet config set server ${VOX_SERVER_DOMAIN_NAME} --section agent" || {
+    error "Failed to configure puppet agent server setting."
+    exit 1
+}
+
+info "Restarting puppet agent to trigger certificate request..."
+$VAGRANT ssh "$VOX_CLIENT_NAME" -c "sudo systemctl restart puppet" || {
+    error "Failed to restart puppet agent service."
+    exit 1
+}
+
+# ── Wait for certificate request (polling, not fixed sleep) ────────────────
+
+info "Waiting for client certificate request to appear on server..."
+waited=0
+max_wait=$WAIT_TIME
+poll_interval=5
+cert_output=""
+
+while (( waited < max_wait )); do
+    cert_output=$($VAGRANT ssh "$VOX_SERVER_NAME" -c \
+        "sudo puppetserver ca list --all" 2>&1) || true
+    if [[ "$cert_output" == *"$VOX_CLIENT_HOST_NAME"* ]]; then
+        info "Certificate request detected after ${waited}s."
+        break
+    fi
+    sleep "$poll_interval"
+    (( waited += poll_interval ))
+done
+
+if (( waited >= max_wait )); then
+    warn "No certificate request from $VOX_CLIENT_HOST_NAME detected within ${max_wait}s."
+    warn "Continuing anyway — you may need to sign manually."
+fi
+
+info "Current certificate status:"
+$VAGRANT ssh "$VOX_SERVER_NAME" -c "sudo puppetserver ca list --all" || true
+
+info "Signing all pending certificate requests..."
+$VAGRANT ssh "$VOX_SERVER_NAME" -c "sudo puppetserver ca sign --all" || {
+    warn "Certificate signing returned non-zero (may have nothing to sign)."
+}
+
+# ── Wait for client to sync ────────────────────────────────────────────────
+
+info "Waiting ${WAIT_TIME_CLIENT}s for client to sync with server..."
+sleep "$WAIT_TIME_CLIENT"
+
+# ── Test puppet agent ─────────────────────────────────────────────────────
+
+info "Running 'puppet agent --test' on client..."
+set +e
+$VAGRANT ssh "$VOX_CLIENT_NAME" -c "sudo puppet agent --test"
+agent_rc=$?
+set -e
+if (( agent_rc != 0 && agent_rc != 2 )); then
+    error "Puppet agent test failed (exit code: $agent_rc)."
+    exit 1
+fi
+
+# ── Verify manifest applied ───────────────────────────────────────────────
+
+info "Verifying manifest was applied..."
+$VAGRANT ssh "$VOX_CLIENT_NAME" -c "which emacs && systemctl is-active systemd-timesyncd && cat /etc/motd" || {
+    error "Manifest verification failed."
+    exit 1
+}
+
+# ── Done ──────────────────────────────────────────────────────────────────
+
+elapsed=$(( SECONDS - start_time ))
+printf -v elapsed_fmt '%dm %ds' $(( elapsed / 60 )) $(( elapsed % 60 ))
+info "The development environment is now ready to use. (elapsed: ${elapsed_fmt})"
