@@ -36,6 +36,7 @@ Vagrant.configure("2") do |config|
     # Reconfigure the system to apply the new settings
 
     server_config.vm.provision "shell", inline: <<-SHELL
+      export DEBIAN_FRONTEND=noninteractive
       apt-get update
       wget https://apt.voxpupuli.org/openvox8-release-ubuntu24.04.deb
       dpkg -i ./openvox8-release-ubuntu24.04.deb
@@ -79,6 +80,7 @@ Vagrant.configure("2") do |config|
     client_config.vm.network "private_network",type: "dhcp" ,libvirt__network_name: "OpenVox0",adapter:2
     client_config.vm.synced_folder ".","/vagrant",disabled: true
     client_config.vm.provision "shell", inline: <<-SHELL
+      export DEBIAN_FRONTEND=noninteractive
       apt-get update
       wget https://apt.voxpupuli.org/openvox8-release-ubuntu24.04.deb
       dpkg -i ./openvox8-release-ubuntu24.04.deb
@@ -99,5 +101,9 @@ Vagrant.configure("2") do |config|
       "vox_client",
     ],
   }
+
+  # Load user overrides from Vagrantfile.local if present.
+  local_file = File.join(File.dirname(__FILE__), 'Vagrantfile.local')
+  eval File.read(local_file) if File.exist?(local_file)
 
 end

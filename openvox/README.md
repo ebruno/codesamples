@@ -34,40 +34,91 @@ Look for the following lines:
 
 Not have a network name defined will also work on MacOS 26 if desired.
 
-## Convenience Script
-A convenience script is provided.
+## Convenience Scripts
 
- * setup_voxdev.sh
+Three scripts are provided — Bash, Zsh, and PowerShell — with identical behavior:
+
+| Script | Platform |
+|--------|----------|
+| `setup_voxdev.sh` | Linux, macOS (Bash) |
+| `setup_voxdev.zsh` | macOS (Zsh) |
+| `setup_voxdev.ps1` | Windows, macOS, Linux (PowerShell) |
+
+### Usage
 
 ```bash
 ./setup_voxdev.sh -h
 ```
 ```text
-setup_voxdev.sh [h] [p provider]
--h   Display this message
--p   Provider (virtualbox, vmware_fusion, vmware_desktop, libvirt)
+Usage: setup_voxdev.sh [options]
+
+  -h            Display this message
+  -p provider   Provider: virtualbox, vmware_fusion, vmware_desktop, libvirt
+  -s            Show VM status and exit
+  -d            Destroy all VMs and exit
+  -q            Quick run — skip provisioning (VMs must already be up)
 ```
 
- The script does the following:
+### What the script does
 
-  * Creates the VM's
-  * Installs openvox
-  * Configures the server and client to communicate.
-  * Registers the client
-  * Runs a puppet agent test to verify the manifest that installs emacs-nox works.
+  * **Pre-flight checks** — validates Vagrant plugins, provider, and host-only network before starting
+  * **Creates VMs** — two Ubuntu 24.04 nodes (vox-server + vox-client)
+  * **Installs OpenVox** — server on vox-server, agent on vox-client
+  * **Dynamic IP detection** — finds the private network interface (no hardcoded eth1)
+  * **Configures networking** — /etc/hosts entries for server↔client communication
+  * **Registers the client** — restarts puppet agent, polls for cert request, signs certificate
+  * **Applies manifest** — installs emacs-nox, enables systemd-timesyncd (NTP), writes /etc/motd
+  * **Verifies** — confirms emacs is installed, systemd-timesyncd is active, motd is correct
+  * **Reports elapsed time** — total runtime shown at the end
 
-A PowerShell version exists:
+### Run time comparison
 
-  * `setup_voxdev.ps1`
-  
-  The script has been tested on MacOS 26 and Windows 11
-  
-  The powershell script was created from setup\_vox.sh using [CodingFleet](https://codingfleet.com/code-converter/powershell/)
-  The conversion only needed a few changes due to string and Vagrant issues,
-  which I would not expect the converter to handle when running under Windows 11.
-  On MacOS 26 it work without any modifications.
-  
-  The script should work on Linux but has not been tested at this point.
+| Mode | Command | What it does | Time |
+|------|---------|-------------|------|
+| Full setup | `./setup_voxdev.sh -p virtualbox` | Create VMs, install, configure, apply, verify | ~8 min |
+| Quick mode | `./setup_voxdev.sh -q -p virtualbox` | Re-configure and re-apply on running VMs | ~50 sec |
+| Status | `./setup_voxdev.sh -s` | Show VM state | < 1 sec |
+| Destroy | `./setup_voxdev.sh -d -p virtualbox` | Tear down VMs | ~5 sec |
+
+### Manifest verification
+
+After `puppet agent --test` completes, the script verifies all three resources
+from the sample manifest:
+
+```bash
+$ vagrant ssh vox_client -c "which emacs && systemctl is-active systemd-timesyncd && cat /etc/motd"
+/usr/bin/emacs
+active
+============================================
+Welcome to vox-client
+Managed by OpenVox server: vox-server
+OS: Debian 24.04
+============================================
+```
+
+The sample manifest (`puppet/manifests/vox-client/manifests/install.pp`)
+demonstrates three resource types and key Puppet concepts:
+
+| Resource | Type | Concept demonstrated |
+|----------|------|---------------------|
+| `emacs-nox` | `package` | Basic package installation |
+| `systemd-timesyncd` | `service` | Built-in systemd service management (`ensure => running`, `enable => true`), no extra package needed |
+| `/etc/motd` | `file` | File content management, Facter variable interpolation (`${facts['fqdn']}`) |
+
+`systemd-timesyncd` was chosen intentionally — it's Ubuntu's built-in NTP
+client, requiring no extra package. OpenVox uses TLS certificates with
+time-based validity: if server and agent clocks drift, certificate validation
+fails. Ensuring time sync via Puppet demonstrates a real operational requirement.
+
+The scripts have been tested on:
+
+| Host | OS | Provider | Script |
+|------|----|----------|--------|
+| M4 MacMini | macOS 26 | virtualbox | bash, zsh, ps1 |
+| M4 MacMini | macOS 26 | vmware\_fusion | bash, zsh (see VMware note below) |
+| Shuttle i9-9900 | Debian 13 | libvirt | bash |
+| Shuttle i9-9900 | Fedora 43 | libvirt | bash |
+| MSI i7 laptop | Windows 11 | virtualbox | ps1 |
 
 ## Install vagrant and required plugins
 It is recommended you install vagrant from the Hashicorp repositories.
@@ -104,6 +155,33 @@ Note for vagrant-libvirt you may need to install additional packages.
 
 
 
+## HCP Vagrant Deprecation Notice
+
+HashiCorp is deprecating **HCP Vagrant** (the hosted box registry at `vagrantcloud.com`)
+with end of operations on **December 31, 2026**. After this date, Vagrant boxes such as
+`bento/ubuntu-24.04` will no longer be downloadable from the public registry.
+
+See: [Deprecation of HCP Vagrant](https://developer.hashicorp.com/hcp/docs/vagrant/hcp-vagrant-eol)
+
+**Impact on this project:** The `osbox.yml` file references `bento/ubuntu-24.04` from the
+public registry. After the shutdown, new users (or clean setups) will need an alternative
+box source.
+
+**Mitigation options:**
+
+1. **Pre-download the box** before Dec 31, 2026:
+   ```bash
+   vagrant box add bento/ubuntu-24.04 --box-version 202508.03.0
+   ```
+   Once downloaded, Vagrant uses the local cached copy and will not need the registry.
+
+2. **Watch the Bento project** for their new hosting location:
+   [github.com/chef/bento](https://github.com/chef/bento) — the Bento maintainers will likely
+   announce an alternative registry before the shutdown.
+
+3. **Use a local box file** by updating `osbox.yml` to point to a local `.box` file or a
+   self-hosted URL.
+
 ## Create Client and Server (VirtualBox / VMware Fusion)
 
 Synced folders are not needed and are disabled.
@@ -127,7 +205,7 @@ Required networks will be automatically created by Vagrant file.
 On the host machines the user account that created
 the environment was a member of the following groups:
 
-  * kvm docker libvirt
+  * kvm libvirt
 
 Messages that start with following can be ignored.
 
@@ -188,3 +266,94 @@ Messages that start with following can be ignored.
 
  * [OpenVox Installation](https://voxpupuli.org/openvox/install/)
    Links to Debian, RedHat, Windows and MacOS families can be found here.
+
+ * [HCP Vagrant Deprecation](https://developer.hashicorp.com/hcp/docs/vagrant/hcp-vagrant-eol)
+   HashiCorp is shutting down the hosted Vagrant box registry. End of operations: December 31, 2026.
+
+## Appendix: Building a Vagrant Box from an ISO
+
+If the `bento/ubuntu-24.04` box becomes unavailable (see HCP Deprecation above),
+you can build your own Vagrant box from an Ubuntu ISO.
+
+### Option A: Use Packer (recommended)
+
+[Packer](https://www.packer.io/) automates the full build. The Bento project's
+Packer templates produce the exact same box this project uses:
+
+```bash
+# Clone the Bento repository
+git clone https://github.com/chef/bento.git
+cd bento
+
+# Build the Ubuntu 24.04 box for VirtualBox
+packer build -only=virtualbox-iso.default ubuntu-24.04-amd64.pkr.hcl
+```
+
+This produces a `.box` file you can use:
+```bash
+vagrant box add ubuntu-24.04 ./builds/ubuntu-24.04.virtualbox.box
+```
+
+Then update `osbox.yml`:
+```yaml
+box_name: ubuntu-24.04
+box_version: "0"
+```
+
+### Option B: Manual build
+
+1. **Create a VM in VirtualBox** from the
+   [Ubuntu 24.04 Server ISO](https://releases.ubuntu.com/24.04/) and complete the installation.
+
+2. **Configure the VM for Vagrant** (run inside the VM after install):
+   ```bash
+   # Create the vagrant user with passwordless sudo
+   sudo useradd -m -s /bin/bash vagrant
+   sudo usermod -aG sudo vagrant
+   echo 'vagrant ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/vagrant
+   sudo chmod 440 /etc/sudoers.d/vagrant
+
+   # Add Vagrant's insecure public key for SSH
+   sudo mkdir -p /home/vagrant/.ssh
+   sudo curl -o /home/vagrant/.ssh/authorized_keys \
+     https://raw.githubusercontent.com/hashicorp/vagrant/main/keys/vagrant.pub
+   sudo chmod 700 /home/vagrant/.ssh
+   sudo chmod 600 /home/vagrant/.ssh/authorized_keys
+   sudo chown -R vagrant:vagrant /home/vagrant/.ssh
+
+   # Install OpenSSH server and VirtualBox Guest Additions
+   sudo apt-get update
+   sudo apt-get install -y openssh-server virtualbox-guest-additions-iso
+   ```
+
+3. **Shut down the VM**, then package it:
+   ```bash
+   vagrant package --base "<VirtualBox-VM-Name>" --output ubuntu-24.04.box
+   vagrant box add ubuntu-24.04 ./ubuntu-24.04.box
+   ```
+
+The resulting box works identically to `bento/ubuntu-24.04` — the setup scripts
+in this project will provision it with OpenVox as usual.
+
+## Customizing the Vagrant Environment
+
+Drop a `Vagrantfile.local` (or `libvirt/Vagrantfile.local` for libvirt) in the
+project directory to override settings without modifying the main Vagrantfile:
+
+```ruby
+# Vagrantfile.local — example: increase memory for VMware
+Vagrant.configure("2") do |config|
+  config.vm.provider "vmware" do |provider|
+    provider.memory = 8192
+  end
+end
+```
+
+The file is loaded automatically if it exists. Use this for provider-specific
+tweaks (memory, CPUs, network settings) or adding custom provisioners.
+
+## Class Curriculum
+
+A complete 16-slide, ~35-minute class curriculum is available in
+[CLASS.md](CLASS.md) — covering OpenVox concepts, live demos, and
+hands-on exercises using this project.
