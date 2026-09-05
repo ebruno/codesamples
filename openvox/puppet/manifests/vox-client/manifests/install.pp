@@ -30,7 +30,7 @@ file { '/etc/motd':
   ensure  => file,
   content => @("MOTD")
     ============================================
-    Welcome to ${facts['networking']['fqdn']}
+    Welcome to ${facts['fqdn']}
     Managed by OpenVox server: vox-server
     OS: ${facts['os']['family']} ${facts['os']['release']['full']}
     ============================================

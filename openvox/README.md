@@ -9,7 +9,7 @@ This has been tested on the following configurations:
 
 | Host                     | OS         | Provider                   |  Guest OS     | OpenVox |
 |:-------------------------|:-----------|:---------------------------|:--------------|:--------|
-| M4 MacMini               | MacOS 26   | virtualbox, vmware\_fusion | Ubuntu 24.04  | 8.11.0  |
+| M4 MacMini               | MacOS 26   | virtualbox, vmware\_desktop | Ubuntu 24.04  | 8.11.0  |
 | Shuttle Cube i9-9900 CPU | Debian 13  | libvirt                    | Ubuntu 24.04  | 8.11.0  |
 | Shuttle Cube i9-9900 CPU | Fedora 43  | libvirt                    | Ubuntu 24.04  | 8.11.0  |
 | MSI icore i7 laptop      | Windows 11 | virtualbox                 | Ubuntu 24.04  | 8.11.0  |
@@ -53,10 +53,11 @@ Three scripts are provided — Bash, Zsh, and PowerShell — with identical beha
 Usage: setup_voxdev.sh [options]
 
   -h            Display this message
-  -p provider   Provider: virtualbox, vmware_fusion, vmware_desktop, libvirt
+  -p provider   Provider: virtualbox, vmware_desktop, libvirt
   -s            Show VM status and exit
   -d            Destroy all VMs and exit
   -q            Quick run — skip provisioning (VMs must already be up)
+  -g            Show VMware VM GUI windows (vmware_desktop only)
 ```
 
 ### What the script does
@@ -115,7 +116,7 @@ The scripts have been tested on:
 | Host | OS | Provider | Script |
 |------|----|----------|--------|
 | M4 MacMini | macOS 26 | virtualbox | bash, zsh, ps1 |
-| M4 MacMini | macOS 26 | vmware\_fusion | bash, zsh (see VMware note below) |
+| M4 MacMini | macOS 26 | vmware\_desktop | bash, zsh (see VMware note below) |
 | Shuttle i9-9900 | Debian 13 | libvirt | bash |
 | Shuttle i9-9900 | Fedora 43 | libvirt | bash |
 | MSI i7 laptop | Windows 11 | virtualbox | ps1 |
@@ -133,6 +134,12 @@ The following vagrant plugins are needed:
   * vagrant-scp
   * vagrant-group
   * vagrant-vmware-desktop (M4 MacMini or Mac's)
+
+On macOS, the VMware provider also requires the Vagrant VMware utility:
+
+```bash
+brew install --cask vagrant-vmware-utility
+```
   * vagrant-libvirt (Systems running libvirt/qemu)
 
 Note for vagrant-libvirt you may need to install additional packages.
@@ -343,7 +350,7 @@ project directory to override settings without modifying the main Vagrantfile:
 ```ruby
 # Vagrantfile.local — example: increase memory for VMware
 Vagrant.configure("2") do |config|
-  config.vm.provider "vmware" do |provider|
+  config.vm.provider "vmware_desktop" do |provider|
     provider.memory = 8192
   end
 end
@@ -351,6 +358,22 @@ end
 
 The file is loaded automatically if it exists. Use this for provider-specific
 tweaks (memory, CPUs, network settings) or adding custom provisioners.
+
+## VMware Provider Known Issues
+
+There is a known Vagrant/VMware Fusion issue where VMs may remain visible
+in the VMware Fusion GUI after running `vagrant destroy`. This is a
+Vagrant-VMware integration limitation -- the `.vmx` files and Vagrant state
+are properly removed, but Fusion's inventory may retain stale entries.
+
+The setup scripts will clean Fusion's `vmInventory` and preferences files
+on destroy, but a VMware Fusion restart may be needed to refresh the GUI.
+
+**Recommendations:**
+- Use headless mode (the default -- omit `-g`) to avoid the GUI issue entirely.
+  VMs run as background processes without appearing in the Fusion library.
+- If you use GUI mode (`-g`), manually remove any leftover VMs from the
+  VMware Fusion Virtual Machine Library after running `-d`.
 
 ## Class Curriculum
 
