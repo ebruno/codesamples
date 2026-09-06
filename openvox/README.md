@@ -116,7 +116,7 @@ The scripts have been tested on:
 | Host | OS | Provider | Script |
 |------|----|----------|--------|
 | M4 MacMini | macOS 26 | virtualbox | bash, zsh, ps1 |
-| M4 MacMini | macOS 26 | vmware\_desktop | bash, zsh (see VMware note below) |
+| M4 MacMini | macOS 26 | vmware\_desktop | bash, zsh |
 | Shuttle i9-9900 | Debian 13 | libvirt | bash |
 | Shuttle i9-9900 | Fedora 43 | libvirt | bash |
 | MSI i7 laptop | Windows 11 | virtualbox | ps1 |
@@ -133,13 +133,19 @@ The following vagrant plugins are needed:
 
   * vagrant-scp
   * vagrant-group
-  * vagrant-vmware-desktop (M4 MacMini or Mac's)
+  * vagrant-vmware-desktop (macOS, Windows, Linux — see note below)
 
 On macOS, the VMware provider also requires the Vagrant VMware utility:
 
 ```bash
 brew install --cask vagrant-vmware-utility
 ```
+
+**Note:** `vagrant-vmware-desktop` is a unified plugin that works with all
+VMware desktop products: **Fusion** (macOS), **Workstation Pro/Player**
+(Windows, Linux). However, this project has only been tested and is supported
+on **macOS with VMware Fusion**.
+
   * vagrant-libvirt (Systems running libvirt/qemu)
 
 Note for vagrant-libvirt you may need to install additional packages.
@@ -361,19 +367,24 @@ tweaks (memory, CPUs, network settings) or adding custom provisioners.
 
 ## VMware Provider Known Issues
 
-There is a known Vagrant/VMware Fusion issue where VMs may remain visible
-in the VMware Fusion GUI after running `vagrant destroy`. This is a
-Vagrant-VMware integration limitation -- the `.vmx` files and Vagrant state
-are properly removed, but Fusion's inventory may retain stale entries.
+There is a known Vagrant/VMware integration issue where VMs may remain visible
+in the VMware GUI after running `vagrant destroy`. This is a Vagrant-VMware
+integration limitation — the `.vmx` files and Vagrant state are properly removed,
+but VMware's inventory may retain stale entries.
 
-The setup scripts will clean Fusion's `vmInventory` and preferences files
-on destroy, but a VMware Fusion restart may be needed to refresh the GUI.
+The setup scripts clean VMware inventory and preferences files on destroy, but
+a VMware restart may be needed to refresh the GUI.
+
+**Note:** This project has only been tested and is supported on **macOS with
+VMware Fusion**. The `vmware_desktop` provider itself works across all VMware
+desktop products (Fusion, Workstation Pro/Player on Windows and Linux), but we
+only validate the setup scripts against Fusion.
 
 **Recommendations:**
-- Use headless mode (the default -- omit `-g`) to avoid the GUI issue entirely.
-  VMs run as background processes without appearing in the Fusion library.
-- If you use GUI mode (`-g`), manually remove any leftover VMs from the
-  VMware Fusion Virtual Machine Library after running `-d`.
+- Use headless mode (the default — omit `-g`) to avoid the GUI issue entirely.
+  VMs run as background processes without appearing in the VMware library.
+- If you use GUI mode (`-g`), manually remove any leftover VMs from the VMware
+  Virtual Machine Library after running `-d`.
 
 ## Class Curriculum
 

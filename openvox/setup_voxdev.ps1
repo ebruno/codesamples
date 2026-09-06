@@ -68,6 +68,9 @@ function Show-Help {
     Write-Host "  -d            Destroy all VMs and exit"
     Write-Host "  -q            Quick run — skip provisioning (VMs must already be up)"
     Write-Host "  -g            Show VMware VM GUI windows (vmware_desktop only)"
+    Write-Host ""
+    Write-Host "  Note: vmware_desktop works on macOS/Windows/Linux, but only"
+    Write-Host "        macOS/Fusion is tested & supported."
     exit 0
 }
 

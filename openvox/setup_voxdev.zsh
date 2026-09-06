@@ -71,6 +71,9 @@ usage() {
     print "  -d            Destroy all VMs and exit"
     print "  -q            Quick run — skip provisioning (VMs must already be up)"
     print "  -g            Show VMware VM GUI windows (vmware_desktop only)"
+    print ""
+    print "  Note: vmware_desktop works on macOS/Windows/Linux, but only"
+    print "        macOS/Fusion is tested & supported."
     exit 0
 }
 

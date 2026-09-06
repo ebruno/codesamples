@@ -68,6 +68,9 @@ usage() {
     echo "  -d            Destroy all VMs and exit"
     echo "  -q            Quick run — skip provisioning (VMs must already be up)"
     echo "  -g            Show VMware VM GUI windows (vmware_desktop only)"
+    echo ""
+    echo "  Note: vmware_desktop works on macOS/Windows/Linux, but only"
+    echo "        macOS/Fusion is tested & supported."
     exit 0
 }
 
