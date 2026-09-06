@@ -14,6 +14,8 @@ Built entirely through prompt-driven LLM development using **LM Studio Bionic** 
 
 A **circular buffer** (also called a ring buffer) is a fixed-size data structure that uses a single, pre-allocated array to store streaming data. When the buffer fills up, new data overwrites the oldest entries — hence "circular."
 
+Circular buffers first emerged in the very early 1950s, appearing independently across several early computer systems as hardware and software pioneers looked for ways to manage data streams and input/output operations efficiently.
+
 **Why use one?**
 - **Zero-allocation streaming**: No dynamic memory allocation during operation — critical for real-time systems, audio processing, and network packet handling
 - **Bounded memory usage**: Predictable memory footprint regardless of data volume
