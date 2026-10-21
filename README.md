@@ -137,7 +137,7 @@ The merge script is **idempotent** — re-run it after adding or removing sub-pr
 ## CI/CD Runners
 
 This repository supports GitLab and GitHub self-hosted runners for CI/CD.
-See **[docs/runners.md](docs/runners.md)** for full installation and configuration instructions covering:
+See **[ci/runners.md](ci/runners.md)** for full installation and configuration instructions covering:
 
 - Installing Podman or Docker CE
 - GitLab Runner setup (shell, Docker, and Podman executors)
